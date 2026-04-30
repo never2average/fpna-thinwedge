@@ -579,7 +579,7 @@ fn handle_app_exit(exit_info: AppExitInfo) -> anyhow::Result<()> {
 fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     println!();
     let cmd_str = action.command_str();
-    println!("Updating Codex via `{cmd_str}`...");
+    println!("Updating ThinWedge via `{cmd_str}`...");
 
     let status = {
         #[cfg(windows)]
@@ -614,7 +614,7 @@ fn run_update_action(action: UpdateAction) -> anyhow::Result<()> {
     if !status.success() {
         anyhow::bail!("`{cmd_str}` failed with status {status}");
     }
-    println!("\n🎉 Update ran successfully! Please restart Codex.");
+    println!("\n🎉 Update ran successfully! Please restart ThinWedge.");
     Ok(())
 }
 
@@ -630,7 +630,7 @@ fn run_update_command() -> anyhow::Result<()> {
     {
         let Some(action) = codex_tui::get_update_action() else {
             anyhow::bail!(
-                "Could not detect the Codex installation method. Please update manually: https://developers.openai.com/codex/cli/"
+                "Could not detect the ThinWedge installation method. Please update manually via the ThinWedge GitHub releases, npm package, or Homebrew formula."
             );
         };
         run_update_action(action)
@@ -1264,7 +1264,7 @@ async fn run_exec_server_command(
     let codex_self_exe = arg0_paths
         .codex_self_exe
         .clone()
-        .ok_or_else(|| anyhow::anyhow!("Codex executable path is not configured"))?;
+        .ok_or_else(|| anyhow::anyhow!("ThinWedge executable path is not configured"))?;
     let runtime_paths = codex_exec_server::ExecServerRuntimePaths::new(
         codex_self_exe,
         arg0_paths.codex_linux_sandbox_exe.clone(),
@@ -1550,7 +1550,7 @@ async fn run_interactive_tui(
         }
 
         eprintln!(
-            "WARNING: TERM is set to \"dumb\". Codex's interactive TUI may not work in this terminal."
+            "WARNING: TERM is set to \"dumb\". ThinWedge's interactive TUI may not work in this terminal."
         );
         if !confirm("Continue anyway? [y/N]: ")? {
             return Ok(AppExitInfo::fatal(
@@ -1593,7 +1593,7 @@ fn confirm(prompt: &str) -> std::io::Result<bool> {
     Ok(answer.eq_ignore_ascii_case("y") || answer.eq_ignore_ascii_case("yes"))
 }
 
-/// Build the final `TuiCli` for a `codex resume` invocation.
+/// Build the final `TuiCli` for a `thinwedge resume` invocation.
 fn finalize_resume_interactive(
     mut interactive: TuiCli,
     root_config_overrides: CliConfigOverrides,
@@ -1604,7 +1604,7 @@ fn finalize_resume_interactive(
     resume_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so resume shares the same
-    // configuration surface area as `codex` without additional flags.
+    // configuration surface area as `thinwedge` without additional flags.
     let resume_session_id = session_id;
     interactive.resume_picker = resume_session_id.is_none() && !last;
     interactive.resume_last = last;
@@ -1621,7 +1621,7 @@ fn finalize_resume_interactive(
     interactive
 }
 
-/// Build the final `TuiCli` for a `codex fork` invocation.
+/// Build the final `TuiCli` for a `thinwedge fork` invocation.
 fn finalize_fork_interactive(
     mut interactive: TuiCli,
     root_config_overrides: CliConfigOverrides,
@@ -1631,7 +1631,7 @@ fn finalize_fork_interactive(
     fork_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so fork shares the same
-    // configuration surface area as `codex` without additional flags.
+    // configuration surface area as `thinwedge` without additional flags.
     let fork_session_id = session_id;
     interactive.fork_picker = fork_session_id.is_none() && !last;
     interactive.fork_last = last;
@@ -1647,7 +1647,7 @@ fn finalize_fork_interactive(
     interactive
 }
 
-/// Merge flags provided to `codex resume`/`codex fork` so they take precedence over any
+/// Merge flags provided to `thinwedge resume`/`thinwedge fork` so they take precedence over any
 /// root-level flags. Only overrides fields explicitly set on the subcommand-scoped
 /// CLI. Also appends `-c key=value` overrides with highest precedence.
 fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli) {
