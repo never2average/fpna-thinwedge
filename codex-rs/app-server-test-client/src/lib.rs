@@ -874,20 +874,15 @@ async fn trigger_cmd_approval(
     let default_prompt =
         "Run `touch /tmp/should-trigger-approval` so I can confirm the file exists.";
     let message = user_message.unwrap_or_else(|| default_prompt.to_string());
-    send_message_v2_with_policies(
-        endpoint,
-        config_overrides,
-        message,
-        SendMessagePolicies {
-            command_name: "trigger-cmd-approval",
-            experimental_api: true,
-            approval_policy: Some(AskForApproval::OnRequest),
-            sandbox_policy: Some(SandboxPolicy::ReadOnly {
-                network_access: false,
-            }),
-            dynamic_tools,
-        },
-    )
+    send_message_v2_with_policies(endpoint, config_overrides, message, SendMessagePolicies {
+        command_name: "trigger-cmd-approval",
+        experimental_api: true,
+        approval_policy: Some(AskForApproval::OnRequest),
+        sandbox_policy: Some(SandboxPolicy::ReadOnly {
+            network_access: false,
+        }),
+        dynamic_tools,
+    })
     .await
 }
 
@@ -900,20 +895,15 @@ async fn trigger_patch_approval(
     let default_prompt =
         "Create a file named APPROVAL_DEMO.txt containing a short hello message using apply_patch.";
     let message = user_message.unwrap_or_else(|| default_prompt.to_string());
-    send_message_v2_with_policies(
-        endpoint,
-        config_overrides,
-        message,
-        SendMessagePolicies {
-            command_name: "trigger-patch-approval",
-            experimental_api: true,
-            approval_policy: Some(AskForApproval::OnRequest),
-            sandbox_policy: Some(SandboxPolicy::ReadOnly {
-                network_access: false,
-            }),
-            dynamic_tools,
-        },
-    )
+    send_message_v2_with_policies(endpoint, config_overrides, message, SendMessagePolicies {
+        command_name: "trigger-patch-approval",
+        experimental_api: true,
+        approval_policy: Some(AskForApproval::OnRequest),
+        sandbox_policy: Some(SandboxPolicy::ReadOnly {
+            network_access: false,
+        }),
+        dynamic_tools,
+    })
     .await
 }
 
@@ -1037,31 +1027,17 @@ async fn test_login(
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
-        let login_response = if device_code {
-            client.login_account_chatgpt_device_code()?
-        } else {
-            client.login_account_chatgpt()?
-        };
+        if device_code {
+            bail!("device-code login is not supported by the app-server test client");
+        }
+
+        let login_response = client.login_account_api_key("sk-test-key")?;
         println!("< account/login/start response: {login_response:?}");
         let login_id = match login_response {
-            LoginAccountResponse::Chatgpt { login_id, auth_url } => {
-                println!("Open the following URL in your browser to continue:\n{auth_url}");
-                login_id
-            }
-            LoginAccountResponse::ChatgptDeviceCode {
-                login_id,
-                verification_url,
-                user_code,
-            } => {
-                println!(
-                    "Open the following URL and enter the code to continue:\n{verification_url}\n\nCode: {user_code}"
-                );
-                login_id
-            }
-            _ => bail!("expected chatgpt login response"),
+            LoginAccountResponse::ApiKey {} => None,
         };
 
-        let completion = client.wait_for_account_login_completion(&login_id)?;
+        let completion = client.wait_for_account_login_completion(login_id.as_deref())?;
         println!("< account/login/completed notification: {completion:?}");
 
         if completion.success {
@@ -1603,21 +1579,13 @@ impl CodexClient {
         self.send_request(request, request_id, "turn/start")
     }
 
-    fn login_account_chatgpt(&mut self) -> Result<LoginAccountResponse> {
+    fn login_account_api_key(&mut self, api_key: &str) -> Result<LoginAccountResponse> {
         let request_id = self.request_id();
         let request = ClientRequest::LoginAccount {
             request_id: request_id.clone(),
-            params: codex_app_server_protocol::LoginAccountParams::Chatgpt,
-        };
-
-        self.send_request(request, request_id, "account/login/start")
-    }
-
-    fn login_account_chatgpt_device_code(&mut self) -> Result<LoginAccountResponse> {
-        let request_id = self.request_id();
-        let request = ClientRequest::LoginAccount {
-            request_id: request_id.clone(),
-            params: codex_app_server_protocol::LoginAccountParams::ChatgptDeviceCode,
+            params: codex_app_server_protocol::LoginAccountParams::ApiKey {
+                api_key: api_key.to_string(),
+            },
         };
 
         self.send_request(request, request_id, "account/login/start")
@@ -1681,7 +1649,7 @@ impl CodexClient {
 
     fn wait_for_account_login_completion(
         &mut self,
-        expected_login_id: &str,
+        expected_login_id: Option<&str>,
     ) -> Result<AccountLoginCompletedNotification> {
         loop {
             let notification = self.next_notification()?;
@@ -1689,14 +1657,16 @@ impl CodexClient {
             if let Ok(server_notification) = ServerNotification::try_from(notification) {
                 match server_notification {
                     ServerNotification::AccountLoginCompleted(completion) => {
-                        if completion.login_id.as_deref() == Some(expected_login_id) {
+                        if completion.login_id.as_deref() == expected_login_id {
                             return Ok(completion);
                         }
 
-                        println!(
-                            "[ignoring account/login/completed for unexpected login_id: {:?}]",
-                            completion.login_id
-                        );
+                        if expected_login_id.is_some() {
+                            println!(
+                                "[ignoring account/login/completed for unexpected login_id: {:?}]",
+                                completion.login_id
+                            );
+                        }
                     }
                     ServerNotification::AccountRateLimitsUpdated(snapshot) => {
                         println!("< accountRateLimitsUpdated notification: {snapshot:?}");
