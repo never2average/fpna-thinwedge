@@ -1,10 +1,10 @@
-<p align="center"><code>npm i -g @thinwedge/cli</code><br />or <code>brew install never2average/tap/thinwedge</code></p>
+<p align="center"><code>npm i -g @thinwedge/cli</code></p>
 <p align="center"><strong>ThinWedge</strong> is an FP&amp;A agent terminal that runs locally on your computer.
 <p align="center">
   <img src="./.github/codex-cli-splash.png" alt="ThinWedge terminal splash" width="80%" />
 </p>
 </br>
-ThinWedge is published from this repository for GitHub Releases, npm, and Homebrew.</p>
+ThinWedge is published from this repository for GitHub Releases and npm.</p>
 
 ---
 
@@ -12,19 +12,14 @@ ThinWedge is published from this repository for GitHub Releases, npm, and Homebr
 
 ### Installing and running ThinWedge
 
-Install globally with your preferred package manager:
+Install globally with npm:
 
 ```shell
 # Install using npm
 npm install -g @thinwedge/cli
 ```
 
-```shell
-# Install using Homebrew
-brew install never2average/tap/thinwedge
-```
-
-Then simply run `thinwedge` to get started.
+Then run `thinwedge` to get started.
 
 <details>
 <summary>You can also go to the <a href="https://github.com/never2average/fpna-thinwedge/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
