@@ -622,7 +622,7 @@ fn run_update_command() -> anyhow::Result<()> {
     {
         let Some(action) = codex_tui::get_update_action() else {
             anyhow::bail!(
-                "Could not detect the ThinWedge installation method. Please update manually via the ThinWedge GitHub releases, npm package, or Homebrew formula."
+                "Could not detect the ThinWedge installation method. Please update manually via the ThinWedge GitHub releases or npm package."
             );
         };
         run_update_action(action)
