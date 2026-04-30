@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  win: circleci/windows@5.0
+
 jobs:
   smoke:
     docker:
@@ -22,10 +25,477 @@ jobs:
             ls -la
             test -f codex-rs/Cargo.toml
 
+  tag-check:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Validate release tag
+          command: |
+            set -euo pipefail
+            test -n "${CIRCLE_TAG:-}"
+            [[ "${CIRCLE_TAG}" =~ ^rust-v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)(\.[0-9]+)?)?$ ]]
+            tag_ver="${CIRCLE_TAG#rust-v}"
+            cargo_ver="$(python3 - <<'PY'
+            from pathlib import Path
+            import re
+            text = Path('codex-rs/Cargo.toml').read_text()
+            match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.M)
+            print(match.group(1) if match else "")
+            PY
+            )"
+            if [ "${tag_ver}" != "${cargo_ver}" ]; then
+              echo "tag ${tag_ver} does not match Cargo.toml ${cargo_ver}"
+              exit 1
+            fi
+
+  build-linux-x64:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: medium
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install Linux build dependencies
+          command: |
+            set -euo pipefail
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              build-essential \
+              curl \
+              musl-tools \
+              pkg-config \
+              libcap-dev
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
+            . "$HOME/.cargo/env"
+            rustup target add x86_64-unknown-linux-musl
+            cargo --version
+      - run:
+          name: Build Linux x64 release binaries
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            cd codex-rs
+            cargo build --target x86_64-unknown-linux-musl --release \
+              --bin thinwedge \
+              --bin codex-responses-api-proxy
+      - run:
+          name: Stage Linux x64 release assets
+          command: |
+            set -euo pipefail
+            base="/tmp/circleci-release"
+            target="x86_64-unknown-linux-musl"
+            release_dir="$HOME/project/codex-rs/target/${target}/release"
+
+            mkdir -p "${base}/native/vendor/${target}/thinwedge"
+            mkdir -p "${base}/release-assets"
+
+            cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
+            tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+      - persist_to_workspace:
+          root: /tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-linux-arm64:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.medium
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install Linux Arm build dependencies
+          command: |
+            set -euo pipefail
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              build-essential \
+              curl \
+              musl-tools \
+              pkg-config \
+              libcap-dev
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
+            . "$HOME/.cargo/env"
+            rustup target add aarch64-unknown-linux-musl
+            cargo --version
+      - run:
+          name: Build Linux arm64 release binaries
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            cd codex-rs
+            cargo build --target aarch64-unknown-linux-musl --release \
+              --bin thinwedge \
+              --bin codex-responses-api-proxy
+      - run:
+          name: Stage Linux arm64 release assets
+          command: |
+            set -euo pipefail
+            base="/tmp/circleci-release"
+            target="aarch64-unknown-linux-musl"
+            release_dir="$HOME/project/codex-rs/target/${target}/release"
+
+            mkdir -p "${base}/native/vendor/${target}/thinwedge"
+            mkdir -p "${base}/release-assets"
+
+            cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
+            tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+      - persist_to_workspace:
+          root: /tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-macos:
+    macos:
+      xcode: 16.4.0
+    resource_class: m4pro.medium
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
+            . "$HOME/.cargo/env"
+            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+            cargo --version
+      - run:
+          name: Build macOS release binaries
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            cd codex-rs
+            for target in aarch64-apple-darwin x86_64-apple-darwin; do
+              cargo build --target "${target}" --release \
+                --bin thinwedge \
+                --bin codex-responses-api-proxy
+            done
+      - run:
+          name: Stage macOS release assets
+          command: |
+            set -euo pipefail
+            base="/tmp/circleci-release"
+            mkdir -p "${base}/release-assets"
+
+            for target in aarch64-apple-darwin x86_64-apple-darwin; do
+              release_dir="$HOME/project/codex-rs/target/${target}/release"
+              mkdir -p "${base}/native/vendor/${target}/thinwedge"
+              cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
+              tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
+              tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+            done
+      - persist_to_workspace:
+          root: /tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-windows:
+    executor:
+      name: win/default
+      size: medium
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Install Rust toolchain
+          shell: powershell.exe
+          command: |
+            $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+            if (-not (Test-Path (Join-Path $cargoBin "rustup.exe"))) {
+              Invoke-WebRequest -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
+              Start-Process -FilePath .\rustup-init.exe -ArgumentList "-y","--profile","minimal","--default-toolchain","1.93.0" -NoNewWindow -Wait
+            }
+            $env:Path = "$cargoBin;$env:Path"
+            rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+            cargo --version
+      - run:
+          name: Build Windows release binaries
+          shell: powershell.exe
+          command: |
+            $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+            $env:Path = "$cargoBin;$env:Path"
+            Set-Location codex-rs
+            foreach ($target in @("x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc")) {
+              cargo build --target $target --release `
+                --bin thinwedge `
+                --bin codex-responses-api-proxy `
+                --bin codex-windows-sandbox-setup `
+                --bin codex-command-runner
+            }
+      - run:
+          name: Stage Windows release assets
+          shell: powershell.exe
+          command: |
+            $base = "C:\circleci-release"
+            New-Item -ItemType Directory -Force -Path "$base\release-assets" | Out-Null
+
+            foreach ($target in @("x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc")) {
+              $releaseDir = Join-Path $HOME "project\codex-rs\target\$target\release"
+              $vendorDir = "$base\native\vendor\$target\thinwedge"
+              New-Item -ItemType Directory -Force -Path $vendorDir | Out-Null
+
+              Copy-Item "$releaseDir\thinwedge.exe" "$vendorDir\thinwedge.exe"
+              Copy-Item "$releaseDir\codex-windows-sandbox-setup.exe" "$vendorDir\codex-windows-sandbox-setup.exe"
+              Copy-Item "$releaseDir\codex-command-runner.exe" "$vendorDir\codex-command-runner.exe"
+
+              $bundleDir = "$env:TEMP\thinwedge-$target"
+              if (Test-Path $bundleDir) {
+                Remove-Item -Recurse -Force $bundleDir
+              }
+              New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
+              Copy-Item "$releaseDir\thinwedge.exe" "$bundleDir\thinwedge.exe"
+              Copy-Item "$releaseDir\codex-windows-sandbox-setup.exe" "$bundleDir\codex-windows-sandbox-setup.exe"
+              Copy-Item "$releaseDir\codex-command-runner.exe" "$bundleDir\codex-command-runner.exe"
+
+              Compress-Archive -Path "$bundleDir\*" -DestinationPath "$base\release-assets\thinwedge-$target.exe.zip" -Force
+
+              $proxyDir = "$env:TEMP\proxy-$target"
+              if (Test-Path $proxyDir) {
+                Remove-Item -Recurse -Force $proxyDir
+              }
+              New-Item -ItemType Directory -Force -Path $proxyDir | Out-Null
+              Copy-Item "$releaseDir\codex-responses-api-proxy.exe" "$proxyDir\codex-responses-api-proxy.exe"
+              Compress-Archive -Path "$proxyDir\*" -DestinationPath "$base\release-assets\codex-responses-api-proxy-$target.exe.zip" -Force
+            }
+      - persist_to_workspace:
+          root: C:\circleci-release
+          paths:
+            - native
+            - release-assets
+
+  publish-release:
+    docker:
+      - image: cimg/node:24.11
+    working_directory: ~/project
+    environment:
+      CIRCLECI_RELEASE_ROOT: /tmp/circleci-release
+    steps:
+      - checkout
+      - attach_workspace:
+          at: /tmp/circleci-release
+      - run:
+          name: Verify publish credentials
+          command: |
+            set -euo pipefail
+            test -n "${GH_TOKEN:-}" || { echo "GH_TOKEN is required"; exit 1; }
+            test -n "${NPM_TOKEN:-}" || { echo "NPM_TOKEN is required"; exit 1; }
+      - run:
+          name: Install release tooling
+          command: |
+            set -euo pipefail
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gh python3 jq
+      - run:
+          name: Prepare npm vendor tree
+          command: |
+            set -euo pipefail
+            python3 codex-cli/scripts/install_native_deps.py --component rg "${CIRCLECI_RELEASE_ROOT}/native"
+      - run:
+          name: Build npm tarballs
+          environment:
+            VERSION: << pipeline.git.tag >>
+          command: |
+            set -euo pipefail
+            version="${CIRCLE_TAG#rust-v}"
+            vendor_src="${CIRCLECI_RELEASE_ROOT}/native/vendor"
+            mkdir -p dist/npm
+            packages=(
+              thinwedge
+              thinwedge-linux-x64
+              thinwedge-linux-arm64
+              thinwedge-darwin-x64
+              thinwedge-darwin-arm64
+              thinwedge-win32-x64
+              thinwedge-win32-arm64
+            )
+
+            for package in "${packages[@]}"; do
+              staging_dir="$(mktemp -d)"
+              case "${package}" in
+                thinwedge)
+                  pack_output="dist/npm/thinwedge-cli-npm-${version}.tgz"
+                  ;;
+                *)
+                  platform="${package#thinwedge-}"
+                  pack_output="dist/npm/thinwedge-cli-npm-${platform}-${version}.tgz"
+                  ;;
+              esac
+              python3 codex-cli/scripts/build_npm_package.py \
+                --package "${package}" \
+                --release-version "${version}" \
+                --staging-dir "${staging_dir}" \
+                --pack-output "${pack_output}" \
+                --vendor-src "${vendor_src}"
+            done
+      - run:
+          name: Stage GitHub release assets
+          command: |
+            set -euo pipefail
+            cp scripts/install/install.sh dist/install.sh
+            cp scripts/install/install.ps1 dist/install.ps1
+            cp codex-rs/core/config.schema.json dist/config-schema.json
+            git log -1 --format=%B "${CIRCLE_SHA1}" > /tmp/release-notes.md
+            echo >> /tmp/release-notes.md
+      - run:
+          name: Publish GitHub release assets
+          command: |
+            set -euo pipefail
+            version="${CIRCLE_TAG#rust-v}"
+            assets=(
+              "${CIRCLECI_RELEASE_ROOT}/release-assets/"*
+              dist/npm/*
+              dist/install.sh
+              dist/install.ps1
+              dist/config-schema.json
+            )
+
+            if gh release view "${CIRCLE_TAG}" >/dev/null 2>&1; then
+              gh release upload "${CIRCLE_TAG}" "${assets[@]}" --clobber
+            else
+              gh release create "${CIRCLE_TAG}" "${assets[@]}" \
+                --title "${version}" \
+                --notes-file /tmp/release-notes.md
+            fi
+      - run:
+          name: Publish npm packages
+          command: |
+            set -euo pipefail
+            version="${CIRCLE_TAG#rust-v}"
+            prefix=""
+            if [[ "${version}" == *-alpha.* ]]; then
+              prefix="alpha-"
+              npm_tag="alpha"
+            else
+              npm_tag=""
+            fi
+
+            root_tarball="dist/npm/thinwedge-cli-npm-${version}.tgz"
+            platform_tarballs=(
+              "dist/npm/thinwedge-cli-npm-linux-x64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-linux-arm64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-darwin-x64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-darwin-arm64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-win32-x64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-win32-arm64-${version}.tgz"
+            )
+
+            tarballs=(
+              "${platform_tarballs[@]}"
+              "${root_tarball}"
+            )
+
+            for tarball in "${tarballs[@]}"; do
+              filename="$(basename "${tarball}")"
+              tag=""
+
+              case "${filename}" in
+                thinwedge-cli-npm-linux-*-"${version}".tgz|thinwedge-cli-npm-darwin-*-"${version}".tgz|thinwedge-cli-npm-win32-*-"${version}".tgz)
+                  platform="${filename#thinwedge-cli-npm-}"
+                  platform="${platform%-${version}.tgz}"
+                  tag="${prefix}${platform}"
+                  ;;
+                thinwedge-cli-npm-"${version}".tgz)
+                  tag="${npm_tag}"
+                  ;;
+              esac
+
+              publish_cmd=(npm publish "${PWD}/${tarball}")
+              if [[ -n "${tag}" ]]; then
+                publish_cmd+=(--tag "${tag}")
+              fi
+              if [[ -z "${tag}" ]]; then
+                publish_cmd+=(--access public)
+              fi
+
+              echo "+ ${publish_cmd[*]}"
+              set +e
+              publish_output="$("${publish_cmd[@]}" 2>&1)"
+              publish_status=$?
+              set -e
+              echo "${publish_output}"
+              if [[ ${publish_status} -eq 0 ]]; then
+                continue
+              fi
+              if grep -qiE "previously published|cannot publish over|version already exists" <<< "${publish_output}"; then
+                echo "Skipping already-published package version for ${filename}"
+                continue
+              fi
+              exit "${publish_status}"
+            done
+
 workflows:
-  smoke:
+  ci:
     jobs:
       - smoke:
           filters:
             tags:
-              only: /.*/
+              ignore: /.*/
+
+  release:
+    jobs:
+      - tag-check:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-linux-x64:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-linux-arm64:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-macos:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-windows:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - publish-release:
+          requires:
+            - build-linux-x64
+            - build-linux-arm64
+            - build-macos
+            - build-windows
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
