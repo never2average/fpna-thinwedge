@@ -26,13 +26,6 @@ CODEX_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
         "os": "linux",
         "cpu": "x64",
     },
-    "thinwedge-linux-arm64": {
-        "npm_name": "@never2average-does-npm/cli-linux-arm64",
-        "npm_tag": "linux-arm64",
-        "target_triple": "aarch64-unknown-linux-musl",
-        "os": "linux",
-        "cpu": "arm64",
-    },
     "thinwedge-darwin-x64": {
         "npm_name": "@never2average-does-npm/cli-darwin-x64",
         "npm_tag": "darwin-x64",
@@ -70,7 +63,6 @@ PACKAGE_EXPANSIONS: dict[str, list[str]] = {
 PACKAGE_NATIVE_COMPONENTS: dict[str, list[str]] = {
     "thinwedge": [],
     "thinwedge-linux-x64": ["thinwedge", "rg"],
-    "thinwedge-linux-arm64": ["thinwedge", "rg"],
     "thinwedge-darwin-x64": ["thinwedge", "rg"],
     "thinwedge-darwin-arm64": ["thinwedge", "rg"],
     "thinwedge-win32-x64": ["thinwedge", "rg", "codex-windows-sandbox-setup", "codex-command-runner"],
