@@ -24,7 +24,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
             sender_thread_id,
             new_thread_id: Some(spawned_thread_id),
             new_agent_nickname: Some("Robie".to_string()),
-            new_agent_role: Some("explorer".to_string()),
+            new_agent_role: Some("pricing_researcher".to_string()),
             prompt: "Explore the repo".to_string(),
             model: "gpt-5".to_string(),
             reasoning_effort: ReasoningEffortConfig::High,
@@ -40,7 +40,7 @@ async fn collab_spawn_end_shows_requested_model_and_effort() {
         .join("\n");
 
     assert!(
-        rendered.contains("Spawned Robie [explorer] (gpt-5 high)"),
+        rendered.contains("Spawned Robie [pricing_researcher] (gpt-5 high)"),
         "expected spawn line to include agent metadata and requested model, got {rendered:?}"
     );
 }
@@ -361,7 +361,7 @@ async fn live_app_server_collab_wait_items_render_history() {
     chat.set_collab_agent_metadata(
         receiver_thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
     );
     chat.set_collab_agent_metadata(
         other_receiver_thread_id,
@@ -767,7 +767,7 @@ async fn live_app_server_thread_name_update_shows_resume_hint() {
     assert_eq!(cells.len(), 1);
     let rendered = lines_to_single_string(&cells[0]);
     assert!(rendered.contains("Thread renamed to review-fix"));
-    assert!(rendered.contains("codex resume review-fix"));
+    assert!(rendered.contains("thinwedge resume review-fix"));
 }
 
 #[tokio::test]

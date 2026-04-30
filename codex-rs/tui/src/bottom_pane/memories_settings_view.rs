@@ -111,7 +111,8 @@ impl MemoriesSettingsView {
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Memories".bold()));
         header.push(Line::from(
-            "Choose how Codex uses and creates memories. Changes are saved to config.toml".dim(),
+            "Choose how ThinWedge uses and creates memories. Changes are saved to config.toml"
+                .dim(),
         ));
         header
     }
@@ -120,7 +121,7 @@ impl MemoriesSettingsView {
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Reset all memories?".bold()));
         header.push(Line::from(
-            "This clears local memory files and rollout summaries for the current Codex home."
+            "This clears local memory files and rollout summaries for the current ThinWedge home."
                 .dim(),
         ));
         header

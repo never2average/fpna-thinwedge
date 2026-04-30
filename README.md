@@ -1,58 +1,54 @@
-<p align="center"><code>npm i -g @openai/codex</code><br />or <code>brew install --cask codex</code></p>
-<p align="center"><strong>Codex CLI</strong> is a coding agent from OpenAI that runs locally on your computer.
+<p align="center"><code>npm i -g @thinwedge/cli</code><br />or <code>brew install never2average/tap/thinwedge</code></p>
+<p align="center"><strong>ThinWedge</strong> is an FP&amp;A agent terminal that runs locally on your computer.
 <p align="center">
-  <img src="https://github.com/openai/codex/blob/main/.github/codex-cli-splash.png" alt="Codex CLI splash" width="80%" />
+  <img src="./.github/codex-cli-splash.png" alt="ThinWedge terminal splash" width="80%" />
 </p>
 </br>
-If you want Codex in your code editor (VS Code, Cursor, Windsurf), <a href="https://developers.openai.com/codex/ide">install in your IDE.</a>
-</br>If you want the desktop app experience, run <code>codex app</code> or visit <a href="https://chatgpt.com/codex?app-landing-page=true">the Codex App page</a>.
-</br>If you are looking for the <em>cloud-based agent</em> from OpenAI, <strong>Codex Web</strong>, go to <a href="https://chatgpt.com/codex">chatgpt.com/codex</a>.</p>
+ThinWedge is published from this repository for GitHub Releases, npm, and Homebrew.</p>
 
 ---
 
 ## Quickstart
 
-### Installing and running Codex CLI
+### Installing and running ThinWedge
 
 Install globally with your preferred package manager:
 
 ```shell
 # Install using npm
-npm install -g @openai/codex
+npm install -g @thinwedge/cli
 ```
 
 ```shell
 # Install using Homebrew
-brew install --cask codex
+brew install never2average/tap/thinwedge
 ```
 
-Then simply run `codex` to get started.
+Then simply run `thinwedge` to get started.
 
 <details>
-<summary>You can also go to the <a href="https://github.com/openai/codex/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
+<summary>You can also go to the <a href="https://github.com/never2average/fpna-thinwedge/releases/latest">latest GitHub Release</a> and download the appropriate binary for your platform.</summary>
 
 Each GitHub Release contains many executables, but in practice, you likely want one of these:
 
 - macOS
-  - Apple Silicon/arm64: `codex-aarch64-apple-darwin.tar.gz`
-  - x86_64 (older Mac hardware): `codex-x86_64-apple-darwin.tar.gz`
+  - Apple Silicon/arm64: `thinwedge-aarch64-apple-darwin.tar.gz`
+  - x86_64 (older Mac hardware): `thinwedge-x86_64-apple-darwin.tar.gz`
 - Linux
-  - x86_64: `codex-x86_64-unknown-linux-musl.tar.gz`
-  - arm64: `codex-aarch64-unknown-linux-musl.tar.gz`
+  - x86_64: `thinwedge-x86_64-unknown-linux-musl.tar.gz`
+  - arm64: `thinwedge-aarch64-unknown-linux-musl.tar.gz`
 
-Each archive contains a single entry with the platform baked into the name (e.g., `codex-x86_64-unknown-linux-musl`), so you likely want to rename it to `codex` after extracting it.
+Each archive contains a single entry with the platform baked into the name (e.g., `thinwedge-x86_64-unknown-linux-musl`), so you likely want to rename it to `thinwedge` after extracting it.
 
 </details>
 
-### Using Codex with your ChatGPT plan
+### Using ThinWedge
 
-Run `codex` and select **Sign in with ChatGPT**. We recommend signing into your ChatGPT account to use Codex as part of your Plus, Pro, Business, Edu, or Enterprise plan. [Learn more about what's included in your ChatGPT plan](https://help.openai.com/en/articles/11369540-codex-in-chatgpt).
-
-You can also use Codex with an API key, but this requires [additional setup](https://developers.openai.com/codex/auth#sign-in-with-an-api-key).
+Run `thinwedge` and configure the API-key-based providers and local agent tooling you want to use.
 
 ## Docs
 
-- [**Codex Documentation**](https://developers.openai.com/codex)
+- [**ThinWedge Rust Workspace**](./codex-rs/README.md)
 - [**Contributing**](./docs/contributing.md)
 - [**Installing & building**](./docs/install.md)
 - [**Open source fund**](./docs/open-source-fund.md)

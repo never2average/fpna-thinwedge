@@ -74,33 +74,46 @@ async fn apply_role_returns_error_for_unknown_role() {
 }
 
 #[tokio::test]
-#[ignore = "No role requiring it for now"]
-async fn apply_explorer_role_sets_model_and_adds_session_flags_layer() {
+async fn apply_pricing_researcher_role_leaves_config_unchanged() {
     let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
+    let before = config.clone();
     let before_layers = session_flags_layer_count(&config);
 
-    apply_role_to_config(&mut config, Some("explorer"))
+    apply_role_to_config(&mut config, Some("pricing_researcher"))
         .await
-        .expect("explorer role should apply");
+        .expect("pricing role should apply");
 
-    assert_eq!(config.model.as_deref(), Some("gpt-5.4-mini"));
-    assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::Medium));
-    assert_eq!(session_flags_layer_count(&config), before_layers + 1);
+    assert_eq!(before, config);
+    assert_eq!(session_flags_layer_count(&config), before_layers);
 }
 
 #[tokio::test]
-async fn apply_empty_explorer_role_preserves_current_model_and_reasoning_effort() {
+async fn apply_moat_researcher_role_preserves_current_model_and_reasoning_effort() {
     let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
     let before_layers = session_flags_layer_count(&config);
     config.model = Some("gpt-5.4-mini".to_string());
     config.model_reasoning_effort = Some(ReasoningEffort::High);
 
-    apply_role_to_config(&mut config, Some("explorer"))
+    apply_role_to_config(&mut config, Some("moat_researcher"))
         .await
-        .expect("explorer role should apply");
+        .expect("moat role should apply");
 
     assert_eq!(config.model.as_deref(), Some("gpt-5.4-mini"));
     assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::High));
+    assert_eq!(session_flags_layer_count(&config), before_layers);
+}
+
+#[tokio::test]
+async fn apply_aws_cost_engineer_role_leaves_config_unchanged() {
+    let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
+    let before = config.clone();
+    let before_layers = session_flags_layer_count(&config);
+
+    apply_role_to_config(&mut config, Some("aws_cost_engineer"))
+        .await
+        .expect("aws cost engineer role should apply");
+
+    assert_eq!(before, config);
     assert_eq!(session_flags_layer_count(&config), before_layers);
 }
 
@@ -677,7 +690,7 @@ enabled = false
 fn spawn_tool_spec_build_deduplicates_user_defined_built_in_roles() {
     let user_defined_roles = BTreeMap::from([
         (
-            "explorer".to_string(),
+            "pricing_researcher".to_string(),
             AgentRoleConfig {
                 description: Some("user override".to_string()),
                 config_file: None,
@@ -690,9 +703,12 @@ fn spawn_tool_spec_build_deduplicates_user_defined_built_in_roles() {
     let spec = spawn_tool_spec::build(&user_defined_roles);
 
     assert!(spec.contains("researcher: no description"));
-    assert!(spec.contains("explorer: {\nuser override\n}"));
-    assert!(spec.contains("default: {\nDefault agent.\n}"));
-    assert!(!spec.contains("Explorers are fast and authoritative."));
+    assert!(spec.contains("pricing_researcher: {\nuser override\n}"));
+    assert!(spec.contains("CFO: {\nUse `CFO` as the default coordinator role."));
+    assert!(spec.contains(
+        "aws_cost_engineer: {\nUse `aws_cost_engineer` for AWS BOQs, infrastructure pricing, and service-level cost modeling."
+    ));
+    assert!(!spec.contains("Compare pricing strategies or package structures"));
 }
 
 #[test]
@@ -709,7 +725,7 @@ fn spawn_tool_spec_lists_user_defined_roles_before_built_ins() {
     let spec = spawn_tool_spec::build(&user_defined_roles);
     let user_index = spec.find("aaa: {\nfirst\n}").expect("find user role");
     let built_in_index = spec
-        .find("default: {\nDefault agent.\n}")
+        .find("CFO: {\nUse `CFO` as the default coordinator role.")
         .expect("find built-in role");
 
     assert!(user_index < built_in_index);
@@ -766,7 +782,7 @@ fn spawn_tool_spec_marks_role_locked_reasoning_effort_only() {
 }
 
 #[test]
-fn built_in_config_file_contents_resolves_explorer_only() {
+fn built_in_config_file_contents_returns_none_without_embedded_files() {
     assert_eq!(
         built_in::config_file_contents(Path::new("missing.toml")),
         None

@@ -472,7 +472,7 @@ fn codex_binary(repo_root: &Path) -> Result<PathBuf> {
         return Ok(path);
     }
 
-    let fallback = repo_root.join("codex-rs/target/debug/codex");
+    let fallback = repo_root.join("codex-rs/target/debug/thinwedge");
     anyhow::ensure!(
         fallback.is_file(),
         "codex binary is unavailable; run `cargo build -p codex-cli` first"

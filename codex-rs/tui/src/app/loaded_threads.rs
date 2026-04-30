@@ -151,11 +151,11 @@ mod tests {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: Some("Scout".to_string()),
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             }),
         );
         child.agent_nickname = Some("Scout".to_string());
-        child.agent_role = Some("explorer".to_string());
+        child.agent_role = Some("pricing_researcher".to_string());
 
         let mut grandchild = test_thread(
             grandchild_thread_id,
@@ -164,11 +164,11 @@ mod tests {
                 depth: 2,
                 agent_path: None,
                 agent_nickname: Some("Atlas".to_string()),
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             }),
         );
         grandchild.agent_nickname = Some("Atlas".to_string());
-        grandchild.agent_role = Some("worker".to_string());
+        grandchild.agent_role = Some("moat_researcher".to_string());
 
         let unrelated_child = test_thread(
             unrelated_child_id,
@@ -197,12 +197,12 @@ mod tests {
                 LoadedSubagentThread {
                     thread_id: child_thread_id,
                     agent_nickname: Some("Scout".to_string()),
-                    agent_role: Some("explorer".to_string()),
+                    agent_role: Some("pricing_researcher".to_string()),
                 },
                 LoadedSubagentThread {
                     thread_id: grandchild_thread_id,
                     agent_nickname: Some("Atlas".to_string()),
-                    agent_role: Some("worker".to_string()),
+                    agent_role: Some("moat_researcher".to_string()),
                 },
             ]
         );

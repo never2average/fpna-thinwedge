@@ -150,8 +150,23 @@ impl ModelsEndpointClient for TestModelsEndpoint {
         self.has_command_auth
     }
 
+    fn uses_bundled_catalog(&self) -> bool {
+        true
+    }
+
     async fn uses_codex_backend(&self) -> bool {
         self.uses_codex_backend
+    }
+
+    async fn supports_remote_refresh(&self) -> bool {
+        self.uses_codex_backend || self.has_command_auth
+    }
+
+    async fn cache_identity(&self) -> ModelsCacheProviderIdentity {
+        ModelsCacheProviderIdentity {
+            name: "test-provider".to_string(),
+            base_url: "https://example.test/v1".to_string(),
+        }
     }
 
     async fn list_models(
@@ -559,6 +574,10 @@ impl ModelsEndpointClient for TestAuthAwareModelsEndpoint {
         false
     }
 
+    fn uses_bundled_catalog(&self) -> bool {
+        true
+    }
+
     async fn uses_codex_backend(&self) -> bool {
         match self.auth_manager.as_ref() {
             Some(auth_manager) => auth_manager
@@ -567,6 +586,20 @@ impl ModelsEndpointClient for TestAuthAwareModelsEndpoint {
                 .as_ref()
                 .is_some_and(CodexAuth::uses_codex_backend),
             None => false,
+        }
+    }
+
+    async fn supports_remote_refresh(&self) -> bool {
+        self.auth_manager
+            .as_ref()
+            .and_then(|auth_manager| auth_manager.auth_cached())
+            .is_some()
+    }
+
+    async fn cache_identity(&self) -> ModelsCacheProviderIdentity {
+        ModelsCacheProviderIdentity {
+            name: "auth-aware-provider".to_string(),
+            base_url: "https://example.test/v1".to_string(),
         }
     }
 

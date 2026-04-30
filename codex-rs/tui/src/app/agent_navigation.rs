@@ -280,13 +280,13 @@ mod tests {
         state.upsert(
             first_agent_id,
             Some("Robie".to_string()),
-            Some("explorer".to_string()),
+            Some("pricing_researcher".to_string()),
             /*is_closed*/ false,
         );
         state.upsert(
             second_agent_id,
             Some("Bob".to_string()),
-            Some("worker".to_string()),
+            Some("moat_researcher".to_string()),
             /*is_closed*/ false,
         );
 
@@ -300,7 +300,7 @@ mod tests {
         state.upsert(
             first_agent_id,
             Some("Robie".to_string()),
-            Some("worker".to_string()),
+            Some("moat_researcher".to_string()),
             /*is_closed*/ true,
         );
 
@@ -344,7 +344,7 @@ mod tests {
 
         assert_eq!(
             state.active_agent_label(Some(first_agent_id), Some(main_thread_id)),
-            Some("Robie [explorer]".to_string())
+            Some("Robie [pricing_researcher]".to_string())
         );
         assert_eq!(
             state.active_agent_label(Some(main_thread_id), Some(main_thread_id)),

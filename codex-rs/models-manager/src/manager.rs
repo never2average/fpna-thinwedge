@@ -20,6 +20,8 @@ use tracing::Instrument as _;
 use tracing::error;
 use tracing::info;
 
+pub use super::cache::ModelsCacheProviderIdentity;
+
 const MODEL_CACHE_FILE: &str = "models_cache.json";
 const DEFAULT_MODEL_CACHE_TTL: Duration = Duration::from_secs(300);
 
@@ -33,8 +35,17 @@ pub trait ModelsEndpointClient: fmt::Debug + Send + Sync {
     /// Returns whether this provider can authenticate command-scoped requests.
     fn has_command_auth(&self) -> bool;
 
+    /// Returns whether this provider should seed and merge the bundled model catalog.
+    fn uses_bundled_catalog(&self) -> bool;
+
     /// Returns whether the currently resolved auth can use Codex backend-only models.
     async fn uses_codex_backend(&self) -> bool;
+
+    /// Returns whether this provider can currently refresh its remote model catalog.
+    async fn supports_remote_refresh(&self) -> bool;
+
+    /// Returns the provider identity used to scope on-disk cache entries.
+    async fn cache_identity(&self) -> ModelsCacheProviderIdentity;
 
     /// Fetches the latest remote model catalog and optional ETag.
     async fn list_models(
@@ -205,7 +216,11 @@ impl OpenAiModelsManager {
     ) -> Self {
         let cache_path = codex_home.join(MODEL_CACHE_FILE);
         let cache_manager = ModelsCacheManager::new(cache_path, DEFAULT_MODEL_CACHE_TTL);
-        let remote_models = load_remote_models_from_file().unwrap_or_default();
+        let remote_models = if endpoint_client.uses_bundled_catalog() {
+            load_remote_models_from_file().unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         Self {
             remote_models: RwLock::new(remote_models),
             collaboration_modes_config,
@@ -311,16 +326,17 @@ impl OpenAiModelsManager {
     async fn fetch_and_update_models(&self) -> CoreResult<()> {
         let client_version = crate::client_version_to_whole();
         let (models, etag) = self.endpoint_client.list_models(&client_version).await?;
+        let provider_identity = self.endpoint_client.cache_identity().await;
         self.apply_remote_models(models.clone()).await;
         *self.etag.write().await = etag.clone();
         self.cache_manager
-            .persist_cache(&models, etag, client_version)
+            .persist_cache(&models, etag, client_version, provider_identity)
             .await;
         Ok(())
     }
 
     async fn should_refresh_models(&self) -> bool {
-        self.endpoint_client.uses_codex_backend().await || self.endpoint_client.has_command_auth()
+        self.endpoint_client.supports_remote_refresh().await
     }
 
     async fn get_etag(&self) -> Option<String> {
@@ -329,18 +345,23 @@ impl OpenAiModelsManager {
 
     /// Replace the cached remote models and rebuild the derived presets list.
     async fn apply_remote_models(&self, models: Vec<ModelInfo>) {
-        let mut existing_models = load_remote_models_from_file().unwrap_or_default();
-        for model in models {
-            if let Some(existing_index) = existing_models
-                .iter()
-                .position(|existing| existing.slug == model.slug)
-            {
-                existing_models[existing_index] = model;
-            } else {
-                existing_models.push(model);
+        let next_models = if self.endpoint_client.uses_bundled_catalog() {
+            let mut existing_models = load_remote_models_from_file().unwrap_or_default();
+            for model in models {
+                if let Some(existing_index) = existing_models
+                    .iter()
+                    .position(|existing| existing.slug == model.slug)
+                {
+                    existing_models[existing_index] = model;
+                } else {
+                    existing_models.push(model);
+                }
             }
-        }
-        *self.remote_models.write().await = existing_models;
+            existing_models
+        } else {
+            models
+        };
+        *self.remote_models.write().await = next_models;
     }
 
     /// Attempt to satisfy the refresh from the cache when it matches the provider and TTL.
@@ -349,8 +370,6 @@ impl OpenAiModelsManager {
             codex_otel::start_global_timer("codex.remote_models.load_cache.duration_ms", &[]);
         let client_version = crate::client_version_to_whole();
         info!(client_version, "models cache: evaluating cache eligibility");
-        // TODO(celia-oai): Include provider identity in cache eligibility so switching
-        // providers does not reuse a fresh models_cache.json entry from another provider.
         let cache = match self.cache_manager.load_fresh(&client_version).await {
             Some(cache) => cache,
             None => {
@@ -358,6 +377,15 @@ impl OpenAiModelsManager {
                 return false;
             }
         };
+        let provider_identity = self.endpoint_client.cache_identity().await;
+        if cache.provider_identity.as_ref() != Some(&provider_identity) {
+            info!(
+                cache_provider_identity = ?cache.provider_identity,
+                current_provider_identity = ?provider_identity,
+                "models cache: provider identity mismatch"
+            );
+            return false;
+        }
         let models = cache.models.clone();
         *self.etag.write().await = cache.etag.clone();
         self.apply_remote_models(models.clone()).await;

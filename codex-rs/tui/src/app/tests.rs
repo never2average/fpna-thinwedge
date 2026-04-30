@@ -1261,7 +1261,7 @@ async fn open_agent_picker_preserves_cached_metadata_for_replay_threads() -> Res
     app.agent_navigation.upsert(
         thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ true,
     );
 
@@ -1272,7 +1272,7 @@ async fn open_agent_picker_preserves_cached_metadata_for_replay_threads() -> Res
         app.agent_navigation.get(&thread_id),
         Some(&AgentPickerThreadEntry {
             agent_nickname: Some("Robie".to_string()),
-            agent_role: Some("explorer".to_string()),
+            agent_role: Some("pricing_researcher".to_string()),
             is_closed: true,
         })
     );
@@ -1289,7 +1289,7 @@ async fn open_agent_picker_prunes_terminal_metadata_only_threads() -> Result<()>
     app.agent_navigation.upsert(
         thread_id,
         Some("Ghost".to_string()),
-        Some("worker".to_string()),
+        Some("moat_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -1312,7 +1312,7 @@ async fn open_agent_picker_marks_terminal_read_errors_closed() -> Result<()> {
     app.agent_navigation.upsert(
         thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -1322,7 +1322,7 @@ async fn open_agent_picker_marks_terminal_read_errors_closed() -> Result<()> {
         app.agent_navigation.get(&thread_id),
         Some(&AgentPickerThreadEntry {
             agent_nickname: Some("Robie".to_string()),
-            agent_role: Some("explorer".to_string()),
+            agent_role: Some("pricing_researcher".to_string()),
             is_closed: true,
         })
     );
@@ -1369,7 +1369,7 @@ async fn attach_live_thread_for_selection_rejects_empty_non_ephemeral_fallback_t
     app.agent_navigation.upsert(
         thread_id,
         Some("Scout".to_string()),
-        Some("worker".to_string()),
+        Some("moat_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -1399,7 +1399,7 @@ async fn attach_live_thread_for_selection_rejects_unmaterialized_fallback_thread
     app.agent_navigation.upsert(
         thread_id,
         Some("Scout".to_string()),
-        Some("worker".to_string()),
+        Some("moat_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -1423,7 +1423,7 @@ async fn should_attach_live_thread_for_selection_skips_closed_metadata_only_thre
     app.agent_navigation.upsert(
         thread_id,
         Some("Ghost".to_string()),
-        Some("worker".to_string()),
+        Some("moat_researcher".to_string()),
         /*is_closed*/ true,
     );
 
@@ -1432,7 +1432,7 @@ async fn should_attach_live_thread_for_selection_skips_closed_metadata_only_thre
     app.agent_navigation.upsert(
         thread_id,
         Some("Ghost".to_string()),
-        Some("worker".to_string()),
+        Some("moat_researcher".to_string()),
         /*is_closed*/ false,
     );
     assert!(app.should_attach_live_thread_for_selection(thread_id));
@@ -1452,7 +1452,7 @@ async fn refresh_agent_picker_thread_liveness_prunes_closed_metadata_only_thread
     app.agent_navigation.upsert(
         thread_id,
         Some("Ghost".to_string()),
-        Some("worker".to_string()),
+        Some("moat_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -2184,14 +2184,14 @@ async fn refresh_pending_thread_approvals_only_lists_inactive_threads() {
     app.agent_navigation.upsert(
         agent_thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ false,
     );
 
     app.refresh_pending_thread_approvals().await;
     assert_eq!(
         app.chat_widget.pending_thread_approvals(),
-        &["Robie [explorer]".to_string()]
+        &["Robie [pricing_researcher]".to_string()]
     );
 
     app.active_thread_id = Some(agent_thread_id);
@@ -2227,7 +2227,7 @@ async fn inactive_thread_approval_bubbles_into_active_view() -> Result<()> {
     app.agent_navigation.upsert(
         agent_thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -2245,7 +2245,7 @@ async fn inactive_thread_approval_bubbles_into_active_view() -> Result<()> {
     assert_eq!(app.chat_widget.has_active_view(), true);
     assert_eq!(
         app.chat_widget.pending_thread_approvals(),
-        &["Robie [explorer]".to_string()]
+        &["Robie [pricing_researcher]".to_string()]
     );
 
     Ok(())
@@ -2386,7 +2386,7 @@ async fn side_defers_subagent_approval_overlay_until_side_exits() -> Result<()> 
     app.agent_navigation.upsert(
         agent_thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -2404,7 +2404,7 @@ async fn side_defers_subagent_approval_overlay_until_side_exits() -> Result<()> 
     assert_eq!(app.chat_widget.has_active_view(), false);
     assert_eq!(
         app.chat_widget.pending_thread_approvals(),
-        &["Robie [explorer]".to_string()]
+        &["Robie [pricing_researcher]".to_string()]
     );
 
     app.side_threads.remove(&side_thread_id);
@@ -2677,7 +2677,7 @@ async fn inactive_thread_approval_badge_clears_after_turn_completion_notificatio
     app.agent_navigation.upsert(
         agent_thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -2693,7 +2693,7 @@ async fn inactive_thread_approval_badge_clears_after_turn_completion_notificatio
     .await?;
     assert_eq!(
         app.chat_widget.pending_thread_approvals(),
-        &["Robie [explorer]".to_string()]
+        &["Robie [pricing_researcher]".to_string()]
     );
 
     app.enqueue_thread_notification(
@@ -2787,7 +2787,7 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
                 cli_version: "0.0.0".to_string(),
                 source: codex_app_server_protocol::SessionSource::Unknown,
                 agent_nickname: Some("Robie".to_string()),
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
                 git_info: None,
                 name: Some("agent thread".to_string()),
                 turns: Vec::new(),
@@ -2817,7 +2817,7 @@ async fn inactive_thread_started_notification_initializes_replay_session() -> Re
         app.agent_navigation.get(&agent_thread_id),
         Some(&AgentPickerThreadEntry {
             agent_nickname: Some("Robie".to_string()),
-            agent_role: Some("explorer".to_string()),
+            agent_role: Some("pricing_researcher".to_string()),
             is_closed: false,
         })
     );
@@ -2868,7 +2868,7 @@ async fn inactive_thread_started_notification_preserves_primary_model_when_path_
                 cli_version: "0.0.0".to_string(),
                 source: codex_app_server_protocol::SessionSource::Unknown,
                 agent_nickname: Some("Robie".to_string()),
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
                 git_info: None,
                 name: Some("agent thread".to_string()),
                 turns: Vec::new(),
@@ -2955,7 +2955,7 @@ fn agent_picker_item_name_snapshot() {
             "{} | {}",
             format_agent_picker_item_name(
                 Some("Robie"),
-                Some("explorer"),
+                Some("pricing_researcher"),
                 /*is_primary*/ true
             ),
             thread_id
@@ -2964,7 +2964,7 @@ fn agent_picker_item_name_snapshot() {
             "{} | {}",
             format_agent_picker_item_name(
                 Some("Robie"),
-                Some("explorer"),
+                Some("pricing_researcher"),
                 /*is_primary*/ false
             ),
             thread_id
@@ -2982,7 +2982,7 @@ fn agent_picker_item_name_snapshot() {
             "{} | {}",
             format_agent_picker_item_name(
                 /*agent_nickname*/ None,
-                Some("explorer"),
+                Some("pricing_researcher"),
                 /*is_primary*/ false
             ),
             thread_id
@@ -4612,7 +4612,7 @@ async fn replace_chat_widget_reseeds_collab_agent_metadata_for_replay() {
     app.agent_navigation.upsert(
         receiver_thread_id,
         Some("Robie".to_string()),
-        Some("explorer".to_string()),
+        Some("pricing_researcher".to_string()),
         /*is_closed*/ false,
     );
 
@@ -4669,7 +4669,7 @@ async fn replace_chat_widget_reseeds_collab_agent_metadata_for_replay() {
     while let Ok(event) = app_event_rx.try_recv() {
         if let AppEvent::InsertHistoryCell(cell) = event {
             let transcript = lines_to_single_string(&cell.transcript_lines(/*width*/ 80));
-            saw_named_wait |= transcript.contains("Robie [explorer]");
+            saw_named_wait |= transcript.contains("Robie [pricing_researcher]");
         }
     }
 
@@ -5074,7 +5074,7 @@ async fn session_summary_includes_resume_hint_for_persisted_rollout() {
     );
     assert_eq!(
         summary.resume_command,
-        Some("codex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+        Some("thinwedge resume 123e4567-e89b-12d3-a456-426614174000".to_string())
     );
 }
 
@@ -5100,6 +5100,6 @@ async fn session_summary_uses_id_even_when_thread_has_name() {
     .expect("summary");
     assert_eq!(
         summary.resume_command,
-        Some("codex resume 123e4567-e89b-12d3-a456-426614174000".to_string())
+        Some("thinwedge resume 123e4567-e89b-12d3-a456-426614174000".to_string())
     );
 }
