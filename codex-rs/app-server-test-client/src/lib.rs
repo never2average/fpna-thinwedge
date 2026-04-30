@@ -1033,7 +1033,7 @@ async fn test_login(
 
         let login_response = client.login_account_api_key("sk-test-key")?;
         println!("< account/login/start response: {login_response:?}");
-        let login_id = match login_response {
+        let login_id: Option<String> = match login_response {
             LoginAccountResponse::ApiKey {} => None,
         };
 

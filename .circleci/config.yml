@@ -106,72 +106,6 @@ jobs:
             - native
             - release-assets
 
-  build-linux-arm64:
-    machine:
-      image: ubuntu-2204:current
-    resource_class: arm.medium
-    working_directory: ~/project
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v1-cargo-linux-arm64-{{ checksum "codex-rs/Cargo.lock" }}
-            - v1-cargo-linux-arm64-
-      - run:
-          name: Install Linux Arm build dependencies
-          command: |
-            set -euo pipefail
-            sudo apt-get update
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              build-essential \
-              curl \
-              musl-tools \
-              pkg-config \
-              libcap-dev
-      - run:
-          name: Install Rust toolchain
-          command: |
-            set -euo pipefail
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
-            . "$HOME/.cargo/env"
-            rustup target add aarch64-unknown-linux-musl
-            cargo --version
-      - run:
-          name: Build Linux arm64 release binaries
-          command: |
-            set -euo pipefail
-            . "$HOME/.cargo/env"
-            cd codex-rs
-            cargo build --target aarch64-unknown-linux-musl --release \
-              --bin thinwedge \
-              --bin codex-responses-api-proxy
-      - run:
-          name: Stage Linux arm64 release assets
-          command: |
-            set -euo pipefail
-            base="/tmp/circleci-release"
-            target="aarch64-unknown-linux-musl"
-            release_dir="$HOME/project/codex-rs/target/${target}/release"
-
-            mkdir -p "${base}/native/vendor/${target}/thinwedge"
-            mkdir -p "${base}/release-assets"
-
-            cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
-            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
-            tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
-      - save_cache:
-          key: v1-cargo-linux-arm64-{{ checksum "codex-rs/Cargo.lock" }}
-          paths:
-            - ~/.cargo/registry
-            - ~/.cargo/git
-            - ~/.rustup
-            - ~/project/codex-rs/target
-      - persist_to_workspace:
-          root: /tmp/circleci-release
-          paths:
-            - native
-            - release-assets
-
   build-macos:
     macos:
       xcode: 16.4.0
@@ -268,7 +202,6 @@ jobs:
             packages=(
               thinwedge
               thinwedge-linux-x64
-              thinwedge-linux-arm64
               thinwedge-darwin-x64
               thinwedge-darwin-arm64
             )
@@ -336,7 +269,6 @@ jobs:
             root_tarball="dist/npm/thinwedge-cli-npm-${version}.tgz"
             platform_tarballs=(
               "dist/npm/thinwedge-cli-npm-linux-x64-${version}.tgz"
-              "dist/npm/thinwedge-cli-npm-linux-arm64-${version}.tgz"
               "dist/npm/thinwedge-cli-npm-darwin-x64-${version}.tgz"
               "dist/npm/thinwedge-cli-npm-darwin-arm64-${version}.tgz"
             )
@@ -409,14 +341,6 @@ workflows:
               ignore: /.*/
             tags:
               only: /^rust-v.*/
-      - build-linux-arm64:
-          requires:
-            - tag-check
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^rust-v.*/
       - build-macos:
           requires:
             - tag-check
@@ -428,7 +352,6 @@ workflows:
       - publish-release:
           requires:
             - build-linux-x64
-            - build-linux-arm64
             - build-macos
           filters:
             branches:
