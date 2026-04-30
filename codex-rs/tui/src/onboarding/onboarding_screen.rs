@@ -121,8 +121,9 @@ impl OnboardingScreen {
         )));
         if show_login_screen {
             let highlighted_mode = match forced_login_method {
-                Some(ForcedLoginMethod::Api) => SignInOption::ApiKey,
-                _ => SignInOption::ChatGpt,
+                Some(ForcedLoginMethod::Api) | Some(ForcedLoginMethod::Chatgpt) | None => {
+                    SignInOption::ApiKey
+                }
             };
             if let Some(app_server_request_handle) = app_server_request_handle {
                 steps.push(Step::Auth(AuthModeWidget {
@@ -520,7 +521,7 @@ pub(crate) async fn run_onboarding_app(
                                 && onboarding_screen.steps.iter().any(|step| {
                                     if let Step::Auth(w) = step {
                                         w.sign_in_state.read().is_ok_and(|g| {
-                                            matches!(&*g, super::auth::SignInState::ChatGptSuccessMessage)
+                                            matches!(&*g, super::auth::SignInState::ApiKeyConfigured)
                                         })
                                     } else {
                                         false

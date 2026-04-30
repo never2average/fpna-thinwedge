@@ -61,10 +61,10 @@ function Get-ReleaseAssetMetadata {
         [string]$ResolvedVersion
     )
 
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/openai/codex/releases/tags/rust-v$ResolvedVersion"
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/never2average/fpna-thinwedge/releases/tags/rust-v$ResolvedVersion"
     $asset = $release.assets | Where-Object { $_.name -eq $AssetName } | Select-Object -First 1
     if ($null -eq $asset) {
-        throw "Could not find release asset $AssetName for Codex $ResolvedVersion."
+        throw "Could not find release asset $AssetName for ThinWedge $ResolvedVersion."
     }
 
     $digestMatch = [regex]::Match([string]$asset.digest, "^sha256:([0-9a-fA-F]{64})$")
@@ -86,7 +86,7 @@ function Test-ArchiveDigest {
 
     $actualDigest = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actualDigest -ne $ExpectedDigest) {
-        throw "Downloaded Codex archive checksum did not match release metadata. Expected $ExpectedDigest but got $actualDigest."
+        throw "Downloaded ThinWedge archive checksum did not match release metadata. Expected $ExpectedDigest but got $actualDigest."
     }
 }
 
@@ -154,9 +154,9 @@ function Resolve-Version {
         return $normalizedVersion
     }
 
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/openai/codex/releases/latest"
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/never2average/fpna-thinwedge/releases/latest"
     if (-not $release.tag_name) {
-        Write-Error "Failed to resolve the latest Codex release version."
+        Write-Error "Failed to resolve the latest ThinWedge release version."
         exit 1
     }
 
@@ -190,7 +190,7 @@ function Get-CurrentInstalledVersion {
         [string]$StandaloneCurrentDir
     )
 
-    $standaloneVersion = Get-VersionFromBinary -CodexPath (Join-Path $StandaloneCurrentDir "codex.exe")
+    $standaloneVersion = Get-VersionFromBinary -CodexPath (Join-Path $StandaloneCurrentDir "thinwedge.exe")
     if (-not [string]::IsNullOrWhiteSpace($standaloneVersion)) {
         return $standaloneVersion
     }
@@ -461,10 +461,10 @@ function Test-ReleaseIsComplete {
     }
 
     $expectedFiles = @(
-        "codex.exe",
-        "codex-resources\codex-command-runner.exe",
-        "codex-resources\codex-windows-sandbox-setup.exe",
-        "codex-resources\rg.exe"
+        "thinwedge.exe",
+        "thinwedge-resources\codex-command-runner.exe",
+        "thinwedge-resources\codex-windows-sandbox-setup.exe",
+        "thinwedge-resources\rg.exe"
     )
     foreach ($name in $expectedFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $ReleaseDir $name) -PathType Leaf)) {
@@ -476,7 +476,10 @@ function Test-ReleaseIsComplete {
 }
 
 function Get-ExistingCodexCommand {
-    $existing = Get-Command codex -ErrorAction SilentlyContinue
+    $existing = Get-Command thinwedge -ErrorAction SilentlyContinue
+    if ($null -eq $existing) {
+        $existing = Get-Command codex -ErrorAction SilentlyContinue
+    }
     if ($null -eq $existing) {
         return $null
     }
@@ -520,8 +523,8 @@ function Get-ConflictingInstall {
         return $null
     }
 
-    Write-Step "Detected existing $manager-managed Codex at $existingPath"
-    Write-WarningStep "Multiple managed Codex installs can be ambiguous because PATH order decides which one runs."
+    Write-Step "Detected existing $manager-managed ThinWedge at $existingPath"
+    Write-WarningStep "Multiple managed ThinWedge installs can be ambiguous because PATH order decides which one runs."
 
     return [PSCustomObject]@{
         Manager = $manager
@@ -541,21 +544,21 @@ function Maybe-HandleConflictingInstall {
     $manager = $Conflict.Manager
 
     $uninstallArgs = if ($manager -eq "bun") {
-        @("remove", "-g", "@openai/codex")
+        @("remove", "-g", "@thinwedge/cli")
     } else {
-        @("uninstall", "-g", "@openai/codex")
+        @("uninstall", "-g", "@thinwedge/cli")
     }
     $uninstallCommand = if ($manager -eq "bun") { "bun" } else { "npm" }
 
-    if (Prompt-YesNo "Uninstall the existing $manager-managed Codex now?") {
+    if (Prompt-YesNo "Uninstall the existing $manager-managed ThinWedge now?") {
         Write-Step "Running: $uninstallCommand $($uninstallArgs -join ' ')"
         try {
             & $uninstallCommand @uninstallArgs
         } catch {
-            Write-WarningStep "Failed to uninstall the existing $manager-managed Codex. Continuing with the standalone install."
+            Write-WarningStep "Failed to uninstall the existing $manager-managed ThinWedge. Continuing with the standalone install."
         }
     } else {
-        Write-WarningStep "Leaving the existing $manager-managed Codex installed. PATH order will determine which codex runs."
+        Write-WarningStep "Leaving the existing $manager-managed ThinWedge installed. PATH order will determine which thinwedge runs."
     }
 }
 
@@ -564,10 +567,10 @@ function Test-VisibleCodexCommand {
         [string]$VisibleBinDir
     )
 
-    $codexCommand = Join-Path $VisibleBinDir "codex.exe"
+    $codexCommand = Join-Path $VisibleBinDir "thinwedge.exe"
     & $codexCommand --version *> $null
     if ($LASTEXITCODE -ne 0) {
-        throw "Installed Codex command failed verification: $codexCommand --version"
+        throw "Installed ThinWedge command failed verification: $codexCommand --version"
     }
 }
 
@@ -577,7 +580,7 @@ if ($env:OS -ne "Windows_NT") {
 }
 
 if (-not [Environment]::Is64BitOperatingSystem) {
-    Write-Error "Codex requires a 64-bit version of Windows."
+    Write-Error "ThinWedge requires a 64-bit version of Windows."
     exit 1
 }
 
@@ -612,7 +615,7 @@ $releasesDir = Join-Path $standaloneRoot "releases"
 $currentDir = Join-Path $standaloneRoot "current"
 $lockPath = Join-Path $standaloneRoot "install.lock"
 
-$defaultVisibleBinDir = Join-Path $env:LOCALAPPDATA "Programs\OpenAI\Codex\bin"
+$defaultVisibleBinDir = Join-Path $env:LOCALAPPDATA "Programs\ThinWedge\bin"
 if ([string]::IsNullOrWhiteSpace($env:CODEX_INSTALL_DIR)) {
     $visibleBinDir = $defaultVisibleBinDir
 } else {
@@ -625,11 +628,11 @@ $releaseName = "$resolvedVersion-$target"
 $releaseDir = Join-Path $releasesDir $releaseName
 
 if (-not [string]::IsNullOrWhiteSpace($currentVersion) -and $currentVersion -ne $resolvedVersion) {
-    Write-Step "Updating Codex CLI from $currentVersion to $resolvedVersion"
+    Write-Step "Updating ThinWedge CLI from $currentVersion to $resolvedVersion"
 } elseif (-not [string]::IsNullOrWhiteSpace($currentVersion)) {
-    Write-Step "Updating Codex CLI"
+    Write-Step "Updating ThinWedge CLI"
 } else {
-    Write-Step "Installing Codex CLI"
+    Write-Step "Installing ThinWedge CLI"
 }
 Write-Step "Detected platform: $platformLabel"
 Write-Step "Resolved version: $resolvedVersion"
@@ -637,8 +640,8 @@ Write-Step "Resolved version: $resolvedVersion"
 $conflictingInstall = Get-ConflictingInstall -VisibleBinDir $visibleBinDir
 $oldStandaloneBackup = $null
 
-$packageAsset = "codex-npm-$npmTag-$resolvedVersion.tgz"
-$tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("codex-install-" + [System.Guid]::NewGuid().ToString("N"))
+$packageAsset = "thinwedge-cli-npm-$npmTag-$resolvedVersion.tgz"
+$tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ("thinwedge-install-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 
 try {
@@ -655,7 +658,7 @@ try {
             $stagingDir = Join-Path $releasesDir ".staging.$releaseName.$PID"
             $assetMetadata = Get-ReleaseAssetMetadata -AssetName $packageAsset -ResolvedVersion $resolvedVersion
 
-            Write-Step "Downloading Codex CLI"
+            Write-Step "Downloading ThinWedge CLI"
             Invoke-WebRequest -Uri $assetMetadata.Url -OutFile $archivePath
             Test-ArchiveDigest -ArchivePath $archivePath -ExpectedDigest $assetMetadata.Sha256
 
@@ -668,13 +671,13 @@ try {
             tar -xzf $archivePath -C $extractDir
 
             $vendorRoot = Join-Path $extractDir "package/vendor/$target"
-            $resourcesDir = Join-Path $stagingDir "codex-resources"
+            $resourcesDir = Join-Path $stagingDir "thinwedge-resources"
             New-Item -ItemType Directory -Force -Path $resourcesDir | Out-Null
             $copyMap = @{
-                "codex/codex.exe" = "codex.exe"
-                "codex/codex-command-runner.exe" = "codex-resources\codex-command-runner.exe"
-                "codex/codex-windows-sandbox-setup.exe" = "codex-resources\codex-windows-sandbox-setup.exe"
-                "path/rg.exe" = "codex-resources\rg.exe"
+                "thinwedge/thinwedge.exe" = "thinwedge.exe"
+                "thinwedge/codex-command-runner.exe" = "thinwedge-resources\codex-command-runner.exe"
+                "thinwedge/codex-windows-sandbox-setup.exe" = "thinwedge-resources\codex-windows-sandbox-setup.exe"
+                "path/rg.exe" = "thinwedge-resources\rg.exe"
             }
 
             foreach ($relativeSource in $copyMap.Keys) {
@@ -739,12 +742,12 @@ if (-not (Path-Contains -PathValue $env:Path -Entry $visibleBinDir)) {
     }
 }
 
-Write-Step "Current PowerShell session: codex"
-Write-Step "Future PowerShell windows: open a new PowerShell window and run: codex"
-Write-Host "Codex CLI $resolvedVersion installed successfully."
+Write-Step "Current PowerShell session: thinwedge"
+Write-Step "Future PowerShell windows: open a new PowerShell window and run: thinwedge"
+Write-Host "ThinWedge CLI $resolvedVersion installed successfully."
 
-$codexCommand = Join-Path $visibleBinDir "codex.exe"
-if (Prompt-YesNo "Start Codex now?") {
-    Write-Step "Launching Codex"
+$codexCommand = Join-Path $visibleBinDir "thinwedge.exe"
+if (Prompt-YesNo "Start ThinWedge now?") {
+    Write-Step "Launching ThinWedge"
     & $codexCommand
 }

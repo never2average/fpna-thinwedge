@@ -26,7 +26,7 @@ use std::sync::LazyLock;
 use toml::Value as TomlValue;
 
 /// The role name used when a caller omits `agent_type`.
-pub const DEFAULT_ROLE_NAME: &str = "default";
+pub const DEFAULT_ROLE_NAME: &str = "CFO";
 const AGENT_TYPE_UNAVAILABLE_ERROR: &str = "agent type is currently not available";
 
 /// Applies a named role layer to `config` while preserving caller-owned model selection.
@@ -359,58 +359,74 @@ mod built_in {
                 (
                     DEFAULT_ROLE_NAME.to_string(),
                     AgentRoleConfig {
-                        description: Some("Default agent.".to_string()),
-                        config_file: None,
-                        nickname_candidates: None,
-                    }
-                ),
-                (
-                    "explorer".to_string(),
-                    AgentRoleConfig {
-                        description: Some(r#"Use `explorer` for specific codebase questions.
-Explorers are fast and authoritative.
-They must be used to ask specific, well-scoped questions on the codebase.
-Rules:
-- In order to avoid redundant work, you should avoid exploring the same problem that explorers have already covered. Typically, you should trust the explorer results without additional verification. You are still allowed to inspect the code yourself to gain the needed context!
-- You are encouraged to spawn up multiple explorers in parallel when you have multiple distinct questions to ask about the codebase that can be answered independently. This allows you to get more information faster without waiting for one question to finish before asking the next. While waiting for the explorer results, you can continue working on other local tasks that do not depend on those results. This parallelism is a key advantage of delegation, so use it whenever you have multiple questions to ask.
-- Reuse existing explorers for related questions."#.to_string()),
-                        config_file: Some("explorer.toml".to_string().parse().unwrap_or_default()),
-                        nickname_candidates: None,
-                    }
-                ),
-                (
-                    "worker".to_string(),
-                    AgentRoleConfig {
-                        description: Some(r#"Use for execution and production work.
+                        description: Some(r#"Use `CFO` as the default coordinator role.
 Typical tasks:
-- Implement part of a feature
-- Fix tests or bugs
-- Split large refactors into independent chunks
+- Coordinate work across specialized agents
+- Synthesize research into a recommendation
+- Decide which model, job, or environment should be used next
 Rules:
-- Explicitly assign **ownership** of the task (files / responsibility). When the subtask involves code changes, you should clearly specify which files or modules the worker is responsible for. This helps avoid merge conflicts and ensures accountability. For example, you can say "Worker 1 is responsible for updating the authentication module, while Worker 2 will handle the database layer." By defining clear ownership, you can delegate more effectively and reduce coordination overhead.
-- Always tell workers they are **not alone in the codebase**, and they should not revert the edits made by others, and they should adjust their implementation to accommodate the changes made by others. This is important because there may be multiple workers making changes in parallel, and they need to be aware of each other's work to avoid conflicts and ensure a cohesive final product."#.to_string()),
+- Prefer delegating specialized pricing and moat analysis to the corresponding research roles.
+- Delegate detailed AWS BOQ and infrastructure-pricing work to `aws_cost_engineer` when the task becomes service- or SKU-specific.
+- Keep the working plan coherent across delegated work.
+- Treat GPU-backed research tools as available capabilities, but stay focused on orchestration and synthesis by default.
+- Use `llmcosts.*` when you need first-party LLM market context from Artificial Analysis.
+- Use `infracosts.*` when you need first-party AWS infrastructure cost context."#.to_string()),
                         config_file: None,
                         nickname_candidates: None,
                     }
                 ),
-                // Awaiter is temp removed
-//                 (
-//                     "awaiter".to_string(),
-//                     AgentRoleConfig {
-//                         description: Some(r#"Use an `awaiter` agent EVERY TIME you must run a command that will take some very long time.
-// This includes, but not only:
-// * testing
-// * monitoring of a long running process
-// * explicit ask to wait for something
-//
-// Rules:
-// - When an awaiter is running, you can work on something else. If you need to wait for its completion, use the largest possible timeout.
-// - Be patient with the `awaiter`.
-// - Do not use an awaiter for every compilation/test if it won't take time. Only use if for long running commands.
-// - Close the awaiter when you're done with it."#.to_string()),
-//                         config_file: Some("awaiter.toml".to_string().parse().unwrap_or_default()),
-//                     }
-//                 )
+                (
+                    "pricing_researcher".to_string(),
+                    AgentRoleConfig {
+                        description: Some(r#"Use `pricing_researcher` for pricing analysis and model-driven market research.
+Typical tasks:
+- Compare pricing strategies or package structures
+- Run or inspect statistical model jobs related to pricing
+- Summarize pricing-specific evidence for the coordinating agent
+Rules:
+- Use `statisticalmodels.*` for job submission and eval inspection when structured evidence is needed.
+- Use `trainingenvironments.*` when the task depends on a role-approved training environment.
+- Use `llmcosts.*` for LLM market pricing/speed context from Artificial Analysis.
+- Use `infracosts.*` when pricing conclusions depend on AWS infrastructure cost structure.
+- Report findings crisply enough that `CFO` can compare them against other inputs."#.to_string()),
+                        config_file: None,
+                        nickname_candidates: None,
+                    }
+                ),
+                (
+                    "moat_researcher".to_string(),
+                    AgentRoleConfig {
+                        description: Some(r#"Use `moat_researcher` for competitive, strategic, and defensibility analysis.
+Typical tasks:
+- Analyze differentiation, defensibility, and strategic positioning
+- Run or inspect statistical model jobs related to moat research
+- Summarize moat-specific evidence for the coordinating agent
+Rules:
+- Use `statisticalmodels.*` for job submission and eval inspection when structured evidence is needed.
+- Use `trainingenvironments.*` when the task depends on a role-approved training environment.
+- Use `llmcosts.*` for LLM market pricing/speed context from Artificial Analysis.
+- Use `infracosts.*` when moat conclusions depend on AWS infrastructure cost structure.
+- Surface strategic conclusions and supporting evidence clearly enough for `CFO` to act on them."#.to_string()),
+                        config_file: None,
+                        nickname_candidates: None,
+                    }
+                ),
+                (
+                    "aws_cost_engineer".to_string(),
+                    AgentRoleConfig {
+                        description: Some(r#"Use `aws_cost_engineer` for AWS BOQs, infrastructure pricing, and service-level cost modeling.
+Typical tasks:
+- Build or inspect AWS line-item cost assumptions across EC2, storage, networking, and managed services
+- Translate product requirements into AWS Price List filters and SKU-level pricing context
+- Summarize cost drivers, tradeoffs, and uncertainties for the coordinating agent
+Rules:
+- Use `infracosts.*` as the primary first-party tool namespace for AWS pricing work.
+- Use `llmcosts.*` only when the AWS analysis also depends on LLM market pricing context.
+- Prefer precise service and filter assumptions over vague blended estimates."#.to_string()),
+                        config_file: None,
+                        nickname_candidates: None,
+                    }
+                ),
             ])
         });
         &CONFIG
@@ -418,13 +434,8 @@ Rules:
 
     /// Resolves a built-in role `config_file` path to embedded content.
     pub(super) fn config_file_contents(path: &Path) -> Option<&'static str> {
-        const EXPLORER: &str = include_str!("builtins/explorer.toml");
-        const AWAITER: &str = include_str!("builtins/awaiter.toml");
-        match path.to_str()? {
-            "explorer.toml" => Some(EXPLORER),
-            "awaiter.toml" => Some(AWAITER),
-            _ => None,
-        }
+        let _ = path;
+        None
     }
 }
 

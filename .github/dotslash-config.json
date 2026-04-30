@@ -1,30 +1,30 @@
 {
   "outputs": {
-    "codex": {
+    "thinwedge": {
       "platforms": {
         "macos-aarch64": {
-          "regex": "^codex-aarch64-apple-darwin\\.zst$",
-          "path": "codex"
+          "regex": "^thinwedge-aarch64-apple-darwin\\.zst$",
+          "path": "thinwedge"
         },
         "macos-x86_64": {
-          "regex": "^codex-x86_64-apple-darwin\\.zst$",
-          "path": "codex"
+          "regex": "^thinwedge-x86_64-apple-darwin\\.zst$",
+          "path": "thinwedge"
         },
         "linux-x86_64": {
-          "regex": "^codex-x86_64-unknown-linux-musl\\.zst$",
-          "path": "codex"
+          "regex": "^thinwedge-x86_64-unknown-linux-musl\\.zst$",
+          "path": "thinwedge"
         },
         "linux-aarch64": {
-          "regex": "^codex-aarch64-unknown-linux-musl\\.zst$",
-          "path": "codex"
+          "regex": "^thinwedge-aarch64-unknown-linux-musl\\.zst$",
+          "path": "thinwedge"
         },
         "windows-x86_64": {
-          "regex": "^codex-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex.exe"
+          "regex": "^thinwedge-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex.exe"
+          "regex": "^thinwedge-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge.exe"
         }
       }
     },

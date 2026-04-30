@@ -163,7 +163,7 @@ pub(super) async fn make_chatwidget_manual(
         frame_requester: FrameRequester::test_dummy(),
         has_input_focus: true,
         enhanced_keys_supported: false,
-        placeholder_text: "Ask Codex to do anything".to_string(),
+        placeholder_text: "Ask ThinWedge to do anything".to_string(),
         disable_paste_burst: false,
         animations_enabled: cfg.animations,
         skills: None,
@@ -264,7 +264,7 @@ pub(super) async fn make_chatwidget_manual(
         thread_name: None,
         thread_rename_block_message: None,
         active_side_conversation: false,
-        normal_placeholder_text: "Ask Codex to do anything".to_string(),
+        normal_placeholder_text: "Ask ThinWedge to do anything".to_string(),
         side_placeholder_text: "Check recently modified functions for compatibility".to_string(),
         forked_from: None,
         interrupted_turn_notice_mode: InterruptedTurnNoticeMode::Default,
@@ -927,7 +927,7 @@ pub(super) fn plugins_test_curated_marketplace(
         name: OPENAI_CURATED_MARKETPLACE_NAME.to_string(),
         path: Some(plugins_test_absolute_path("marketplaces/chatgpt")),
         interface: Some(MarketplaceInterface {
-            display_name: Some("ChatGPT Marketplace".to_string()),
+            display_name: Some("Marketplace".to_string()),
         }),
         plugins,
     }
@@ -972,7 +972,7 @@ pub(super) fn plugins_test_detail(
     mcp_servers: &[&str],
 ) -> PluginDetail {
     PluginDetail {
-        marketplace_name: "ChatGPT Marketplace".to_string(),
+        marketplace_name: "Marketplace".to_string(),
         marketplace_path: Some(plugins_test_absolute_path("marketplaces/chatgpt")),
         summary,
         description: description.map(str::to_string),

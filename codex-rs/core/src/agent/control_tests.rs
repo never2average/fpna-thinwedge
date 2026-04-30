@@ -1177,7 +1177,7 @@ async fn spawn_child_completion_notifies_parent_history() {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1213,7 +1213,7 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
                 depth: 1,
                 agent_path: Some(worker_path.clone()),
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1229,7 +1229,7 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
                 depth: 2,
                 agent_path: Some(tester_path.clone()),
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1327,7 +1327,7 @@ async fn multi_agent_v2_completion_queues_message_for_direct_parent() {
             depth: 2,
             agent_path: Some(tester_path.clone()),
             agent_nickname: None,
-            agent_role: Some("explorer".to_string()),
+            agent_role: Some("pricing_researcher".to_string()),
         })),
         tester_path.to_string(),
         Some(tester_path.clone()),
@@ -1413,7 +1413,7 @@ async fn completion_watcher_notifies_parent_when_child_is_missing() {
             depth: 1,
             agent_path: None,
             agent_nickname: None,
-            agent_role: Some("explorer".to_string()),
+            agent_role: Some("pricing_researcher".to_string()),
         })),
         child_thread_id.to_string(),
         /*child_agent_path*/ None,
@@ -1456,7 +1456,7 @@ async fn spawn_thread_subagent_gets_random_nickname_in_session_source() {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1482,7 +1482,7 @@ async fn spawn_thread_subagent_gets_random_nickname_in_session_source() {
     assert_eq!(seen_parent_thread_id, parent_thread_id);
     assert_eq!(depth, 1);
     assert!(agent_nickname.is_some());
-    assert_eq!(agent_role, Some("explorer".to_string()));
+    assert_eq!(agent_role, Some("pricing_researcher".to_string()));
 }
 
 #[tokio::test]
@@ -1550,7 +1550,7 @@ async fn resume_thread_subagent_restores_stored_nickname_and_role() {
         control,
     };
     let (parent_thread_id, _parent_thread) = harness.start_thread().await;
-    let agent_path = AgentPath::from_string("/root/explorer".to_string())
+    let agent_path = AgentPath::from_string("/root/pricing_researcher".to_string())
         .expect("test agent path should be valid");
 
     let child_thread_id = harness
@@ -1563,7 +1563,7 @@ async fn resume_thread_subagent_restores_stored_nickname_and_role() {
                 depth: 1,
                 agent_path: Some(agent_path.clone()),
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1606,7 +1606,7 @@ async fn resume_thread_subagent_restores_stored_nickname_and_role() {
         loop {
             if let Ok(Some(metadata)) = state_db.get_thread(child_thread_id).await
                 && metadata.agent_nickname.is_some()
-                && metadata.agent_role.as_deref() == Some("explorer")
+                && metadata.agent_role.as_deref() == Some("pricing_researcher")
             {
                 break;
             }
@@ -1661,7 +1661,7 @@ async fn resume_thread_subagent_restores_stored_nickname_and_role() {
     assert_eq!(resumed_depth, 1);
     assert_eq!(resumed_agent_path, Some(agent_path));
     assert_eq!(resumed_nickname, Some(original_nickname));
-    assert_eq!(resumed_role, Some("explorer".to_string()));
+    assert_eq!(resumed_role, Some("pricing_researcher".to_string()));
 
     let _ = harness
         .control
@@ -1733,7 +1733,7 @@ async fn list_agent_subtree_thread_ids_includes_anonymous_and_closed_descendants
                 depth: 1,
                 agent_path: Some(worker_path.clone()),
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -1752,7 +1752,7 @@ async fn list_agent_subtree_thread_ids_includes_anonymous_and_closed_descendants
                         .expect("worker child path should be valid"),
                 ),
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -1767,7 +1767,7 @@ async fn list_agent_subtree_thread_ids_includes_anonymous_and_closed_descendants
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -1782,7 +1782,7 @@ async fn list_agent_subtree_thread_ids_includes_anonymous_and_closed_descendants
                 depth: 3,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -1857,7 +1857,7 @@ async fn shutdown_agent_tree_closes_live_descendants() {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1872,7 +1872,7 @@ async fn shutdown_agent_tree_closes_live_descendants() {
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -1942,7 +1942,7 @@ async fn shutdown_agent_tree_closes_descendants_when_started_at_child() {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -1957,7 +1957,7 @@ async fn shutdown_agent_tree_closes_descendants_when_started_at_child() {
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -2033,7 +2033,7 @@ async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -2048,7 +2048,7 @@ async fn resume_agent_from_rollout_does_not_reopen_closed_descendants() {
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -2128,7 +2128,7 @@ async fn resume_closed_child_reopens_open_descendants() {
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -2143,7 +2143,7 @@ async fn resume_closed_child_reopens_open_descendants() {
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -2225,7 +2225,7 @@ async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdo
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -2240,7 +2240,7 @@ async fn resume_agent_from_rollout_reopens_open_descendants_after_manager_shutdo
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -2316,7 +2316,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -2331,7 +2331,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await
@@ -2369,7 +2369,7 @@ async fn resume_agent_from_rollout_uses_edge_data_when_descendant_metadata_sourc
             depth: 99,
             agent_path: None,
             agent_nickname: None,
-            agent_role: Some("worker".to_string()),
+            agent_role: Some("moat_researcher".to_string()),
         }))
         .expect("stale session source should serialize");
     state_db
@@ -2447,7 +2447,7 @@ async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() 
                 depth: 1,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("explorer".to_string()),
+                agent_role: Some("pricing_researcher".to_string()),
             })),
         )
         .await
@@ -2462,7 +2462,7 @@ async fn resume_agent_from_rollout_skips_descendants_when_parent_resume_fails() 
                 depth: 2,
                 agent_path: None,
                 agent_nickname: None,
-                agent_role: Some("worker".to_string()),
+                agent_role: Some("moat_researcher".to_string()),
             })),
         )
         .await

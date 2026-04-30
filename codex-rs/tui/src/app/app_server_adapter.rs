@@ -19,8 +19,10 @@ use crate::app_server_session::app_server_rate_limit_snapshot_to_core;
 use crate::app_server_session::status_account_display_from_auth_mode;
 #[cfg(test)]
 use crate::exec_command::split_command_string;
+use crate::thinwedge_ml;
 use codex_app_server_client::AppServerEvent;
 use codex_app_server_protocol::AuthMode;
+use codex_app_server_protocol::DynamicToolCallParams;
 use codex_app_server_protocol::JSONRPCErrorError;
 use codex_app_server_protocol::ServerNotification;
 use codex_app_server_protocol::ServerRequest;
@@ -240,6 +242,12 @@ impl App {
         app_server_client: &AppServerSession,
         request: ServerRequest,
     ) {
+        if let ServerRequest::DynamicToolCall { request_id, params } = request {
+            self.handle_dynamic_tool_call_request(app_server_client, request_id, params)
+                .await;
+            return;
+        }
+
         if let Some(unsupported) = self
             .pending_app_server_requests
             .note_server_request(&request)
@@ -279,6 +287,38 @@ impl App {
             tracing::warn!("failed to enqueue app-server request: {err}");
         }
     }
+
+    async fn handle_dynamic_tool_call_request(
+        &mut self,
+        app_server_client: &AppServerSession,
+        request_id: codex_app_server_protocol::RequestId,
+        params: DynamicToolCallParams,
+    ) {
+        let thread_id = ThreadId::from_string(&params.thread_id).ok();
+        let agent_role = thread_id
+            .and_then(|thread_id| self.agent_navigation.get(&thread_id))
+            .and_then(|entry| entry.agent_role.clone());
+        let response = thinwedge_ml::handle_dynamic_tool_call(
+            self.config.codex_home.as_path(),
+            agent_role.as_deref(),
+            params,
+        )
+        .await;
+        let result = match serde_json::to_value(response) {
+            Ok(result) => result,
+            Err(err) => {
+                tracing::warn!("failed to serialize ThinWedge dynamic tool response: {err}");
+                return;
+            }
+        };
+        if let Err(err) = app_server_client
+            .resolve_server_request(request_id, result)
+            .await
+        {
+            tracing::warn!("failed to resolve ThinWedge dynamic tool request: {err}");
+        }
+    }
+
     async fn reject_app_server_request(
         &self,
         app_server_client: &AppServerSession,
@@ -319,9 +359,9 @@ fn server_request_thread_id(request: &ServerRequest) -> Option<ThreadId> {
         ServerRequest::DynamicToolCall { params, .. } => {
             ThreadId::from_string(&params.thread_id).ok()
         }
-        ServerRequest::ChatgptAuthTokensRefresh { .. }
-        | ServerRequest::ApplyPatchApproval { .. }
-        | ServerRequest::ExecCommandApproval { .. } => None,
+        ServerRequest::ApplyPatchApproval { .. } | ServerRequest::ExecCommandApproval { .. } => {
+            None
+        }
     }
 }
 

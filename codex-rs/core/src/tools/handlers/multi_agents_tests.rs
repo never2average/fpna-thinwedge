@@ -231,7 +231,7 @@ async fn spawn_agent_rejects_when_message_and_items_are_both_set() {
 }
 
 #[tokio::test]
-async fn spawn_agent_uses_explorer_role_and_preserves_approval_policy() {
+async fn spawn_agent_uses_pricing_role_and_preserves_approval_policy() {
     #[derive(Debug, Deserialize)]
     struct SpawnAgentResult {
         agent_id: String,
@@ -263,7 +263,7 @@ async fn spawn_agent_uses_explorer_role_and_preserves_approval_policy() {
         "spawn_agent",
         function_payload(json!({
             "message": "inspect this repo",
-            "agent_type": "explorer"
+            "agent_type": "pricing_researcher"
         })),
     );
     let output = SpawnAgentHandler
@@ -1749,7 +1749,7 @@ async fn spawn_agent_reapplies_runtime_sandbox_after_role_config() {
         "spawn_agent",
         function_payload(json!({
             "message": "await this command",
-            "agent_type": "explorer"
+            "agent_type": "pricing_researcher"
         })),
     );
     let output = SpawnAgentHandler

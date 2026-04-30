@@ -120,7 +120,7 @@ impl AppLinkView {
             AppLinkScreen::Link => {
                 if self.is_installed {
                     vec![
-                        "Manage on ChatGPT",
+                        "Manage app",
                         if self.is_enabled {
                             "Disable app"
                         } else {
@@ -129,7 +129,7 @@ impl AppLinkView {
                         "Back",
                     ]
                 } else {
-                    vec!["Install on ChatGPT", "Back"]
+                    vec!["Install app", "Back"]
                 }
             }
             AppLinkScreen::InstallConfirmation => vec!["I already Installed it", "Back"],
@@ -167,7 +167,7 @@ impl AppLinkView {
         self.complete = true;
     }
 
-    fn open_chatgpt_link(&mut self) {
+    fn open_app_link(&mut self) {
         self.app_event_tx.send(AppEvent::OpenUrlInBrowser {
             url: self.url.clone(),
         });
@@ -209,7 +209,7 @@ impl AppLinkView {
             match self.suggestion_type {
                 Some(AppLinkSuggestionType::Enable) => match self.screen {
                     AppLinkScreen::Link => match self.selected_action {
-                        0 => self.open_chatgpt_link(),
+                        0 => self.open_app_link(),
                         1 if self.is_installed => self.toggle_enabled(),
                         _ => self.decline_tool_suggestion(),
                     },
@@ -220,7 +220,7 @@ impl AppLinkView {
                 },
                 Some(AppLinkSuggestionType::Install) | None => match self.screen {
                     AppLinkScreen::Link => match self.selected_action {
-                        0 => self.open_chatgpt_link(),
+                        0 => self.open_app_link(),
                         _ => self.decline_tool_suggestion(),
                     },
                     AppLinkScreen::InstallConfirmation => match self.selected_action {
@@ -234,7 +234,7 @@ impl AppLinkView {
 
         match self.screen {
             AppLinkScreen::Link => match self.selected_action {
-                0 => self.open_chatgpt_link(),
+                0 => self.open_app_link(),
                 1 if self.is_installed => self.toggle_enabled(),
                 _ => self.complete = true,
             },
@@ -320,7 +320,7 @@ impl AppLinkView {
         lines.push(Line::from(""));
 
         for line in wrap(
-            "Complete app setup on ChatGPT in the browser window that just opened.",
+            "Complete app setup in the browser window that just opened.",
             usable_width,
         ) {
             lines.push(Line::from(line.into_owned()));
@@ -630,7 +630,7 @@ mod tests {
 
         assert_eq!(
             view.action_labels(),
-            vec!["Manage on ChatGPT", "Disable app", "Back"]
+            vec!["Manage app", "Disable app", "Back"]
         );
     }
 
@@ -713,7 +713,7 @@ mod tests {
 
         assert_eq!(
             view.action_labels(),
-            vec!["Manage on ChatGPT", "Enable app", "Back"]
+            vec!["Manage app", "Enable app", "Back"]
         );
     }
 

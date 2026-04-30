@@ -463,21 +463,41 @@ impl ChatgptAuth {
 }
 
 pub const OPENAI_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
+pub const OPENROUTER_API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
 pub const CODEX_API_KEY_ENV_VAR: &str = "CODEX_API_KEY";
 pub const CODEX_AGENT_IDENTITY_ENV_VAR: &str = "CODEX_AGENT_IDENTITY";
 
-pub fn read_openai_api_key_from_env() -> Option<String> {
-    env::var(OPENAI_API_KEY_ENV_VAR)
+fn read_api_key_env_var(name: &str) -> Option<String> {
+    env::var(name)
         .ok()
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
 }
 
+pub fn read_openai_api_key_from_env() -> Option<String> {
+    read_api_key_env_var(OPENAI_API_KEY_ENV_VAR)
+}
+
+pub fn read_openrouter_api_key_from_env() -> Option<String> {
+    read_api_key_env_var(OPENROUTER_API_KEY_ENV_VAR)
+}
+
+pub fn read_preferred_api_key_from_env() -> Option<String> {
+    read_openrouter_api_key_from_env().or_else(read_openai_api_key_from_env)
+}
+
+pub fn read_preferred_api_key_env_var_name() -> Option<&'static str> {
+    if read_openrouter_api_key_from_env().is_some() {
+        Some(OPENROUTER_API_KEY_ENV_VAR)
+    } else if read_openai_api_key_from_env().is_some() {
+        Some(OPENAI_API_KEY_ENV_VAR)
+    } else {
+        None
+    }
+}
+
 pub fn read_codex_api_key_from_env() -> Option<String> {
-    env::var(CODEX_API_KEY_ENV_VAR)
-        .ok()
-        .map(|value| value.trim().to_string())
-        .filter(|value| !value.is_empty())
+    read_api_key_env_var(CODEX_API_KEY_ENV_VAR)
 }
 
 pub fn read_codex_agent_identity_from_env() -> Option<String> {
@@ -728,6 +748,9 @@ async fn load_auth(
 ) -> std::io::Result<Option<CodexAuth>> {
     // API key via env var takes precedence over any other auth method.
     if enable_codex_api_key_env && let Some(api_key) = read_codex_api_key_from_env() {
+        return Ok(Some(CodexAuth::from_api_key(api_key.as_str())));
+    }
+    if enable_codex_api_key_env && let Some(api_key) = read_preferred_api_key_from_env() {
         return Ok(Some(CodexAuth::from_api_key(api_key.as_str())));
     }
 

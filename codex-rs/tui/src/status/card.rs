@@ -6,6 +6,7 @@ use crate::legacy_core::config::Config;
 use crate::version::CODEX_CLI_VERSION;
 use chrono::DateTime;
 use chrono::Local;
+use codex_model_provider_info::OPENROUTER_DEFAULT_BASE_URL;
 use codex_model_provider_info::WireApi;
 use codex_protocol::ThreadId;
 use codex_protocol::account::PlanType;
@@ -39,8 +40,6 @@ use super::rate_limits::compose_rate_limit_data;
 use super::rate_limits::compose_rate_limit_data_many;
 use super::rate_limits::format_status_limit_summary;
 use super::rate_limits::render_status_limit_progress_bar;
-use crate::wrapping::RtOptions;
-use crate::wrapping::adaptive_wrap_lines;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -554,7 +553,7 @@ impl HistoryCell for StatusHistoryCell {
         let mut lines: Vec<Line<'static>> = Vec::new();
         lines.push(Line::from(vec![
             Span::from(format!("{}>_ ", FieldFormatter::INDENT)).dim(),
-            Span::from("OpenAI Codex").bold(),
+            Span::from("ThinWedge").bold(),
             Span::from(" ").dim(),
             Span::from(format!("(v{CODEX_CLI_VERSION})")).dim(),
         ]));
@@ -570,11 +569,9 @@ impl HistoryCell for StatusHistoryCell {
                 (Some(email), Some(plan)) => format!("{email} ({plan})"),
                 (Some(email), None) => email.clone(),
                 (None, Some(plan)) => plan.clone(),
-                (None, None) => "ChatGPT".to_string(),
+                (None, None) => "Connected".to_string(),
             },
-            StatusAccountDisplay::ApiKey => {
-                "API key configured (run codex login to use ChatGPT)".to_string()
-            }
+            StatusAccountDisplay::ApiKey => "API key configured".to_string(),
         });
 
         let mut labels: Vec<String> = vec!["Model", "Directory", "Permissions", "Agents.md"]
@@ -623,23 +620,6 @@ impl HistoryCell for StatusHistoryCell {
         let formatter = FieldFormatter::from_labels(labels.iter().map(String::as_str));
         let value_width = formatter.value_width(available_inner_width);
 
-        let note_first_line = Line::from(vec![
-            Span::from("Visit ").cyan(),
-            "https://chatgpt.com/codex/settings/usage"
-                .cyan()
-                .underlined(),
-            Span::from(" for up-to-date").cyan(),
-        ]);
-        let note_second_line = Line::from(vec![
-            Span::from("information on rate limits and credits").cyan(),
-        ]);
-        let note_lines = adaptive_wrap_lines(
-            [note_first_line, note_second_line],
-            RtOptions::new(available_inner_width),
-        );
-        lines.extend(note_lines);
-        lines.push(Line::from(Vec::<Span<'static>>::new()));
-
         let mut model_spans = vec![Span::from(self.model_name.clone())];
         if !self.model_details.is_empty() {
             model_spans.push(Span::from(" (").dim());
@@ -677,10 +657,7 @@ impl HistoryCell for StatusHistoryCell {
         }
 
         lines.push(Line::from(Vec::<Span<'static>>::new()));
-        // Hide token usage only for ChatGPT subscribers
-        if !matches!(self.account, Some(StatusAccountDisplay::ChatGpt { .. })) {
-            lines.push(formatter.line("Token usage", self.token_usage_spans()));
-        }
+        lines.push(formatter.line("Token usage", self.token_usage_spans()));
 
         if let Some(spans) = self.context_window_spans() {
             lines.push(formatter.line("Context window", spans));
@@ -709,7 +686,9 @@ fn format_model_provider(config: &Config) -> Option<String> {
     };
     let base_url = provider.base_url.as_deref().and_then(sanitize_base_url);
     let is_default_openai = provider.is_openai() && base_url.is_none();
-    if is_default_openai {
+    let is_default_openrouter =
+        provider.is_openrouter() && base_url == Some(OPENROUTER_DEFAULT_BASE_URL.to_string());
+    if is_default_openai || is_default_openrouter {
         return None;
     }
 

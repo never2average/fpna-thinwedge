@@ -95,8 +95,10 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 use url::Url;
 
+mod dynamic_tool_cell;
 mod hook_cell;
 
+pub(crate) use dynamic_tool_cell::new_dynamic_tool_call;
 pub(crate) use hook_cell::HookCell;
 pub(crate) use hook_cell::new_active_hook_cell;
 pub(crate) use hook_cell::new_completed_hook_cell;
@@ -582,8 +584,10 @@ impl HistoryCell for UpdateAvailableHistoryCell {
         } else {
             line![
                 "See ",
-                "https://github.com/openai/codex".cyan().underlined(),
-                " for installation options."
+                "https://github.com/never2average/fpna-thinwedge"
+                    .cyan()
+                    .underlined(),
+                " for ThinWedge installation options."
             ]
         };
 
@@ -597,7 +601,7 @@ impl HistoryCell for UpdateAvailableHistoryCell {
             update_instruction,
             "",
             "See full release notes:",
-            "https://github.com/openai/codex/releases/latest"
+            "https://github.com/never2average/fpna-thinwedge/releases/latest"
                 .cyan()
                 .underlined(),
         ];
@@ -876,7 +880,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " codex to run ".into(),
+                    " ThinWedge to run ".into(),
                     snippet,
                     " this time".bold(),
                 ],
@@ -891,7 +895,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " codex to always run commands that start with ".into(),
+                    " ThinWedge to always run commands that start with ".into(),
                     snippet,
                 ],
             )
@@ -903,7 +907,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "approved".bold(),
-                    " codex to run ".into(),
+                    " ThinWedge to run ".into(),
                     snippet,
                     " every time this session".bold(),
                 ],
@@ -917,7 +921,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "persisted".bold(),
-                    " Codex network access to ".into(),
+                    " ThinWedge network access to ".into(),
                     Span::from(network_policy_amendment.host).dim(),
                 ],
             ),
@@ -926,7 +930,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     actor.subject().into(),
                     "denied".bold(),
-                    " codex network access to ".into(),
+                    " ThinWedge network access to ".into(),
                     Span::from(network_policy_amendment.host).dim(),
                     " and saved that rule".into(),
                 ],
@@ -938,13 +942,13 @@ pub fn new_approval_decision_cell(
                 ApprovalDecisionActor::User => vec![
                     actor.subject().into(),
                     "did not approve".bold(),
-                    " codex to run ".into(),
+                    " ThinWedge to run ".into(),
                     snippet,
                 ],
                 ApprovalDecisionActor::Guardian => vec![
                     "Request ".into(),
                     "denied".bold(),
-                    " for codex to run ".into(),
+                    " for ThinWedge to run ".into(),
                     snippet,
                 ],
             };
@@ -957,7 +961,7 @@ pub fn new_approval_decision_cell(
                 vec![
                     "Review ".into(),
                     "timed out".bold(),
-                    " before codex could run ".into(),
+                    " before ThinWedge could run ".into(),
                     snippet,
                 ],
             )
@@ -1002,7 +1006,7 @@ pub fn new_guardian_denied_patch_request(files: Vec<String>) -> Box<dyn HistoryC
     let mut summary = vec![
         "Request ".into(),
         "denied".bold(),
-        " for codex to apply ".into(),
+        " for ThinWedge to apply ".into(),
     ];
     if files.len() == 1 {
         summary.push("a patch touching ".into());
@@ -1044,7 +1048,7 @@ pub fn new_guardian_timed_out_patch_request(files: Vec<String>) -> Box<dyn Histo
     let mut summary = vec![
         "Review ".into(),
         "timed out".bold(),
-        " before codex could apply ".into(),
+        " before ThinWedge could apply ".into(),
     ];
     if files.len() == 1 {
         summary.push("a patch touching ".into());
@@ -1265,7 +1269,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/init".into(),
-                " - create an AGENTS.md file with instructions for Codex".dim(),
+                " - create an AGENTS.md file with instructions for ThinWedge".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -1275,7 +1279,7 @@ pub(crate) fn new_session_info(
             Line::from(vec![
                 "  ".into(),
                 "/permissions".into(),
-                " - choose what Codex is allowed to do".dim(),
+                " - choose what ThinWedge is allowed to do".dim(),
             ]),
             Line::from(vec![
                 "  ".into(),
@@ -1447,10 +1451,10 @@ impl HistoryCell for SessionHeaderHistoryCell {
 
         let make_row = |spans: Vec<Span<'static>>| Line::from(spans);
 
-        // Title line rendered inside the box: ">_ OpenAI Codex (vX)"
+        // Title line rendered inside the box: ">_ ThinWedge (vX)"
         let title_spans: Vec<Span<'static>> = vec![
             Span::from(">_ ").dim(),
-            Span::from("OpenAI Codex").bold(),
+            Span::from("ThinWedge").bold(),
             Span::from(" ").dim(),
             Span::from(format!("(v{})", self.version)).dim(),
         ];
@@ -3660,7 +3664,7 @@ mod tests {
         let summary = Line::from(vec![
             "You ".into(),
             "approved".bold(),
-            " codex to run ".into(),
+            " ThinWedge to run ".into(),
             "echo something really long to ensure wrapping happens".dim(),
             " this time".bold(),
         ]);
@@ -3669,7 +3673,7 @@ mod tests {
         assert_eq!(
             rendered,
             vec![
-                "✔ You approved codex to".to_string(),
+                "✔ You approved ThinWedge to".to_string(),
                 "  run echo something".to_string(),
                 "  really long to ensure".to_string(),
                 "  wrapping happens this".to_string(),

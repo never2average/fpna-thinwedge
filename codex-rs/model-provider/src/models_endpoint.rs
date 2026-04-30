@@ -16,14 +16,21 @@ use codex_login::CodexAuth;
 use codex_login::collect_auth_env_telemetry;
 use codex_login::default_client::build_reqwest_client;
 use codex_model_provider_info::ModelProviderInfo;
+use codex_models_manager::manager::ModelsCacheProviderIdentity;
 use codex_models_manager::manager::ModelsEndpointClient;
+use codex_models_manager::model_info::model_info_from_slug;
 use codex_otel::TelemetryAuthMode;
 use codex_protocol::error::CodexErr;
 use codex_protocol::error::Result as CoreResult;
+use codex_protocol::openai_models::InputModality;
 use codex_protocol::openai_models::ModelInfo;
+use codex_protocol::openai_models::ModelVisibility;
+use codex_protocol::openai_models::ReasoningEffort;
+use codex_protocol::openai_models::ReasoningEffortPreset;
 use codex_response_debug_context::extract_response_debug_context;
 use codex_response_debug_context::telemetry_transport_error_message;
 use http::HeaderMap;
+use serde::Deserialize;
 use tokio::time::timeout;
 
 use crate::auth::resolve_provider_auth;
@@ -63,27 +70,22 @@ impl OpenAiModelsEndpoint {
             .is_some_and(|auth_manager| auth_manager.codex_api_key_env_enabled());
         collect_auth_env_telemetry(&self.provider_info, codex_api_key_env_enabled)
     }
-}
 
-#[async_trait]
-impl ModelsEndpointClient for OpenAiModelsEndpoint {
-    fn has_command_auth(&self) -> bool {
-        self.provider_info.has_command_auth()
+    async fn provider_identity(&self) -> CoreResult<ModelsCacheProviderIdentity> {
+        let auth = self.auth().await;
+        let api_provider = self
+            .provider_info
+            .to_api_provider(auth.as_ref().map(CodexAuth::auth_mode))?;
+        Ok(ModelsCacheProviderIdentity {
+            name: self.provider_info.name.clone(),
+            base_url: api_provider.base_url.trim_end_matches('/').to_string(),
+        })
     }
 
-    async fn uses_codex_backend(&self) -> bool {
-        self.auth()
-            .await
-            .as_ref()
-            .is_some_and(CodexAuth::uses_codex_backend)
-    }
-
-    async fn list_models(
+    async fn list_openai_compatible_models(
         &self,
         client_version: &str,
     ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
-        let _timer =
-            codex_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
         let auth = self.auth().await;
         let auth_mode = auth.as_ref().map(CodexAuth::auth_mode);
         let api_provider = self.provider_info.to_api_provider(auth_mode)?;
@@ -107,6 +109,210 @@ impl ModelsEndpointClient for OpenAiModelsEndpoint {
         .map_err(|_| CodexErr::Timeout)?
         .map_err(map_api_error)
     }
+
+    async fn list_openrouter_models(
+        &self,
+        client_version: &str,
+    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
+        match self.list_openai_compatible_models(client_version).await {
+            Ok(models) => Ok(models),
+            Err(err) if self.provider_info.is_openrouter() => {
+                tracing::info!("falling back to OpenRouter models schema adapter: {err}");
+                self.list_openrouter_models_fallback().await
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn list_openrouter_models_fallback(
+        &self,
+    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
+        let auth = self.auth().await;
+        let api_provider = self
+            .provider_info
+            .to_api_provider(auth.as_ref().map(CodexAuth::auth_mode))?;
+        let api_auth = resolve_provider_auth(auth.as_ref(), &self.provider_info)?;
+        let mut headers = HeaderMap::new();
+        api_auth.add_auth_headers(&mut headers);
+        let response = build_reqwest_client()
+            .get(format!(
+                "{}/models",
+                api_provider.base_url.trim_end_matches('/')
+            ))
+            .headers(headers)
+            .send()
+            .await
+            .map_err(|err| CodexErr::Stream(err.to_string(), None))?;
+        let etag = response
+            .headers()
+            .get(http::header::ETAG)
+            .and_then(|value| value.to_str().ok())
+            .map(ToString::to_string);
+        let status = response.status();
+        let body = response
+            .bytes()
+            .await
+            .map_err(|err| CodexErr::Stream(err.to_string(), None))?;
+        if !status.is_success() {
+            return Err(CodexErr::Stream(
+                format!(
+                    "OpenRouter /models request failed: {status}: {}",
+                    String::from_utf8_lossy(&body)
+                ),
+                None,
+            ));
+        }
+        let response: OpenRouterModelsResponse = serde_json::from_slice(&body).map_err(|err| {
+            CodexErr::Stream(
+                format!("failed to decode OpenRouter models response: {err}"),
+                None,
+            )
+        })?;
+        Ok((
+            response
+                .data
+                .into_iter()
+                .map(openrouter_model_to_model_info)
+                .collect(),
+            etag,
+        ))
+    }
+}
+
+#[async_trait]
+impl ModelsEndpointClient for OpenAiModelsEndpoint {
+    fn has_command_auth(&self) -> bool {
+        self.provider_info.has_command_auth()
+    }
+
+    fn uses_bundled_catalog(&self) -> bool {
+        self.provider_info.is_openai()
+    }
+
+    async fn uses_codex_backend(&self) -> bool {
+        self.auth()
+            .await
+            .as_ref()
+            .is_some_and(CodexAuth::uses_codex_backend)
+    }
+
+    async fn supports_remote_refresh(&self) -> bool {
+        !self.provider_info.requires_openai_auth || self.auth().await.is_some()
+    }
+
+    async fn cache_identity(&self) -> ModelsCacheProviderIdentity {
+        self.provider_identity()
+            .await
+            .unwrap_or_else(|_| ModelsCacheProviderIdentity {
+                name: self.provider_info.name.clone(),
+                base_url: self
+                    .provider_info
+                    .base_url
+                    .clone()
+                    .unwrap_or_default()
+                    .trim_end_matches('/')
+                    .to_string(),
+            })
+    }
+
+    async fn list_models(
+        &self,
+        client_version: &str,
+    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
+        let _timer =
+            codex_otel::start_global_timer("codex.remote_models.fetch_update.duration_ms", &[]);
+        self.list_openrouter_models(client_version).await
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterModelsResponse {
+    data: Vec<OpenRouterModel>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterModel {
+    id: String,
+    name: Option<String>,
+    description: Option<String>,
+    context_length: Option<i64>,
+    architecture: Option<OpenRouterArchitecture>,
+    supported_parameters: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenRouterArchitecture {
+    input_modalities: Option<Vec<String>>,
+}
+
+fn openrouter_model_to_model_info(model: OpenRouterModel) -> ModelInfo {
+    let OpenRouterModel {
+        id,
+        name,
+        description,
+        context_length,
+        architecture,
+        supported_parameters,
+    } = model;
+    let mut fallback = model_info_from_slug(&id);
+    fallback.slug = id.clone();
+    fallback.display_name = name.unwrap_or_else(|| id.clone());
+    fallback.description = description;
+    fallback.visibility = ModelVisibility::List;
+    fallback.supported_in_api = true;
+    fallback.priority = 100;
+    fallback.context_window = context_length;
+    fallback.max_context_window = context_length;
+    fallback.auto_compact_token_limit = None;
+    fallback.supports_parallel_tool_calls = supported_parameters
+        .as_ref()
+        .is_some_and(|params| params.iter().any(|param| param == "tools"));
+    fallback.supports_search_tool = supported_parameters
+        .as_ref()
+        .is_some_and(|params| params.iter().any(|param| param == "web_search"));
+    fallback.supported_reasoning_levels = if supported_parameters
+        .as_ref()
+        .is_some_and(|params| params.iter().any(|param| param == "reasoning"))
+    {
+        vec![
+            ReasoningEffortPreset {
+                effort: ReasoningEffort::Low,
+                description: "Low".to_string(),
+            },
+            ReasoningEffortPreset {
+                effort: ReasoningEffort::Medium,
+                description: "Medium".to_string(),
+            },
+            ReasoningEffortPreset {
+                effort: ReasoningEffort::High,
+                description: "High".to_string(),
+            },
+        ]
+    } else {
+        Vec::new()
+    };
+    fallback.default_reasoning_level = fallback
+        .supported_reasoning_levels
+        .iter()
+        .find(|preset| preset.effort == ReasoningEffort::Medium)
+        .map(|preset| preset.effort);
+    if let Some(architecture) = architecture
+        && let Some(input_modalities) = architecture.input_modalities
+    {
+        let mapped_modalities: Vec<InputModality> = input_modalities
+            .into_iter()
+            .filter_map(|modality| match modality.as_str() {
+                "text" => Some(InputModality::Text),
+                "image" => Some(InputModality::Image),
+                _ => None,
+            })
+            .collect();
+        if !mapped_modalities.is_empty() {
+            fallback.input_modalities = mapped_modalities;
+        }
+    }
+    fallback.used_fallback_model_metadata = false;
+    fallback
 }
 
 #[derive(Clone)]

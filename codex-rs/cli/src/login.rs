@@ -109,7 +109,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
 
 fn print_login_server_start(actual_port: u16, auth_url: &str) {
     eprintln!(
-        "Starting local login server on http://localhost:{actual_port}.\nIf your browser did not open, navigate to this URL to authenticate:\n\n{auth_url}\n\nOn a remote or headless machine? Use `codex login --device-auth` instead."
+        "Starting local login server on http://localhost:{actual_port}.\nIf your browser did not open, navigate to this URL to authenticate:\n\n{auth_url}\n\nOn a remote or headless machine? Use `thinwedge login --device-auth` instead."
     );
 }
 
@@ -224,7 +224,7 @@ pub async fn run_login_with_agent_identity(
 
 pub fn read_api_key_from_stdin() -> String {
     read_stdin_secret(
-        "--with-api-key expects the API key on stdin. Try piping it, e.g. `printenv OPENAI_API_KEY | codex login --with-api-key`.",
+        "--with-api-key expects the API key on stdin. Try piping it, e.g. `printenv OPENAI_API_KEY | thinwedge login --with-api-key`.",
         "Reading API key from stdin...",
         "No API key provided via stdin.",
     )
@@ -232,7 +232,7 @@ pub fn read_api_key_from_stdin() -> String {
 
 pub fn read_agent_identity_from_stdin() -> String {
     read_stdin_secret(
-        "--with-agent-identity expects the Agent Identity token on stdin. Try piping it, e.g. `printenv CODEX_AGENT_IDENTITY | codex login --with-agent-identity`.",
+        "--with-agent-identity expects the Agent Identity token on stdin. Try piping it, e.g. `printenv CODEX_AGENT_IDENTITY | thinwedge login --with-agent-identity`.",
         "Reading Agent Identity token from stdin...",
         "No Agent Identity token provided via stdin.",
     )

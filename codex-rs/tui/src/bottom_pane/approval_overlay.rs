@@ -826,7 +826,7 @@ fn exec_options(
             }),
             ReviewDecision::TimedOut => None,
             ReviewDecision::Abort => Some(ApprovalOption {
-                label: "No, and tell Codex what to do differently".to_string(),
+                label: "No, and tell ThinWedge what to do differently".to_string(),
                 decision: ApprovalDecision::Review(ReviewDecision::Abort),
                 shortcuts: keymap.decline.clone(),
             }),
@@ -932,7 +932,7 @@ fn patch_options(keymap: &ApprovalKeymap) -> Vec<ApprovalOption> {
             shortcuts: keymap.approve_for_session.clone(),
         },
         ApprovalOption {
-            label: "No, and tell Codex what to do differently".to_string(),
+            label: "No, and tell ThinWedge what to do differently".to_string(),
             decision: ApprovalDecision::Review(ReviewDecision::Abort),
             shortcuts: keymap.decline.clone(),
         },
@@ -1347,7 +1347,7 @@ mod tests {
         let mut view = make_overlay(
             ApprovalRequest::Exec {
                 thread_id,
-                thread_label: Some("Robie [explorer]".to_string()),
+                thread_label: Some("Robie [pricing_researcher]".to_string()),
                 id: "test".to_string(),
                 command: vec!["echo".to_string(), "hi".to_string()],
                 reason: None,
@@ -1378,7 +1378,7 @@ mod tests {
         let mut view = make_overlay_with_keymap(
             ApprovalRequest::Exec {
                 thread_id,
-                thread_label: Some("Robie [explorer]".to_string()),
+                thread_label: Some("Robie [pricing_researcher]".to_string()),
                 id: "test".to_string(),
                 command: vec!["echo".to_string(), "hi".to_string()],
                 reason: None,
@@ -1413,7 +1413,7 @@ mod tests {
         let view = make_overlay(
             ApprovalRequest::Exec {
                 thread_id: ThreadId::new(),
-                thread_label: Some("Robie [explorer]".to_string()),
+                thread_label: Some("Robie [pricing_researcher]".to_string()),
                 id: "test".to_string(),
                 command: vec!["echo".to_string(), "hi".to_string()],
                 reason: None,
@@ -1591,7 +1591,7 @@ mod tests {
                 "Yes, just this once".to_string(),
                 "Yes, and allow this host for this conversation".to_string(),
                 "Yes, and allow this host in the future".to_string(),
-                "No, and tell Codex what to do differently".to_string(),
+                "No, and tell ThinWedge what to do differently".to_string(),
             ]
         );
     }
@@ -1616,7 +1616,7 @@ mod tests {
             vec![
                 "Yes, proceed".to_string(),
                 "Yes, and don't ask again for this command in this session".to_string(),
-                "No, and tell Codex what to do differently".to_string(),
+                "No, and tell ThinWedge what to do differently".to_string(),
             ]
         );
     }
@@ -1643,7 +1643,7 @@ mod tests {
             labels,
             vec![
                 "Yes, proceed".to_string(),
-                "No, and tell Codex what to do differently".to_string(),
+                "No, and tell ThinWedge what to do differently".to_string(),
             ]
         );
     }
@@ -1889,7 +1889,7 @@ mod tests {
         );
         let request = ApprovalRequest::ApplyPatch {
             thread_id: ThreadId::new(),
-            thread_label: Some("Banach [worker]".to_string()),
+            thread_label: Some("Banach [moat_researcher]".to_string()),
             id: "test".to_string(),
             reason: None,
             cwd: absolute_path("/tmp"),
@@ -1904,7 +1904,7 @@ mod tests {
             keymap.list,
         );
         let rendered = render_overlay_lines(&view, /*width*/ 120);
-        assert!(rendered.contains("Thread: Banach [worker]"));
+        assert!(rendered.contains("Thread: Banach [moat_researcher]"));
         assert!(rendered.contains("o to open thread"));
         assert!(!rendered.contains("$ apply_patch"));
     }
@@ -2013,7 +2013,7 @@ mod tests {
             })
             .collect();
         let expected = vec![
-            "✔ You approved codex to run".to_string(),
+            "✔ You approved ThinWedge to run".to_string(),
             "  git add tui/src/render/".to_string(),
             "  mod.rs tui/src/render/".to_string(),
             "  renderable.rs this time".to_string(),

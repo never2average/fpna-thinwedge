@@ -6,6 +6,7 @@ use crate::legacy_core::message_history_metadata;
 use crate::permission_compat::legacy_compatible_permission_profile;
 use crate::status::StatusAccountDisplay;
 use crate::status::plan_type_display_name;
+use crate::thinwedge_ml;
 use codex_app_server_client::AppServerClient;
 use codex_app_server_client::AppServerEvent;
 use codex_app_server_client::AppServerRequestHandle;
@@ -1163,6 +1164,7 @@ fn thread_start_params_from_config(
         sandbox,
         permission_profile,
         config: config_request_overrides_from_config(config),
+        dynamic_tools: Some(thinwedge_ml::dynamic_tool_specs()),
         ephemeral: Some(config.ephemeral),
         session_start_source,
         persist_extended_history: true,
@@ -1546,6 +1548,15 @@ mod tests {
             Some(config.permissions.permission_profile().into())
         );
         assert_eq!(params.model_provider, Some(config.model_provider_id));
+        let dynamic_tools = params
+            .dynamic_tools
+            .expect("dynamic tools should be present");
+        assert!(dynamic_tools.iter().any(|tool| {
+            tool.namespace.as_deref() == Some("statisticalmodels") && tool.name == "submitJob"
+        }));
+        assert!(dynamic_tools.iter().any(|tool| {
+            tool.namespace.as_deref() == Some("trainingenvironments") && tool.name == "launch"
+        }));
     }
 
     #[tokio::test]
