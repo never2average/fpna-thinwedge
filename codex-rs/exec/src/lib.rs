@@ -1402,14 +1402,11 @@ async fn reject_server_request(
     reason: String,
 ) -> Result<(), String> {
     client
-        .reject_server_request(
-            request_id,
-            JSONRPCErrorError {
-                code: -32000,
-                message: reason,
-                data: None,
-            },
-        )
+        .reject_server_request(request_id, JSONRPCErrorError {
+            code: -32000,
+            message: reason,
+            data: None,
+        })
         .await
         .map_err(|err| format!("failed to reject `{method}` server request: {err}"))
 }
@@ -1495,15 +1492,6 @@ async fn handle_server_request(
                     "dynamic tool calls are not supported in exec mode for thread `{}`",
                     params.thread_id
                 ),
-            )
-            .await
-        }
-        ServerRequest::ChatgptAuthTokensRefresh { request_id, .. } => {
-            reject_server_request(
-                client,
-                request_id,
-                &method,
-                "chatgpt auth token refresh is not supported in exec mode".to_string(),
             )
             .await
         }
