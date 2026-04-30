@@ -12,12 +12,12 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 const PLATFORM_PACKAGE_BY_TARGET = {
-  "x86_64-unknown-linux-musl": "@thinwedge/cli-linux-x64",
-  "aarch64-unknown-linux-musl": "@thinwedge/cli-linux-arm64",
-  "x86_64-apple-darwin": "@thinwedge/cli-darwin-x64",
-  "aarch64-apple-darwin": "@thinwedge/cli-darwin-arm64",
-  "x86_64-pc-windows-msvc": "@thinwedge/cli-win32-x64",
-  "aarch64-pc-windows-msvc": "@thinwedge/cli-win32-arm64",
+  "x86_64-unknown-linux-musl": "@never2average-does-npm/cli-linux-x64",
+  "aarch64-unknown-linux-musl": "@never2average-does-npm/cli-linux-arm64",
+  "x86_64-apple-darwin": "@never2average-does-npm/cli-darwin-x64",
+  "aarch64-apple-darwin": "@never2average-does-npm/cli-darwin-arm64",
+  "x86_64-pc-windows-msvc": "@never2average-does-npm/cli-win32-x64",
+  "aarch64-pc-windows-msvc": "@never2average-does-npm/cli-win32-arm64",
 };
 
 const { platform, arch } = process;
@@ -94,8 +94,8 @@ try {
     const packageManager = detectPackageManager();
     const updateCommand =
       packageManager === "bun"
-        ? "bun install -g @thinwedge/cli@latest"
-        : "npm install -g @thinwedge/cli@latest";
+        ? "bun install -g @never2average-does-npm/cli@latest"
+        : "npm install -g @never2average-does-npm/cli@latest";
     throw new Error(
       `Missing optional dependency ${platformPackage}. Reinstall ThinWedge: ${updateCommand}`,
     );
@@ -106,8 +106,8 @@ if (!vendorRoot) {
   const packageManager = detectPackageManager();
   const updateCommand =
     packageManager === "bun"
-      ? "bun install -g @thinwedge/cli@latest"
-      : "npm install -g @thinwedge/cli@latest";
+      ? "bun install -g @never2average-does-npm/cli@latest"
+      : "npm install -g @never2average-does-npm/cli@latest";
   throw new Error(
     `Missing optional dependency ${platformPackage}. Reinstall ThinWedge: ${updateCommand}`,
   );

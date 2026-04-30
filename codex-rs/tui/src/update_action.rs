@@ -6,9 +6,9 @@ use codex_install_context::StandalonePlatform;
 /// Update action the CLI should perform after the TUI exits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateAction {
-    /// Update via `npm install -g @thinwedge/cli@latest`.
+    /// Update via `npm install -g @never2average-does-npm/cli@latest`.
     NpmGlobalLatest,
-    /// Update via `bun install -g @thinwedge/cli@latest`.
+    /// Update via `bun install -g @never2average-does-npm/cli@latest`.
     BunGlobalLatest,
     /// Update via `brew upgrade thinwedge`.
     BrewUpgrade,
@@ -36,8 +36,12 @@ impl UpdateAction {
     /// Returns the list of command-line arguments for invoking the update.
     pub fn command_args(self) -> (&'static str, &'static [&'static str]) {
         match self {
-            UpdateAction::NpmGlobalLatest => ("npm", &["install", "-g", "@thinwedge/cli"]),
-            UpdateAction::BunGlobalLatest => ("bun", &["install", "-g", "@thinwedge/cli"]),
+            UpdateAction::NpmGlobalLatest => {
+                ("npm", &["install", "-g", "@never2average-does-npm/cli"])
+            }
+            UpdateAction::BunGlobalLatest => {
+                ("bun", &["install", "-g", "@never2average-does-npm/cli"])
+            }
             UpdateAction::BrewUpgrade => ("brew", &["upgrade", "thinwedge"]),
             UpdateAction::StandaloneUnix => (
                 "sh",
