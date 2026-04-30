@@ -479,9 +479,7 @@ jobs:
           tag: ${{ github.ref_name }}
           config: .github/dotslash-argument-comment-lint-config.json
 
-  # Publish to npm using OIDC authentication.
-  # July 31, 2025: https://github.blog/changelog/2025-07-31-npm-trusted-publishing-with-oidc-is-generally-available/
-  # npm docs: https://docs.npmjs.com/trusted-publishers
+  # Publish to npm using a repository-scoped npm access token.
   publish-npm:
     # Publish to npm for stable releases and alpha pre-releases with numeric suffixes.
     if: ${{ needs.release.outputs.should_publish_npm == 'true' }}
@@ -489,14 +487,12 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # Required for OIDC
       contents: read
 
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
-          # Node 24 bundles npm >= 11.5.1, which trusted publishing requires.
           node-version: 24
           registry-url: "https://registry.npmjs.org"
           scope: "@never2average-does-npm"
@@ -524,11 +520,11 @@ jobs:
               --dir dist/npm
           done
 
-      # No NODE_AUTH_TOKEN needed because we use OIDC.
       - name: Publish to npm
         env:
           VERSION: ${{ needs.release.outputs.version }}
           NPM_TAG: ${{ needs.release.outputs.npm_tag }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           prefix=""
