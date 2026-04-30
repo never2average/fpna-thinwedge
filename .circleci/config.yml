@@ -47,6 +47,10 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-linux-x64-{{ checksum "codex-rs/Cargo.lock" }}
+            - v1-cargo-linux-x64-
       - run:
           name: Install Linux build dependencies
           command: |
@@ -89,6 +93,13 @@ jobs:
             cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
             tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
             tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+      - save_cache:
+          key: v1-cargo-linux-x64-{{ checksum "codex-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/codex-rs/target
       - persist_to_workspace:
           root: /tmp/circleci-release
           paths:
@@ -102,6 +113,10 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-linux-arm64-{{ checksum "codex-rs/Cargo.lock" }}
+            - v1-cargo-linux-arm64-
       - run:
           name: Install Linux Arm build dependencies
           command: |
@@ -144,6 +159,13 @@ jobs:
             cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
             tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
             tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+      - save_cache:
+          key: v1-cargo-linux-arm64-{{ checksum "codex-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/codex-rs/target
       - persist_to_workspace:
           root: /tmp/circleci-release
           paths:
@@ -157,6 +179,10 @@ jobs:
     working_directory: ~/project
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-macos-{{ checksum "codex-rs/Cargo.lock" }}
+            - v1-cargo-macos-
       - run:
           name: Install Rust toolchain
           command: |
@@ -190,6 +216,13 @@ jobs:
               tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
               tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
             done
+      - save_cache:
+          key: v1-cargo-macos-{{ checksum "codex-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/codex-rs/target
       - persist_to_workspace:
           root: /tmp/circleci-release
           paths:
