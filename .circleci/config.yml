@@ -1,0 +1,31 @@
+version: 2.1
+
+jobs:
+  smoke:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Show repo and git context
+          command: |
+            set -euo pipefail
+            echo "repo: ${CIRCLE_PROJECT_REPONAME}"
+            echo "branch: ${CIRCLE_BRANCH:-}"
+            echo "tag: ${CIRCLE_TAG:-}"
+            git rev-parse --short HEAD
+      - run:
+          name: Show workspace contents
+          command: |
+            set -euo pipefail
+            pwd
+            ls -la
+            test -f codex-rs/Cargo.toml
+
+workflows:
+  smoke:
+    jobs:
+      - smoke:
+          filters:
+            tags:
+              only: /.*/
