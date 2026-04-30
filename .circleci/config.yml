@@ -37,14 +37,7 @@ jobs:
             test -n "${CIRCLE_TAG:-}"
             [[ "${CIRCLE_TAG}" =~ ^rust-v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)(\.[0-9]+)?)?$ ]]
             tag_ver="${CIRCLE_TAG#rust-v}"
-            cargo_ver="$(python3 - <<'PY'
-            from pathlib import Path
-            import re
-            text = Path('codex-rs/Cargo.toml').read_text()
-            match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.M)
-            print(match.group(1) if match else "")
-            PY
-            )"
+            cargo_ver="$(grep -m1 '^version' codex-rs/Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')"
             if [ "${tag_ver}" != "${cargo_ver}" ]; then
               echo "tag ${tag_ver} does not match Cargo.toml ${cargo_ver}"
               exit 1
@@ -433,7 +426,7 @@ jobs:
               if [[ ${publish_status} -eq 0 ]]; then
                 continue
               fi
-              if grep -qiE "previously published|cannot publish over|version already exists" <<< "${publish_output}"; then
+              if printf '%s\n' "${publish_output}" | grep -qiE "previously published|cannot publish over|version already exists"; then
                 echo "Skipping already-published package version for ${filename}"
                 continue
               fi
