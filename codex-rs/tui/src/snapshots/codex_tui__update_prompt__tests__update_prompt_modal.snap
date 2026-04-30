@@ -6,7 +6,7 @@ expression: terminal.backend()
 
   Release notes: https://github.com/never2average/fpna-thinwedge/releases/latest
 
-› 1. Update now (runs `npm install -g @thinwedge/cli`)
+› 1. Update now (runs `npm install -g @never2average-does-npm/cli`)
   2. Skip
   3. Skip until next version
 

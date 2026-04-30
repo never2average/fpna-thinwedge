@@ -544,9 +544,9 @@ function Maybe-HandleConflictingInstall {
     $manager = $Conflict.Manager
 
     $uninstallArgs = if ($manager -eq "bun") {
-        @("remove", "-g", "@thinwedge/cli")
+        @("remove", "-g", "@never2average-does-npm/cli")
     } else {
-        @("uninstall", "-g", "@thinwedge/cli")
+        @("uninstall", "-g", "@never2average-does-npm/cli")
     }
     $uninstallCommand = if ($manager -eq "bun") { "bun" } else { "npm" }
 

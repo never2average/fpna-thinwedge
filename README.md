@@ -1,4 +1,4 @@
-<p align="center"><code>npm i -g @thinwedge/cli</code></p>
+<p align="center"><code>npm i -g @never2average-does-npm/cli</code></p>
 <p align="center"><strong>ThinWedge</strong> is an FP&amp;A agent terminal that runs locally on your computer.
 <p align="center">
   <img src="./.github/codex-cli-splash.png" alt="ThinWedge terminal splash" width="80%" />
@@ -16,7 +16,7 @@ Install globally with npm:
 
 ```shell
 # Install using npm
-npm install -g @thinwedge/cli
+npm install -g @never2average-does-npm/cli
 ```
 
 Then run `thinwedge` to get started.

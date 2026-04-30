@@ -567,10 +567,10 @@ handle_conflicting_install() {
       uninstall_cmd="brew uninstall thinwedge"
       ;;
     bun)
-      uninstall_cmd="bun remove -g @thinwedge/cli"
+      uninstall_cmd="bun remove -g @never2average-does-npm/cli"
       ;;
     *)
-      uninstall_cmd="npm uninstall -g @thinwedge/cli"
+      uninstall_cmd="npm uninstall -g @never2average-does-npm/cli"
       ;;
   esac
 

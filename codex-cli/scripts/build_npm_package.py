@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stage and optionally package the @thinwedge/cli npm module."""
+"""Stage and optionally package the @never2average-does-npm/cli npm module."""
 
 import argparse
 import json
@@ -14,48 +14,48 @@ CODEX_CLI_ROOT = SCRIPT_DIR.parent
 REPO_ROOT = CODEX_CLI_ROOT.parent
 RESPONSES_API_PROXY_NPM_ROOT = REPO_ROOT / "codex-rs" / "responses-api-proxy" / "npm"
 CODEX_SDK_ROOT = REPO_ROOT / "sdk" / "typescript"
-THINWEDGE_NPM_NAME = "@thinwedge/cli"
+THINWEDGE_NPM_NAME = "@never2average-does-npm/cli"
 
 # `npm_name` is the local optional-dependency alias consumed by `bin/thinwedge.js`.
-# The underlying package published to npm is always `@thinwedge/cli`.
+# The underlying package published to npm is always `@never2average-does-npm/cli`.
 CODEX_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
     "thinwedge-linux-x64": {
-        "npm_name": "@thinwedge/cli-linux-x64",
+        "npm_name": "@never2average-does-npm/cli-linux-x64",
         "npm_tag": "linux-x64",
         "target_triple": "x86_64-unknown-linux-musl",
         "os": "linux",
         "cpu": "x64",
     },
     "thinwedge-linux-arm64": {
-        "npm_name": "@thinwedge/cli-linux-arm64",
+        "npm_name": "@never2average-does-npm/cli-linux-arm64",
         "npm_tag": "linux-arm64",
         "target_triple": "aarch64-unknown-linux-musl",
         "os": "linux",
         "cpu": "arm64",
     },
     "thinwedge-darwin-x64": {
-        "npm_name": "@thinwedge/cli-darwin-x64",
+        "npm_name": "@never2average-does-npm/cli-darwin-x64",
         "npm_tag": "darwin-x64",
         "target_triple": "x86_64-apple-darwin",
         "os": "darwin",
         "cpu": "x64",
     },
     "thinwedge-darwin-arm64": {
-        "npm_name": "@thinwedge/cli-darwin-arm64",
+        "npm_name": "@never2average-does-npm/cli-darwin-arm64",
         "npm_tag": "darwin-arm64",
         "target_triple": "aarch64-apple-darwin",
         "os": "darwin",
         "cpu": "arm64",
     },
     "thinwedge-win32-x64": {
-        "npm_name": "@thinwedge/cli-win32-x64",
+        "npm_name": "@never2average-does-npm/cli-win32-x64",
         "npm_tag": "win32-x64",
         "target_triple": "x86_64-pc-windows-msvc",
         "os": "win32",
         "cpu": "x64",
     },
     "thinwedge-win32-arm64": {
-        "npm_name": "@thinwedge/cli-win32-arm64",
+        "npm_name": "@never2average-does-npm/cli-win32-arm64",
         "npm_tag": "win32-arm64",
         "target_triple": "aarch64-pc-windows-msvc",
         "os": "win32",
@@ -271,6 +271,7 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
             "cpu": [platform_package["cpu"]],
             "files": ["vendor"],
             "repository": codex_package_json.get("repository"),
+            "publishConfig": {"access": "public"},
         }
 
         engines = codex_package_json.get("engines")
@@ -301,6 +302,7 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         with open(package_json_path, "r", encoding="utf-8") as fh:
             package_json = json.load(fh)
         package_json["version"] = version
+        package_json["publishConfig"] = {"access": "public"}
 
     if package == "thinwedge":
         package_json["files"] = ["bin"]
