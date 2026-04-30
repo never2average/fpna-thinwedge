@@ -1,5 +1,5 @@
 name: 🪲 Other Bug
-description: Report an issue in Codex Web, integrations, or other Codex components
+description: Report an issue in ThinWedge web, integrations, or other ThinWedge components
 labels:
   - bug
 body:

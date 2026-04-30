@@ -165,15 +165,15 @@ function Resolve-Version {
 
 function Get-VersionFromBinary {
     param(
-        [string]$CodexPath
+        [string]$ThinWedgePath
     )
 
-    if (-not (Test-Path -LiteralPath $CodexPath -PathType Leaf)) {
+    if (-not (Test-Path -LiteralPath $ThinWedgePath -PathType Leaf)) {
         return $null
     }
 
     try {
-        $versionOutput = & $CodexPath --version 2>$null
+        $versionOutput = & $ThinWedgePath --version 2>$null
     } catch {
         return $null
     }
@@ -190,7 +190,7 @@ function Get-CurrentInstalledVersion {
         [string]$StandaloneCurrentDir
     )
 
-    $standaloneVersion = Get-VersionFromBinary -CodexPath (Join-Path $StandaloneCurrentDir "thinwedge.exe")
+    $standaloneVersion = Get-VersionFromBinary -ThinWedgePath (Join-Path $StandaloneCurrentDir "thinwedge.exe")
     if (-not [string]::IsNullOrWhiteSpace($standaloneVersion)) {
         return $standaloneVersion
     }
@@ -252,9 +252,9 @@ function Move-OldStandaloneBinIfApproved {
         return $null
     }
 
-    Write-Step "We found an older Codex install at $VisibleBinDir"
-    Write-WarningStep "To continue, Codex needs to update the install at this path."
-    if (-not (Prompt-YesNo "Replace it with the current Codex setup now?")) {
+    Write-Step "We found an older ThinWedge install at $VisibleBinDir"
+    Write-WarningStep "To continue, ThinWedge needs to update the install at this path."
+    if (-not (Prompt-YesNo "Replace it with the current ThinWedge setup now?")) {
         throw "Cannot replace older standalone install without confirmation: $VisibleBinDir"
     }
 
@@ -475,7 +475,7 @@ function Test-ReleaseIsComplete {
     return (Split-Path -Leaf $ReleaseDir) -eq "$ExpectedVersion-$ExpectedTarget"
 }
 
-function Get-ExistingCodexCommand {
+function Get-ExistingThinWedgeCommand {
     $existing = Get-Command thinwedge -ErrorAction SilentlyContinue
     if ($null -eq $existing) {
         $existing = Get-Command codex -ErrorAction SilentlyContinue
@@ -487,7 +487,7 @@ function Get-ExistingCodexCommand {
     return $existing.Source
 }
 
-function Get-ExistingCodexManager {
+function Get-ExistingThinWedgeManager {
     param(
         [string]$ExistingPath,
         [string]$VisibleBinDir
@@ -517,8 +517,8 @@ function Get-ConflictingInstall {
         [string]$VisibleBinDir
     )
 
-    $existingPath = Get-ExistingCodexCommand
-    $manager = Get-ExistingCodexManager -ExistingPath $existingPath -VisibleBinDir $VisibleBinDir
+    $existingPath = Get-ExistingThinWedgeCommand
+    $manager = Get-ExistingThinWedgeManager -ExistingPath $existingPath -VisibleBinDir $VisibleBinDir
     if ($null -eq $manager) {
         return $null
     }
@@ -562,7 +562,7 @@ function Maybe-HandleConflictingInstall {
     }
 }
 
-function Test-VisibleCodexCommand {
+function Test-VisibleThinWedgeCommand {
     param(
         [string]$VisibleBinDir
     )
@@ -698,7 +698,7 @@ try {
         $oldStandaloneBackup = Move-OldStandaloneBinIfApproved -VisibleBinDir $visibleBinDir -DefaultVisibleBinDir $defaultVisibleBinDir
         try {
             Ensure-Junction -LinkPath $visibleBinDir -TargetPath $currentDir -InstallerOwnedTargetPrefix $standaloneRoot
-            Test-VisibleCodexCommand -VisibleBinDir $visibleBinDir
+            Test-VisibleThinWedgeCommand -VisibleBinDir $visibleBinDir
         } catch {
             if ($null -ne $oldStandaloneBackup -and (Test-Path -LiteralPath $oldStandaloneBackup)) {
                 if (Test-Path -LiteralPath $visibleBinDir) {
