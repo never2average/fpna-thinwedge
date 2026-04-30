@@ -1,8 +1,5 @@
 version: 2.1
 
-orbs:
-  win: circleci/windows@5.0
-
 jobs:
   smoke:
     docker:
@@ -199,80 +196,6 @@ jobs:
             - native
             - release-assets
 
-  build-windows:
-    executor:
-      name: win/default
-      size: medium
-    working_directory: ~/project
-    steps:
-      - checkout
-      - run:
-          name: Install Rust toolchain
-          shell: powershell.exe
-          command: |
-            $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-            if (-not (Test-Path (Join-Path $cargoBin "rustup.exe"))) {
-              Invoke-WebRequest -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
-              Start-Process -FilePath .\rustup-init.exe -ArgumentList "-y","--profile","minimal","--default-toolchain","1.93.0" -NoNewWindow -Wait
-            }
-            $env:Path = "$cargoBin;$env:Path"
-            rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
-            cargo --version
-      - run:
-          name: Build Windows release binaries
-          shell: powershell.exe
-          command: |
-            $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-            $env:Path = "$cargoBin;$env:Path"
-            Set-Location codex-rs
-            foreach ($target in @("x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc")) {
-              cargo build --target $target --release `
-                --bin thinwedge `
-                --bin codex-responses-api-proxy `
-                --bin codex-windows-sandbox-setup `
-                --bin codex-command-runner
-            }
-      - run:
-          name: Stage Windows release assets
-          shell: powershell.exe
-          command: |
-            $base = "C:\circleci-release"
-            New-Item -ItemType Directory -Force -Path "$base\release-assets" | Out-Null
-
-            foreach ($target in @("x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc")) {
-              $releaseDir = Join-Path $HOME "project\codex-rs\target\$target\release"
-              $vendorDir = "$base\native\vendor\$target\thinwedge"
-              New-Item -ItemType Directory -Force -Path $vendorDir | Out-Null
-
-              Copy-Item "$releaseDir\thinwedge.exe" "$vendorDir\thinwedge.exe"
-              Copy-Item "$releaseDir\codex-windows-sandbox-setup.exe" "$vendorDir\codex-windows-sandbox-setup.exe"
-              Copy-Item "$releaseDir\codex-command-runner.exe" "$vendorDir\codex-command-runner.exe"
-
-              $bundleDir = "$env:TEMP\thinwedge-$target"
-              if (Test-Path $bundleDir) {
-                Remove-Item -Recurse -Force $bundleDir
-              }
-              New-Item -ItemType Directory -Force -Path $bundleDir | Out-Null
-              Copy-Item "$releaseDir\thinwedge.exe" "$bundleDir\thinwedge.exe"
-              Copy-Item "$releaseDir\codex-windows-sandbox-setup.exe" "$bundleDir\codex-windows-sandbox-setup.exe"
-              Copy-Item "$releaseDir\codex-command-runner.exe" "$bundleDir\codex-command-runner.exe"
-
-              Compress-Archive -Path "$bundleDir\*" -DestinationPath "$base\release-assets\thinwedge-$target.exe.zip" -Force
-
-              $proxyDir = "$env:TEMP\proxy-$target"
-              if (Test-Path $proxyDir) {
-                Remove-Item -Recurse -Force $proxyDir
-              }
-              New-Item -ItemType Directory -Force -Path $proxyDir | Out-Null
-              Copy-Item "$releaseDir\codex-responses-api-proxy.exe" "$proxyDir\codex-responses-api-proxy.exe"
-              Compress-Archive -Path "$proxyDir\*" -DestinationPath "$base\release-assets\codex-responses-api-proxy-$target.exe.zip" -Force
-            }
-      - persist_to_workspace:
-          root: C:\circleci-release
-          paths:
-            - native
-            - release-assets
-
   publish-release:
     docker:
       - image: cimg/node:24.11
@@ -315,8 +238,6 @@ jobs:
               thinwedge-linux-arm64
               thinwedge-darwin-x64
               thinwedge-darwin-arm64
-              thinwedge-win32-x64
-              thinwedge-win32-arm64
             )
 
             for package in "${packages[@]}"; do
@@ -385,8 +306,6 @@ jobs:
               "dist/npm/thinwedge-cli-npm-linux-arm64-${version}.tgz"
               "dist/npm/thinwedge-cli-npm-darwin-x64-${version}.tgz"
               "dist/npm/thinwedge-cli-npm-darwin-arm64-${version}.tgz"
-              "dist/npm/thinwedge-cli-npm-win32-x64-${version}.tgz"
-              "dist/npm/thinwedge-cli-npm-win32-arm64-${version}.tgz"
             )
 
             tarballs=(
@@ -399,7 +318,7 @@ jobs:
               tag=""
 
               case "${filename}" in
-                thinwedge-cli-npm-linux-*-"${version}".tgz|thinwedge-cli-npm-darwin-*-"${version}".tgz|thinwedge-cli-npm-win32-*-"${version}".tgz)
+                thinwedge-cli-npm-linux-*-"${version}".tgz|thinwedge-cli-npm-darwin-*-"${version}".tgz)
                   platform="${filename#thinwedge-cli-npm-}"
                   platform="${platform%-${version}.tgz}"
                   tag="${prefix}${platform}"
@@ -473,20 +392,11 @@ workflows:
               ignore: /.*/
             tags:
               only: /^rust-v.*/
-      - build-windows:
-          requires:
-            - tag-check
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^rust-v.*/
       - publish-release:
           requires:
             - build-linux-x64
             - build-linux-arm64
             - build-macos
-            - build-windows
           filters:
             branches:
               ignore: /.*/
