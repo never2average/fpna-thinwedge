@@ -52,7 +52,6 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
-      id-token: write
     defaults:
       run:
         working-directory: codex-rs
@@ -70,50 +69,42 @@ jobs:
             bundle: primary
             artifact_name: aarch64-apple-darwin
             binaries: "thinwedge codex-responses-api-proxy"
-            build_dmg: "true"
           - runner: macos-15-xlarge
             target: aarch64-apple-darwin
             bundle: app-server
             artifact_name: aarch64-apple-darwin-app-server
             binaries: "codex-app-server"
-            build_dmg: "false"
           - runner: macos-15-xlarge
             target: x86_64-apple-darwin
             bundle: primary
             artifact_name: x86_64-apple-darwin
             binaries: "thinwedge codex-responses-api-proxy"
-            build_dmg: "true"
           - runner: macos-15-xlarge
             target: x86_64-apple-darwin
             bundle: app-server
             artifact_name: x86_64-apple-darwin-app-server
             binaries: "codex-app-server"
-            build_dmg: "false"
           # Release artifacts intentionally ship MUSL-linked Linux binaries.
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             bundle: primary
             artifact_name: x86_64-unknown-linux-musl
             binaries: "thinwedge codex-responses-api-proxy"
-            build_dmg: "false"
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             bundle: app-server
             artifact_name: x86_64-unknown-linux-musl-app-server
             binaries: "codex-app-server"
-            build_dmg: "false"
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             bundle: primary
             artifact_name: aarch64-unknown-linux-musl
             binaries: "thinwedge codex-responses-api-proxy"
-            build_dmg: "false"
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             bundle: app-server
             artifact_name: aarch64-unknown-linux-musl-app-server
             binaries: "codex-app-server"
-            build_dmg: "false"
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -270,81 +261,6 @@ jobs:
           path: codex-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
-      - if: ${{ contains(matrix.target, 'linux') }}
-        name: Cosign Linux artifacts
-        uses: ./.github/actions/linux-code-sign
-        with:
-          target: ${{ matrix.target }}
-          artifacts-dir: ${{ github.workspace }}/codex-rs/target/${{ matrix.target }}/release
-          binaries: ${{ matrix.binaries }}
-
-      - if: ${{ runner.os == 'macOS' }}
-        name: MacOS code signing (binaries)
-        uses: ./.github/actions/macos-code-sign
-        with:
-          target: ${{ matrix.target }}
-          binaries: ${{ matrix.binaries }}
-          sign-binaries: "true"
-          sign-dmg: "false"
-          apple-certificate: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          apple-certificate-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          apple-notarization-key-p8: ${{ secrets.APPLE_NOTARIZATION_KEY_P8 }}
-          apple-notarization-key-id: ${{ secrets.APPLE_NOTARIZATION_KEY_ID }}
-          apple-notarization-issuer-id: ${{ secrets.APPLE_NOTARIZATION_ISSUER_ID }}
-
-      - if: ${{ runner.os == 'macOS' && matrix.build_dmg == 'true' }}
-        name: Build macOS dmg
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          target="${{ matrix.target }}"
-          release_dir="target/${target}/release"
-          dmg_root="${RUNNER_TEMP}/thinwedge-dmg-root"
-          volname="ThinWedge (${target})"
-          dmg_path="${release_dir}/thinwedge-${target}.dmg"
-
-          # The previous "MacOS code signing (binaries)" step signs + notarizes the
-          # built artifacts in `${release_dir}`. This step packages *those same*
-          # signed binaries into a dmg.
-          rm -rf "$dmg_root"
-          mkdir -p "$dmg_root"
-
-          for binary in ${{ matrix.binaries }}; do
-            binary_path="${release_dir}/${binary}"
-            if [[ ! -f "${binary_path}" ]]; then
-              echo "Binary ${binary_path} not found"
-              exit 1
-            fi
-            ditto "${binary_path}" "${dmg_root}/${binary}"
-          done
-
-          rm -f "$dmg_path"
-          hdiutil create \
-            -volname "$volname" \
-            -srcfolder "$dmg_root" \
-            -format UDZO \
-            -ov \
-            "$dmg_path"
-
-          if [[ ! -f "$dmg_path" ]]; then
-            echo "dmg $dmg_path not found after build"
-            exit 1
-          fi
-
-      - if: ${{ runner.os == 'macOS' && matrix.build_dmg == 'true' }}
-        name: MacOS code signing (dmg)
-        uses: ./.github/actions/macos-code-sign
-        with:
-          target: ${{ matrix.target }}
-          sign-binaries: "false"
-          sign-dmg: "true"
-          apple-certificate: ${{ secrets.APPLE_CERTIFICATE_P12 }}
-          apple-certificate-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          apple-notarization-key-p8: ${{ secrets.APPLE_NOTARIZATION_KEY_P8 }}
-          apple-notarization-key-id: ${{ secrets.APPLE_NOTARIZATION_KEY_ID }}
-          apple-notarization-issuer-id: ${{ secrets.APPLE_NOTARIZATION_ISSUER_ID }}
-
       - name: Stage artifacts
         shell: bash
         run: |
@@ -353,15 +269,7 @@ jobs:
 
           for binary in ${{ matrix.binaries }}; do
             cp "target/${{ matrix.target }}/release/${binary}" "$dest/${binary}-${{ matrix.target }}"
-            if [[ "${{ matrix.target }}" == *linux* ]]; then
-              cp "target/${{ matrix.target }}/release/${binary}.sigstore" \
-                "$dest/${binary}-${{ matrix.target }}.sigstore"
-            fi
           done
-
-          if [[ "${{ matrix.build_dmg }}" == "true" ]]; then
-            cp target/${{ matrix.target }}/release/thinwedge-${{ matrix.target }}.dmg "$dest/thinwedge-${{ matrix.target }}.dmg"
-          fi
 
       - name: Compress artifacts
         shell: bash
@@ -382,12 +290,7 @@ jobs:
             base="$(basename "$f")"
             # Skip files that are already archives (shouldn't happen, but be
             # safe).
-            if [[ "$base" == *.tar.gz || "$base" == *.zip || "$base" == *.dmg ]]; then
-              continue
-            fi
-
-            # Don't try to compress signature bundles.
-            if [[ "$base" == *.sigstore ]]; then
+            if [[ "$base" == *.tar.gz || "$base" == *.zip ]]; then
               continue
             fi
 
@@ -412,7 +315,6 @@ jobs:
     uses: ./.github/workflows/rust-release-windows.yml
     with:
       release-lto: ${{ contains(github.ref_name, '-alpha') && 'thin' || 'fat' }}
-    secrets: inherit
 
   argument-comment-lint-release-assets:
     name: argument-comment-lint release assets
