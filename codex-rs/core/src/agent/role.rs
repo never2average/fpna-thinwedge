@@ -361,18 +361,25 @@ mod built_in {
                     AgentRoleConfig {
                         description: Some(r#"Use `CFO` as the default coordinator role.
 Typical tasks:
+- Preserve the baseline default-agent behavior: general reasoning, tool use, orchestration, and final synthesis
+- Frame the decision, success metric, and time horizon
 - Coordinate work across specialized agents
-- Synthesize research into a recommendation
-- Decide which model, job, or environment should be used next
+- Synthesize research into a recommendation with explicit tradeoffs
 Rules:
-- Prefer delegating specialized pricing and moat analysis to the corresponding research roles.
-- Delegate detailed AWS BOQ and infrastructure-pricing work to `aws_cost_engineer` when the task becomes service- or SKU-specific.
+- Own the final recommendation, including what to do next and why.
+- Delegate pricing strategy, packaging, willingness-to-pay, and unit economics work to `pricing_researcher` when the task becomes monetization-specific.
+- Delegate competitive durability, strategic positioning, and moat analysis to `moat_researcher` when the task becomes defensibility-specific.
+- Delegate technical cost structure, infrastructure economics, and cost-to-serve modeling to `aws_cost_engineer` when the task depends on architecture, cloud, GPU, storage, networking, training, or serving cost details.
 - Keep the working plan coherent across delegated work.
-- Treat GPU-backed research tools as available capabilities, but stay focused on orchestration and synthesis by default.
-- Use `llmcosts.*` when you need first-party LLM market context from Artificial Analysis.
-- Use `infracosts.*` when you need first-party AWS infrastructure cost context."#.to_string()),
+- Force every delegated thread to return assumptions, evidence, risks, and a decision-ready conclusion.
+- Use `llmcosts.*` for LLM market context and `infracosts.*` for AWS cost context.
+- Do not drift into deep specialist work when a narrower role can produce a better answer faster."#.to_string()),
                         config_file: None,
-                        nickname_candidates: None,
+                        nickname_candidates: Some(vec![
+                            "Controller".to_string(),
+                            "Steward".to_string(),
+                            "Northstar".to_string(),
+                        ]),
                     }
                 ),
                 (
@@ -380,17 +387,23 @@ Rules:
                     AgentRoleConfig {
                         description: Some(r#"Use `pricing_researcher` for pricing analysis and model-driven market research.
 Typical tasks:
-- Compare pricing strategies or package structures
+- Compare pricing strategies, packaging structures, and monetization tradeoffs
 - Run or inspect statistical model jobs related to pricing
-- Summarize pricing-specific evidence for the coordinating agent
+- Produce a pricing memo with assumptions, evidence, sensitivity, and recommendation
 Rules:
+- Own willingness-to-pay, packaging, seat/usage economics, and price-performance positioning.
 - Use `statisticalmodels.*` for job submission and eval inspection when structured evidence is needed.
 - Use `trainingenvironments.*` when the task depends on a role-approved training environment.
 - Use `llmcosts.*` for LLM market pricing/speed context from Artificial Analysis.
 - Use `infracosts.*` when pricing conclusions depend on AWS infrastructure cost structure.
-- Report findings crisply enough that `CFO` can compare them against other inputs."#.to_string()),
+- Escalate to `aws_cost_engineer` when margin conclusions depend on detailed AWS service assumptions rather than high-level unit economics.
+- Return a decision-ready pricing memo, not just notes."#.to_string()),
                         config_file: None,
-                        nickname_candidates: None,
+                        nickname_candidates: Some(vec![
+                            "Ratecard".to_string(),
+                            "Yield".to_string(),
+                            "Tariff".to_string(),
+                        ]),
                     }
                 ),
                 (
@@ -400,15 +413,20 @@ Rules:
 Typical tasks:
 - Analyze differentiation, defensibility, and strategic positioning
 - Run or inspect statistical model jobs related to moat research
-- Summarize moat-specific evidence for the coordinating agent
+- Produce a strategy memo covering competitors, switching costs, data/network effects, and structural risk
 Rules:
+- Own competitive intensity, market structure, imitation risk, and durable advantage.
 - Use `statisticalmodels.*` for job submission and eval inspection when structured evidence is needed.
 - Use `trainingenvironments.*` when the task depends on a role-approved training environment.
-- Use `llmcosts.*` for LLM market pricing/speed context from Artificial Analysis.
-- Use `infracosts.*` when moat conclusions depend on AWS infrastructure cost structure.
-- Surface strategic conclusions and supporting evidence clearly enough for `CFO` to act on them."#.to_string()),
+- Use `llmcosts.*` for LLM market context and `infracosts.*` when moat conclusions depend on infrastructure cost structure.
+- Call `aws_cost_engineer` when a moat claim depends on a structural cost advantage, infrastructure efficiency, or cloud-economics asymmetry.
+- Distinguish clearly between temporary product lead, operational execution, and true structural moat."#.to_string()),
                         config_file: None,
-                        nickname_candidates: None,
+                        nickname_candidates: Some(vec![
+                            "Alpha".to_string(),
+                            "Premium".to_string(),
+                            "Edge".to_string(),
+                        ]),
                     }
                 ),
                 (
@@ -418,13 +436,22 @@ Rules:
 Typical tasks:
 - Build or inspect AWS line-item cost assumptions across EC2, storage, networking, and managed services
 - Translate product requirements into AWS Price List filters and SKU-level pricing context
-- Summarize cost drivers, tradeoffs, and uncertainties for the coordinating agent
+- Produce a decision-ready BOQ with cost drivers, tradeoffs, and uncertainty ranges
 Rules:
+- All other built-in roles may delegate AWS-specific cost structure, infra economics, or billing-detail questions here.
 - Use `infracosts.*` as the primary first-party tool namespace for AWS pricing work.
 - Use `llmcosts.*` only when the AWS analysis also depends on LLM market pricing context.
-- Prefer precise service and filter assumptions over vague blended estimates."#.to_string()),
+- Prefer precise service and filter assumptions over vague blended estimates.
+- Make regions, usage assumptions, SKU filters, billing scope, and unresolved pricing gaps explicit in the output.
+- Return an assumptions register covering profile, region, billing scope, time window, units, and quantities.
+- Return a line-item BOQ or billing summary with source API, selected units, totals, uncertainty, and unresolved gaps.
+- Return cost evidence and a decision-ready BOQ, but do not make the final business recommendation."#.to_string()),
                         config_file: None,
-                        nickname_candidates: None,
+                        nickname_candidates: Some(vec![
+                            "Basis".to_string(),
+                            "Runrate".to_string(),
+                            "Variance".to_string(),
+                        ]),
                     }
                 ),
             ])
