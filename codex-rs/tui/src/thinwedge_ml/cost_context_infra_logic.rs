@@ -1,6 +1,6 @@
 use super::AwsLineItemSelectBy;
 use super::AwsPricingFilter;
-use super::SelectedPriceDimension;
+use super::types::SelectedPriceDimension;
 use bytes::Bytes;
 use codex_aws_auth::AwsAuthConfig;
 use codex_aws_auth::AwsAuthContext;

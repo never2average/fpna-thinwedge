@@ -8,9 +8,11 @@ mod logic;
 #[path = "cost_context_llm_types.rs"]
 mod types;
 
-pub(super) use logic::coding_index;
+#[cfg(test)]
+use logic::coding_index;
 use logic::filter_models;
-pub(super) use logic::intelligence_index;
+#[cfg(test)]
+use logic::intelligence_index;
 use logic::resolve_lookup;
 use logic::snapshot_for_model;
 use logic::sort_models;

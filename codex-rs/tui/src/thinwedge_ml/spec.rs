@@ -365,11 +365,11 @@ async fn submit_job(
     if let Some(environment_id) = selected_environment_id.as_deref() {
         ensure_environment_visible(codex_home, agent_role, environment_id).await?;
     }
-    let selected_environment = selected_environment_id
-        .as_deref()
-        .map(|environment_id| get_visible_environment(codex_home, agent_role, environment_id))
-        .transpose()
-        .await?;
+    let selected_environment = if let Some(environment_id) = selected_environment_id.as_deref() {
+        Some(get_visible_environment(codex_home, agent_role, environment_id).await?)
+    } else {
+        None
+    };
 
     let now = Utc::now().timestamp();
     let mut job = StoredJob {
