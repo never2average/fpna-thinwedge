@@ -385,6 +385,8 @@ runpod = {
     "supportPublicIp": os.environ["THINWEDGE_FIXTURE_RUNPOD_SUPPORT_PUBLIC_IP"].lower() == "true",
     "stopMode": "stop",
     "startupTimeoutSec": 900,
+    "autoInstallPythonPackages": True,
+    "pythonPackages": ["pandas", "numpy", "matplotlib", "wandb"],
     "env": {
         "THINWEDGE_MODEL_REPOSITORY_ROOT": "/workspace/thinwedge/model-pricing-repo",
         "THINWEDGE_ENV_REPOSITORY_ROOT": "/workspace/thinwedge/env-pricing-repo",

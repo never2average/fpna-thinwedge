@@ -161,6 +161,10 @@ assert payload["environmentId"] == "env-pricing"
 assert payload["provider"] == "runpod"
 assert payload["status"] == "completed"
 assert payload["generatedFiles"][0]["path"] == "generated/model.py"
+assert "pandas" in payload["remoteCommand"]
+assert "numpy" in payload["remoteCommand"]
+assert "matplotlib" in payload["remoteCommand"]
+assert "wandb" in payload["remoteCommand"]
 print("train.sh OK")
 '
 
@@ -195,6 +199,10 @@ assert payload["provider"] == "runpod"
 assert payload["executionMode"] == "http"
 assert payload["status"] == "completed"
 assert payload["outputPath"] == "/workspace/thinwedge/outputs/job-batch-smoke/predictions.json"
+assert "pandas" in payload["remoteCommand"]
+assert "numpy" in payload["remoteCommand"]
+assert "matplotlib" in payload["remoteCommand"]
+assert "wandb" in payload["remoteCommand"]
 print("batch_infer.sh OK")
 '
 

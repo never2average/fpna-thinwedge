@@ -96,8 +96,12 @@ Optional v1 fields:
 - `sshPrivateKeyPath`
 - `dockerArgs`
 - `env`
+- `autoInstallPythonPackages`
+- `pythonPackages`
 - `stopMode`
 - `startupTimeoutSec`
+
+Statistical-model Runpod jobs automatically install Python package dependencies before remote training or batch inference commands run. The default package list is `pandas`, `numpy`, `matplotlib`, and `wandb`; override `pythonPackages` or set `autoInstallPythonPackages: false` in `metadata.runpod` when a custom image already supplies the exact environment.
 
 #### Session cache contract
 
