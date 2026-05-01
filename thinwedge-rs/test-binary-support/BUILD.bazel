@@ -1,0 +1,7 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "test-binary-support",
+    crate_name = "thinwedge_test_binary_support",
+    crate_srcs = ["lib.rs"],
+)

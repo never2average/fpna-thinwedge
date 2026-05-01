@@ -1,0 +1,15 @@
+---
+source: tui/src/model_migration.rs
+expression: terminal.backend()
+---
+
+> ThinWedge just got an upgrade. Introducing gpt-5.1-thinwedge-max.
+
+  We recommend switching from gpt-5-thinwedge to
+  gpt-5.1-thinwedge-max.
+
+  ThinWedge-optimized flagship for deep and fast reasoning.
+  Learn more about gpt-5.1-thinwedge-max at
+  https://www.thinwedge.com/models/gpt-5.1-thinwedge-max
+
+  Press enter to continue

@@ -9,7 +9,7 @@ inputs:
     required: true
   binaries:
     description: Space-delimited binary basenames to sign.
-    default: "thinwedge codex-responses-api-proxy"
+    default: "thinwedge thinwedge-responses-api-proxy"
 
 runs:
   using: composite

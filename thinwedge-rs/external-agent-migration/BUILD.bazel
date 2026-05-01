@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "external-agent-migration",
+    crate_name = "thinwedge_external_agent_migration",
+)

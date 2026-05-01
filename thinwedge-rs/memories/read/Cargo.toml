@@ -1,0 +1,25 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-memories-read"
+version.workspace = true
+
+[lib]
+name = "thinwedge_memories_read"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-protocol = { workspace = true }
+thinwedge-shell-command = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-output-truncation = { workspace = true }
+thinwedge-utils-template = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros"] }

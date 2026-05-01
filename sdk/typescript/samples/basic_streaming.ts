@@ -3,12 +3,12 @@
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
-import { Codex } from "@openai/codex-sdk";
-import type { ThreadEvent, ThreadItem } from "@openai/codex-sdk";
-import { codexPathOverride } from "./helpers.ts";
+import { ThinWedge } from "@openai/thinwedge-sdk";
+import type { ThreadEvent, ThreadItem } from "@openai/thinwedge-sdk";
+import { thinwedgePathOverride } from "./helpers.ts";
 
-const codex = new Codex({ codexPathOverride: codexPathOverride() });
-const thread = codex.startThread();
+const thinwedge = new ThinWedge({ thinwedgePathOverride: thinwedgePathOverride() });
+const thread = thinwedge.startThread();
 const rl = createInterface({ input, output });
 
 const handleItemCompleted = (item: ThreadItem): void => {

@@ -1,0 +1,19 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-plugin"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "thinwedge_plugin"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-config = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-plugins = { workspace = true }
+thiserror = { workspace = true }

@@ -4,8 +4,8 @@
 #
 # Usage (source-only):
 #   source scripts/test-remote-env.sh
-#   cd codex-rs
-#   cargo test -p codex-core --test all remote_env_connects_creates_temp_dir_and_runs_sample_script
+#   cd thinwedge-rs
+#   cargo test -p thinwedge-core --test all remote_env_connects_creates_temp_dir_and_runs_sample_script
 #   thinwedge_remote_env_cleanup
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,8 +24,8 @@ setup_remote_env() {
   local remote_exec_server_port
   local remote_exec_server_stdout_path
 
-  container_name="${CODEX_TEST_REMOTE_ENV_CONTAINER_NAME:-thinwedge-remote-test-env-local-$(date +%s)-${RANDOM}}"
-  thinwedge_binary_path="${REPO_ROOT}/codex-rs/target/debug/thinwedge"
+  container_name="${THINWEDGE_TEST_REMOTE_ENV_CONTAINER_NAME:-thinwedge-remote-test-env-local-$(date +%s)-${RANDOM}}"
+  thinwedge_binary_path="${REPO_ROOT}/thinwedge-rs/target/debug/thinwedge"
 
   if ! command -v docker >/dev/null 2>&1; then
     echo "docker is required (Colima or Docker Desktop)" >&2
@@ -43,8 +43,8 @@ setup_remote_env() {
   fi
 
   (
-    cd "${REPO_ROOT}/codex-rs"
-    cargo build -p codex-cli --bin thinwedge
+    cd "${REPO_ROOT}/thinwedge-rs"
+    cargo build -p thinwedge-cli --bin thinwedge
   )
 
   if [[ ! -f "${thinwedge_binary_path}" ]]; then
@@ -64,7 +64,7 @@ setup_remote_env() {
     return 1
   fi
 
-  if [[ -z "${CODEX_TEST_REMOTE_EXEC_SERVER_URL:-}" ]]; then
+  if [[ -z "${THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL:-}" ]]; then
     remote_thinwedge_path="/tmp/thinwedge-remote-env/thinwedge"
     remote_exec_server_port="31987"
     remote_exec_server_stdout_path="/tmp/thinwedge-remote-env/exec-server.stdout"
@@ -84,11 +84,11 @@ setup_remote_env() {
       docker rm -f "${container_name}" >/dev/null 2>&1 || true
       return 1
     fi
-    export CODEX_TEST_REMOTE_EXEC_SERVER_PID="${remote_exec_server_pid}"
-    export CODEX_TEST_REMOTE_EXEC_SERVER_URL="ws://${container_ip}:${remote_exec_server_port}"
+    export THINWEDGE_TEST_REMOTE_EXEC_SERVER_PID="${remote_exec_server_pid}"
+    export THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL="ws://${container_ip}:${remote_exec_server_port}"
   fi
 
-  export CODEX_TEST_REMOTE_ENV="${container_name}"
+  export THINWEDGE_TEST_REMOTE_ENV="${container_name}"
 }
 
 wait_for_remote_exec_server_port() {
@@ -110,12 +110,12 @@ wait_for_remote_exec_server_port() {
 }
 
 thinwedge_remote_env_cleanup() {
-  if [[ -n "${CODEX_TEST_REMOTE_ENV:-}" ]]; then
-    docker rm -f "${CODEX_TEST_REMOTE_ENV}" >/dev/null 2>&1 || true
-    unset CODEX_TEST_REMOTE_ENV
+  if [[ -n "${THINWEDGE_TEST_REMOTE_ENV:-}" ]]; then
+    docker rm -f "${THINWEDGE_TEST_REMOTE_ENV}" >/dev/null 2>&1 || true
+    unset THINWEDGE_TEST_REMOTE_ENV
   fi
-  unset CODEX_TEST_REMOTE_EXEC_SERVER_PID
-  unset CODEX_TEST_REMOTE_EXEC_SERVER_URL
+  unset THINWEDGE_TEST_REMOTE_EXEC_SERVER_PID
+  unset THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL
 }
 
 if ! is_sourced; then
@@ -127,8 +127,8 @@ old_shell_options="$(set +o)"
 set -euo pipefail
 if setup_remote_env; then
   status=0
-  echo "CODEX_TEST_REMOTE_ENV=${CODEX_TEST_REMOTE_ENV}"
-  echo "CODEX_TEST_REMOTE_EXEC_SERVER_URL=${CODEX_TEST_REMOTE_EXEC_SERVER_URL}"
+  echo "THINWEDGE_TEST_REMOTE_ENV=${THINWEDGE_TEST_REMOTE_ENV}"
+  echo "THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL=${THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL}"
   echo "Remote env ready. Run your command, then call: thinwedge_remote_env_cleanup"
 else
   status=$?

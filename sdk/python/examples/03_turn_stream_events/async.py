@@ -16,12 +16,12 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from codex_app_server import AsyncCodex, TextInput
+from thinwedge_app_server import AsyncThinWedge, TextInput
 
 
 async def main() -> None:
-    async with AsyncCodex(config=runtime_config()) as codex:
-        thread = await codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    async with AsyncThinWedge(config=runtime_config()) as thinwedge:
+        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
         turn = await thread.turn(TextInput("Explain SIMD in 3 short bullets."))
 
         event_count = 0

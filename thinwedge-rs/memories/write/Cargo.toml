@@ -1,0 +1,46 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-memories-write"
+version.workspace = true
+
+[lib]
+name = "thinwedge_memories_write"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+thinwedge-backend-client = { workspace = true }
+thinwedge-core = { workspace = true }
+thinwedge-config = { workspace = true }
+thinwedge-features = { workspace = true }
+thinwedge-git-utils = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-otel = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-rollout = { workspace = true }
+thinwedge-rollout-trace = { workspace = true }
+thinwedge-secrets = { workspace = true }
+thinwedge-state = { workspace = true }
+thinwedge-terminal-detection = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-output-truncation = { workspace = true }
+thinwedge-utils-template = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["fs", "rt", "sync", "time"] }
+tracing = { workspace = true, features = ["log"] }
+uuid = { workspace = true, features = ["v4", "v5"] }
+
+[dev-dependencies]
+thinwedge-models-manager = { workspace = true }
+core_test_support = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros"] }
+wiremock = { workspace = true }

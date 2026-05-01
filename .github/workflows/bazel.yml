@@ -85,7 +85,7 @@ jobs:
           bazel_targets=(
             //...
             # Keep standalone V8 library targets out of the ordinary Bazel CI
-            # path. V8 consumers under `//codex-rs/...` still participate
+            # path. V8 consumers under `//thinwedge-rs/...` still participate
             # transitively through `//...`.
             -//third_party/v8:all
           )
@@ -173,7 +173,7 @@ jobs:
           if [[ "${RUNNER_OS}" == "Windows" ]]; then
             # Keep this aligned with the Windows Bazel test job. With the
             # default `//:local_windows` host platform, Windows `rust_test`
-            # targets such as `//codex-rs/core:core-all-test` can be skipped
+            # targets such as `//thinwedge-rs/core:core-all-test` can be skipped
             # by `--skip_incompatible_explicit_targets`, which hides clippy
             # diagnostics from integration-test modules.
             bazel_wrapper_args+=(--windows-msvc-host-platform)

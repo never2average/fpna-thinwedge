@@ -1,6 +1,6 @@
-import { CodexOptions } from "./codexOptions";
+import { ThinWedgeOptions } from "./thinwedgeOptions";
 import { ThreadEvent, ThreadError, Usage } from "./events";
-import { CodexExec } from "./exec";
+import { ThinWedgeExec } from "./exec";
 import { ThreadItem } from "./items";
 import { ThreadOptions } from "./threadOptions";
 import { TurnOptions } from "./turnOptions";
@@ -39,8 +39,8 @@ export type Input = string | UserInput[];
 
 /** Represent a thread of conversation with the agent. One thread can have multiple consecutive turns. */
 export class Thread {
-  private _exec: CodexExec;
-  private _options: CodexOptions;
+  private _exec: ThinWedgeExec;
+  private _options: ThinWedgeOptions;
   private _id: string | null;
   private _threadOptions: ThreadOptions;
 
@@ -51,8 +51,8 @@ export class Thread {
 
   /* @internal */
   constructor(
-    exec: CodexExec,
-    options: CodexOptions,
+    exec: ThinWedgeExec,
+    options: ThinWedgeOptions,
     threadOptions: ThreadOptions,
     id: string | null = null,
   ) {

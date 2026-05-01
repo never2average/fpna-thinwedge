@@ -1,6 +1,6 @@
-# Codex App Server Python SDK (Experimental)
+# ThinWedge App Server Python SDK (Experimental)
 
-Experimental Python SDK for `codex app-server` JSON-RPC v2 over stdio, with a small default surface optimized for real scripts and apps.
+Experimental Python SDK for `thinwedge app-server` JSON-RPC v2 over stdio, with a small default surface optimized for real scripts and apps.
 
 The generated wire-model layer is currently sourced from the bundled v2 schema and exposed as Pydantic models with snake_case Python fields that serialize back to the app-server’s camelCase wire format.
 
@@ -12,19 +12,19 @@ uv sync
 source .venv/bin/activate
 ```
 
-Published SDK builds pin an exact `openai-codex-cli-bin` runtime dependency
+Published SDK builds pin an exact `openai-thinwedge-cli-bin` runtime dependency
 with the same version as the SDK. For local repo development, either pass
-`AppServerConfig(codex_bin=...)` to point at a local build explicitly, or use
+`AppServerConfig(thinwedge_bin=...)` to point at a local build explicitly, or use
 the repo examples/notebook bootstrap which installs the pinned runtime package
 automatically.
 
 ## Quickstart
 
 ```python
-from codex_app_server import Codex
+from thinwedge_app_server import ThinWedge
 
-with Codex() as codex:
-    thread = codex.thread_start(model="gpt-5")
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_start(model="gpt-5")
     result = thread.run("Say hello in one sentence.")
     print(result.final_response)
     print(len(result.items))
@@ -53,15 +53,15 @@ python examples/01_quickstart_constructor/async.py
 
 ## Runtime packaging
 
-The repo no longer checks `codex` binaries into `sdk/python`.
+The repo no longer checks `thinwedge` binaries into `sdk/python`.
 
-Published SDK builds are pinned to an exact `openai-codex-cli-bin` package
+Published SDK builds are pinned to an exact `openai-thinwedge-cli-bin` package
 version, and that runtime package carries the platform-specific binary for the
 target wheel. The SDK package version and runtime package version must match.
 
 For local repo development, the checked-in `sdk/python-runtime` package is only
 a template for staged release artifacts. Editable installs should use an
-explicit `codex_bin` override for manual SDK usage; the repo examples and
+explicit `thinwedge_bin` override for manual SDK usage; the repo examples and
 notebook bootstrap the pinned runtime package automatically.
 
 ## Maintainer workflow
@@ -71,13 +71,13 @@ cd sdk/python
 python scripts/update_sdk_artifacts.py generate-types
 python scripts/update_sdk_artifacts.py \
   stage-sdk \
-  /tmp/codex-python-release/openai-codex-app-server-sdk \
-  --codex-version <codex-release-tag-or-pep440-version>
+  /tmp/thinwedge-python-release/openai-thinwedge-app-server-sdk \
+  --thinwedge-version <thinwedge-release-tag-or-pep440-version>
 python scripts/update_sdk_artifacts.py \
   stage-runtime \
-  /tmp/codex-python-release/openai-codex-cli-bin \
-  /path/to/codex \
-  --codex-version <codex-release-tag-or-pep440-version>
+  /tmp/thinwedge-python-release/openai-thinwedge-cli-bin \
+  /path/to/thinwedge \
+  --thinwedge-version <thinwedge-release-tag-or-pep440-version>
 ```
 
 Pass `--platform-tag ...` to `stage-runtime` when the wheel should be tagged for
@@ -89,22 +89,22 @@ matrix is `macosx_11_0_arm64`, `macosx_10_9_x86_64`,
 This supports the CI release flow:
 
 - run `generate-types` before packaging
-- stage `openai-codex-app-server-sdk` once with an exact `openai-codex-cli-bin==...` dependency
-- stage `openai-codex-cli-bin` on each supported platform runner with the same pinned runtime version
-- build and publish `openai-codex-cli-bin` as platform wheels only; do not publish an sdist
+- stage `openai-thinwedge-app-server-sdk` once with an exact `openai-thinwedge-cli-bin==...` dependency
+- stage `openai-thinwedge-cli-bin` on each supported platform runner with the same pinned runtime version
+- build and publish `openai-thinwedge-cli-bin` as platform wheels only; do not publish an sdist
 
 ## Compatibility and versioning
 
-- Package: `openai-codex-app-server-sdk`
-- Runtime package: `openai-codex-cli-bin`
+- Package: `openai-thinwedge-app-server-sdk`
+- Runtime package: `openai-thinwedge-cli-bin`
 - Python: `>=3.10`
-- Target protocol: Codex `app-server` JSON-RPC v2
-- Versioning rule: the SDK package version is the underlying Codex runtime version
+- Target protocol: ThinWedge `app-server` JSON-RPC v2
+- Versioning rule: the SDK package version is the underlying ThinWedge runtime version
 
 ## Notes
 
-- `Codex()` is eager and performs startup + `initialize` in the constructor.
-- Use context managers (`with Codex() as codex:`) to ensure shutdown.
+- `ThinWedge()` is eager and performs startup + `initialize` in the constructor.
+- Use context managers (`with ThinWedge() as thinwedge:`) to ensure shutdown.
 - Prefer `thread.run("...")` for the common case. Use `thread.turn(...)` when
   you need streaming, steering, or interrupt control.
-- For transient overload, use `codex_app_server.retry.retry_on_overload`.
+- For transient overload, use `thinwedge_app_server.retry.retry_on_overload`.

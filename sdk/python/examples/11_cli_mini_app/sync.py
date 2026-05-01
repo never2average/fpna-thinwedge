@@ -9,14 +9,14 @@ from _bootstrap import ensure_local_sdk_src, runtime_config
 
 ensure_local_sdk_src()
 
-from codex_app_server import (
-    Codex,
+from thinwedge_app_server import (
+    ThinWedge,
     TextInput,
     ThreadTokenUsageUpdatedNotification,
     TurnCompletedNotification,
 )
 
-print("Codex mini CLI. Type /exit to quit.")
+print("ThinWedge mini CLI. Type /exit to quit.")
 
 
 def _status_value(status: object | None) -> str:
@@ -39,8 +39,8 @@ def _format_usage(usage: object | None) -> str:
     )
 
 
-with Codex(config=runtime_config()) as codex:
-    thread = codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+with ThinWedge(config=runtime_config()) as thinwedge:
+    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
     print("Thread:", thread.id)
 
     while True:

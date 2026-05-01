@@ -1,0 +1,15 @@
+---
+source: tui/src/model_migration.rs
+expression: terminal.backend()
+---
+
+> ThinWedge just got an upgrade. Introducing gpt-5.1-thinwedge-mini.
+
+  We recommend switching from gpt-5-thinwedge-mini to
+  gpt-5.1-thinwedge-mini.
+
+  Optimized for thinwedge. Cheaper, faster, but less capable.
+  Learn more about gpt-5.1-thinwedge-mini at
+  https://www.thinwedge.com/models/gpt-5.1-thinwedge-mini
+
+  Press enter to continue

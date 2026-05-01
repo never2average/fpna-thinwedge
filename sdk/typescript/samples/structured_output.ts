@@ -1,12 +1,12 @@
 #!/usr/bin/env -S NODE_NO_WARNINGS=1 pnpm ts-node-esm --files
 
-import { Codex } from "@openai/codex-sdk";
+import { ThinWedge } from "@openai/thinwedge-sdk";
 
-import { codexPathOverride } from "./helpers.ts";
+import { thinwedgePathOverride } from "./helpers.ts";
 
-const codex = new Codex({ codexPathOverride: codexPathOverride() });
+const thinwedge = new ThinWedge({ thinwedgePathOverride: thinwedgePathOverride() });
 
-const thread = codex.startThread();
+const thread = thinwedge.startThread();
 
 const schema = {
   type: "object",

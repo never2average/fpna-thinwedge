@@ -216,7 +216,7 @@ function Test-OldStandaloneBinLayout {
         return $false
     }
 
-    $requiredFiles = @("codex.exe", "rg.exe")
+    $requiredFiles = @("thinwedge.exe", "rg.exe")
     foreach ($fileName in $requiredFiles) {
         if (-not (Test-Path -LiteralPath (Join-Path $VisibleBinDir $fileName) -PathType Leaf)) {
             return $false
@@ -224,11 +224,11 @@ function Test-OldStandaloneBinLayout {
     }
 
     $knownFiles = @(
-        "codex.exe",
+        "thinwedge.exe",
         "rg.exe",
-        "codex-command-runner.exe",
-        "codex-windows-sandbox.exe",
-        "codex-windows-sandbox-setup.exe"
+        "thinwedge-command-runner.exe",
+        "thinwedge-windows-sandbox.exe",
+        "thinwedge-windows-sandbox-setup.exe"
     )
     foreach ($child in Get-ChildItem -LiteralPath $VisibleBinDir -Force) {
         if ($child.PSIsContainer) {
@@ -265,7 +265,7 @@ function Move-OldStandaloneBinIfApproved {
 }
 
 function Add-JunctionSupportType {
-    if (([System.Management.Automation.PSTypeName]'CodexInstaller.Junction').Type) {
+    if (([System.Management.Automation.PSTypeName]'ThinWedgeInstaller.Junction').Type) {
         return
     }
 
@@ -277,7 +277,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 
-namespace CodexInstaller
+namespace ThinWedgeInstaller
 {
     public static class Junction
     {
@@ -384,7 +384,7 @@ function Set-JunctionTarget {
     )
 
     Add-JunctionSupportType
-    [CodexInstaller.Junction]::SetTarget($LinkPath, $TargetPath)
+    [ThinWedgeInstaller.Junction]::SetTarget($LinkPath, $TargetPath)
 }
 
 function Test-IsJunction {
@@ -462,8 +462,8 @@ function Test-ReleaseIsComplete {
 
     $expectedFiles = @(
         "thinwedge.exe",
-        "thinwedge-resources\codex-command-runner.exe",
-        "thinwedge-resources\codex-windows-sandbox-setup.exe",
+        "thinwedge-resources\thinwedge-command-runner.exe",
+        "thinwedge-resources\thinwedge-windows-sandbox-setup.exe",
         "thinwedge-resources\rg.exe"
     )
     foreach ($name in $expectedFiles) {
@@ -478,7 +478,7 @@ function Test-ReleaseIsComplete {
 function Get-ExistingThinWedgeCommand {
     $existing = Get-Command thinwedge -ErrorAction SilentlyContinue
     if ($null -eq $existing) {
-        $existing = Get-Command codex -ErrorAction SilentlyContinue
+        $existing = Get-Command thinwedge -ErrorAction SilentlyContinue
     }
     if ($null -eq $existing) {
         return $null
@@ -567,10 +567,10 @@ function Test-VisibleThinWedgeCommand {
         [string]$VisibleBinDir
     )
 
-    $codexCommand = Join-Path $VisibleBinDir "thinwedge.exe"
-    & $codexCommand --version *> $null
+    $thinwedgeCommand = Join-Path $VisibleBinDir "thinwedge.exe"
+    & $thinwedgeCommand --version *> $null
     if ($LASTEXITCODE -ne 0) {
-        throw "Installed ThinWedge command failed verification: $codexCommand --version"
+        throw "Installed ThinWedge command failed verification: $thinwedgeCommand --version"
     }
 }
 
@@ -605,21 +605,21 @@ switch ($architecture) {
     }
 }
 
-$codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
-    Join-Path $env:USERPROFILE ".codex"
+$thinwedgeHome = if ([string]::IsNullOrWhiteSpace($env:THINWEDGE_HOME)) {
+    Join-Path $env:USERPROFILE ".thinwedge"
 } else {
-    $env:CODEX_HOME
+    $env:THINWEDGE_HOME
 }
-$standaloneRoot = Join-Path $codexHome "packages\standalone"
+$standaloneRoot = Join-Path $thinwedgeHome "packages\standalone"
 $releasesDir = Join-Path $standaloneRoot "releases"
 $currentDir = Join-Path $standaloneRoot "current"
 $lockPath = Join-Path $standaloneRoot "install.lock"
 
 $defaultVisibleBinDir = Join-Path $env:LOCALAPPDATA "Programs\ThinWedge\bin"
-if ([string]::IsNullOrWhiteSpace($env:CODEX_INSTALL_DIR)) {
+if ([string]::IsNullOrWhiteSpace($env:THINWEDGE_INSTALL_DIR)) {
     $visibleBinDir = $defaultVisibleBinDir
 } else {
-    $visibleBinDir = $env:CODEX_INSTALL_DIR
+    $visibleBinDir = $env:THINWEDGE_INSTALL_DIR
 }
 
 $currentVersion = Get-CurrentInstalledVersion -StandaloneCurrentDir $currentDir
@@ -675,8 +675,8 @@ try {
             New-Item -ItemType Directory -Force -Path $resourcesDir | Out-Null
             $copyMap = @{
                 "thinwedge/thinwedge.exe" = "thinwedge.exe"
-                "thinwedge/codex-command-runner.exe" = "thinwedge-resources\codex-command-runner.exe"
-                "thinwedge/codex-windows-sandbox-setup.exe" = "thinwedge-resources\codex-windows-sandbox-setup.exe"
+                "thinwedge/thinwedge-command-runner.exe" = "thinwedge-resources\thinwedge-command-runner.exe"
+                "thinwedge/thinwedge-windows-sandbox-setup.exe" = "thinwedge-resources\thinwedge-windows-sandbox-setup.exe"
                 "path/rg.exe" = "thinwedge-resources\rg.exe"
             }
 
@@ -746,8 +746,8 @@ Write-Step "Current PowerShell session: thinwedge"
 Write-Step "Future PowerShell windows: open a new PowerShell window and run: thinwedge"
 Write-Host "ThinWedge CLI $resolvedVersion installed successfully."
 
-$codexCommand = Join-Path $visibleBinDir "thinwedge.exe"
+$thinwedgeCommand = Join-Path $visibleBinDir "thinwedge.exe"
 if (Prompt-YesNo "Start ThinWedge now?") {
     Write-Step "Launching ThinWedge"
-    & $codexCommand
+    & $thinwedgeCommand
 }

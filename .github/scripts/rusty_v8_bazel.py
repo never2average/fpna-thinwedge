@@ -125,7 +125,7 @@ def release_pair_label(target: str) -> str:
 
 
 def resolved_v8_crate_version() -> str:
-    cargo_lock = tomllib.loads((ROOT / "codex-rs" / "Cargo.lock").read_text())
+    cargo_lock = tomllib.loads((ROOT / "thinwedge-rs" / "Cargo.lock").read_text())
     versions = sorted(
         {
             package["version"]

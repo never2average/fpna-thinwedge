@@ -1,0 +1,27 @@
+[package]
+name = "thinwedge-chatgpt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+thinwedge-app-server-protocol = { workspace = true }
+thinwedge-connectors = { workspace = true }
+thinwedge-core = { workspace = true }
+thinwedge-git-utils = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
+thinwedge-utils-cli = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+
+[dev-dependencies]
+thinwedge-utils-cargo-bin = { workspace = true }
+pretty_assertions = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }

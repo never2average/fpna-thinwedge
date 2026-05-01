@@ -1,8 +1,8 @@
 import path from "node:path";
 
-export function codexPathOverride() {
+export function thinwedgePathOverride() {
   return (
-    process.env.CODEX_EXECUTABLE ??
-    path.join(process.cwd(), "..", "..", "codex-rs", "target", "debug", "codex")
+    process.env.THINWEDGE_EXECUTABLE ??
+    path.join(process.cwd(), "..", "..", "thinwedge-rs", "target", "debug", "thinwedge")
   );
 }

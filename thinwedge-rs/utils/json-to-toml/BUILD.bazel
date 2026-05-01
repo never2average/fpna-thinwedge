@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "json-to-toml",
+    crate_name = "thinwedge_utils_json_to_toml",
+)

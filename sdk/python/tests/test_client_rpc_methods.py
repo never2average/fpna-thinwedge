@@ -3,14 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from codex_app_server.client import AppServerClient, _params_dict
-from codex_app_server.generated.v2_all import (
+from thinwedge_app_server.client import AppServerClient, _params_dict
+from thinwedge_app_server.generated.v2_all import (
     ApprovalsReviewer,
     ThreadListParams,
     ThreadResumeResponse,
     ThreadTokenUsageUpdatedNotification,
 )
-from codex_app_server.models import UnknownNotification
+from thinwedge_app_server.models import UnknownNotification
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,7 +41,7 @@ def test_generated_params_models_are_snake_case_and_dump_by_alias() -> None:
 
 
 def test_generated_v2_bundle_has_single_shared_plan_type_definition() -> None:
-    source = (ROOT / "src" / "codex_app_server" / "generated" / "v2_all.py").read_text()
+    source = (ROOT / "src" / "thinwedge_app_server" / "generated" / "v2_all.py").read_text()
     assert source.count("class PlanType(") == 1
 
 

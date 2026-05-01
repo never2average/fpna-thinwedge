@@ -1,0 +1,15 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-utils-output-truncation"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-protocol = { workspace = true }
+thinwedge-utils-string = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

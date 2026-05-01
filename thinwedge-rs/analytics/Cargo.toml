@@ -1,0 +1,34 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-analytics"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "thinwedge_analytics"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-app-server-protocol = { workspace = true }
+thinwedge-git-utils = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
+thinwedge-plugin = { workspace = true }
+thinwedge-protocol = { workspace = true }
+os_info = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sha1 = { workspace = true }
+tokio = { workspace = true, features = [
+    "macros",
+    "rt-multi-thread",
+] }
+tracing = { workspace = true, features = ["log"] }
+
+[dev-dependencies]
+thinwedge-utils-absolute-path = { workspace = true }
+pretty_assertions = { workspace = true }

@@ -1,0 +1,15 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "core-plugins",
+    crate_name = "thinwedge_core_plugins",
+    compile_data = glob(
+        include = ["**"],
+        exclude = [
+            "**/* *",
+            "BUILD.bazel",
+            "Cargo.toml",
+        ],
+        allow_empty = True,
+    ),
+)

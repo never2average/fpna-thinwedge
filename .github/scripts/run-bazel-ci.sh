@@ -280,9 +280,9 @@ if [[ -n "${BAZEL_REPOSITORY_CACHE:-}" ]]; then
   post_config_bazel_args+=("--repository_cache=${BAZEL_REPOSITORY_CACHE}")
 fi
 
-if [[ -n "${CODEX_BAZEL_EXECUTION_LOG_COMPACT_DIR:-}" ]]; then
+if [[ -n "${THINWEDGE_BAZEL_EXECUTION_LOG_COMPACT_DIR:-}" ]]; then
   post_config_bazel_args+=(
-    "--execution_log_compact_file=${CODEX_BAZEL_EXECUTION_LOG_COMPACT_DIR}/execution-log-${bazel_args[0]}-${GITHUB_JOB:-local}-$$.zst"
+    "--execution_log_compact_file=${THINWEDGE_BAZEL_EXECUTION_LOG_COMPACT_DIR}/execution-log-${bazel_args[0]}-${GITHUB_JOB:-local}-$$.zst"
   )
 fi
 
@@ -308,15 +308,15 @@ if [[ "${RUNNER_OS:-}" == "Windows" ]]; then
     fi
   done
 
-  if [[ -z "${CODEX_BAZEL_WINDOWS_PATH:-}" ]]; then
-    echo "CODEX_BAZEL_WINDOWS_PATH must be set for Windows Bazel CI." >&2
+  if [[ -z "${THINWEDGE_BAZEL_WINDOWS_PATH:-}" ]]; then
+    echo "THINWEDGE_BAZEL_WINDOWS_PATH must be set for Windows Bazel CI." >&2
     exit 1
   fi
 
   post_config_bazel_args+=(
-    "--action_env=PATH=${CODEX_BAZEL_WINDOWS_PATH}"
-    "--host_action_env=PATH=${CODEX_BAZEL_WINDOWS_PATH}"
-    "--test_env=PATH=${CODEX_BAZEL_WINDOWS_PATH}"
+    "--action_env=PATH=${THINWEDGE_BAZEL_WINDOWS_PATH}"
+    "--host_action_env=PATH=${THINWEDGE_BAZEL_WINDOWS_PATH}"
+    "--test_env=PATH=${THINWEDGE_BAZEL_WINDOWS_PATH}"
   )
 fi
 

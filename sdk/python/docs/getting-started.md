@@ -18,19 +18,19 @@ Requirements:
 
 - Python `>=3.10`
 - uv
-- installed `openai-codex-cli-bin` runtime package, or an explicit `codex_bin` override
-- local Codex auth/session configured
+- installed `openai-thinwedge-cli-bin` runtime package, or an explicit `thinwedge_bin` override
+- local ThinWedge auth/session configured
 
 ## 2) Run your first turn (sync)
 
 ```python
-from codex_app_server import Codex
+from thinwedge_app_server import ThinWedge
 
-with Codex() as codex:
-    server = codex.metadata.serverInfo
+with ThinWedge() as thinwedge:
+    server = thinwedge.metadata.serverInfo
     print("Server:", None if server is None else server.name, None if server is None else server.version)
 
-    thread = codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
     result = thread.run("Say hello in one sentence.")
 
     print("Thread:", thread.id)
@@ -40,7 +40,7 @@ with Codex() as codex:
 
 What happened:
 
-- `Codex()` started and initialized `codex app-server`.
+- `ThinWedge()` started and initialized `thinwedge app-server`.
 - `thread_start(...)` created a thread.
 - `thread.run("...")` started a turn, consumed events until completion, and returned the final assistant response plus collected items and usage.
 - `result.final_response` is `None` when no final-answer or phase-less assistant message item completes for the turn.
@@ -50,10 +50,10 @@ What happened:
 ## 3) Continue the same thread (multi-turn)
 
 ```python
-from codex_app_server import Codex
+from thinwedge_app_server import ThinWedge
 
-with Codex() as codex:
-    thread = codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
 
     first = thread.run("Summarize Rust ownership in 2 bullets.")
     second = thread.run("Now explain it to a Python developer.")
@@ -64,17 +64,17 @@ with Codex() as codex:
 
 ## 4) Async parity
 
-Use `async with AsyncCodex()` as the normal async entrypoint. `AsyncCodex`
+Use `async with AsyncThinWedge()` as the normal async entrypoint. `AsyncThinWedge`
 initializes lazily, and context entry makes startup/shutdown explicit.
 
 ```python
 import asyncio
-from codex_app_server import AsyncCodex
+from thinwedge_app_server import AsyncThinWedge
 
 
 async def main() -> None:
-    async with AsyncCodex() as codex:
-        thread = await codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    async with AsyncThinWedge() as thinwedge:
+        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
         result = await thread.run("Continue where we left off.")
         print(result.final_response)
 
@@ -85,12 +85,12 @@ asyncio.run(main())
 ## 5) Resume an existing thread
 
 ```python
-from codex_app_server import Codex
+from thinwedge_app_server import ThinWedge
 
 THREAD_ID = "thr_123"  # replace with a real id
 
-with Codex() as codex:
-    thread = codex.thread_resume(THREAD_ID)
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_resume(THREAD_ID)
     result = thread.run("Continue where we left off.")
     print(result.final_response)
 ```
@@ -100,7 +100,7 @@ with Codex() as codex:
 The convenience wrappers live at the package root, but the canonical app-server models live under:
 
 ```python
-from codex_app_server.generated.v2_all import Turn, TurnStatus, ThreadReadResponse
+from thinwedge_app_server.generated.v2_all import Turn, TurnStatus, ThreadReadResponse
 ```
 
 ## 7) Next stops

@@ -20,7 +20,7 @@ jobs:
             set -euo pipefail
             pwd
             ls -la
-            test -f codex-rs/Cargo.toml
+            test -f thinwedge-rs/Cargo.toml
 
   tag-check:
     docker:
@@ -34,7 +34,7 @@ jobs:
             test -n "${CIRCLE_TAG:-}"
             [[ "${CIRCLE_TAG}" =~ ^rust-v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)(\.[0-9]+)?)?$ ]]
             tag_ver="${CIRCLE_TAG#rust-v}"
-            cargo_ver="$(grep -m1 '^version' codex-rs/Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')"
+            cargo_ver="$(grep -m1 '^version' thinwedge-rs/Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')"
             if [ "${tag_ver}" != "${cargo_ver}" ]; then
               echo "tag ${tag_ver} does not match Cargo.toml ${cargo_ver}"
               exit 1
@@ -49,7 +49,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-cargo-linux-x64-{{ checksum "codex-rs/Cargo.lock" }}
+            - v1-cargo-linux-x64-{{ checksum "thinwedge-rs/Cargo.lock" }}
             - v1-cargo-linux-x64-
       - run:
           name: Install Linux build dependencies
@@ -75,31 +75,31 @@ jobs:
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
-            cd codex-rs
+            cd thinwedge-rs
             cargo build --target x86_64-unknown-linux-musl --release \
               --bin thinwedge \
-              --bin codex-responses-api-proxy
+              --bin thinwedge-responses-api-proxy
       - run:
           name: Stage Linux x64 release assets
           command: |
             set -euo pipefail
             base="/tmp/circleci-release"
             target="x86_64-unknown-linux-musl"
-            release_dir="$HOME/project/codex-rs/target/${target}/release"
+            release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
 
             mkdir -p "${base}/native/vendor/${target}/thinwedge"
             mkdir -p "${base}/release-assets"
 
             cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
             tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
-            tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
       - save_cache:
-          key: v1-cargo-linux-x64-{{ checksum "codex-rs/Cargo.lock" }}
+          key: v1-cargo-linux-x64-{{ checksum "thinwedge-rs/Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - ~/.cargo/git
             - ~/.rustup
-            - ~/project/codex-rs/target
+            - ~/project/thinwedge-rs/target
       - persist_to_workspace:
           root: /tmp/circleci-release
           paths:
@@ -115,7 +115,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-cargo-macos-{{ checksum "codex-rs/Cargo.lock" }}
+            - v1-cargo-macos-{{ checksum "thinwedge-rs/Cargo.lock" }}
             - v1-cargo-macos-
       - run:
           name: Install Rust toolchain
@@ -130,11 +130,11 @@ jobs:
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
-            cd codex-rs
+            cd thinwedge-rs
             for target in aarch64-apple-darwin x86_64-apple-darwin; do
               cargo build --target "${target}" --release \
                 --bin thinwedge \
-                --bin codex-responses-api-proxy
+                --bin thinwedge-responses-api-proxy
             done
       - run:
           name: Stage macOS release assets
@@ -144,19 +144,19 @@ jobs:
             mkdir -p "${base}/release-assets"
 
             for target in aarch64-apple-darwin x86_64-apple-darwin; do
-              release_dir="$HOME/project/codex-rs/target/${target}/release"
+              release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
               mkdir -p "${base}/native/vendor/${target}/thinwedge"
               cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
               tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
-              tar -C "${release_dir}" -czf "${base}/release-assets/codex-responses-api-proxy-${target}.tar.gz" codex-responses-api-proxy
+              tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
             done
       - save_cache:
-          key: v1-cargo-macos-{{ checksum "codex-rs/Cargo.lock" }}
+          key: v1-cargo-macos-{{ checksum "thinwedge-rs/Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - ~/.cargo/git
             - ~/.rustup
-            - ~/project/codex-rs/target
+            - ~/project/thinwedge-rs/target
       - persist_to_workspace:
           root: /tmp/circleci-release
           paths:
@@ -189,7 +189,7 @@ jobs:
           name: Prepare npm vendor tree
           command: |
             set -euo pipefail
-            python3 codex-cli/scripts/install_native_deps.py --component rg "${CIRCLECI_RELEASE_ROOT}/native"
+            python3 thinwedge-cli/scripts/install_native_deps.py --component rg "${CIRCLECI_RELEASE_ROOT}/native"
       - run:
           name: Build npm tarballs
           environment:
@@ -217,7 +217,7 @@ jobs:
                   pack_output="dist/npm/thinwedge-cli-npm-${platform}-${version}.tgz"
                   ;;
               esac
-              python3 codex-cli/scripts/build_npm_package.py \
+              python3 thinwedge-cli/scripts/build_npm_package.py \
                 --package "${package}" \
                 --release-version "${version}" \
                 --staging-dir "${staging_dir}" \
@@ -230,7 +230,7 @@ jobs:
             set -euo pipefail
             cp scripts/install/install.sh dist/install.sh
             cp scripts/install/install.ps1 dist/install.ps1
-            cp codex-rs/core/config.schema.json dist/config-schema.json
+            cp thinwedge-rs/core/config.schema.json dist/config-schema.json
             git log -1 --format=%B "${CIRCLE_SHA1}" > /tmp/release-notes.md
             echo >> /tmp/release-notes.md
       - run:

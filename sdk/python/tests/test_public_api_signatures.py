@@ -6,10 +6,10 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-import codex_app_server
-from codex_app_server import AppServerConfig, RunResult
-from codex_app_server.models import InitializeResponse
-from codex_app_server.api import AsyncCodex, AsyncThread, Codex, Thread
+import thinwedge_app_server
+from thinwedge_app_server import AppServerConfig, RunResult
+from thinwedge_app_server.models import InitializeResponse
+from thinwedge_app_server.api import AsyncThinWedge, AsyncThread, ThinWedge, Thread
 
 
 def _keyword_only_names(fn: object) -> list[str]:
@@ -44,18 +44,18 @@ def test_package_and_default_client_versions_follow_project_version() -> None:
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
     pyproject = tomllib.loads(pyproject_path.read_text())
 
-    assert codex_app_server.__version__ == pyproject["project"]["version"]
-    assert AppServerConfig().client_version == codex_app_server.__version__
+    assert thinwedge_app_server.__version__ == pyproject["project"]["version"]
+    assert AppServerConfig().client_version == thinwedge_app_server.__version__
 
 
 def test_package_includes_py_typed_marker() -> None:
-    marker = resources.files("codex_app_server").joinpath("py.typed")
+    marker = resources.files("thinwedge_app_server").joinpath("py.typed")
     assert marker.is_file()
 
 
 def test_generated_public_signatures_are_snake_case_and_typed() -> None:
     expected = {
-        Codex.thread_start: [
+        ThinWedge.thread_start: [
             "approval_policy",
             "approvals_reviewer",
             "base_instructions",
@@ -72,7 +72,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "service_tier",
             "session_start_source",
         ],
-        Codex.thread_list: [
+        ThinWedge.thread_list: [
             "archived",
             "cursor",
             "cwd",
@@ -84,7 +84,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "source_kinds",
             "use_state_db_only",
         ],
-        Codex.thread_resume: [
+        ThinWedge.thread_resume: [
             "approval_policy",
             "approvals_reviewer",
             "base_instructions",
@@ -99,7 +99,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "sandbox",
             "service_tier",
         ],
-        Codex.thread_fork: [
+        ThinWedge.thread_fork: [
             "approval_policy",
             "approvals_reviewer",
             "base_instructions",
@@ -140,7 +140,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "service_tier",
             "summary",
         ],
-        AsyncCodex.thread_start: [
+        AsyncThinWedge.thread_start: [
             "approval_policy",
             "approvals_reviewer",
             "base_instructions",
@@ -157,7 +157,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "service_tier",
             "session_start_source",
         ],
-        AsyncCodex.thread_list: [
+        AsyncThinWedge.thread_list: [
             "archived",
             "cursor",
             "cwd",
@@ -169,7 +169,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "source_kinds",
             "use_state_db_only",
         ],
-        AsyncCodex.thread_resume: [
+        AsyncThinWedge.thread_resume: [
             "approval_policy",
             "approvals_reviewer",
             "base_instructions",
@@ -184,7 +184,7 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
             "sandbox",
             "service_tier",
         ],
-        AsyncCodex.thread_fork: [
+        AsyncThinWedge.thread_fork: [
             "approval_policy",
             "approvals_reviewer",
             "base_instructions",
@@ -236,17 +236,17 @@ def test_generated_public_signatures_are_snake_case_and_typed() -> None:
         _assert_no_any_annotations(fn)
 
 
-def test_lifecycle_methods_are_codex_scoped() -> None:
-    assert hasattr(Codex, "thread_resume")
-    assert hasattr(Codex, "thread_fork")
-    assert hasattr(Codex, "thread_archive")
-    assert hasattr(Codex, "thread_unarchive")
-    assert hasattr(AsyncCodex, "thread_resume")
-    assert hasattr(AsyncCodex, "thread_fork")
-    assert hasattr(AsyncCodex, "thread_archive")
-    assert hasattr(AsyncCodex, "thread_unarchive")
-    assert not hasattr(Codex, "thread")
-    assert not hasattr(AsyncCodex, "thread")
+def test_lifecycle_methods_are_thinwedge_scoped() -> None:
+    assert hasattr(ThinWedge, "thread_resume")
+    assert hasattr(ThinWedge, "thread_fork")
+    assert hasattr(ThinWedge, "thread_archive")
+    assert hasattr(ThinWedge, "thread_unarchive")
+    assert hasattr(AsyncThinWedge, "thread_resume")
+    assert hasattr(AsyncThinWedge, "thread_fork")
+    assert hasattr(AsyncThinWedge, "thread_archive")
+    assert hasattr(AsyncThinWedge, "thread_unarchive")
+    assert not hasattr(ThinWedge, "thread")
+    assert not hasattr(AsyncThinWedge, "thread")
 
     assert not hasattr(Thread, "resume")
     assert not hasattr(Thread, "fork")
@@ -258,27 +258,27 @@ def test_lifecycle_methods_are_codex_scoped() -> None:
     assert not hasattr(AsyncThread, "unarchive")
 
     for fn in (
-        Codex.thread_archive,
-        Codex.thread_unarchive,
-        AsyncCodex.thread_archive,
-        AsyncCodex.thread_unarchive,
+        ThinWedge.thread_archive,
+        ThinWedge.thread_unarchive,
+        AsyncThinWedge.thread_archive,
+        AsyncThinWedge.thread_unarchive,
     ):
         _assert_no_any_annotations(fn)
 
 
 def test_initialize_metadata_parses_user_agent_shape() -> None:
-    payload = InitializeResponse.model_validate({"userAgent": "codex-cli/1.2.3"})
-    parsed = Codex._validate_initialize(payload)
+    payload = InitializeResponse.model_validate({"userAgent": "thinwedge-cli/1.2.3"})
+    parsed = ThinWedge._validate_initialize(payload)
     assert parsed is payload
-    assert parsed.userAgent == "codex-cli/1.2.3"
+    assert parsed.userAgent == "thinwedge-cli/1.2.3"
     assert parsed.serverInfo is not None
-    assert parsed.serverInfo.name == "codex-cli"
+    assert parsed.serverInfo.name == "thinwedge-cli"
     assert parsed.serverInfo.version == "1.2.3"
 
 
 def test_initialize_metadata_requires_non_empty_information() -> None:
     try:
-        Codex._validate_initialize(InitializeResponse.model_validate({}))
+        ThinWedge._validate_initialize(InitializeResponse.model_validate({}))
     except RuntimeError as exc:
         assert "missing required metadata" in str(exc)
     else:

@@ -1,15 +1,15 @@
 {
-  "name": "@openai/codex-sdk",
+  "name": "@openai/thinwedge-sdk",
   "version": "0.0.0-dev",
-  "description": "TypeScript SDK for Codex APIs.",
+  "description": "TypeScript SDK for ThinWedge APIs.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openai/codex.git",
+    "url": "git+https://github.com/openai/thinwedge.git",
     "directory": "sdk/typescript"
   },
   "keywords": [
     "openai",
-    "codex",
+    "thinwedge",
     "sdk",
     "typescript",
     "api"

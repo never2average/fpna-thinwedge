@@ -16,7 +16,7 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
     env:
       CARGO_PROFILE_RELEASE_LTO: ${{ inputs.release-lto }}
 
@@ -27,32 +27,32 @@ jobs:
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             bundle: primary
-            binaries: "thinwedge codex-responses-api-proxy"
+            binaries: "thinwedge thinwedge-responses-api-proxy"
             runs_on: windows-2025
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             bundle: primary
-            binaries: "thinwedge codex-responses-api-proxy"
+            binaries: "thinwedge thinwedge-responses-api-proxy"
             runs_on: windows-11-arm
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             bundle: helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
+            binaries: "thinwedge-windows-sandbox-setup thinwedge-command-runner"
             runs_on: windows-2025
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             bundle: helpers
-            binaries: "codex-windows-sandbox-setup codex-command-runner"
+            binaries: "thinwedge-windows-sandbox-setup thinwedge-command-runner"
             runs_on: windows-11-arm
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             bundle: app-server
-            binaries: "codex-app-server"
+            binaries: "thinwedge-app-server"
             runs_on: windows-2025
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             bundle: app-server
-            binaries: "codex-app-server"
+            binaries: "thinwedge-app-server"
             runs_on: windows-11-arm
 
     steps:
@@ -88,7 +88,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: cargo-timings-rust-release-windows-${{ matrix.target }}-${{ matrix.bundle }}
-          path: codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: thinwedge-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - name: Stage Windows binaries
@@ -105,7 +105,7 @@ jobs:
         with:
           name: windows-binaries-${{ matrix.target }}-${{ matrix.bundle }}
           path: |
-            codex-rs/target/${{ matrix.target }}/release/staged-${{ matrix.bundle }}/*
+            thinwedge-rs/target/${{ matrix.target }}/release/staged-${{ matrix.bundle }}/*
 
   build-windows:
     needs:
@@ -117,9 +117,9 @@ jobs:
       contents: read
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
     env:
-      WINDOWS_BINARIES: "thinwedge codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner codex-app-server"
+      WINDOWS_BINARIES: "thinwedge thinwedge-responses-api-proxy thinwedge-windows-sandbox-setup thinwedge-command-runner thinwedge-app-server"
 
     strategy:
       fail-fast: false
@@ -139,19 +139,19 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: windows-binaries-${{ matrix.target }}-primary
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: thinwedge-rs/target/${{ matrix.target }}/release
 
       - name: Download prebuilt Windows helper binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: windows-binaries-${{ matrix.target }}-helpers
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: thinwedge-rs/target/${{ matrix.target }}/release
 
       - name: Download prebuilt Windows app-server binary
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: windows-binaries-${{ matrix.target }}-app-server
-          path: codex-rs/target/${{ matrix.target }}/release
+          path: thinwedge-rs/target/${{ matrix.target }}/release
 
       - name: Verify binaries
         shell: bash
@@ -209,12 +209,12 @@ jobs:
               # thinwedge.exe. Fall back to the single-binary zip if the
               # helpers are missing to avoid breaking releases.
               bundle_dir="$(mktemp -d)"
-              runner_src="$dest/codex-command-runner-${{ matrix.target }}.exe"
-              setup_src="$dest/codex-windows-sandbox-setup-${{ matrix.target }}.exe"
+              runner_src="$dest/thinwedge-command-runner-${{ matrix.target }}.exe"
+              setup_src="$dest/thinwedge-windows-sandbox-setup-${{ matrix.target }}.exe"
               if [[ -f "$runner_src" && -f "$setup_src" ]]; then
                 cp "$dest/$base" "$bundle_dir/$base"
-                cp "$runner_src" "$bundle_dir/codex-command-runner.exe"
-                cp "$setup_src" "$bundle_dir/codex-windows-sandbox-setup.exe"
+                cp "$runner_src" "$bundle_dir/thinwedge-command-runner.exe"
+                cp "$setup_src" "$bundle_dir/thinwedge-windows-sandbox-setup.exe"
                 # Use an absolute path so bundle zips land in the real dist
                 # dir even when 7z runs from a temp directory.
                 (cd "$bundle_dir" && 7z a "$repo_root/$dest/${base}.zip" .)
@@ -236,4 +236,4 @@ jobs:
         with:
           name: ${{ matrix.target }}
           path: |
-            codex-rs/dist/${{ matrix.target }}/*
+            thinwedge-rs/dist/${{ matrix.target }}/*

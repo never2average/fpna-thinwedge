@@ -17,9 +17,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-PACKAGE_NAME = "openai-codex-cli-bin"
-SDK_PACKAGE_NAME = "openai-codex-app-server-sdk"
-REPO_SLUG = "openai/codex"
+PACKAGE_NAME = "openai-thinwedge-cli-bin"
+SDK_PACKAGE_NAME = "openai-thinwedge-app-server-sdk"
+REPO_SLUG = "openai/thinwedge"
 
 
 class RuntimeSetupError(RuntimeError):
@@ -56,7 +56,7 @@ def ensure_runtime_package_installed(
     ):
         return requested_version
 
-    with tempfile.TemporaryDirectory(prefix="codex-python-runtime-") as temp_root_str:
+    with tempfile.TemporaryDirectory(prefix="thinwedge-python-runtime-") as temp_root_str:
         temp_root = Path(temp_root_str)
         archive_path = _download_release_archive(requested_version, temp_root)
         runtime_binary = _extract_runtime_binary(archive_path, temp_root)
@@ -92,19 +92,19 @@ def platform_asset_name() -> str:
 
     if system == "darwin":
         if machine in {"arm64", "aarch64"}:
-            return "codex-aarch64-apple-darwin.tar.gz"
+            return "thinwedge-aarch64-apple-darwin.tar.gz"
         if machine in {"x86_64", "amd64"}:
-            return "codex-x86_64-apple-darwin.tar.gz"
+            return "thinwedge-x86_64-apple-darwin.tar.gz"
     elif system == "linux":
         if machine in {"aarch64", "arm64"}:
-            return "codex-aarch64-unknown-linux-musl.tar.gz"
+            return "thinwedge-aarch64-unknown-linux-musl.tar.gz"
         if machine in {"x86_64", "amd64"}:
-            return "codex-x86_64-unknown-linux-musl.tar.gz"
+            return "thinwedge-x86_64-unknown-linux-musl.tar.gz"
     elif system == "windows":
         if machine in {"aarch64", "arm64"}:
-            return "codex-aarch64-pc-windows-msvc.exe.zip"
+            return "thinwedge-aarch64-pc-windows-msvc.exe.zip"
         if machine in {"x86_64", "amd64"}:
-            return "codex-x86_64-pc-windows-msvc.exe.zip"
+            return "thinwedge-x86_64-pc-windows-msvc.exe.zip"
 
     raise RuntimeSetupError(
         f"Unsupported runtime artifact platform: system={platform.system()!r}, "
@@ -113,15 +113,15 @@ def platform_asset_name() -> str:
 
 
 def runtime_binary_name() -> str:
-    return "codex.exe" if platform.system().lower() == "windows" else "codex"
+    return "thinwedge.exe" if platform.system().lower() == "windows" else "thinwedge"
 
 
 def _installed_runtime_version(python_executable: str | Path) -> str | None:
     snippet = (
         "import importlib.metadata, json, sys\n"
         "try:\n"
-        "    from codex_cli_bin import bundled_codex_path\n"
-        "    bundled_codex_path()\n"
+        "    from thinwedge_cli_bin import bundled_thinwedge_path\n"
+        "    bundled_thinwedge_path()\n"
         f"    print(json.dumps({{'version': importlib.metadata.version({PACKAGE_NAME!r})}}))\n"
         "except Exception:\n"
         "    sys.exit(1)\n"
@@ -147,7 +147,7 @@ def _release_metadata(version: str) -> dict[str, object]:
     for include_auth in attempts:
         headers = {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "codex-python-runtime-setup",
+            "User-Agent": "thinwedge-python-runtime-setup",
         }
         if include_auth and token is not None:
             headers["Authorization"] = f"Bearer {token}"
@@ -179,7 +179,7 @@ def _download_release_archive(version: str, temp_root: Path) -> Path:
     )
     request = urllib.request.Request(
         browser_download_url,
-        headers={"User-Agent": "codex-python-runtime-setup"},
+        headers={"User-Agent": "thinwedge-python-runtime-setup"},
     )
     try:
         with urllib.request.urlopen(request) as response, archive_path.open("wb") as fh:
@@ -286,7 +286,7 @@ def _extract_runtime_binary(archive_path: Path, temp_root: Path) -> Path:
         and (
             path.name == binary_name
             or path.name == archive_stem
-            or path.name.startswith("codex-")
+            or path.name.startswith("thinwedge-")
         )
     ]
     if not candidates:
@@ -355,7 +355,7 @@ def _load_update_script_module(sdk_python_dir: Path):
 def _github_api_headers(accept: str) -> dict[str, str]:
     headers = {
         "Accept": accept,
-        "User-Agent": "codex-python-runtime-setup",
+        "User-Agent": "thinwedge-python-runtime-setup",
     }
     token = _github_token()
     if token is not None:
@@ -384,7 +384,7 @@ def _normalized_package_version(version: str) -> str:
     return normalized
 
 
-def _codex_release_version(version: str) -> str:
+def _thinwedge_release_version(version: str) -> str:
     normalized = _normalized_package_version(version)
     match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)*)(a|b|rc)([0-9]+)", normalized)
     if match is None:
@@ -396,7 +396,7 @@ def _codex_release_version(version: str) -> str:
 
 
 def _release_tag(version: str) -> str:
-    return f"rust-v{_codex_release_version(version)}"
+    return f"rust-v{_thinwedge_release_version(version)}"
 
 
 def _source_tree_project_version() -> str | None:

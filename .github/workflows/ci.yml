@@ -14,10 +14,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
-      - name: Verify codex-rs Cargo manifests inherit workspace settings
+      - name: Verify thinwedge-rs Cargo manifests inherit workspace settings
         run: python3 .github/scripts/verify_cargo_workspace_manifests.py
 
-      - name: Verify codex-tui does not import codex-core directly
+      - name: Verify thinwedge-tui does not import thinwedge-core directly
         run: python3 .github/scripts/verify_tui_core_boundary.py
 
       - name: Verify Bazel clippy flags match Cargo workspace lints
@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           OUTPUT_DIR="${RUNNER_TEMP}"
-          python3 ./codex-cli/scripts/build_npm_package.py \
+          python3 ./thinwedge-cli/scripts/build_npm_package.py \
             --release-version "0.0.0-ci" \
             --package thinwedge \
             --staging-dir "${OUTPUT_DIR}/thinwedge-npm-stage" \
