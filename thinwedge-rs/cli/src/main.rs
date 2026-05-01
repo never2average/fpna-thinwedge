@@ -19,8 +19,8 @@ use thinwedge_cli::read_api_key_from_stdin;
 use thinwedge_cli::run_login_status;
 use thinwedge_cli::run_login_with_agent_identity;
 use thinwedge_cli::run_login_with_api_key;
-use thinwedge_cli::run_login_with_chatgpt;
 use thinwedge_cli::run_login_with_device_code;
+use thinwedge_cli::run_login_with_preferred_api_key;
 use thinwedge_cli::run_logout;
 use thinwedge_cloud_tasks::Cli as CloudTasksCli;
 use thinwedge_exec::Cli as ExecCli;
@@ -353,7 +353,7 @@ struct LoginCommand {
 
     #[arg(
         long = "with-api-key",
-        help = "Read the API key from stdin (e.g. `printenv THINWEDGE_API_KEY | thinwedge login --with-api-key`)"
+        help = "Read the API token from stdin (e.g. `printenv OPENROUTER_API_KEY | thinwedge login --with-api-key`)"
     )]
     with_api_key: bool,
 
@@ -368,12 +368,12 @@ struct LoginCommand {
         num_args = 0..=1,
         default_missing_value = "",
         value_name = "API_KEY",
-        help = "(deprecated) Previously accepted the API key directly; now exits with guidance to use --with-api-key",
+        help = "(deprecated) Previously accepted the API token directly; now exits with guidance to use --with-api-key",
         hide = true
     )]
     api_key: Option<String>,
 
-    #[arg(long = "device-auth")]
+    #[arg(long = "device-auth", hide = true)]
     use_device_code: bool,
 
     /// EXPERIMENTAL: Use custom OAuth issuer base URL (advanced)
@@ -973,7 +973,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                         .await;
                     } else if login_cli.api_key.is_some() {
                         eprintln!(
-                            "The --api-key flag is no longer supported. Pipe the key instead, e.g. `printenv THINWEDGE_API_KEY | thinwedge login --with-api-key`."
+                            "The --api-key flag is no longer supported. Pipe the token instead, e.g. `printenv OPENROUTER_API_KEY | thinwedge login --with-api-key`."
                         );
                         std::process::exit(1);
                     } else if login_cli.with_api_key {
@@ -984,7 +984,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                         run_login_with_agent_identity(login_cli.config_overrides, agent_identity)
                             .await;
                     } else {
-                        run_login_with_chatgpt(login_cli.config_overrides).await;
+                        run_login_with_preferred_api_key(login_cli.config_overrides).await;
                     }
                 }
             }
