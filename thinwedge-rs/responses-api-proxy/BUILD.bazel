@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "responses-api-proxy",
+    crate_name = "thinwedge_responses_api_proxy",
+)

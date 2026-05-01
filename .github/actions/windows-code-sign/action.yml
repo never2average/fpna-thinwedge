@@ -6,7 +6,7 @@ inputs:
     required: true
   binaries:
     description: Space-delimited binary basenames to sign.
-    default: "thinwedge codex-responses-api-proxy codex-windows-sandbox-setup codex-command-runner"
+    default: "thinwedge thinwedge-responses-api-proxy thinwedge-windows-sandbox-setup thinwedge-command-runner"
   client-id:
     description: Azure Trusted Signing client ID.
     required: true
@@ -48,7 +48,7 @@ runs:
         {
           echo "files<<EOF"
           for binary in ${BINARIES}; do
-            echo "${GITHUB_WORKSPACE}/codex-rs/target/${TARGET}/release/${binary}.exe"
+            echo "${GITHUB_WORKSPACE}/thinwedge-rs/target/${TARGET}/release/${binary}.exe"
           done
           echo "EOF"
         } >> "$GITHUB_OUTPUT"

@@ -1,0 +1,25 @@
+
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-utils-plugins"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "thinwedge_utils_plugins"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-exec-server = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

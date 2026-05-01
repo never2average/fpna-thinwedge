@@ -1,0 +1,17 @@
+[package]
+name = "thinwedge-utils-sandbox-summary"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-core = { workspace = true }
+thinwedge-model-provider-info = { workspace = true }
+thinwedge-protocol = { workspace = true }
+
+[dev-dependencies]
+thinwedge-utils-absolute-path = { workspace = true }
+pretty_assertions = { workspace = true }

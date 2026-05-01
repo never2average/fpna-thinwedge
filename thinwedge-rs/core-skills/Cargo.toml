@@ -1,0 +1,42 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-core-skills"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "thinwedge_core_skills"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+thinwedge-analytics = { workspace = true }
+thinwedge-app-server-protocol = { workspace = true }
+thinwedge-config = { workspace = true }
+thinwedge-exec-server = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
+thinwedge-otel = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-skills = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-output-truncation = { workspace = true }
+thinwedge-utils-plugins = { workspace = true }
+dirs = { workspace = true }
+dunce = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+shlex = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "rt"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }

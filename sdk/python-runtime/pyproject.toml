@@ -3,9 +3,9 @@ requires = ["hatchling>=1.24.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "openai-codex-cli-bin"
+name = "openai-thinwedge-cli-bin"
 version = "0.0.0-dev"
-description = "Pinned Codex CLI runtime for the Python SDK"
+description = "Pinned ThinWedge CLI runtime for the Python SDK"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -22,9 +22,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/openai/codex"
-Repository = "https://github.com/openai/codex"
-Issues = "https://github.com/openai/codex/issues"
+Homepage = "https://github.com/openai/thinwedge"
+Repository = "https://github.com/openai/thinwedge"
+Issues = "https://github.com/openai/thinwedge/issues"
 
 [tool.hatch.build]
 exclude = [
@@ -35,8 +35,8 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/codex_cli_bin"]
-include = ["src/codex_cli_bin/bin/**"]
+packages = ["src/thinwedge_cli_bin"]
+include = ["src/thinwedge_cli_bin/bin/**"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 

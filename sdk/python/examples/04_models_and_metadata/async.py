@@ -11,13 +11,13 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from codex_app_server import AsyncCodex
+from thinwedge_app_server import AsyncThinWedge
 
 
 async def main() -> None:
-    async with AsyncCodex(config=runtime_config()) as codex:
-        print("server:", server_label(codex.metadata))
-        models = await codex.models()
+    async with AsyncThinWedge(config=runtime_config()) as thinwedge:
+        print("server:", server_label(thinwedge.metadata))
+        models = await thinwedge.models()
         print("models.count:", len(models.data))
         print("models:", ", ".join(model.id for model in models.data[:5]) or "[none]")
 

@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "cloud-tasks-mock-client",
+    crate_name = "thinwedge_cloud_tasks_mock_client",
+)

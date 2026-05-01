@@ -1,0 +1,28 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-tools"
+version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-app-server-protocol = { workspace = true }
+thinwedge-code-mode = { workspace = true }
+thinwedge-features = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-pty = { workspace = true }
+rmcp = { workspace = true, default-features = false, features = [
+    "base64",
+    "macros",
+    "schemars",
+    "server",
+] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

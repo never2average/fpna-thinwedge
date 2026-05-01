@@ -11,8 +11,8 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from codex_app_server import (
-    AsyncCodex,
+from thinwedge_app_server import (
+    AsyncThinWedge,
     TextInput,
     ThreadTokenUsageUpdatedNotification,
     TurnCompletedNotification,
@@ -40,10 +40,10 @@ def _format_usage(usage: object | None) -> str:
 
 
 async def main() -> None:
-    print("Codex async mini CLI. Type /exit to quit.")
+    print("ThinWedge async mini CLI. Type /exit to quit.")
 
-    async with AsyncCodex(config=runtime_config()) as codex:
-        thread = await codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    async with AsyncThinWedge(config=runtime_config()) as thinwedge:
+        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
         print("Thread:", thread.id)
 
         while True:

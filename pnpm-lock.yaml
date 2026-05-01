@@ -27,9 +27,9 @@ importers:
         specifier: ^3.5.3
         version: 3.5.3
 
-  codex-cli: {}
+  thinwedge-cli: {}
 
-  codex-rs/responses-api-proxy/npm: {}
+  thinwedge-rs/responses-api-proxy/npm: {}
 
   sdk/typescript:
     devDependencies:

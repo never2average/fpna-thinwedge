@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "thinwedge-backend-openapi-models",
+    crate_name = "thinwedge_backend_openapi_models",
+)

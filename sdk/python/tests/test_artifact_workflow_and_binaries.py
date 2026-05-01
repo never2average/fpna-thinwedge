@@ -76,11 +76,11 @@ def test_schema_normalization_only_flattens_string_literal_oneofs() -> None:
     schema = json.loads(
         (
             ROOT.parent.parent
-            / "codex-rs"
+            / "thinwedge-rs"
             / "app-server-protocol"
             / "schema"
             / "json"
-            / "codex_app_server_protocol.v2.schemas.json"
+            / "thinwedge_app_server_protocol.v2.schemas.json"
         ).read_text()
     )
 
@@ -106,11 +106,11 @@ def test_python_codegen_schema_annotation_adds_stable_variant_titles() -> None:
     schema = json.loads(
         (
             ROOT.parent.parent
-            / "codex-rs"
+            / "thinwedge-rs"
             / "app-server-protocol"
             / "schema"
             / "json"
-            / "codex_app_server_protocol.v2.schemas.json"
+            / "thinwedge_app_server_protocol.v2.schemas.json"
         ).read_text()
     )
 
@@ -153,7 +153,7 @@ def test_generate_v2_all_uses_titles_for_generated_names() -> None:
 
 
 def test_runtime_package_template_has_no_checked_in_binaries() -> None:
-    runtime_root = ROOT.parent / "python-runtime" / "src" / "codex_cli_bin"
+    runtime_root = ROOT.parent / "python-runtime" / "src" / "thinwedge_cli_bin"
     assert sorted(
         path.name
         for path in runtime_root.rglob("*")
@@ -169,17 +169,17 @@ def test_examples_readme_points_to_runtime_version_source_of_truth() -> None:
 def test_runtime_distribution_name_is_consistent() -> None:
     script = _load_update_script_module()
     runtime_setup = _load_runtime_setup_module()
-    from codex_app_server import client as client_module
-    from codex_app_server import _version
+    from thinwedge_app_server import client as client_module
+    from thinwedge_app_server import _version
 
-    assert script.SDK_DISTRIBUTION_NAME == "openai-codex-app-server-sdk"
-    assert runtime_setup.SDK_PACKAGE_NAME == "openai-codex-app-server-sdk"
-    assert _version.DISTRIBUTION_NAME == "openai-codex-app-server-sdk"
-    assert script.RUNTIME_DISTRIBUTION_NAME == "openai-codex-cli-bin"
-    assert runtime_setup.PACKAGE_NAME == "openai-codex-cli-bin"
-    assert client_module.RUNTIME_PKG_NAME == "openai-codex-cli-bin"
+    assert script.SDK_DISTRIBUTION_NAME == "openai-thinwedge-app-server-sdk"
+    assert runtime_setup.SDK_PACKAGE_NAME == "openai-thinwedge-app-server-sdk"
+    assert _version.DISTRIBUTION_NAME == "openai-thinwedge-app-server-sdk"
+    assert script.RUNTIME_DISTRIBUTION_NAME == "openai-thinwedge-cli-bin"
+    assert runtime_setup.PACKAGE_NAME == "openai-thinwedge-cli-bin"
+    assert client_module.RUNTIME_PKG_NAME == "openai-thinwedge-cli-bin"
     assert (
-        "importlib.metadata.version('codex-cli-bin')"
+        "importlib.metadata.version('thinwedge-cli-bin')"
         not in (ROOT / "_runtime_setup.py").read_text()
     )
 
@@ -210,11 +210,11 @@ def test_release_metadata_retries_without_invalid_auth(
     assert authorizations == ["Bearer invalid-token", None]
 
 
-def test_runtime_setup_uses_pep440_package_version_and_codex_release_tags() -> None:
+def test_runtime_setup_uses_pep440_package_version_and_thinwedge_release_tags() -> None:
     runtime_setup = _load_runtime_setup_module()
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
 
-    assert runtime_setup.PACKAGE_NAME == "openai-codex-cli-bin"
+    assert runtime_setup.PACKAGE_NAME == "openai-thinwedge-cli-bin"
     assert runtime_setup.pinned_runtime_version() == pyproject["project"]["version"]
     assert (
         runtime_setup._normalized_package_version("rust-v0.116.0-alpha.1")
@@ -270,10 +270,10 @@ def test_runtime_package_is_wheel_only_and_builds_platform_specific_wheels() -> 
         elif isinstance(node.value, ast.JoinedStr):
             build_data_assignments[node.targets[0].slice.value] = "joined-string"
 
-    assert pyproject["project"]["name"] == "openai-codex-cli-bin"
+    assert pyproject["project"]["name"] == "openai-thinwedge-cli-bin"
     assert pyproject["tool"]["hatch"]["build"]["targets"]["wheel"] == {
-        "packages": ["src/codex_cli_bin"],
-        "include": ["src/codex_cli_bin/bin/**"],
+        "packages": ["src/thinwedge_cli_bin"],
+        "include": ["src/thinwedge_cli_bin/bin/**"],
         "hooks": {"custom": {}},
     }
     assert pyproject["tool"]["hatch"]["build"]["targets"]["sdist"] == {
@@ -290,7 +290,7 @@ def test_runtime_package_is_wheel_only_and_builds_platform_specific_wheels() -> 
 def test_stage_runtime_release_copies_binary_and_sets_version(tmp_path: Path) -> None:
     script = _load_update_script_module()
     fake_binary = tmp_path / script.runtime_binary_name()
-    fake_binary.write_text("fake codex\n")
+    fake_binary.write_text("fake thinwedge\n")
 
     staged = script.stage_python_runtime_package(
         tmp_path / "runtime-stage",
@@ -299,18 +299,18 @@ def test_stage_runtime_release_copies_binary_and_sets_version(tmp_path: Path) ->
     )
 
     assert staged == tmp_path / "runtime-stage"
-    assert script.staged_runtime_bin_path(staged).read_text() == "fake codex\n"
-    assert 'name = "openai-codex-cli-bin"' in (staged / "pyproject.toml").read_text()
+    assert script.staged_runtime_bin_path(staged).read_text() == "fake thinwedge\n"
+    assert 'name = "openai-thinwedge-cli-bin"' in (staged / "pyproject.toml").read_text()
     assert 'version = "1.2.3"' in (staged / "pyproject.toml").read_text()
 
 
-def test_normalize_codex_version_accepts_release_tags_and_pep440_versions() -> None:
+def test_normalize_thinwedge_version_accepts_release_tags_and_pep440_versions() -> None:
     script = _load_update_script_module()
 
-    assert script.normalize_codex_version("rust-v0.116.0-alpha.1") == "0.116.0a1"
-    assert script.normalize_codex_version("v0.116.0-beta.2") == "0.116.0b2"
-    assert script.normalize_codex_version("0.116.0rc3") == "0.116.0rc3"
-    assert script.normalize_codex_version("0.116.0") == "0.116.0"
+    assert script.normalize_thinwedge_version("rust-v0.116.0-alpha.1") == "0.116.0a1"
+    assert script.normalize_thinwedge_version("v0.116.0-beta.2") == "0.116.0b2"
+    assert script.normalize_thinwedge_version("0.116.0rc3") == "0.116.0rc3"
+    assert script.normalize_thinwedge_version("0.116.0") == "0.116.0"
 
 
 def test_stage_runtime_release_replaces_existing_staging_dir(tmp_path: Path) -> None:
@@ -321,7 +321,7 @@ def test_stage_runtime_release_replaces_existing_staging_dir(tmp_path: Path) -> 
     old_file.write_text("stale")
 
     fake_binary = tmp_path / script.runtime_binary_name()
-    fake_binary.write_text("fake codex\n")
+    fake_binary.write_text("fake thinwedge\n")
 
     staged = script.stage_python_runtime_package(
         staging_dir,
@@ -331,13 +331,13 @@ def test_stage_runtime_release_replaces_existing_staging_dir(tmp_path: Path) -> 
 
     assert staged == staging_dir
     assert not old_file.exists()
-    assert script.staged_runtime_bin_path(staged).read_text() == "fake codex\n"
+    assert script.staged_runtime_bin_path(staged).read_text() == "fake thinwedge\n"
 
 
 def test_stage_runtime_release_can_pin_wheel_platform_tag(tmp_path: Path) -> None:
     script = _load_update_script_module()
     fake_binary = tmp_path / script.runtime_binary_name()
-    fake_binary.write_text("fake codex\n")
+    fake_binary.write_text("fake thinwedge\n")
 
     staged = script.stage_python_runtime_package(
         tmp_path / "runtime-stage",
@@ -358,18 +358,18 @@ def test_stage_sdk_release_injects_exact_runtime_pin(tmp_path: Path) -> None:
     )
 
     pyproject = (staged / "pyproject.toml").read_text()
-    assert 'name = "openai-codex-app-server-sdk"' in pyproject
+    assert 'name = "openai-thinwedge-app-server-sdk"' in pyproject
     assert 'version = "0.116.0a1"' in pyproject
-    assert '"openai-codex-cli-bin==0.116.0a1"' in pyproject
+    assert '"openai-thinwedge-cli-bin==0.116.0a1"' in pyproject
     assert (
         '__version__ = "0.116.0a1"'
-        not in (staged / "src" / "codex_app_server" / "__init__.py").read_text()
+        not in (staged / "src" / "thinwedge_app_server" / "__init__.py").read_text()
     )
     assert (
         'client_version: str = "0.116.0a1"'
-        not in (staged / "src" / "codex_app_server" / "client.py").read_text()
+        not in (staged / "src" / "thinwedge_app_server" / "client.py").read_text()
     )
-    assert not any((staged / "src" / "codex_app_server").glob("bin/**"))
+    assert not any((staged / "src" / "thinwedge_app_server").glob("bin/**"))
 
 
 def test_stage_sdk_release_replaces_existing_staging_dir(tmp_path: Path) -> None:
@@ -388,7 +388,7 @@ def test_stage_sdk_release_replaces_existing_staging_dir(tmp_path: Path) -> None
 def test_staged_sdk_and_runtime_versions_match(tmp_path: Path) -> None:
     script = _load_update_script_module()
     fake_binary = tmp_path / script.runtime_binary_name()
-    fake_binary.write_text("fake codex\n")
+    fake_binary.write_text("fake thinwedge\n")
 
     sdk_stage = script.stage_python_sdk_package(
         tmp_path / "sdk-stage",
@@ -408,7 +408,7 @@ def test_staged_sdk_and_runtime_versions_match(tmp_path: Path) -> None:
     )
     assert sdk_pyproject["project"]["dependencies"] == [
         "pydantic>=2.12",
-        "openai-codex-cli-bin==0.116.0a1",
+        "openai-thinwedge-cli-bin==0.116.0a1",
     ]
 
 
@@ -419,7 +419,7 @@ def test_stage_sdk_runs_type_generation_before_staging(tmp_path: Path) -> None:
         [
             "stage-sdk",
             str(tmp_path / "sdk-stage"),
-            "--codex-version",
+            "--thinwedge-version",
             "rust-v0.116.0-alpha.1",
         ]
     )
@@ -427,8 +427,8 @@ def test_stage_sdk_runs_type_generation_before_staging(tmp_path: Path) -> None:
     def fake_generate_types() -> None:
         calls.append("generate_types")
 
-    def fake_stage_sdk_package(_staging_dir: Path, codex_version: str) -> Path:
-        calls.append(f"stage_sdk:{codex_version}")
+    def fake_stage_sdk_package(_staging_dir: Path, thinwedge_version: str) -> Path:
+        calls.append(f"stage_sdk:{thinwedge_version}")
         return tmp_path / "sdk-stage"
 
     def fake_stage_runtime_package(
@@ -460,7 +460,7 @@ def test_stage_sdk_rejects_mismatched_legacy_versions(tmp_path: Path) -> None:
         [
             "stage-sdk",
             str(tmp_path / "sdk-stage"),
-            "--codex-version",
+            "--thinwedge-version",
             "0.116.0a1",
             "--runtime-version",
             "0.116.0a1",
@@ -476,14 +476,14 @@ def test_stage_sdk_rejects_mismatched_legacy_versions(tmp_path: Path) -> None:
 def test_stage_runtime_stages_binary_without_type_generation(tmp_path: Path) -> None:
     script = _load_update_script_module()
     fake_binary = tmp_path / script.runtime_binary_name()
-    fake_binary.write_text("fake codex\n")
+    fake_binary.write_text("fake thinwedge\n")
     calls: list[str] = []
     args = script.parse_args(
         [
             "stage-runtime",
             str(tmp_path / "runtime-stage"),
             str(fake_binary),
-            "--codex-version",
+            "--thinwedge-version",
             "rust-v0.116.0-alpha.1",
             "--platform-tag",
             "musllinux_1_1_x86_64",
@@ -493,16 +493,16 @@ def test_stage_runtime_stages_binary_without_type_generation(tmp_path: Path) -> 
     def fake_generate_types() -> None:
         calls.append("generate_types")
 
-    def fake_stage_sdk_package(_staging_dir: Path, _codex_version: str) -> Path:
+    def fake_stage_sdk_package(_staging_dir: Path, _thinwedge_version: str) -> Path:
         raise AssertionError("sdk staging should not run for stage-runtime")
 
     def fake_stage_runtime_package(
         _staging_dir: Path,
-        codex_version: str,
+        thinwedge_version: str,
         _runtime_binary: Path,
         platform_tag: str | None,
     ) -> Path:
-        calls.append(f"stage_runtime:{codex_version}:{platform_tag}")
+        calls.append(f"stage_runtime:{thinwedge_version}:{platform_tag}")
         return tmp_path / "runtime-stage"
 
     def fake_current_sdk_version() -> str:
@@ -523,63 +523,63 @@ def test_stage_runtime_stages_binary_without_type_generation(tmp_path: Path) -> 
 def test_default_runtime_is_resolved_from_installed_runtime_package(
     tmp_path: Path,
 ) -> None:
-    from codex_app_server import client as client_module
+    from thinwedge_app_server import client as client_module
 
-    fake_binary = tmp_path / ("codex.exe" if client_module.os.name == "nt" else "codex")
+    fake_binary = tmp_path / ("thinwedge.exe" if client_module.os.name == "nt" else "thinwedge")
     fake_binary.write_text("")
-    ops = client_module.CodexBinResolverOps(
-        installed_codex_path=lambda: fake_binary,
+    ops = client_module.ThinWedgeBinResolverOps(
+        installed_thinwedge_path=lambda: fake_binary,
         path_exists=lambda path: path == fake_binary,
     )
 
     config = client_module.AppServerConfig()
-    assert config.codex_bin is None
-    assert client_module.resolve_codex_bin(config, ops) == fake_binary
+    assert config.thinwedge_bin is None
+    assert client_module.resolve_thinwedge_bin(config, ops) == fake_binary
 
 
-def test_explicit_codex_bin_override_takes_priority(tmp_path: Path) -> None:
-    from codex_app_server import client as client_module
+def test_explicit_thinwedge_bin_override_takes_priority(tmp_path: Path) -> None:
+    from thinwedge_app_server import client as client_module
 
     explicit_binary = tmp_path / (
-        "custom-codex.exe" if client_module.os.name == "nt" else "custom-codex"
+        "custom-thinwedge.exe" if client_module.os.name == "nt" else "custom-thinwedge"
     )
     explicit_binary.write_text("")
-    ops = client_module.CodexBinResolverOps(
-        installed_codex_path=lambda: (_ for _ in ()).throw(
+    ops = client_module.ThinWedgeBinResolverOps(
+        installed_thinwedge_path=lambda: (_ for _ in ()).throw(
             AssertionError("packaged runtime should not be used")
         ),
         path_exists=lambda path: path == explicit_binary,
     )
 
-    config = client_module.AppServerConfig(codex_bin=str(explicit_binary))
-    assert client_module.resolve_codex_bin(config, ops) == explicit_binary
+    config = client_module.AppServerConfig(thinwedge_bin=str(explicit_binary))
+    assert client_module.resolve_thinwedge_bin(config, ops) == explicit_binary
 
 
-def test_missing_runtime_package_requires_explicit_codex_bin() -> None:
-    from codex_app_server import client as client_module
+def test_missing_runtime_package_requires_explicit_thinwedge_bin() -> None:
+    from thinwedge_app_server import client as client_module
 
-    ops = client_module.CodexBinResolverOps(
-        installed_codex_path=lambda: (_ for _ in ()).throw(
+    ops = client_module.ThinWedgeBinResolverOps(
+        installed_thinwedge_path=lambda: (_ for _ in ()).throw(
             FileNotFoundError("missing packaged runtime")
         ),
         path_exists=lambda _path: False,
     )
 
     with pytest.raises(FileNotFoundError, match="missing packaged runtime"):
-        client_module.resolve_codex_bin(client_module.AppServerConfig(), ops)
+        client_module.resolve_thinwedge_bin(client_module.AppServerConfig(), ops)
 
 
 def test_broken_runtime_package_does_not_fall_back() -> None:
-    from codex_app_server import client as client_module
+    from thinwedge_app_server import client as client_module
 
-    ops = client_module.CodexBinResolverOps(
-        installed_codex_path=lambda: (_ for _ in ()).throw(
+    ops = client_module.ThinWedgeBinResolverOps(
+        installed_thinwedge_path=lambda: (_ for _ in ()).throw(
             FileNotFoundError("missing packaged binary")
         ),
         path_exists=lambda _path: False,
     )
 
     with pytest.raises(FileNotFoundError) as exc_info:
-        client_module.resolve_codex_bin(client_module.AppServerConfig(), ops)
+        client_module.resolve_thinwedge_bin(client_module.AppServerConfig(), ops)
 
     assert str(exc_info.value) == ("missing packaged binary")

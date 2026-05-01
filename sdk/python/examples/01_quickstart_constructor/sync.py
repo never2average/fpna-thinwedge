@@ -13,12 +13,12 @@ from _bootstrap import (
 
 ensure_local_sdk_src()
 
-from codex_app_server import Codex
+from thinwedge_app_server import ThinWedge
 
-with Codex(config=runtime_config()) as codex:
-    print("Server:", server_label(codex.metadata))
+with ThinWedge(config=runtime_config()) as thinwedge:
+    print("Server:", server_label(thinwedge.metadata))
 
-    thread = codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
     result = thread.run("Say hello in one sentence.")
     print("Items:", len(result.items))
     print("Text:", result.final_response)

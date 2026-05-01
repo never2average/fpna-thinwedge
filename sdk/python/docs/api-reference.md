@@ -1,15 +1,15 @@
-# Codex App Server SDK — API Reference
+# ThinWedge App Server SDK — API Reference
 
-Public surface of `codex_app_server` for app-server v2.
+Public surface of `thinwedge_app_server` for app-server v2.
 
 This SDK surface is experimental. The current implementation intentionally allows only one active turn consumer (`Thread.run()`, `TurnHandle.stream()`, or `TurnHandle.run()`) per client instance at a time.
 
 ## Package Entry
 
 ```python
-from codex_app_server import (
-    Codex,
-    AsyncCodex,
+from thinwedge_app_server import (
+    ThinWedge,
+    AsyncThinWedge,
     RunResult,
     Thread,
     AsyncThread,
@@ -25,17 +25,17 @@ from codex_app_server import (
     MentionInput,
     TurnStatus,
 )
-from codex_app_server.generated.v2_all import ThreadItem, ThreadTokenUsage
+from thinwedge_app_server.generated.v2_all import ThreadItem, ThreadTokenUsage
 ```
 
-- Version: `codex_app_server.__version__`
+- Version: `thinwedge_app_server.__version__`
 - Requires Python >= 3.10
-- Canonical generated app-server models live in `codex_app_server.generated.v2_all`
+- Canonical generated app-server models live in `thinwedge_app_server.generated.v2_all`
 
-## Codex (sync)
+## ThinWedge (sync)
 
 ```python
-Codex(config: AppServerConfig | None = None)
+ThinWedge(config: AppServerConfig | None = None)
 ```
 
 Properties/methods:
@@ -53,24 +53,24 @@ Properties/methods:
 Context manager:
 
 ```python
-with Codex() as codex:
+with ThinWedge() as thinwedge:
     ...
 ```
 
-## AsyncCodex (async parity)
+## AsyncThinWedge (async parity)
 
 ```python
-AsyncCodex(config: AppServerConfig | None = None)
+AsyncThinWedge(config: AppServerConfig | None = None)
 ```
 
 Preferred usage:
 
 ```python
-async with AsyncCodex() as codex:
+async with AsyncThinWedge() as thinwedge:
     ...
 ```
 
-`AsyncCodex` initializes lazily. Context entry is the standard path because it
+`AsyncThinWedge` initializes lazily. Context entry is the standard path because it
 ensures startup and shutdown are paired explicitly.
 
 Properties/methods:
@@ -88,7 +88,7 @@ Properties/methods:
 Async context manager:
 
 ```python
-async with AsyncCodex() as codex:
+async with AsyncThinWedge() as thinwedge:
     ...
 ```
 
@@ -133,24 +133,24 @@ Use `turn(...)` when you need low-level turn control (`stream()`, `steer()`,
 - `steer(input: Input) -> TurnSteerResponse`
 - `interrupt() -> TurnInterruptResponse`
 - `stream() -> Iterator[Notification]`
-- `run() -> codex_app_server.generated.v2_all.Turn`
+- `run() -> thinwedge_app_server.generated.v2_all.Turn`
 
 Behavior notes:
 
 - `stream()` and `run()` are exclusive per client instance in the current experimental build
-- starting a second turn consumer on the same `Codex` instance raises `RuntimeError`
+- starting a second turn consumer on the same `ThinWedge` instance raises `RuntimeError`
 
 ### AsyncTurnHandle
 
 - `steer(input: Input) -> Awaitable[TurnSteerResponse]`
 - `interrupt() -> Awaitable[TurnInterruptResponse]`
 - `stream() -> AsyncIterator[Notification]`
-- `run() -> Awaitable[codex_app_server.generated.v2_all.Turn]`
+- `run() -> Awaitable[thinwedge_app_server.generated.v2_all.Turn]`
 
 Behavior notes:
 
 - `stream()` and `run()` are exclusive per client instance in the current experimental build
-- starting a second turn consumer on the same `AsyncCodex` instance raises `RuntimeError`
+- starting a second turn consumer on the same `AsyncThinWedge` instance raises `RuntimeError`
 
 ## Inputs
 
@@ -170,7 +170,7 @@ Input = list[InputItem] | InputItem
 The SDK wrappers return and accept canonical generated app-server models wherever possible:
 
 ```python
-from codex_app_server.generated.v2_all import (
+from thinwedge_app_server.generated.v2_all import (
     AskForApproval,
     ThreadReadResponse,
     Turn,
@@ -182,7 +182,7 @@ from codex_app_server.generated.v2_all import (
 ## Retry + errors
 
 ```python
-from codex_app_server import (
+from thinwedge_app_server import (
     retry_on_overload,
     JsonRpcError,
     MethodNotFoundError,
@@ -198,10 +198,10 @@ from codex_app_server import (
 ## Example
 
 ```python
-from codex_app_server import Codex
+from thinwedge_app_server import ThinWedge
 
-with Codex() as codex:
-    thread = codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
     result = thread.run("Say hello in one sentence.")
     print(result.final_response)
 ```

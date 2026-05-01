@@ -28,83 +28,83 @@
         }
       }
     },
-    "codex-app-server": {
+    "thinwedge-app-server": {
       "platforms": {
         "macos-aarch64": {
-          "regex": "^codex-app-server-aarch64-apple-darwin\\.zst$",
-          "path": "codex-app-server"
+          "regex": "^thinwedge-app-server-aarch64-apple-darwin\\.zst$",
+          "path": "thinwedge-app-server"
         },
         "macos-x86_64": {
-          "regex": "^codex-app-server-x86_64-apple-darwin\\.zst$",
-          "path": "codex-app-server"
+          "regex": "^thinwedge-app-server-x86_64-apple-darwin\\.zst$",
+          "path": "thinwedge-app-server"
         },
         "linux-x86_64": {
-          "regex": "^codex-app-server-x86_64-unknown-linux-musl\\.zst$",
-          "path": "codex-app-server"
+          "regex": "^thinwedge-app-server-x86_64-unknown-linux-musl\\.zst$",
+          "path": "thinwedge-app-server"
         },
         "linux-aarch64": {
-          "regex": "^codex-app-server-aarch64-unknown-linux-musl\\.zst$",
-          "path": "codex-app-server"
+          "regex": "^thinwedge-app-server-aarch64-unknown-linux-musl\\.zst$",
+          "path": "thinwedge-app-server"
         },
         "windows-x86_64": {
-          "regex": "^codex-app-server-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-app-server.exe"
+          "regex": "^thinwedge-app-server-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-app-server.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-app-server-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-app-server.exe"
+          "regex": "^thinwedge-app-server-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-app-server.exe"
         }
       }
     },
-    "codex-responses-api-proxy": {
+    "thinwedge-responses-api-proxy": {
       "platforms": {
         "macos-aarch64": {
-          "regex": "^codex-responses-api-proxy-aarch64-apple-darwin\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^thinwedge-responses-api-proxy-aarch64-apple-darwin\\.zst$",
+          "path": "thinwedge-responses-api-proxy"
         },
         "macos-x86_64": {
-          "regex": "^codex-responses-api-proxy-x86_64-apple-darwin\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^thinwedge-responses-api-proxy-x86_64-apple-darwin\\.zst$",
+          "path": "thinwedge-responses-api-proxy"
         },
         "linux-x86_64": {
-          "regex": "^codex-responses-api-proxy-x86_64-unknown-linux-musl\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^thinwedge-responses-api-proxy-x86_64-unknown-linux-musl\\.zst$",
+          "path": "thinwedge-responses-api-proxy"
         },
         "linux-aarch64": {
-          "regex": "^codex-responses-api-proxy-aarch64-unknown-linux-musl\\.zst$",
-          "path": "codex-responses-api-proxy"
+          "regex": "^thinwedge-responses-api-proxy-aarch64-unknown-linux-musl\\.zst$",
+          "path": "thinwedge-responses-api-proxy"
         },
         "windows-x86_64": {
-          "regex": "^codex-responses-api-proxy-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-responses-api-proxy.exe"
+          "regex": "^thinwedge-responses-api-proxy-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-responses-api-proxy.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-responses-api-proxy-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-responses-api-proxy.exe"
+          "regex": "^thinwedge-responses-api-proxy-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-responses-api-proxy.exe"
         }
       }
     },
-    "codex-command-runner": {
+    "thinwedge-command-runner": {
       "platforms": {
         "windows-x86_64": {
-          "regex": "^codex-command-runner-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-command-runner.exe"
+          "regex": "^thinwedge-command-runner-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-command-runner.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-command-runner-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-command-runner.exe"
+          "regex": "^thinwedge-command-runner-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-command-runner.exe"
         }
       }
     },
-    "codex-windows-sandbox-setup": {
+    "thinwedge-windows-sandbox-setup": {
       "platforms": {
         "windows-x86_64": {
-          "regex": "^codex-windows-sandbox-setup-x86_64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-windows-sandbox-setup.exe"
+          "regex": "^thinwedge-windows-sandbox-setup-x86_64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-windows-sandbox-setup.exe"
         },
         "windows-aarch64": {
-          "regex": "^codex-windows-sandbox-setup-aarch64-pc-windows-msvc\\.exe\\.zst$",
-          "path": "codex-windows-sandbox-setup.exe"
+          "regex": "^thinwedge-windows-sandbox-setup-aarch64-pc-windows-msvc\\.exe\\.zst$",
+          "path": "thinwedge-windows-sandbox-setup.exe"
         }
       }
     }

@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence, get_args, get_origin
 
-SDK_DISTRIBUTION_NAME = "openai-codex-app-server-sdk"
-RUNTIME_DISTRIBUTION_NAME = "openai-codex-cli-bin"
+SDK_DISTRIBUTION_NAME = "openai-thinwedge-app-server-sdk"
+RUNTIME_DISTRIBUTION_NAME = "openai-thinwedge-cli-bin"
 
 
 def repo_root() -> Path:
@@ -36,16 +36,16 @@ def python_runtime_root() -> Path:
 def schema_bundle_path() -> Path:
     return (
         repo_root()
-        / "codex-rs"
+        / "thinwedge-rs"
         / "app-server-protocol"
         / "schema"
         / "json"
-        / "codex_app_server_protocol.v2.schemas.json"
+        / "thinwedge_app_server_protocol.v2.schemas.json"
     )
 
 
 def schema_root_dir() -> Path:
-    return repo_root() / "codex-rs" / "app-server-protocol" / "schema" / "json"
+    return repo_root() / "thinwedge-rs" / "app-server-protocol" / "schema" / "json"
 
 
 def _is_windows() -> bool:
@@ -53,11 +53,11 @@ def _is_windows() -> bool:
 
 
 def runtime_binary_name() -> str:
-    return "codex.exe" if _is_windows() else "codex"
+    return "thinwedge.exe" if _is_windows() else "thinwedge"
 
 
 def staged_runtime_bin_path(root: Path) -> Path:
-    return root / "src" / "codex_cli_bin" / "bin" / runtime_binary_name()
+    return root / "src" / "thinwedge_cli_bin" / "bin" / runtime_binary_name()
 
 
 def run(cmd: list[str], cwd: Path) -> None:
@@ -79,7 +79,7 @@ def current_sdk_version() -> str:
     return match.group(1)
 
 
-def normalize_codex_version(version: str) -> str:
+def normalize_thinwedge_version(version: str) -> str:
     normalized = version.strip()
     if normalized.startswith("rust-v"):
         normalized = normalized.removeprefix("rust-v")
@@ -92,7 +92,7 @@ def normalize_codex_version(version: str) -> str:
 
     if not re.fullmatch(r"[0-9]+(?:\.[0-9]+)*(?:(?:a|b|rc)[0-9]+)?", normalized):
         raise RuntimeError(
-            f"Could not normalize Codex version {version!r} to a PEP 440 version"
+            f"Could not normalize ThinWedge version {version!r} to a PEP 440 version"
         )
     return normalized
 
@@ -190,10 +190,10 @@ def _rewrite_sdk_runtime_dependency(pyproject_text: str, runtime_version: str) -
     return pyproject_text[: match.start()] + replacement + pyproject_text[match.end() :]
 
 
-def stage_python_sdk_package(staging_dir: Path, codex_version: str) -> Path:
-    package_version = normalize_codex_version(codex_version)
+def stage_python_sdk_package(staging_dir: Path, thinwedge_version: str) -> Path:
+    package_version = normalize_thinwedge_version(thinwedge_version)
     _copy_package_tree(sdk_root(), staging_dir)
-    sdk_bin_dir = staging_dir / "src" / "codex_app_server" / "bin"
+    sdk_bin_dir = staging_dir / "src" / "thinwedge_app_server" / "bin"
     if sdk_bin_dir.exists():
         shutil.rmtree(sdk_bin_dir)
 
@@ -208,11 +208,11 @@ def stage_python_sdk_package(staging_dir: Path, codex_version: str) -> Path:
 
 def stage_python_runtime_package(
     staging_dir: Path,
-    codex_version: str,
+    thinwedge_version: str,
     binary_path: Path,
     platform_tag: str | None = None,
 ) -> Path:
-    package_version = normalize_codex_version(codex_version)
+    package_version = normalize_thinwedge_version(thinwedge_version)
     _copy_package_tree(python_runtime_root(), staging_dir)
 
     pyproject_path = staging_dir / "pyproject.toml"
@@ -483,7 +483,7 @@ def _normalized_schema_bundle_text() -> str:
 
 
 def generate_v2_all() -> None:
-    out_path = sdk_root() / "src" / "codex_app_server" / "generated" / "v2_all.py"
+    out_path = sdk_root() / "src" / "thinwedge_app_server" / "generated" / "v2_all.py"
     out_dir = out_path.parent
     old_package_dir = out_dir / "v2_all"
     if old_package_dir.exists():
@@ -534,7 +534,7 @@ def _notification_specs() -> list[tuple[str, str]]:
     )
     one_of = server_notifications.get("oneOf", [])
     generated_source = (
-        sdk_root() / "src" / "codex_app_server" / "generated" / "v2_all.py"
+        sdk_root() / "src" / "thinwedge_app_server" / "generated" / "v2_all.py"
     ).read_text()
 
     specs: list[tuple[str, str]] = []
@@ -571,7 +571,7 @@ def generate_notification_registry() -> None:
     out = (
         sdk_root()
         / "src"
-        / "codex_app_server"
+        / "thinwedge_app_server"
         / "generated"
         / "notification_registry.py"
     )
@@ -723,7 +723,7 @@ def _replace_generated_block(source: str, block_name: str, body: str) -> str:
     return updated
 
 
-def _render_codex_block(
+def _render_thinwedge_block(
     thread_start_fields: list[PublicFieldSpec],
     thread_list_fields: list[PublicFieldSpec],
     resume_fields: list[PublicFieldSpec],
@@ -787,7 +787,7 @@ def _render_codex_block(
     return "\n".join(lines)
 
 
-def _render_async_codex_block(
+def _render_async_thinwedge_block(
     thread_start_fields: list[PublicFieldSpec],
     thread_list_fields: list[PublicFieldSpec],
     resume_fields: list[PublicFieldSpec],
@@ -889,26 +889,26 @@ def _render_async_thread_block(
         "        *,",
         *_kw_signature_lines(turn_fields),
         "    ) -> AsyncTurnHandle:",
-        "        await self._codex._ensure_initialized()",
+        "        await self._thinwedge._ensure_initialized()",
         "        wire_input = _to_wire_input(input)",
         "        params = TurnStartParams(",
         "            thread_id=self.id,",
         "            input=wire_input,",
         *_model_arg_lines(turn_fields),
         "        )",
-        "        turn = await self._codex._client.turn_start(",
+        "        turn = await self._thinwedge._client.turn_start(",
         "            self.id,",
         "            wire_input,",
         "            params=params,",
         "        )",
-        "        return AsyncTurnHandle(self._codex, self.id, turn.turn.id)",
+        "        return AsyncTurnHandle(self._thinwedge, self.id, turn.turn.id)",
     ]
     return "\n".join(lines)
 
 
 def generate_public_api_flat_methods() -> None:
     src_dir = sdk_root() / "src"
-    public_api_path = src_dir / "codex_app_server" / "api.py"
+    public_api_path = src_dir / "thinwedge_app_server" / "api.py"
     if not public_api_path.exists():
         # PR2 can run codegen before the ergonomic public API layer is added.
         return
@@ -917,25 +917,25 @@ def generate_public_api_flat_methods() -> None:
         sys.path.insert(0, src_dir_str)
 
     thread_start_fields = _load_public_fields(
-        "codex_app_server.generated.v2_all",
+        "thinwedge_app_server.generated.v2_all",
         "ThreadStartParams",
     )
     thread_list_fields = _load_public_fields(
-        "codex_app_server.generated.v2_all",
+        "thinwedge_app_server.generated.v2_all",
         "ThreadListParams",
     )
     thread_resume_fields = _load_public_fields(
-        "codex_app_server.generated.v2_all",
+        "thinwedge_app_server.generated.v2_all",
         "ThreadResumeParams",
         exclude={"thread_id"},
     )
     thread_fork_fields = _load_public_fields(
-        "codex_app_server.generated.v2_all",
+        "thinwedge_app_server.generated.v2_all",
         "ThreadForkParams",
         exclude={"thread_id"},
     )
     turn_start_fields = _load_public_fields(
-        "codex_app_server.generated.v2_all",
+        "thinwedge_app_server.generated.v2_all",
         "TurnStartParams",
         exclude={"thread_id", "input"},
     )
@@ -943,8 +943,8 @@ def generate_public_api_flat_methods() -> None:
     source = public_api_path.read_text()
     source = _replace_generated_block(
         source,
-        "Codex.flat_methods",
-        _render_codex_block(
+        "ThinWedge.flat_methods",
+        _render_thinwedge_block(
             thread_start_fields,
             thread_list_fields,
             thread_resume_fields,
@@ -953,8 +953,8 @@ def generate_public_api_flat_methods() -> None:
     )
     source = _replace_generated_block(
         source,
-        "AsyncCodex.flat_methods",
-        _render_async_codex_block(
+        "AsyncThinWedge.flat_methods",
+        _render_async_thinwedge_block(
             thread_start_fields,
             thread_list_fields,
             thread_resume_fields,
@@ -999,9 +999,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output directory for the staged SDK package",
     )
     stage_sdk_parser.add_argument(
-        "--codex-version",
+        "--thinwedge-version",
         help=(
-            "Codex release version to write into the staged SDK package and exact "
+            "ThinWedge release version to write into the staged SDK package and exact "
             f"{RUNTIME_DISTRIBUTION_NAME} dependency. Accepts PEP 440 versions "
             "or release tags such as rust-v0.116.0-alpha.1."
         ),
@@ -1027,12 +1027,12 @@ def build_parser() -> argparse.ArgumentParser:
     stage_runtime_parser.add_argument(
         "runtime_binary",
         type=Path,
-        help="Path to the codex binary to package for this platform",
+        help="Path to the thinwedge binary to package for this platform",
     )
     stage_runtime_parser.add_argument(
-        "--codex-version",
+        "--thinwedge-version",
         help=(
-            "Codex release version to write into the staged runtime package. "
+            "ThinWedge release version to write into the staged runtime package. "
             "Accepts PEP 440 versions or release tags such as rust-v0.116.0-alpha.1."
         ),
     )
@@ -1063,23 +1063,23 @@ def default_cli_ops() -> CliOps:
     )
 
 
-def _resolve_codex_version(args: argparse.Namespace) -> str:
+def _resolve_thinwedge_version(args: argparse.Namespace) -> str:
     versions = [
         value
         for value in (
-            getattr(args, "codex_version", None),
+            getattr(args, "thinwedge_version", None),
             getattr(args, "runtime_version", None),
             getattr(args, "sdk_version", None),
         )
         if value is not None
     ]
     if not versions:
-        raise RuntimeError("Pass --codex-version to stage Python release artifacts")
+        raise RuntimeError("Pass --thinwedge-version to stage Python release artifacts")
 
-    normalized_versions = [normalize_codex_version(version) for version in versions]
+    normalized_versions = [normalize_thinwedge_version(version) for version in versions]
     if len(set(normalized_versions)) != 1:
         raise RuntimeError(
-            "SDK and runtime package versions must match; pass one --codex-version"
+            "SDK and runtime package versions must match; pass one --thinwedge-version"
         )
     return normalized_versions[0]
 
@@ -1088,17 +1088,17 @@ def run_command(args: argparse.Namespace, ops: CliOps) -> None:
     if args.command == "generate-types":
         ops.generate_types()
     elif args.command == "stage-sdk":
-        codex_version = _resolve_codex_version(args)
+        thinwedge_version = _resolve_thinwedge_version(args)
         ops.generate_types()
         ops.stage_python_sdk_package(
             args.staging_dir,
-            codex_version,
+            thinwedge_version,
         )
     elif args.command == "stage-runtime":
-        codex_version = _resolve_codex_version(args)
+        thinwedge_version = _resolve_thinwedge_version(args)
         ops.stage_python_runtime_package(
             args.staging_dir,
-            codex_version,
+            thinwedge_version,
             args.runtime_binary.resolve(),
             args.platform_tag,
         )

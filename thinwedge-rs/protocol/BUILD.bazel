@@ -1,0 +1,7 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "protocol",
+    crate_name = "thinwedge_protocol",
+    compile_data = glob(["src/prompts/**/*.md"]),
+)

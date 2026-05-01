@@ -17,9 +17,9 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from codex_app_server import (
+from thinwedge_app_server import (
     AskForApproval,
-    AsyncCodex,
+    AsyncThinWedge,
     Personality,
     ReasoningSummary,
     TextInput,
@@ -48,8 +48,8 @@ APPROVAL_POLICY = AskForApproval.model_validate("never")
 
 
 async def main() -> None:
-    async with AsyncCodex(config=runtime_config()) as codex:
-        thread = await codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    async with AsyncThinWedge(config=runtime_config()) as thinwedge:
+        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
 
         turn = await thread.turn(
             TextInput(PROMPT),

@@ -1,0 +1,10 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "login",
+    crate_name = "thinwedge_login",
+    compile_data = [
+        "src/assets/error.html",
+        "src/assets/success.html",
+    ],
+)

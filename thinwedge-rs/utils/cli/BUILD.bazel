@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "cli",
+    crate_name = "thinwedge_utils_cli",
+)

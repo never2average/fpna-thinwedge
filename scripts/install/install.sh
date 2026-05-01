@@ -4,10 +4,10 @@ set -eu
 
 RELEASE="latest"
 
-BIN_DIR="${CODEX_INSTALL_DIR:-$HOME/.local/bin}"
+BIN_DIR="${THINWEDGE_INSTALL_DIR:-$HOME/.local/bin}"
 BIN_PATH="$BIN_DIR/thinwedge"
-CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
-STANDALONE_ROOT="$CODEX_HOME_DIR/packages/standalone"
+THINWEDGE_HOME_DIR="${THINWEDGE_HOME:-$HOME/.thinwedge}"
+STANDALONE_ROOT="$THINWEDGE_HOME_DIR/packages/standalone"
 RELEASES_DIR="$STANDALONE_ROOT/releases"
 CURRENT_LINK="$STANDALONE_ROOT/current"
 LOCK_FILE="$STANDALONE_ROOT/install.lock"
@@ -406,7 +406,7 @@ cleanup_stale_install_artifacts() {
   find "$STANDALONE_ROOT" -mindepth 1 -maxdepth 1 -name '.current.*' -exec rm -f {} +
 
   if [ -d "$BIN_DIR" ]; then
-    find "$BIN_DIR" -mindepth 1 -maxdepth 1 -name '.codex.*' -exec rm -f {} +
+    find "$BIN_DIR" -mindepth 1 -maxdepth 1 -name '.thinwedge.*' -exec rm -f {} +
   fi
 }
 
@@ -431,13 +431,13 @@ replace_path_with_symlink() {
 }
 
 version_from_binary() {
-  codex_path="$1"
+  thinwedge_path="$1"
 
-  if [ ! -x "$codex_path" ]; then
+  if [ ! -x "$thinwedge_path" ]; then
     return 1
   fi
 
-  "$codex_path" --version 2>/dev/null | sed -n 's/.* \([0-9][0-9A-Za-z.+-]*\)$/\1/p' | head -n 1
+  "$thinwedge_path" --version 2>/dev/null | sed -n 's/.* \([0-9][0-9A-Za-z.+-]*\)$/\1/p' | head -n 1
 }
 
 current_installed_version() {
@@ -450,11 +450,11 @@ current_installed_version() {
   return 0
 }
 
-resolve_existing_codex() {
-  command -v thinwedge 2>/dev/null || command -v codex 2>/dev/null || true
+resolve_existing_thinwedge() {
+  command -v thinwedge 2>/dev/null || command -v thinwedge 2>/dev/null || true
 }
 
-classify_existing_codex() {
+classify_existing_thinwedge() {
   existing_path="$1"
 
   if [ -z "$existing_path" ] || [ "$existing_path" = "$BIN_PATH" ]; then
@@ -536,7 +536,7 @@ print_launch_instructions() {
   esac
 }
 
-maybe_launch_codex_now() {
+maybe_launch_thinwedge_now() {
   if prompt_yes_no "Start ThinWedge now?"; then
     step "Launching ThinWedge"
     "$BIN_PATH"
@@ -544,8 +544,8 @@ maybe_launch_codex_now() {
 }
 
 detect_conflicting_install() {
-  existing_path="$(resolve_existing_codex)"
-  manager="$(classify_existing_codex "$existing_path" || true)"
+  existing_path="$(resolve_existing_thinwedge)"
+  manager="$(classify_existing_thinwedge "$existing_path" || true)"
 
   if [ -z "$manager" ]; then
     return
@@ -765,4 +765,4 @@ case "$path_action" in
 esac
 
 printf 'ThinWedge CLI %s installed successfully.\n' "$resolved_version"
-maybe_launch_codex_now
+maybe_launch_thinwedge_now

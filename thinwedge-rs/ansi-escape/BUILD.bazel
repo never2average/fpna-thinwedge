@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "ansi-escape",
+    crate_name = "thinwedge_ansi_escape",
+)

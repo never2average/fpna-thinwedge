@@ -1,0 +1,53 @@
+[package]
+name = "thinwedge-mcp-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "thinwedge-mcp-server"
+path = "src/main.rs"
+
+[lib]
+name = "thinwedge_mcp_server"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+thinwedge-arg0 = { workspace = true }
+thinwedge-config = { workspace = true }
+thinwedge-core = { workspace = true }
+thinwedge-exec-server = { workspace = true }
+thinwedge-features = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-models-manager = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-utils-cli = { workspace = true }
+thinwedge-utils-json-to-toml = { workspace = true }
+rmcp = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+shlex = { workspace = true }
+tokio = { workspace = true, features = [
+    "io-std",
+    "macros",
+    "process",
+    "rt-multi-thread",
+    "signal",
+] }
+tracing = { workspace = true, features = ["log"] }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt"] }
+
+[dev-dependencies]
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-shell-command = { workspace = true }
+core_test_support = { workspace = true }
+mcp_test_support = { workspace = true }
+os_info = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }

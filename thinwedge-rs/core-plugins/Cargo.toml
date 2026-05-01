@@ -1,0 +1,48 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-core-plugins"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "thinwedge_core_plugins"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-app-server-protocol = { workspace = true }
+thinwedge-config = { workspace = true }
+thinwedge-core-skills = { workspace = true }
+thinwedge-exec-server = { workspace = true }
+thinwedge-git-utils = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
+thinwedge-otel = { workspace = true }
+thinwedge-plugin = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-plugins = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+flate2 = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tar = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros", "rt", "time"] }
+toml = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+zip = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+libc = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+wiremock = { workspace = true }

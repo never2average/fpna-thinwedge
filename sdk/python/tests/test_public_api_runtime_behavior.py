@@ -7,9 +7,9 @@ from types import SimpleNamespace
 
 import pytest
 
-import codex_app_server.api as public_api_module
-from codex_app_server.client import AppServerClient
-from codex_app_server.generated.v2_all import (
+import thinwedge_app_server.api as public_api_module
+from thinwedge_app_server.client import AppServerClient
+from thinwedge_app_server.generated.v2_all import (
     AgentMessageDeltaNotification,
     ItemCompletedNotification,
     MessagePhase,
@@ -17,12 +17,12 @@ from codex_app_server.generated.v2_all import (
     TurnCompletedNotification,
     TurnStatus,
 )
-from codex_app_server.models import InitializeResponse, Notification
-from codex_app_server.api import (
-    AsyncCodex,
+from thinwedge_app_server.models import InitializeResponse, Notification
+from thinwedge_app_server.api import (
+    AsyncThinWedge,
     AsyncThread,
     AsyncTurnHandle,
-    Codex,
+    ThinWedge,
     RunResult,
     Thread,
     TurnHandle,
@@ -133,7 +133,7 @@ def _token_usage_notification(
     )
 
 
-def test_codex_init_failure_closes_client(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_thinwedge_init_failure_closes_client(monkeypatch: pytest.MonkeyPatch) -> None:
     closed: list[bool] = []
 
     class FakeClient:
@@ -153,14 +153,14 @@ def test_codex_init_failure_closes_client(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setattr(public_api_module, "AppServerClient", FakeClient)
 
     with pytest.raises(RuntimeError, match="missing required metadata"):
-        Codex()
+        ThinWedge()
 
     assert closed == [True]
 
 
-def test_async_codex_init_failure_closes_client() -> None:
+def test_async_thinwedge_init_failure_closes_client() -> None:
     async def scenario() -> None:
-        codex = AsyncCodex()
+        thinwedge = AsyncThinWedge()
         close_calls = 0
 
         async def fake_start() -> None:
@@ -173,23 +173,23 @@ def test_async_codex_init_failure_closes_client() -> None:
             nonlocal close_calls
             close_calls += 1
 
-        codex._client.start = fake_start  # type: ignore[method-assign]
-        codex._client.initialize = fake_initialize  # type: ignore[method-assign]
-        codex._client.close = fake_close  # type: ignore[method-assign]
+        thinwedge._client.start = fake_start  # type: ignore[method-assign]
+        thinwedge._client.initialize = fake_initialize  # type: ignore[method-assign]
+        thinwedge._client.close = fake_close  # type: ignore[method-assign]
 
         with pytest.raises(RuntimeError, match="missing required metadata"):
-            await codex.models()
+            await thinwedge.models()
 
         assert close_calls == 1
-        assert codex._initialized is False
-        assert codex._init is None
+        assert thinwedge._initialized is False
+        assert thinwedge._init is None
 
     asyncio.run(scenario())
 
 
-def test_async_codex_initializes_only_once_under_concurrency() -> None:
+def test_async_thinwedge_initializes_only_once_under_concurrency() -> None:
     async def scenario() -> None:
-        codex = AsyncCodex()
+        thinwedge = AsyncThinWedge()
         start_calls = 0
         initialize_calls = 0
         ready = asyncio.Event()
@@ -205,8 +205,8 @@ def test_async_codex_initializes_only_once_under_concurrency() -> None:
             await asyncio.sleep(0.02)
             return InitializeResponse.model_validate(
                 {
-                    "userAgent": "codex-cli/1.2.3",
-                    "serverInfo": {"name": "codex-cli", "version": "1.2.3"},
+                    "userAgent": "thinwedge-cli/1.2.3",
+                    "serverInfo": {"name": "thinwedge-cli", "version": "1.2.3"},
                 }
             )
 
@@ -214,11 +214,11 @@ def test_async_codex_initializes_only_once_under_concurrency() -> None:
             await ready.wait()
             return object()
 
-        codex._client.start = fake_start  # type: ignore[method-assign]
-        codex._client.initialize = fake_initialize  # type: ignore[method-assign]
-        codex._client.model_list = fake_model_list  # type: ignore[method-assign]
+        thinwedge._client.start = fake_start  # type: ignore[method-assign]
+        thinwedge._client.initialize = fake_initialize  # type: ignore[method-assign]
+        thinwedge._client.model_list = fake_model_list  # type: ignore[method-assign]
 
-        await asyncio.gather(codex.models(), codex.models())
+        await asyncio.gather(thinwedge.models(), thinwedge.models())
 
         assert start_calls == 1
         assert initialize_calls == 1
@@ -248,7 +248,7 @@ def test_turn_stream_rejects_second_active_consumer() -> None:
 
 def test_async_turn_stream_rejects_second_active_consumer() -> None:
     async def scenario() -> None:
-        codex = AsyncCodex()
+        thinwedge = AsyncThinWedge()
 
         async def fake_ensure_initialized() -> None:
             return None
@@ -263,13 +263,13 @@ def test_async_turn_stream_rejects_second_active_consumer() -> None:
         async def fake_next_notification() -> Notification:
             return notifications.popleft()
 
-        codex._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
-        codex._client.next_notification = fake_next_notification  # type: ignore[method-assign]
+        thinwedge._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
+        thinwedge._client.next_notification = fake_next_notification  # type: ignore[method-assign]
 
-        first_stream = AsyncTurnHandle(codex, "thread-1", "turn-1").stream()
+        first_stream = AsyncTurnHandle(thinwedge, "thread-1", "turn-1").stream()
         assert (await anext(first_stream)).method == "item/agentMessage/delta"
 
-        second_stream = AsyncTurnHandle(codex, "thread-1", "turn-2").stream()
+        second_stream = AsyncTurnHandle(thinwedge, "thread-1", "turn-2").stream()
         with pytest.raises(RuntimeError, match="Concurrent turn consumers are not yet supported"):
             await anext(second_stream)
 
@@ -449,7 +449,7 @@ def test_thread_run_raises_on_failed_turn() -> None:
 
 def test_async_thread_run_accepts_string_input_and_returns_run_result() -> None:
     async def scenario() -> None:
-        codex = AsyncCodex()
+        thinwedge = AsyncThinWedge()
 
         async def fake_ensure_initialized() -> None:
             return None
@@ -474,11 +474,11 @@ def test_async_thread_run_accepts_string_input_and_returns_run_result() -> None:
         async def fake_next_notification() -> Notification:
             return notifications.popleft()
 
-        codex._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
-        codex._client.turn_start = fake_turn_start  # type: ignore[method-assign]
-        codex._client.next_notification = fake_next_notification  # type: ignore[method-assign]
+        thinwedge._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
+        thinwedge._client.turn_start = fake_turn_start  # type: ignore[method-assign]
+        thinwedge._client.next_notification = fake_next_notification  # type: ignore[method-assign]
 
-        result = await AsyncThread(codex, "thread-1").run("hello")
+        result = await AsyncThread(thinwedge, "thread-1").run("hello")
 
         assert seen["thread_id"] == "thread-1"
         assert seen["wire_input"] == [{"type": "text", "text": "hello"}]
@@ -493,7 +493,7 @@ def test_async_thread_run_accepts_string_input_and_returns_run_result() -> None:
 
 def test_async_thread_run_uses_last_completed_assistant_message_as_final_response() -> None:
     async def scenario() -> None:
-        codex = AsyncCodex()
+        thinwedge = AsyncThinWedge()
 
         async def fake_ensure_initialized() -> None:
             return None
@@ -514,11 +514,11 @@ def test_async_thread_run_uses_last_completed_assistant_message_as_final_respons
         async def fake_next_notification() -> Notification:
             return notifications.popleft()
 
-        codex._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
-        codex._client.turn_start = fake_turn_start  # type: ignore[method-assign]
-        codex._client.next_notification = fake_next_notification  # type: ignore[method-assign]
+        thinwedge._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
+        thinwedge._client.turn_start = fake_turn_start  # type: ignore[method-assign]
+        thinwedge._client.next_notification = fake_next_notification  # type: ignore[method-assign]
 
-        result = await AsyncThread(codex, "thread-1").run("hello")
+        result = await AsyncThread(thinwedge, "thread-1").run("hello")
 
         assert result.final_response == "Second async message"
         assert result.items == [
@@ -531,7 +531,7 @@ def test_async_thread_run_uses_last_completed_assistant_message_as_final_respons
 
 def test_async_thread_run_returns_none_when_only_commentary_messages_complete() -> None:
     async def scenario() -> None:
-        codex = AsyncCodex()
+        thinwedge = AsyncThinWedge()
 
         async def fake_ensure_initialized() -> None:
             return None
@@ -553,11 +553,11 @@ def test_async_thread_run_returns_none_when_only_commentary_messages_complete() 
         async def fake_next_notification() -> Notification:
             return notifications.popleft()
 
-        codex._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
-        codex._client.turn_start = fake_turn_start  # type: ignore[method-assign]
-        codex._client.next_notification = fake_next_notification  # type: ignore[method-assign]
+        thinwedge._ensure_initialized = fake_ensure_initialized  # type: ignore[method-assign]
+        thinwedge._client.turn_start = fake_turn_start  # type: ignore[method-assign]
+        thinwedge._client.next_notification = fake_next_notification  # type: ignore[method-assign]
 
-        result = await AsyncThread(codex, "thread-1").run("hello")
+        result = await AsyncThread(thinwedge, "thread-1").run("hello")
 
         assert result.final_response is None
         assert result.items == [commentary_notification.payload.item]

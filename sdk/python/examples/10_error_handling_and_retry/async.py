@@ -19,8 +19,8 @@ import random
 from collections.abc import Awaitable, Callable
 from typing import TypeVar
 
-from codex_app_server import (
-    AsyncCodex,
+from thinwedge_app_server import (
+    AsyncThinWedge,
     JsonRpcError,
     ServerBusyError,
     TextInput,
@@ -59,8 +59,8 @@ async def retry_on_overload_async(
 
 
 async def main() -> None:
-    async with AsyncCodex(config=runtime_config()) as codex:
-        thread = await codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+    async with AsyncThinWedge(config=runtime_config()) as thinwedge:
+        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
 
         try:
             result = await retry_on_overload_async(

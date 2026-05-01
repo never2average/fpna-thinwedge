@@ -15,14 +15,14 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from codex_app_server import AsyncCodex
+from thinwedge_app_server import AsyncThinWedge
 
 
 async def main() -> None:
-    async with AsyncCodex(config=runtime_config()) as codex:
-        print("Server:", server_label(codex.metadata))
+    async with AsyncThinWedge(config=runtime_config()) as thinwedge:
+        print("Server:", server_label(thinwedge.metadata))
 
-        thread = await codex.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
         result = await thread.run("Say hello in one sentence.")
         print("Items:", len(result.items))
         print("Text:", result.final_response)

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: dtolnay/rust-toolchain@a0b273b48ed29de4470960879e8381ff45632f26 # 1.93.0
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: dtolnay/rust-toolchain@a0b273b48ed29de4470960879e8381ff45632f26 # 1.93.0
@@ -94,8 +94,8 @@ jobs:
           - name: Windows
             runner: windows-x64
             runs_on:
-              group: codex-runners
-              labels: codex-windows-x64
+              group: thinwedge-runners
+              labels: thinwedge-windows-x64
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./.github/actions/setup-bazel-ci
@@ -108,7 +108,7 @@ jobs:
         run: |
           sudo DEBIAN_FRONTEND=noninteractive apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libcap-dev
-      - name: Run argument comment lint on codex-rs via Bazel
+      - name: Run argument comment lint on thinwedge-rs via Bazel
         if: ${{ runner.os != 'Windows' }}
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -123,7 +123,7 @@ jobs:
             --build_metadata=COMMIT_SHA=${GITHUB_SHA} \
             -- \
             ${bazel_targets}
-      - name: Run argument comment lint on codex-rs via Bazel
+      - name: Run argument comment lint on thinwedge-rs via Bazel
         if: ${{ runner.os == 'Windows' }}
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
@@ -142,7 +142,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
     env:
       # Speed up repeated builds across CI runs by caching compiled objects, except on
       # arm64 macOS runners cross-targeting x86_64 where ring/cc-rs can produce
@@ -167,38 +167,38 @@ jobs:
             target: x86_64-unknown-linux-musl
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-linux-x64
+              group: thinwedge-runners
+              labels: thinwedge-linux-x64
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-linux-x64
+              group: thinwedge-runners
+              labels: thinwedge-linux-x64
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-linux-arm64
+              group: thinwedge-runners
+              labels: thinwedge-linux-arm64
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-linux-arm64
+              group: thinwedge-runners
+              labels: thinwedge-linux-arm64
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-windows-x64
+              group: thinwedge-runners
+              labels: thinwedge-windows-x64
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-windows-arm64
+              group: thinwedge-runners
+              labels: thinwedge-windows-arm64
 
           # Also run representative release builds on Mac and Linux because
           # there could be release-only build errors we want to catch.
@@ -211,26 +211,26 @@ jobs:
             target: x86_64-unknown-linux-musl
             profile: release
             runs_on:
-              group: codex-runners
-              labels: codex-linux-x64
+              group: thinwedge-runners
+              labels: thinwedge-linux-x64
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             profile: release
             runs_on:
-              group: codex-runners
-              labels: codex-linux-arm64
+              group: thinwedge-runners
+              labels: thinwedge-linux-arm64
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             profile: release
             runs_on:
-              group: codex-runners
-              labels: codex-windows-x64
+              group: thinwedge-runners
+              labels: thinwedge-windows-x64
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             profile: release
             runs_on:
-              group: codex-runners
-              labels: codex-windows-arm64
+              group: thinwedge-runners
+              labels: thinwedge-windows-arm64
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -265,7 +265,7 @@ jobs:
 
       - name: Compute lockfile hash
         id: lockhash
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
         shell: bash
         run: |
           set -euo pipefail
@@ -452,7 +452,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: cargo-timings-rust-ci-clippy-${{ matrix.target }}-${{ matrix.profile }}
-          path: codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: thinwedge-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       # Save caches explicitly; make non-fatal so cache packaging
@@ -516,7 +516,7 @@ jobs:
     timeout-minutes: 45
     defaults:
       run:
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
     env:
       # Speed up repeated builds across CI runs by caching compiled objects, except on
       # arm64 macOS runners cross-targeting x86_64 where ring/cc-rs can produce
@@ -537,26 +537,26 @@ jobs:
             profile: dev
             remote_env: "true"
             runs_on:
-              group: codex-runners
-              labels: codex-linux-x64
+              group: thinwedge-runners
+              labels: thinwedge-linux-x64
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-linux-arm64
+              group: thinwedge-runners
+              labels: thinwedge-linux-arm64
           - runner: windows-x64
             target: x86_64-pc-windows-msvc
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-windows-x64
+              group: thinwedge-runners
+              labels: thinwedge-windows-x64
           - runner: windows-arm64
             target: aarch64-pc-windows-msvc
             profile: dev
             runs_on:
-              group: codex-runners
-              labels: codex-windows-arm64
+              group: thinwedge-runners
+              labels: thinwedge-windows-arm64
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -571,7 +571,7 @@ jobs:
           fi
 
       # Some integration tests rely on DotSlash being installed.
-      # See https://github.com/openai/codex/pull/7617.
+      # See https://github.com/openai/thinwedge/pull/7617.
       - name: Install DotSlash
         uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a # v2
 
@@ -581,7 +581,7 @@ jobs:
 
       - name: Compute lockfile hash
         id: lockhash
-        working-directory: codex-rs
+        working-directory: thinwedge-rs
         shell: bash
         run: |
           set -euo pipefail
@@ -659,10 +659,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          export CODEX_TEST_REMOTE_ENV_CONTAINER_NAME=codex-remote-test-env
+          export THINWEDGE_TEST_REMOTE_ENV_CONTAINER_NAME=thinwedge-remote-test-env
           source "${GITHUB_WORKSPACE}/scripts/test-remote-env.sh"
-          echo "CODEX_TEST_REMOTE_ENV=${CODEX_TEST_REMOTE_ENV}" >> "$GITHUB_ENV"
-          echo "CODEX_TEST_REMOTE_EXEC_SERVER_URL=${CODEX_TEST_REMOTE_EXEC_SERVER_URL}" >> "$GITHUB_ENV"
+          echo "THINWEDGE_TEST_REMOTE_ENV=${THINWEDGE_TEST_REMOTE_ENV}" >> "$GITHUB_ENV"
+          echo "THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL=${THINWEDGE_TEST_REMOTE_EXEC_SERVER_URL}" >> "$GITHUB_ENV"
 
       - name: tests
         id: test
@@ -677,7 +677,7 @@ jobs:
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: cargo-timings-rust-ci-nextest-${{ matrix.target }}-${{ matrix.profile }}
-          path: codex-rs/target/**/cargo-timings/cargo-timing.html
+          path: thinwedge-rs/target/**/cargo-timings/cargo-timing.html
           if-no-files-found: warn
 
       - name: Save cargo home cache
@@ -723,9 +723,9 @@ jobs:
         run: |
           set +e
           if [[ "${{ steps.test.outcome }}" != "success" ]]; then
-            docker logs codex-remote-test-env || true
+            docker logs thinwedge-remote-test-env || true
           fi
-          docker rm -f codex-remote-test-env >/dev/null 2>&1 || true
+          docker rm -f thinwedge-remote-test-env >/dev/null 2>&1 || true
 
       - name: verify tests passed
         if: steps.test.outcome == 'failure'
