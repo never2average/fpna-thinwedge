@@ -1,8 +1,8 @@
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
-use thinwedge_protocol::ThreadId;
 use std::sync::Arc;
+use thinwedge_protocol::ThreadId;
 
 /// Resolves a single tool-facing agent target to a thread id.
 pub(crate) async fn resolve_agent_target(

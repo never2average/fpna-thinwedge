@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use std::io;
+use std::path::Path;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::SandboxEnforcement;
@@ -9,8 +11,6 @@ use thinwedge_protocol::permissions::FileSystemSpecialPath;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::io;
-use std::path::Path;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CreateDirectoryOptions {

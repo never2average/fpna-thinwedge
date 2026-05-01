@@ -9,16 +9,16 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_rmcp_client::ElicitationAction;
-use thinwedge_rmcp_client::ElicitationResponse;
-use thinwedge_rmcp_client::LocalStdioServerLauncher;
-use thinwedge_rmcp_client::RmcpClient;
 use futures::FutureExt as _;
 use rmcp::model::ClientCapabilities;
 use rmcp::model::Implementation;
 use rmcp::model::InitializeRequestParams;
 use rmcp::model::ProtocolVersion;
 use serde_json::json;
+use thinwedge_rmcp_client::ElicitationAction;
+use thinwedge_rmcp_client::ElicitationResponse;
+use thinwedge_rmcp_client::LocalStdioServerLauncher;
+use thinwedge_rmcp_client::RmcpClient;
 
 fn stdio_server_bin() -> Result<std::path::PathBuf> {
     thinwedge_utils_cargo_bin::cargo_bin("test_stdio_server").map_err(Into::into)

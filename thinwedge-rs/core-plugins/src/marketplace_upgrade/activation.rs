@@ -1,10 +1,10 @@
 use super::ConfiguredGitMarketplace;
-use thinwedge_config::types::MarketplaceSourceType;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
 use tempfile::TempDir;
+use thinwedge_config::types::MarketplaceSourceType;
 use tracing::warn;
 
 const MARKETPLACE_INSTALL_METADATA_FILE: &str = ".thinwedge-marketplace-install.json";

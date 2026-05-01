@@ -22,17 +22,17 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-use thinwedge_protocol::error::ThinWedgeErr;
+use globset::GlobBuilder;
+use globset::GlobSet;
+use globset::GlobSetBuilder;
 use thinwedge_protocol::error::Result;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::protocol::FileSystemAccessMode;
 use thinwedge_protocol::protocol::FileSystemPath;
 use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
 use thinwedge_protocol::protocol::FileSystemSpecialPath;
 use thinwedge_protocol::protocol::WritableRoot;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use globset::GlobBuilder;
-use globset::GlobSet;
-use globset::GlobSetBuilder;
 
 /// Linux "platform defaults" that keep common system binaries and dynamic
 /// libraries readable when a split filesystem policy requests `:minimal`.
@@ -1031,14 +1031,14 @@ fn find_first_non_existent_component(target_path: &Path) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use thinwedge_protocol::protocol::FileSystemAccessMode;
     use thinwedge_protocol::protocol::FileSystemPath;
     use thinwedge_protocol::protocol::FileSystemSandboxEntry;
     use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
     use thinwedge_protocol::protocol::FileSystemSpecialPath;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
 
     const NO_UNREADABLE_GLOB_SCAN_MAX_DEPTH: Option<usize> = None;
 

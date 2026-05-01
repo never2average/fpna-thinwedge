@@ -29,7 +29,6 @@ pub static INTERACTIVE_SESSION_SOURCES: LazyLock<Vec<SessionSource>> = LazyLock:
     ]
 });
 
-pub use thinwedge_protocol::protocol::SessionMeta;
 pub use config::Config;
 pub use config::RolloutConfig;
 pub use config::RolloutConfigView;
@@ -62,6 +61,7 @@ pub use session_index::find_thread_meta_by_name_str;
 pub use session_index::find_thread_name_by_id;
 pub use session_index::find_thread_names_by_ids;
 pub use state_db::StateDbHandle;
+pub use thinwedge_protocol::protocol::SessionMeta;
 
 #[cfg(test)]
 mod tests;

@@ -4,13 +4,13 @@ use crate::common::MemorySummarizeOutput;
 use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use thinwedge_client::HttpTransport;
-use thinwedge_client::RequestTelemetry;
 use http::HeaderMap;
 use http::Method;
 use serde::Deserialize;
 use serde_json::to_value;
 use std::sync::Arc;
+use thinwedge_client::HttpTransport;
+use thinwedge_client::RequestTelemetry;
 
 pub struct MemoriesClient<T: HttpTransport> {
     session: EndpointSession<T>,
@@ -72,11 +72,6 @@ mod tests {
     use crate::common::RawMemoryMetadata;
     use crate::provider::RetryConfig;
     use async_trait::async_trait;
-    use thinwedge_client::Request;
-    use thinwedge_client::RequestBody;
-    use thinwedge_client::Response;
-    use thinwedge_client::StreamResponse;
-    use thinwedge_client::TransportError;
     use http::HeaderMap;
     use http::Method;
     use http::StatusCode;
@@ -85,6 +80,11 @@ mod tests {
     use std::sync::Arc;
     use std::sync::Mutex;
     use std::time::Duration;
+    use thinwedge_client::Request;
+    use thinwedge_client::RequestBody;
+    use thinwedge_client::Response;
+    use thinwedge_client::StreamResponse;
+    use thinwedge_client::TransportError;
 
     #[derive(Clone, Default)]
     struct DummyTransport;

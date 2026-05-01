@@ -2,14 +2,14 @@ use super::AwsLineItemSelectBy;
 use super::AwsPricingFilter;
 use super::types::SelectedPriceDimension;
 use bytes::Bytes;
-use thinwedge_aws_auth::AwsAuthConfig;
-use thinwedge_aws_auth::AwsAuthContext;
-use thinwedge_aws_auth::AwsRequestToSign;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::Method;
 use serde_json::Value as JsonValue;
 use serde_json::json;
+use thinwedge_aws_auth::AwsAuthConfig;
+use thinwedge_aws_auth::AwsAuthContext;
+use thinwedge_aws_auth::AwsRequestToSign;
 
 const AWS_DEFAULT_REGION: &str = "us-east-1";
 const AWS_PRICING_ENDPOINT_PREFIX: &str = "api.pricing";

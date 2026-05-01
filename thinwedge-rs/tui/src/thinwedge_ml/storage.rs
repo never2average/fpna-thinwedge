@@ -55,11 +55,19 @@ pub(super) async fn write_training_environments_registry(
     thinwedge_home: &Path,
     registry: &TrainingEnvironmentsRegistry,
 ) -> Result<(), String> {
-    write_json_pretty(&training_environments_registry_path(thinwedge_home), registry).await
+    write_json_pretty(
+        &training_environments_registry_path(thinwedge_home),
+        registry,
+    )
+    .await
 }
 
 pub(super) async fn write_job(thinwedge_home: &Path, job: &StoredJob) -> Result<(), String> {
-    write_json_pretty(&jobs_dir(thinwedge_home).join(format!("{}.json", job.id)), job).await
+    write_json_pretty(
+        &jobs_dir(thinwedge_home).join(format!("{}.json", job.id)),
+        job,
+    )
+    .await
 }
 
 pub(super) async fn read_job(thinwedge_home: &Path, job_id: &str) -> Result<StoredJob, String> {

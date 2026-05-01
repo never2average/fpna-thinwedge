@@ -4,12 +4,12 @@ use super::canonicalize_if_exists;
 use super::detect_skill_doc_read;
 use super::detect_skill_script_run;
 use super::script_run_token;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_absolute_path::test_support::PathBufExt;
-use thinwedge_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::sync::Arc;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_absolute_path::test_support::PathBufExt;
+use thinwedge_utils_absolute_path::test_support::test_path_buf;
 
 fn test_skill_metadata(skill_doc_path: AbsolutePathBuf) -> SkillMetadata {
     SkillMetadata {

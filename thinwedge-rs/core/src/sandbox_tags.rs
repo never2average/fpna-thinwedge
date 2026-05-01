@@ -1,3 +1,4 @@
+use std::path::Path;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
 #[cfg(test)]
@@ -5,7 +6,6 @@ use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::get_platform_sandbox;
 use thinwedge_sandboxing::policy_transforms::should_require_platform_sandbox;
-use std::path::Path;
 
 #[cfg(test)]
 pub(crate) fn sandbox_tag(

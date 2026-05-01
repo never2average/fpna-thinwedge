@@ -318,6 +318,8 @@ mod tests {
     use super::*;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
+    use pretty_assertions::assert_eq;
+    use std::path::PathBuf;
     use thinwedge_app_server_protocol::CommandExecutionRequestApprovalParams;
     use thinwedge_app_server_protocol::HookCompletedNotification;
     use thinwedge_app_server_protocol::HookEventName as AppServerHookEventName;
@@ -335,8 +337,6 @@ mod tests {
     use thinwedge_config::types::ApprovalsReviewer;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::protocol::AskForApproval;
-    use pretty_assertions::assert_eq;
-    use std::path::PathBuf;
 
     fn test_thread_session(thread_id: ThreadId, cwd: PathBuf) -> ThreadSessionState {
         ThreadSessionState {

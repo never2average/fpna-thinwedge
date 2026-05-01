@@ -3,13 +3,13 @@ use std::sync::Arc;
 
 use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolPayload;
+use pretty_assertions::assert_eq;
+use serde_json::json;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_tools::ResponsesApiNamespaceTool;
 use thinwedge_tools::ToolName;
 use thinwedge_tools::ToolSpec;
-use pretty_assertions::assert_eq;
-use serde_json::json;
 
 use super::ToolCall;
 use super::ToolRouter;

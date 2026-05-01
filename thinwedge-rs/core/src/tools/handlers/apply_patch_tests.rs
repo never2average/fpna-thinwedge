@@ -1,9 +1,4 @@
 use super::*;
-use thinwedge_apply_patch::MaybeApplyPatchVerified;
-use thinwedge_exec_server::LOCAL_FS;
-use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
-use thinwedge_protocol::protocol::FileChange;
-use thinwedge_protocol::protocol::SandboxPolicy;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
@@ -12,6 +7,11 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
+use thinwedge_apply_patch::MaybeApplyPatchVerified;
+use thinwedge_exec_server::LOCAL_FS;
+use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
+use thinwedge_protocol::protocol::FileChange;
+use thinwedge_protocol::protocol::SandboxPolicy;
 use tokio::sync::Mutex;
 
 use crate::session::tests::make_session_and_context;

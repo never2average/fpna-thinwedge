@@ -8,11 +8,11 @@
 //! assertions here cover CA file selection, PEM parsing, and user-facing errors, not a full TLS
 //! handshake.
 
-use thinwedge_utils_cargo_bin::cargo_bin;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use tempfile::TempDir;
+use thinwedge_utils_cargo_bin::cargo_bin;
 
 const THINWEDGE_CA_CERT_ENV: &str = "THINWEDGE_CA_CERTIFICATE";
 const SSL_CERT_FILE_ENV: &str = "SSL_CERT_FILE";

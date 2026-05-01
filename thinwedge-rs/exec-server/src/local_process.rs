@@ -706,9 +706,9 @@ fn notification_sender(inner: &Inner) -> Option<RpcNotificationSender> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::config_types::ShellEnvironmentPolicyInherit;
     use thinwedge_utils_pty::ProcessDriver;
-    use pretty_assertions::assert_eq;
     use tokio::sync::oneshot;
     use tokio::time::timeout;
 

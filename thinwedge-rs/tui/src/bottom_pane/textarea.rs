@@ -14,8 +14,6 @@ use crate::key_hint::KeyBindingListExt;
 use crate::key_hint::is_altgr;
 use crate::keymap::EditorKeymap;
 use crate::keymap::RuntimeKeymap;
-use thinwedge_protocol::user_input::ByteRange;
-use thinwedge_protocol::user_input::TextElement as UserTextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -29,6 +27,8 @@ use std::cell::Ref;
 use std::cell::RefCell;
 use std::ops::Range;
 use textwrap::Options;
+use thinwedge_protocol::user_input::ByteRange;
+use thinwedge_protocol::user_input::TextElement as UserTextElement;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 

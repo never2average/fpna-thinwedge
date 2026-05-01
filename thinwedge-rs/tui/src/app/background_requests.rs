@@ -695,9 +695,15 @@ pub(super) fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -
         auth_statuses.insert(
             server_name.clone(),
             match status.auth_status {
-                thinwedge_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                thinwedge_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                thinwedge_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                thinwedge_app_server_protocol::McpAuthStatus::Unsupported => {
+                    McpAuthStatus::Unsupported
+                }
+                thinwedge_app_server_protocol::McpAuthStatus::NotLoggedIn => {
+                    McpAuthStatus::NotLoggedIn
+                }
+                thinwedge_app_server_protocol::McpAuthStatus::BearerToken => {
+                    McpAuthStatus::BearerToken
+                }
                 thinwedge_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             },
         );
@@ -714,10 +720,10 @@ pub(super) fn mcp_inventory_maps_from_statuses(statuses: Vec<McpServerStatus>) -
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::PluginMarketplaceEntry;
     use thinwedge_protocol::mcp::Tool;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
 
     fn test_absolute_path(path: &str) -> AbsolutePathBuf {
         AbsolutePathBuf::try_from(PathBuf::from(path)).expect("absolute test path")

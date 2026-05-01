@@ -4,9 +4,9 @@ use std::time::Duration;
 use std::time::Instant;
 
 use anyhow::Context;
+use serde::Deserialize;
 use thinwedge_core::config::Config;
 use thinwedge_login::ThinWedgeAuth;
-use serde::Deserialize;
 
 use crate::chatgpt_client::chatgpt_get_request_with_timeout;
 

@@ -1,11 +1,11 @@
 use std::path::Path;
 
 use anyhow::Result;
-use thinwedge_state::StateRuntime;
-use thinwedge_state::state_db_path;
 use predicates::str::contains;
 use sqlx::SqlitePool;
 use tempfile::TempDir;
+use thinwedge_state::StateRuntime;
+use thinwedge_state::state_db_path;
 
 fn thinwedge_command(thinwedge_home: &Path) -> Result<assert_cmd::Command> {
     let mut cmd = assert_cmd::Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge")?);
@@ -16,8 +16,11 @@ fn thinwedge_command(thinwedge_home: &Path) -> Result<assert_cmd::Command> {
 #[tokio::test]
 async fn debug_clear_memories_resets_state_and_removes_memory_dir() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    let runtime =
-        StateRuntime::init(thinwedge_home.path().to_path_buf(), "test-provider".to_string()).await?;
+    let runtime = StateRuntime::init(
+        thinwedge_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await?;
     drop(runtime);
 
     let thread_id = "00000000-0000-0000-0000-000000000123";

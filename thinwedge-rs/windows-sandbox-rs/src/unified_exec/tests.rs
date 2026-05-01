@@ -5,7 +5,6 @@ use crate::ipc_framed::Message;
 use crate::ipc_framed::decode_bytes;
 use crate::ipc_framed::read_frame;
 use crate::run_windows_sandbox_capture;
-use thinwedge_utils_pty::ProcessDriver;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::fs;
@@ -21,6 +20,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 use tempfile::TempDir;
+use thinwedge_utils_pty::ProcessDriver;
 use tokio::runtime::Builder;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
@@ -122,7 +122,12 @@ async fn collect_stdout_and_exit(
     });
     let exit_code = timeout(timeout_duration, exit_rx)
         .await
-        .unwrap_or_else(|_| panic!("timed out waiting for exit\n{}", sandbox_log(thinwedge_home)))
+        .unwrap_or_else(|_| {
+            panic!(
+                "timed out waiting for exit\n{}",
+                sandbox_log(thinwedge_home)
+            )
+        })
         .unwrap_or(-1);
     let stdout = timeout(timeout_duration, stdout_task)
         .await
@@ -365,7 +370,10 @@ fn legacy_capture_powershell_emits_output() {
     let _guard = legacy_process_test_guard();
     let cwd = sandbox_cwd();
     let thinwedge_home = sandbox_home("legacy-capture-pwsh");
-    println!("capture pwsh thinwedge_home={}", thinwedge_home.path().display());
+    println!(
+        "capture pwsh thinwedge_home={}",
+        thinwedge_home.path().display()
+    );
     let result = run_windows_sandbox_capture(
         "workspace-write",
         cwd.as_path(),
@@ -404,7 +412,10 @@ fn legacy_tty_powershell_emits_output_and_accepts_input() {
     runtime.block_on(async move {
         let cwd = sandbox_cwd();
         let thinwedge_home = sandbox_home("legacy-tty-pwsh");
-        println!("tty pwsh thinwedge_home={}", thinwedge_home.path().display());
+        println!(
+            "tty pwsh thinwedge_home={}",
+            thinwedge_home.path().display()
+        );
         let spawned = spawn_windows_sandbox_session_legacy(
             "workspace-write",
             cwd.as_path(),

@@ -390,9 +390,11 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
         });
 
         let processor_outgoing = Arc::clone(&outgoing_message_sender);
-        let auth_manager =
-            AuthManager::shared_from_config(args.config.as_ref(), args.enable_thinwedge_api_key_env)
-                .await;
+        let auth_manager = AuthManager::shared_from_config(
+            args.config.as_ref(),
+            args.enable_thinwedge_api_key_env,
+        )
+        .await;
         let config_manager = ConfigManager::new(
             args.config.thinwedge_home.to_path_buf(),
             args.cli_overrides,
@@ -716,6 +718,7 @@ fn start_uninitialized(args: InProcessStartArgs) -> InProcessClientHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::ClientInfo;
     use thinwedge_app_server_protocol::ConfigRequirementsReadResponse;
     use thinwedge_app_server_protocol::DeviceKeyPublicParams;
@@ -730,7 +733,6 @@ mod tests {
     use thinwedge_app_server_protocol::TurnCompletedNotification;
     use thinwedge_app_server_protocol::TurnStatus;
     use thinwedge_core::config::ConfigBuilder;
-    use pretty_assertions::assert_eq;
 
     async fn build_test_config() -> Config {
         match ConfigBuilder::default().build().await {

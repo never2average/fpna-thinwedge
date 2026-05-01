@@ -7,6 +7,11 @@ use crate::permission_compat::legacy_compatible_permission_profile;
 use crate::status::StatusAccountDisplay;
 use crate::status::plan_type_display_name;
 use crate::thinwedge_ml;
+use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::Result;
+use color_eyre::eyre::WrapErr;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use thinwedge_app_server_client::AppServerClient;
 use thinwedge_app_server_client::AppServerEvent;
 use thinwedge_app_server_client::AppServerRequestHandle;
@@ -96,10 +101,6 @@ use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux;
-use thinwedge_protocol::thinwedge_models::ModelPreset;
-use thinwedge_protocol::thinwedge_models::ModelUpgrade;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::ConversationAudioParams;
 use thinwedge_protocol::protocol::ConversationStartParams;
@@ -112,12 +113,11 @@ use thinwedge_protocol::protocol::RateLimitWindow;
 use thinwedge_protocol::protocol::ReviewRequest;
 use thinwedge_protocol::protocol::ReviewTarget as CoreReviewTarget;
 use thinwedge_protocol::protocol::SessionNetworkProxyRuntime;
+use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelUpgrade;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use color_eyre::eyre::ContextCompat;
-use color_eyre::eyre::Result;
-use color_eyre::eyre::WrapErr;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 /// Data collected during the TUI bootstrap phase that the main event loop
 /// needs to configure the UI, telemetry, and initial rate-limit prefetch.
@@ -1507,6 +1507,8 @@ fn app_server_credits_snapshot_to_core(
 mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
+    use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::ThreadStatus;
     use thinwedge_app_server_protocol::Turn;
     use thinwedge_app_server_protocol::TurnStatus;
@@ -1518,8 +1520,6 @@ mod tests {
     use thinwedge_protocol::permissions::NetworkSandboxPolicy;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> Config {
         ConfigBuilder::default()

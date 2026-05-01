@@ -6,8 +6,6 @@ pub use thinwedge_utils_plugins::plugin_namespace_for_skill_path;
 mod load_outcome;
 mod plugin_id;
 
-use thinwedge_config::HookEventsToml;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 pub use load_outcome::EffectiveSkillRoots;
 pub use load_outcome::LoadedPlugin;
 pub use load_outcome::PluginLoadOutcome;
@@ -15,6 +13,8 @@ pub use load_outcome::prompt_safe_plugin_description;
 pub use plugin_id::PluginId;
 pub use plugin_id::PluginIdError;
 pub use plugin_id::validate_plugin_segment;
+use thinwedge_config::HookEventsToml;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AppConnectorId(pub String);

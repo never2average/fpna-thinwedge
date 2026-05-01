@@ -24,9 +24,9 @@ use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::RolloutItem;
 
-use crate::thinwedge_message_processor::read_rollout_items_from_rollout;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
+use crate::thinwedge_message_processor::read_rollout_items_from_rollout;
 
 /// Sends a restored token usage update to the connection that attached to a thread.
 ///

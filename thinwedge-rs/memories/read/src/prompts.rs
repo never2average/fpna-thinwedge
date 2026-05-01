@@ -1,10 +1,10 @@
 use crate::MEMORY_TOOL_DEVELOPER_INSTRUCTIONS_SUMMARY_TOKEN_LIMIT;
 use crate::memory_root;
+use std::sync::LazyLock;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_output_truncation::TruncationPolicy;
 use thinwedge_utils_output_truncation::truncate_text;
 use thinwedge_utils_template::Template;
-use std::sync::LazyLock;
 use tokio::fs;
 
 static MEMORY_TOOL_DEVELOPER_INSTRUCTIONS_TEMPLATE: LazyLock<Template> = LazyLock::new(|| {

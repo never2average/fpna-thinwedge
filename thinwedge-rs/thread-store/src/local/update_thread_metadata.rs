@@ -157,12 +157,14 @@ async fn resolve_rollout_path(
         return Ok(ResolvedRolloutPath { path, archived });
     }
 
-    let active_path =
-        find_thread_path_by_id_str(store.config.thinwedge_home.as_path(), &thread_id.to_string())
-            .await
-            .map_err(|err| ThreadStoreError::InvalidRequest {
-                message: format!("failed to locate thread id {thread_id}: {err}"),
-            })?;
+    let active_path = find_thread_path_by_id_str(
+        store.config.thinwedge_home.as_path(),
+        &thread_id.to_string(),
+    )
+    .await
+    .map_err(|err| ThreadStoreError::InvalidRequest {
+        message: format!("failed to locate thread id {thread_id}: {err}"),
+    })?;
     if let Some(path) = active_path {
         return Ok(ResolvedRolloutPath {
             path,
@@ -174,18 +176,21 @@ async fn resolve_rollout_path(
             message: format!("thread not found: {thread_id}"),
         });
     }
-    find_archived_thread_path_by_id_str(store.config.thinwedge_home.as_path(), &thread_id.to_string())
-        .await
-        .map_err(|err| ThreadStoreError::InvalidRequest {
-            message: format!("failed to locate archived thread id {thread_id}: {err}"),
-        })?
-        .map(|path| ResolvedRolloutPath {
-            path,
-            archived: true,
-        })
-        .ok_or_else(|| ThreadStoreError::InvalidRequest {
-            message: format!("thread not found: {thread_id}"),
-        })
+    find_archived_thread_path_by_id_str(
+        store.config.thinwedge_home.as_path(),
+        &thread_id.to_string(),
+    )
+    .await
+    .map_err(|err| ThreadStoreError::InvalidRequest {
+        message: format!("failed to locate archived thread id {thread_id}: {err}"),
+    })?
+    .map(|path| ResolvedRolloutPath {
+        path,
+        archived: true,
+    })
+    .ok_or_else(|| ThreadStoreError::InvalidRequest {
+        message: format!("thread not found: {thread_id}"),
+    })
 }
 
 fn rollout_path_is_archived(store: &LocalThreadStore, path: &std::path::Path) -> bool {

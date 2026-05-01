@@ -1,4 +1,9 @@
 use anyhow::Result;
+use serde_json::json;
+use std::fs;
+use std::fs::FileTimes;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::GitInfo;
@@ -8,11 +13,6 @@ use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::TokenCountEvent;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
-use serde_json::json;
-use std::fs;
-use std::fs::FileTimes;
-use std::path::Path;
-use std::path::PathBuf;
 use uuid::Uuid;
 
 pub fn rollout_path(thinwedge_home: &Path, filename_ts: &str, thread_id: &str) -> PathBuf {
@@ -207,7 +207,11 @@ pub fn create_fake_rollout_with_text_elements(
     let year = &filename_ts[0..4];
     let month = &filename_ts[5..7];
     let day = &filename_ts[8..10];
-    let dir = thinwedge_home.join("sessions").join(year).join(month).join(day);
+    let dir = thinwedge_home
+        .join("sessions")
+        .join(year)
+        .join(month)
+        .join(day);
     fs::create_dir_all(&dir)?;
 
     let file_path = dir.join(format!("rollout-{filename_ts}-{uuid}.jsonl"));

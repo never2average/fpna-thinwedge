@@ -9,9 +9,9 @@ use std::sync::OnceLock;
 use std::sync::mpsc as std_mpsc;
 use std::thread;
 
-use thinwedge_protocol::ToolName;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use thinwedge_protocol::ToolName;
 use tokio::sync::mpsc;
 
 use crate::description::EnabledToolMetadata;

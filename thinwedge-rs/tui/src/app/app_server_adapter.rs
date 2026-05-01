@@ -20,6 +20,8 @@ use crate::app_server_session::status_account_display_from_auth_mode;
 #[cfg(test)]
 use crate::exec_command::split_command_string;
 use crate::thinwedge_ml;
+#[cfg(test)]
+use std::time::Duration;
 use thinwedge_app_server_client::AppServerEvent;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_app_server_protocol::DynamicToolCallParams;
@@ -107,8 +109,6 @@ use thinwedge_protocol::protocol::TurnAbortedEvent;
 use thinwedge_protocol::protocol::TurnCompleteEvent;
 #[cfg(test)]
 use thinwedge_protocol::protocol::TurnStartedEvent;
-#[cfg(test)]
-use std::time::Duration;
 
 impl App {
     fn refresh_mcp_startup_expected_servers_from_config(&mut self) {
@@ -1027,12 +1027,16 @@ fn command_execution_completed_event(turn_id: &str, item: &ThreadItem) -> Option
     }
 
     let status = match status {
-        thinwedge_app_server_protocol::CommandExecutionStatus::InProgress => return Some(Vec::new()),
+        thinwedge_app_server_protocol::CommandExecutionStatus::InProgress => {
+            return Some(Vec::new());
+        }
         thinwedge_app_server_protocol::CommandExecutionStatus::Completed => {
             ExecCommandStatus::Completed
         }
         thinwedge_app_server_protocol::CommandExecutionStatus::Failed => ExecCommandStatus::Failed,
-        thinwedge_app_server_protocol::CommandExecutionStatus::Declined => ExecCommandStatus::Declined,
+        thinwedge_app_server_protocol::CommandExecutionStatus::Declined => {
+            ExecCommandStatus::Declined
+        }
     };
 
     let duration = Duration::from_millis(
@@ -1112,8 +1116,8 @@ mod tests {
     use super::server_notification_thread_target;
     use super::thread_snapshot_events;
     use super::turn_snapshot_events;
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::AgentMessageDeltaNotification;
-    use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
     use thinwedge_app_server_protocol::CommandAction;
     use thinwedge_app_server_protocol::CommandExecutionOutputDeltaNotification;
     use thinwedge_app_server_protocol::CommandExecutionSource;
@@ -1123,6 +1127,7 @@ mod tests {
     use thinwedge_app_server_protocol::ItemStartedNotification;
     use thinwedge_app_server_protocol::ReasoningSummaryTextDeltaNotification;
     use thinwedge_app_server_protocol::ServerNotification;
+    use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
     use thinwedge_app_server_protocol::Thread;
     use thinwedge_app_server_protocol::ThreadItem;
     use thinwedge_app_server_protocol::ThreadStatus;
@@ -1143,7 +1148,6 @@ mod tests {
     use thinwedge_protocol::protocol::TurnAbortedEvent;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn bridges_completed_agent_messages_from_server_notifications() {

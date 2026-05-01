@@ -3,12 +3,12 @@ use std::time::Duration;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::ModelProviderCapabilitiesReadParams;
 use thinwedge_app_server_protocol::ModelProviderCapabilitiesReadResponse;
 use thinwedge_app_server_protocol::RequestId;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);

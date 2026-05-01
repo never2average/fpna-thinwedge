@@ -1,8 +1,6 @@
 use crate::app_event_sender::AppEventSender;
 use crate::legacy_core::config::Config;
 use base64::Engine;
-use thinwedge_protocol::protocol::ConversationAudioParams;
-use thinwedge_protocol::protocol::RealtimeAudioFrame;
 use cpal::traits::DeviceTrait;
 use cpal::traits::StreamTrait;
 use std::collections::VecDeque;
@@ -11,6 +9,8 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU16;
 use std::sync::atomic::Ordering;
+use thinwedge_protocol::protocol::ConversationAudioParams;
+use thinwedge_protocol::protocol::RealtimeAudioFrame;
 use tracing::error;
 
 const MODEL_AUDIO_SAMPLE_RATE: u32 = 24_000;

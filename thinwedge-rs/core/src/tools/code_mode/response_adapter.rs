@@ -34,14 +34,15 @@ impl IntoProtocol<FunctionCallOutputContentItem>
             thinwedge_code_mode::FunctionCallOutputContentItem::InputText { text } => {
                 FunctionCallOutputContentItem::InputText { text }
             }
-            thinwedge_code_mode::FunctionCallOutputContentItem::InputImage { image_url, detail } => {
-                FunctionCallOutputContentItem::InputImage {
-                    image_url,
-                    detail: detail
-                        .map(IntoProtocol::into_protocol)
-                        .or(Some(DEFAULT_IMAGE_DETAIL)),
-                }
-            }
+            thinwedge_code_mode::FunctionCallOutputContentItem::InputImage {
+                image_url,
+                detail,
+            } => FunctionCallOutputContentItem::InputImage {
+                image_url,
+                detail: detail
+                    .map(IntoProtocol::into_protocol)
+                    .or(Some(DEFAULT_IMAGE_DETAIL)),
+            },
         }
     }
 }

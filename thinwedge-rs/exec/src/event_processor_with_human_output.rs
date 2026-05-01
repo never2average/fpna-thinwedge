@@ -2,6 +2,8 @@ use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
 
+use owo_colors::OwoColorize;
+use owo_colors::Style;
 use thinwedge_app_server_protocol::CommandExecutionStatus;
 use thinwedge_app_server_protocol::McpToolCallStatus;
 use thinwedge_app_server_protocol::PatchApplyStatus;
@@ -16,11 +18,9 @@ use thinwedge_protocol::num_format::format_with_separators;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::SessionConfiguredEvent;
 use thinwedge_utils_absolute_path::canonicalize_preserving_symlinks;
-use owo_colors::OwoColorize;
-use owo_colors::Style;
 
-use crate::event_processor::ThinWedgeStatus;
 use crate::event_processor::EventProcessor;
+use crate::event_processor::ThinWedgeStatus;
 use crate::event_processor::handle_last_message;
 
 pub(crate) struct EventProcessorWithHumanOutput {

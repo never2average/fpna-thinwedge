@@ -7,6 +7,14 @@ use crate::unified_exec::MIN_EMPTY_YIELD_TIME_MS;
 use crate::windows_sandbox::WindowsSandboxLevelExt;
 use crate::windows_sandbox::resolve_windows_sandbox_mode;
 use crate::windows_sandbox::resolve_windows_sandbox_private_desktop;
+use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::io::ErrorKind;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_config::CloudRequirementsLoader;
 use thinwedge_config::ConfigLayerSource;
 use thinwedge_config::ConfigLayerStack;
@@ -86,22 +94,14 @@ use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::SandboxEnforcement;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
-use serde::Deserialize;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::io::ErrorKind;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 use crate::config::permissions::builtin_permission_profile;
 use crate::config::permissions::compile_permission_profile_selection;
@@ -120,16 +120,16 @@ mod network_proxy_spec;
 mod permissions;
 #[cfg(test)]
 mod schema;
+pub use managed_features::ManagedFeatures;
+pub use network_proxy_spec::NetworkProxySpec;
+pub use network_proxy_spec::StartedNetworkProxy;
+pub(crate) use permissions::resolve_permission_profile;
 pub use thinwedge_config::Constrained;
 pub use thinwedge_config::ConstraintError;
 pub use thinwedge_config::ConstraintResult;
 pub use thinwedge_network_proxy::NetworkProxyAuditMetadata;
 use thinwedge_sandboxing::compatibility_sandbox_policy_for_permission_profile;
 pub use thinwedge_sandboxing::system_bwrap_warning;
-pub use managed_features::ManagedFeatures;
-pub use network_proxy_spec::NetworkProxySpec;
-pub use network_proxy_spec::StartedNetworkProxy;
-pub(crate) use permissions::resolve_permission_profile;
 
 const DEFAULT_IGNORE_LARGE_UNTRACKED_DIRS: i64 = 200;
 const DEFAULT_IGNORE_LARGE_UNTRACKED_FILES: i64 = 10 * 1024 * 1024;
@@ -213,7 +213,8 @@ pub(crate) async fn test_config() -> Config {
     Config::load_from_base_config_with_overrides(
         ConfigToml::default(),
         ConfigOverrides::default(),
-        AbsolutePathBuf::from_absolute_path(thinwedge_home.path()).expect("temp dir should resolve"),
+        AbsolutePathBuf::from_absolute_path(thinwedge_home.path())
+            .expect("temp dir should resolve"),
     )
     .await
     .expect("load default test config")
@@ -909,11 +910,12 @@ impl ConfigBuilder {
         let config_toml: ConfigToml = match merged_toml.try_into() {
             Ok(config_toml) => config_toml,
             Err(err) => {
-                if let Some(config_error) = thinwedge_config::first_layer_config_error::<ConfigToml>(
-                    &config_layer_stack,
-                    thinwedge_config::CONFIG_TOML_FILE,
-                )
-                .await
+                if let Some(config_error) =
+                    thinwedge_config::first_layer_config_error::<ConfigToml>(
+                        &config_layer_stack,
+                        thinwedge_config::CONFIG_TOML_FILE,
+                    )
+                    .await
                 {
                     return Err(thinwedge_config::io_error_from_config_error(
                         std::io::ErrorKind::InvalidData,

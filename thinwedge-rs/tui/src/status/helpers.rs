@@ -4,9 +4,9 @@ use crate::status::StatusAccountDisplay;
 use crate::text_formatting;
 use chrono::DateTime;
 use chrono::Local;
+use std::path::Path;
 use thinwedge_protocol::account::PlanType;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::path::Path;
 use unicode_width::UnicodeWidthStr;
 
 fn normalize_agents_display_path(path: &Path) -> String {
@@ -188,9 +188,9 @@ mod tests {
     use crate::legacy_core::DEFAULT_AGENTS_MD_FILENAME;
     use crate::legacy_core::LOCAL_AGENTS_MD_FILENAME;
     use crate::legacy_core::config::ConfigBuilder;
-    use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use thinwedge_utils_absolute_path::test_support::PathBufExt;
 
     async fn test_config(thinwedge_home: &TempDir, cwd: &TempDir) -> Config {
         ConfigBuilder::default()

@@ -5,9 +5,9 @@ use crate::formatted_truncate_text;
 use crate::formatted_truncate_text_content_items_with_policy;
 use crate::truncate_function_output_items_with_policy;
 use crate::truncate_text;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn truncate_bytes_less_than_placeholder_returns_placeholder() {

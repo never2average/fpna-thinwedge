@@ -1,4 +1,3 @@
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use multimap::MultiMap;
 use starlark::any::ProvidesStaticType;
 use starlark::codemap::FileSpan;
@@ -17,6 +16,7 @@ use std::cell::RefMut;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 use crate::decision::Decision;
 use crate::error::Error;

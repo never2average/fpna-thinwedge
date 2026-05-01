@@ -2,6 +2,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde_json::Value;
 use thinwedge_analytics::HookRunFact;
 use thinwedge_analytics::build_track_events_context;
 use thinwedge_hooks::PermissionRequestDecision;
@@ -28,7 +29,6 @@ use thinwedge_protocol::protocol::HookRunSummary;
 use thinwedge_protocol::protocol::HookSource;
 use thinwedge_protocol::protocol::HookStartedEvent;
 use thinwedge_protocol::user_input::UserInput;
-use serde_json::Value;
 
 use crate::context::ContextualUserFragment;
 use crate::context::HookAdditionalContext;
@@ -506,6 +506,7 @@ fn hook_permission_mode(turn_context: &TurnContext) -> String {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::models::ContentItem;
     use thinwedge_protocol::protocol::HookEventName;
     use thinwedge_protocol::protocol::HookExecutionMode;
@@ -513,7 +514,6 @@ mod tests {
     use thinwedge_protocol::protocol::HookRunStatus;
     use thinwedge_protocol::protocol::HookScope;
     use thinwedge_protocol::protocol::HookSource;
-    use pretty_assertions::assert_eq;
 
     use super::additional_context_messages;
     use super::hook_run_analytics_payload;

@@ -1,5 +1,9 @@
 #![cfg(target_os = "linux")]
 #![allow(clippy::unwrap_used)]
+use pretty_assertions::assert_eq;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use tempfile::NamedTempFile;
 use thinwedge_core::exec::ExecCapturePolicy;
 use thinwedge_core::exec::ExecParams;
 use thinwedge_core::exec::process_exec_tool_call;
@@ -7,9 +11,9 @@ use thinwedge_core::exec_env::create_env;
 use thinwedge_core::sandboxing::SandboxPermissions;
 use thinwedge_protocol::config_types::ShellEnvironmentPolicy;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::permissions::FileSystemAccessMode;
 use thinwedge_protocol::permissions::FileSystemPath;
@@ -18,10 +22,6 @@ use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::FileSystemSpecialPath;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use tempfile::NamedTempFile;
 
 // At least on GitHub CI, the arm64 tests appear to need longer timeouts.
 
@@ -139,7 +139,9 @@ async fn run_cmd_result_with_permission_profile(
     .await
 }
 
-fn is_bwrap_unavailable_output(output: &thinwedge_protocol::exec_output::ExecToolCallOutput) -> bool {
+fn is_bwrap_unavailable_output(
+    output: &thinwedge_protocol::exec_output::ExecToolCallOutput,
+) -> bool {
     output.stderr.text.contains(BWRAP_UNAVAILABLE_ERR)
         || (output
             .stderr

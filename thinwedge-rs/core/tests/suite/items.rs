@@ -1,22 +1,6 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
-use thinwedge_protocol::config_types::CollaborationMode;
-use thinwedge_protocol::config_types::ModeKind;
-use thinwedge_protocol::config_types::Settings;
-use thinwedge_protocol::items::AgentMessageContent;
-use thinwedge_protocol::items::TurnItem;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::models::WebSearchAction;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ItemCompletedEvent;
-use thinwedge_protocol::protocol::ItemStartedEvent;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::ByteRange;
-use thinwedge_protocol::user_input::TextElement;
-use thinwedge_protocol::user_input::UserInput;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_image_generation_call;
@@ -41,6 +25,22 @@ use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_protocol::config_types::CollaborationMode;
+use thinwedge_protocol::config_types::ModeKind;
+use thinwedge_protocol::config_types::Settings;
+use thinwedge_protocol::items::AgentMessageContent;
+use thinwedge_protocol::items::TurnItem;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::models::WebSearchAction;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ItemCompletedEvent;
+use thinwedge_protocol::protocol::ItemStartedEvent;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::ByteRange;
+use thinwedge_protocol::user_input::TextElement;
+use thinwedge_protocol::user_input::UserInput;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 fn disabled_plan_turn(
     text: &str,
@@ -71,7 +71,11 @@ fn disabled_plan_turn(
     })
 }
 
-fn image_generation_artifact_path(thinwedge_home: &Path, session_id: &str, call_id: &str) -> PathBuf {
+fn image_generation_artifact_path(
+    thinwedge_home: &Path,
+    session_id: &str,
+    call_id: &str,
+) -> PathBuf {
     fn sanitize(value: &str) -> String {
         let mut sanitized: String = value
             .chars()
@@ -200,7 +204,8 @@ async fn assistant_message_item_is_emitted() -> anyhow::Result<()> {
     .await;
 
     assert_eq!(started.id, completed.id);
-    let Some(thinwedge_protocol::items::AgentMessageContent::Text { text }) = completed.content.first()
+    let Some(thinwedge_protocol::items::AgentMessageContent::Text { text }) =
+        completed.content.first()
     else {
         panic!("expected agent message text content");
     };

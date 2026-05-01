@@ -1,6 +1,8 @@
 use super::*;
 
 use super::tests::make_session_and_context;
+use pretty_assertions::assert_eq;
+use std::path::PathBuf;
 use thinwedge_protocol::AgentPath;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ContentItem;
@@ -9,8 +11,6 @@ use thinwedge_protocol::protocol::CompactedItem;
 use thinwedge_protocol::protocol::InitialHistory;
 use thinwedge_protocol::protocol::InterAgentCommunication;
 use thinwedge_protocol::protocol::ResumedHistory;
-use pretty_assertions::assert_eq;
-use std::path::PathBuf;
 
 fn user_message(text: &str) -> ResponseItem {
     ResponseItem::Message {

@@ -3,22 +3,6 @@
 use anyhow::Context;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use thinwedge_exec_server::CreateDirectoryOptions;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::InputModality;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -41,6 +25,22 @@ use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::io::Cursor;
 use std::path::PathBuf;
+use thinwedge_exec_server::CreateDirectoryOptions;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_protocol::config_types::ReasoningSummary;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::time::Duration;
 use wiremock::BodyPrintLimit;
 use wiremock::MockServer;
@@ -106,7 +106,10 @@ fn png_bytes(width: u32, height: u32, rgba: [u8; 4]) -> anyhow::Result<Vec<u8>> 
     Ok(cursor.into_inner())
 }
 
-async fn create_workspace_directory(test: &TestThinWedge, rel_path: &str) -> anyhow::Result<PathBuf> {
+async fn create_workspace_directory(
+    test: &TestThinWedge,
+    rel_path: &str,
+) -> anyhow::Result<PathBuf> {
     let abs_path = test.config.cwd.join(rel_path);
     test.fs()
         .create_directory(

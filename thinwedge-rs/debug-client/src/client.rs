@@ -15,6 +15,7 @@ use std::sync::mpsc::Sender;
 
 use anyhow::Context;
 use anyhow::Result;
+use serde::Serialize;
 use thinwedge_app_server_protocol::AskForApproval;
 use thinwedge_app_server_protocol::ClientInfo;
 use thinwedge_app_server_protocol::ClientNotification;
@@ -33,7 +34,6 @@ use thinwedge_app_server_protocol::ThreadStartParams;
 use thinwedge_app_server_protocol::ThreadStartResponse;
 use thinwedge_app_server_protocol::TurnStartParams;
 use thinwedge_app_server_protocol::UserInput;
-use serde::Serialize;
 
 use crate::output::Output;
 use crate::reader::start_reader;
@@ -344,7 +344,8 @@ fn handle_server_request(
             send_jsonrpc_response(stdin, request_id, response)
         }
         thinwedge_app_server_protocol::ServerRequest::FileChangeRequestApproval {
-            request_id, ..
+            request_id,
+            ..
         } => {
             let response = thinwedge_app_server_protocol::FileChangeRequestApprovalResponse {
                 decision: FileChangeApprovalDecision::Decline,

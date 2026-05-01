@@ -2,14 +2,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use thinwedge_config::types::ToolSuggestDiscoverable;
-use thinwedge_config::types::ToolSuggestDiscoverableType;
-use thinwedge_core::config::Config;
-use thinwedge_features::Feature;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_models_manager::bundled_models_response;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -20,6 +12,14 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::test_thinwedge;
 use serde_json::Value;
+use thinwedge_config::types::ToolSuggestDiscoverable;
+use thinwedge_config::types::ToolSuggestDiscoverableType;
+use thinwedge_core::config::Config;
+use thinwedge_features::Feature;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_models_manager::bundled_models_response;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
 
 const TOOL_SEARCH_TOOL_NAME: &str = "tool_search";
 const TOOL_SUGGEST_TOOL_NAME: &str = "tool_suggest";

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use thinwedge_protocol::ThreadId;
 use std::any::Any;
+use thinwedge_protocol::ThreadId;
 
 use crate::AppendThreadItemsParams;
 use crate::ArchiveThreadParams;

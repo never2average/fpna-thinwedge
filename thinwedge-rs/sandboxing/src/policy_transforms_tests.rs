@@ -3,6 +3,11 @@ use super::intersect_permission_profiles;
 use super::merge_file_system_policy_with_additional_permissions;
 use super::normalize_additional_permissions;
 use super::should_require_platform_sandbox;
+use dunce::canonicalize;
+use pretty_assertions::assert_eq;
+#[cfg(unix)]
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_protocol::models::AdditionalPermissionProfile as PermissionProfile;
 use thinwedge_protocol::models::FileSystemPermissions;
 use thinwedge_protocol::models::NetworkPermissions;
@@ -13,11 +18,6 @@ use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::FileSystemSpecialPath;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use dunce::canonicalize;
-use pretty_assertions::assert_eq;
-#[cfg(unix)]
-use std::path::Path;
-use tempfile::TempDir;
 
 #[cfg(unix)]
 fn symlink_dir(original: &Path, link: &Path) -> std::io::Result<()> {

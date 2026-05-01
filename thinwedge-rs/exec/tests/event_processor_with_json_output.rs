@@ -1,3 +1,5 @@
+use pretty_assertions::assert_eq;
+use serde_json::json;
 use thinwedge_app_server_protocol::CollabAgentState as ApiCollabAgentState;
 use thinwedge_app_server_protocol::CollabAgentStatus as ApiCollabAgentStatus;
 use thinwedge_app_server_protocol::CollabAgentTool;
@@ -34,11 +36,8 @@ use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::SessionConfiguredEvent;
 use thinwedge_utils_absolute_path::test_support::PathBufExt;
 use thinwedge_utils_absolute_path::test_support::test_path_buf;
-use pretty_assertions::assert_eq;
-use serde_json::json;
 
 use thinwedge_exec::AgentMessageItem;
-use thinwedge_exec::ThinWedgeStatus;
 use thinwedge_exec::CollabAgentState;
 use thinwedge_exec::CollabAgentStatus;
 use thinwedge_exec::CollabTool;
@@ -62,6 +61,7 @@ use thinwedge_exec::McpToolCallStatus;
 use thinwedge_exec::PatchApplyStatus;
 use thinwedge_exec::PatchChangeKind;
 use thinwedge_exec::ReasoningItem;
+use thinwedge_exec::ThinWedgeStatus;
 use thinwedge_exec::ThreadErrorEvent;
 use thinwedge_exec::ThreadEvent;
 use thinwedge_exec::ThreadItemDetails;

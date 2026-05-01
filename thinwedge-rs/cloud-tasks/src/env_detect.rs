@@ -1,7 +1,7 @@
-use thinwedge_client::build_reqwest_client_with_custom_ca;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::header::HeaderMap;
 use std::collections::HashMap;
+use thinwedge_client::build_reqwest_client_with_custom_ca;
 use tracing::info;
 use tracing::warn;
 

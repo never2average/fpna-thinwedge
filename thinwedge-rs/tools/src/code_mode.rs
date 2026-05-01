@@ -5,9 +5,9 @@ use crate::ResponsesApiNamespaceTool;
 use crate::ResponsesApiTool;
 use crate::ToolName;
 use crate::ToolSpec;
+use std::collections::BTreeMap;
 use thinwedge_code_mode::CodeModeToolKind;
 use thinwedge_code_mode::ToolDefinition as CodeModeToolDefinition;
-use std::collections::BTreeMap;
 
 /// Augment tool descriptions with code-mode-specific exec samples.
 pub fn augment_tool_spec_for_code_mode(spec: ToolSpec) -> ToolSpec {

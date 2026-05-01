@@ -1,7 +1,7 @@
 use crate::rate_limits::RateLimitError;
-use thinwedge_client::TransportError;
 use http::StatusCode;
 use std::time::Duration;
+use thinwedge_client::TransportError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

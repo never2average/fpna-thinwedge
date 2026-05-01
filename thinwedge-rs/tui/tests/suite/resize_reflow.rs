@@ -55,7 +55,10 @@ fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -> Resu
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("THINWEDGE_HOME={}", thinwedge_home.path().display()))
+            .arg(format!(
+                "THINWEDGE_HOME={}",
+                thinwedge_home.path().display()
+            ))
             .arg("THINWEDGE_API_KEY=dummy")
             .arg(format!("THINWEDGE_RS_SSE_FIXTURE={}", fixture.display()))
             .arg(thinwedge)
@@ -224,7 +227,10 @@ fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()> {
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("THINWEDGE_HOME={}", thinwedge_home.path().display()))
+            .arg(format!(
+                "THINWEDGE_HOME={}",
+                thinwedge_home.path().display()
+            ))
             .arg("THINWEDGE_API_KEY=dummy")
             .arg(format!("THINWEDGE_RS_SSE_FIXTURE={}", fixture.display()))
             .arg(thinwedge)
@@ -352,7 +358,10 @@ fn run_repeated_resize_smoke(terminal_resize_reflow_enabled: bool) -> Result<()>
             .arg(&session_name)
             .arg("--")
             .arg("env")
-            .arg(format!("THINWEDGE_HOME={}", thinwedge_home.path().display()))
+            .arg(format!(
+                "THINWEDGE_HOME={}",
+                thinwedge_home.path().display()
+            ))
             .arg("THINWEDGE_API_KEY=dummy")
             .arg(format!("THINWEDGE_RS_SSE_FIXTURE={}", fixture.display()))
             .arg(thinwedge)

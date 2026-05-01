@@ -15,6 +15,14 @@ use crate::transport::CHANNEL_CAPACITY;
 use crate::transport::ConnectionOrigin;
 use crate::transport::TransportEvent;
 use base64::Engine;
+use futures::SinkExt;
+use futures::StreamExt;
+use gethostname::gethostname;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_app_server_protocol::ConfigWarningNotification;
 use thinwedge_app_server_protocol::JSONRPCMessage;
@@ -31,14 +39,6 @@ use thinwedge_login::save_auth;
 use thinwedge_login::token_data::TokenData;
 use thinwedge_login::token_data::parse_chatgpt_jwt_claims;
 use thinwedge_state::StateRuntime;
-use futures::SinkExt;
-use futures::StreamExt;
-use gethostname::gethostname;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use tempfile::TempDir;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -106,9 +106,12 @@ fn remote_control_auth_dot_json(account_id: Option<&str>) -> AuthDotJson {
 }
 
 async fn remote_control_state_runtime(thinwedge_home: &TempDir) -> Arc<StateRuntime> {
-    StateRuntime::init(thinwedge_home.path().to_path_buf(), "test-provider".to_string())
-        .await
-        .expect("state runtime should initialize")
+    StateRuntime::init(
+        thinwedge_home.path().to_path_buf(),
+        "test-provider".to_string(),
+    )
+    .await
+    .expect("state runtime should initialize")
 }
 
 fn remote_control_url_for_listener(listener: &TcpListener) -> String {
@@ -249,17 +252,18 @@ async fn remote_control_transport_manages_virtual_clients_and_routes_messages() 
         "non-initialize client messages should be ignored before connection creation"
     );
 
-    let initialize_message = JSONRPCMessage::Request(thinwedge_app_server_protocol::JSONRPCRequest {
-        id: thinwedge_app_server_protocol::RequestId::Integer(1),
-        method: "initialize".to_string(),
-        params: Some(json!({
-            "clientInfo": {
-                "name": "remote-test-client",
-                "version": "0.1.0"
-            }
-        })),
-        trace: None,
-    });
+    let initialize_message =
+        JSONRPCMessage::Request(thinwedge_app_server_protocol::JSONRPCRequest {
+            id: thinwedge_app_server_protocol::RequestId::Integer(1),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "clientInfo": {
+                    "name": "remote-test-client",
+                    "version": "0.1.0"
+                }
+            })),
+            trace: None,
+        });
     send_client_event(
         &mut websocket,
         ClientEnvelope {
@@ -756,17 +760,18 @@ async fn remote_control_transport_clears_outgoing_buffer_when_backend_acks() {
     .await;
 
     let client_id = ClientId("client-1".to_string());
-    let initialize_message = JSONRPCMessage::Request(thinwedge_app_server_protocol::JSONRPCRequest {
-        id: thinwedge_app_server_protocol::RequestId::Integer(1),
-        method: "initialize".to_string(),
-        params: Some(json!({
-            "clientInfo": {
-                "name": "remote-test-client",
-                "version": "0.1.0"
-            }
-        })),
-        trace: None,
-    });
+    let initialize_message =
+        JSONRPCMessage::Request(thinwedge_app_server_protocol::JSONRPCRequest {
+            id: thinwedge_app_server_protocol::RequestId::Integer(1),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "clientInfo": {
+                    "name": "remote-test-client",
+                    "version": "0.1.0"
+                }
+            })),
+            trace: None,
+        });
     send_client_event(
         &mut first_websocket,
         ClientEnvelope {
@@ -976,7 +981,9 @@ async fn remote_control_http_mode_enrolls_before_connecting() {
         Some(&base64::engine::general_purpose::STANDARD.encode(&expected_server_name))
     );
     assert_eq!(
-        handshake_request.headers.get("x-thinwedge-protocol-version"),
+        handshake_request
+            .headers
+            .get("x-thinwedge-protocol-version"),
         Some(&REMOTE_CONTROL_PROTOCOL_VERSION.to_string())
     );
 

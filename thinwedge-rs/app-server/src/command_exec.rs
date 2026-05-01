@@ -202,8 +202,11 @@ impl CommandExecManager {
             let sessions = Arc::clone(&self.sessions);
             tokio::spawn(async move {
                 let _started_network_proxy = started_network_proxy;
-                match thinwedge_core::sandboxing::execute_env(exec_request, /*stdout_stream*/ None)
-                    .await
+                match thinwedge_core::sandboxing::execute_env(
+                    exec_request,
+                    /*stdout_stream*/ None,
+                )
+                .await
                 {
                     Ok(output) => {
                         outgoing
@@ -276,8 +279,14 @@ impl CommandExecManager {
         } else if stream_stdin {
             thinwedge_utils_pty::spawn_pipe_process(program, args, cwd.as_path(), &env, &arg0).await
         } else {
-            thinwedge_utils_pty::spawn_pipe_process_no_stdin(program, args, cwd.as_path(), &env, &arg0)
-                .await
+            thinwedge_utils_pty::spawn_pipe_process_no_stdin(
+                program,
+                args,
+                cwd.as_path(),
+                &env,
+                &arg0,
+            )
+            .await
         };
         let spawned = match spawned {
             Ok(spawned) => spawned,
@@ -686,10 +695,10 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::error_code::INVALID_REQUEST_ERROR_CODE;
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::config_types::WindowsSandboxLevel;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
     #[cfg(not(target_os = "windows"))]
     use tokio::time::Duration;
     #[cfg(not(target_os = "windows"))]

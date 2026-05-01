@@ -2,6 +2,16 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_models_once;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::test_thinwedge::test_thinwedge;
+use serde_json::Value;
+use std::time::Duration;
+use std::time::Instant;
 use thinwedge_features::Feature;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_models_manager::manager::RefreshStrategy;
@@ -15,16 +25,6 @@ use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
 use thinwedge_protocol::thinwedge_models::default_input_modalities;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_models_once;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::test_thinwedge::test_thinwedge;
-use serde_json::Value;
-use std::time::Duration;
-use std::time::Instant;
 use tokio::time::sleep;
 
 const SPAWN_AGENT_TOOL_NAME: &str = "spawn_agent";

@@ -1,9 +1,9 @@
 use crate::remote::RemotePluginServiceConfig;
+use serde::Deserialize;
+use std::time::Duration;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::default_client::build_reqwest_client;
 use thinwedge_protocol::protocol::Product;
-use serde::Deserialize;
-use std::time::Duration;
 use url::Url;
 
 const DEFAULT_REMOTE_MARKETPLACE_NAME: &str = "thinwedge-curated";
@@ -171,8 +171,8 @@ pub async fn fetch_remote_featured_plugin_ids(
         .timeout(REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT);
 
     if let Some(auth) = auth.filter(|auth| auth.uses_thinwedge_backend()) {
-        request =
-            request.headers(thinwedge_model_provider::auth_provider_from_auth(auth).to_auth_headers());
+        request = request
+            .headers(thinwedge_model_provider::auth_provider_from_auth(auth).to_auth_headers());
     }
 
     let response = request

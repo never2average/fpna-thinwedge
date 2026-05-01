@@ -4,11 +4,11 @@ mod osc9;
 use std::io;
 
 use bel::BelBackend;
+use osc9::Osc9Backend;
 use thinwedge_config::types::NotificationMethod;
 use thinwedge_terminal_detection::TerminalInfo;
 use thinwedge_terminal_detection::TerminalName;
 use thinwedge_terminal_detection::terminal_info;
-use osc9::Osc9Backend;
 
 #[derive(Debug)]
 pub enum DesktopNotificationBackend {
@@ -65,10 +65,10 @@ fn supports_osc9(terminal: &TerminalInfo) -> bool {
 mod tests {
     use super::detect_backend;
     use super::supports_osc9;
+    use pretty_assertions::assert_eq;
     use thinwedge_config::types::NotificationMethod;
     use thinwedge_terminal_detection::TerminalInfo;
     use thinwedge_terminal_detection::TerminalName;
-    use pretty_assertions::assert_eq;
 
     fn test_terminal(name: TerminalName) -> TerminalInfo {
         TerminalInfo {

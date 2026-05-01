@@ -7,6 +7,7 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
+use tempfile::TempDir;
 use thinwedge_app_server::INPUT_TOO_LARGE_ERROR_CODE;
 use thinwedge_app_server::INVALID_PARAMS_ERROR_CODE;
 use thinwedge_app_server_protocol::JSONRPCError;
@@ -21,7 +22,6 @@ use thinwedge_app_server_protocol::TurnSteerParams;
 use thinwedge_app_server_protocol::TurnSteerResponse;
 use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 use super::analytics::mount_analytics_capture;
@@ -78,7 +78,8 @@ async fn turn_steer_requires_active_turn() -> Result<()> {
     assert_eq!(steer_err.error.code, -32600);
 
     let event =
-        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "thinwedge_turn_steer_event").await?;
+        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "thinwedge_turn_steer_event")
+            .await?;
     assert_eq!(event["event_params"]["thread_id"], thread.id);
     assert_eq!(event["event_params"]["result"], "rejected");
     assert_eq!(event["event_params"]["num_input_images"], 0);
@@ -296,7 +297,8 @@ async fn turn_steer_returns_active_turn_id() -> Result<()> {
     assert_eq!(steer.turn_id, turn.id);
 
     let event =
-        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "thinwedge_turn_steer_event").await?;
+        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "thinwedge_turn_steer_event")
+            .await?;
     assert_eq!(event["event_params"]["thread_id"], thread.id);
     assert_eq!(event["event_params"]["result"], "accepted");
     assert_eq!(event["event_params"]["num_input_images"], 0);

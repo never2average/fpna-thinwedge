@@ -16,16 +16,6 @@ use axum::http::StatusCode;
 use axum::http::Uri;
 use axum::http::header::AUTHORIZATION;
 use axum::routing::get;
-use thinwedge_app_server_protocol::AppInfo;
-use thinwedge_app_server_protocol::JSONRPCResponse;
-use thinwedge_app_server_protocol::PluginAuthPolicy;
-use thinwedge_app_server_protocol::PluginInstallPolicy;
-use thinwedge_app_server_protocol::PluginReadParams;
-use thinwedge_app_server_protocol::PluginReadResponse;
-use thinwedge_app_server_protocol::PluginSource;
-use thinwedge_app_server_protocol::RequestId;
-use thinwedge_config::types::AuthCredentialsStoreMode;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::JsonObject;
@@ -40,6 +30,16 @@ use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
 use serde_json::json;
 use tempfile::TempDir;
+use thinwedge_app_server_protocol::AppInfo;
+use thinwedge_app_server_protocol::JSONRPCResponse;
+use thinwedge_app_server_protocol::PluginAuthPolicy;
+use thinwedge_app_server_protocol::PluginInstallPolicy;
+use thinwedge_app_server_protocol::PluginReadParams;
+use thinwedge_app_server_protocol::PluginReadResponse;
+use thinwedge_app_server_protocol::PluginSource;
+use thinwedge_app_server_protocol::RequestId;
+use thinwedge_config::types::AuthCredentialsStoreMode;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
@@ -393,7 +393,10 @@ remote_plugin = true
 #[tokio::test]
 async fn plugin_read_rejects_invalid_remote_plugin_name() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    write_remote_plugin_catalog_config(thinwedge_home.path(), "https://example.invalid/backend-api/")?;
+    write_remote_plugin_catalog_config(
+        thinwedge_home.path(),
+        "https://example.invalid/backend-api/",
+    )?;
     let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
@@ -1186,7 +1189,10 @@ fn connector_tool(connector_id: &str, connector_name: &str) -> Result<Tool> {
     Ok(tool)
 }
 
-fn write_connectors_config(thinwedge_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_connectors_config(
+    thinwedge_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         thinwedge_home.join("config.toml"),
         format!(

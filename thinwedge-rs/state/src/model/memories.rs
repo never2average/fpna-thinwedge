@@ -1,10 +1,10 @@
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::ThreadId;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 use std::path::PathBuf;
+use thinwedge_protocol::ThreadId;
 
 use super::ThreadMetadata;
 

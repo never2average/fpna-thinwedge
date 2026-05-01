@@ -4,6 +4,10 @@ use super::SandboxTransformRequest;
 use super::SandboxType;
 use super::SandboxablePreference;
 use super::get_platform_sandbox;
+use dunce::canonicalize;
+use pretty_assertions::assert_eq;
+use std::collections::HashMap;
+use tempfile::TempDir;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_protocol::models::FileSystemPermissions;
@@ -16,10 +20,6 @@ use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::FileSystemSpecialPath;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use dunce::canonicalize;
-use pretty_assertions::assert_eq;
-use std::collections::HashMap;
-use tempfile::TempDir;
 
 #[test]
 fn danger_full_access_defaults_to_no_sandbox_without_network_requirements() {
@@ -349,5 +349,8 @@ fn transform_linux_seccomp_uses_helper_alias_when_launcher_is_not_helper_path() 
     let thinwedge_linux_sandbox_exe = std::path::PathBuf::from("/tmp/thinwedge");
     let exec_request = transform_linux_seccomp_request(&thinwedge_linux_sandbox_exe);
 
-    assert_eq!(exec_request.arg0, Some("thinwedge-linux-sandbox".to_string()));
+    assert_eq!(
+        exec_request.arg0,
+        Some("thinwedge-linux-sandbox".to_string())
+    );
 }

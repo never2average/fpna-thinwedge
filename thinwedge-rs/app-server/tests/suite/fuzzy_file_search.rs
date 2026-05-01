@@ -1,14 +1,14 @@
 use anyhow::Result;
 use anyhow::anyhow;
 use app_test_support::McpProcess;
-use thinwedge_app_server_protocol::FuzzyFileSearchSessionCompletedNotification;
-use thinwedge_app_server_protocol::FuzzyFileSearchSessionUpdatedNotification;
-use thinwedge_app_server_protocol::JSONRPCResponse;
-use thinwedge_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::path::Path;
 use tempfile::TempDir;
+use thinwedge_app_server_protocol::FuzzyFileSearchSessionCompletedNotification;
+use thinwedge_app_server_protocol::FuzzyFileSearchSessionUpdatedNotification;
+use thinwedge_app_server_protocol::JSONRPCResponse;
+use thinwedge_app_server_protocol::RequestId;
 use tokio::time::timeout;
 
 // macOS arm64 and Windows Bazel CI can spend tens of seconds in app-server

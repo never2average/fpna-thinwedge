@@ -1,4 +1,5 @@
 use clap::Parser;
+use supports_color::Stream;
 use thinwedge_app_server_client::legacy_core;
 use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_arg0::arg0_dispatch_or_else;
@@ -8,7 +9,6 @@ use thinwedge_tui::Cli;
 use thinwedge_tui::ExitReason;
 use thinwedge_tui::run_main;
 use thinwedge_utils_cli::CliConfigOverrides;
-use supports_color::Stream;
 
 fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<String> {
     let AppExitInfo {

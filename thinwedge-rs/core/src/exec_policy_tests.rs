@@ -1,6 +1,13 @@
 use super::*;
 use crate::config::Config;
 use crate::config::ConfigBuilder;
+use pretty_assertions::assert_eq;
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tempfile::TempDir;
+use tempfile::tempdir;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::ConfigLayerEntry;
@@ -25,20 +32,15 @@ use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::GranularApprovalConfig;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tempfile::TempDir;
-use tempfile::tempdir;
 use toml::Value as TomlValue;
 
 fn config_stack_for_dot_thinwedge_folder(dot_thinwedge_folder: &Path) -> ConfigLayerStack {
-    let dot_thinwedge_folder =
-        AbsolutePathBuf::from_absolute_path(dot_thinwedge_folder).expect("absolute dot_thinwedge_folder");
+    let dot_thinwedge_folder = AbsolutePathBuf::from_absolute_path(dot_thinwedge_folder)
+        .expect("absolute dot_thinwedge_folder");
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_thinwedge_folder },
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        },
         TomlValue::Table(Default::default()),
     );
     ConfigLayerStack::new(
@@ -364,7 +366,9 @@ async fn merges_requirements_exec_policy_network_rules() -> anyhow::Result<()> {
     };
     let dot_thinwedge_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_thinwedge_folder },
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        },
         TomlValue::Table(Default::default()),
     );
     let config_stack =
@@ -411,7 +415,9 @@ host_executable(name = "git", paths = ["{git_path_literal}"])
     };
     let dot_thinwedge_folder = AbsolutePathBuf::from_absolute_path(temp_dir.path())?;
     let layer = ConfigLayerEntry::new(
-        ConfigLayerSource::Project { dot_thinwedge_folder },
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        },
         TomlValue::Table(Default::default()),
     );
     let config_stack =

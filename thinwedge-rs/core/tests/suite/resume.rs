@@ -1,9 +1,4 @@
 use anyhow::Result;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::ByteRange;
-use thinwedge_protocol::user_input::TextElement;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_reasoning_item;
@@ -22,6 +17,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::ByteRange;
+use thinwedge_protocol::user_input::TextElement;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::MockServer;
 
 async fn resume_until_initial_messages(
@@ -96,7 +96,10 @@ async fn resume_includes_initial_messages_from_rollout_events() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = resume_until_initial_messages(
         &mut builder,
@@ -183,7 +186,10 @@ async fn resume_includes_initial_messages_from_reasoning_events() -> Result<()> 
         })
         .await?;
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = resume_until_initial_messages(
         &mut builder,
@@ -273,7 +279,10 @@ async fn resume_switches_models_preserves_base_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let initial_body = initial_mock.single_request().body_json();
     let initial_instructions = initial_body
@@ -404,7 +413,10 @@ async fn resume_model_switch_is_not_duplicated_after_pre_turn_override() -> Resu
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     let _ = initial_mock.single_request();
 
     let resumed_mock = mount_sse_once(

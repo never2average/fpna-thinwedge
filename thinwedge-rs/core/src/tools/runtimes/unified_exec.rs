@@ -37,17 +37,17 @@ use crate::unified_exec::NoopSpawnLifecycle;
 use crate::unified_exec::UnifiedExecError;
 use crate::unified_exec::UnifiedExecProcess;
 use crate::unified_exec::UnifiedExecProcessManager;
+use futures::future::BoxFuture;
+use std::collections::HashMap;
 use thinwedge_network_proxy::NetworkProxy;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_protocol::protocol::ReviewDecision;
 use thinwedge_sandboxing::SandboxablePreference;
 use thinwedge_shell_command::powershell::prefix_powershell_script_with_utf8;
 use thinwedge_tools::UnifiedExecShellMode;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use futures::future::BoxFuture;
-use std::collections::HashMap;
 
 /// Request payload used by the unified-exec runtime after approvals and
 /// sandbox preferences have been resolved for the current turn.

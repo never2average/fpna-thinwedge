@@ -6,6 +6,8 @@ use crate::records::custom_title_from_records;
 use crate::records::project_root_from_records;
 use crate::records::read_records;
 use crate::summarize_for_label;
+use std::io;
+use std::path::Path;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::AgentMessageEvent;
@@ -18,8 +20,6 @@ use thinwedge_protocol::protocol::TurnCompleteEvent;
 use thinwedge_protocol::protocol::TurnStartedEvent;
 use thinwedge_protocol::protocol::UserMessageEvent;
 use thinwedge_utils_output_truncation::approx_tokens_from_byte_count_i64;
-use std::io;
-use std::path::Path;
 
 pub fn load_session_for_import(path: &Path) -> io::Result<Option<ImportedExternalAgentSession>> {
     let records = read_records(path)?;
@@ -185,10 +185,10 @@ fn turn_complete_item(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_app_server_protocol::build_turns_from_rollout_items;
     use serde_json::Value as JsonValue;
     use std::path::Path;
     use tempfile::TempDir;
+    use thinwedge_app_server_protocol::build_turns_from_rollout_items;
 
     #[test]
     fn builds_visible_turns_for_imported_history() {

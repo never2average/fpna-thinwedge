@@ -13,6 +13,14 @@ use crate::tools::handlers::multi_agents_v2::SendMessageHandler as SendMessageHa
 use crate::tools::handlers::multi_agents_v2::SpawnAgentHandler as SpawnAgentHandlerV2;
 use crate::tools::handlers::multi_agents_v2::WaitAgentHandler as WaitAgentHandlerV2;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use core_test_support::TempDirExt;
+use pretty_assertions::assert_eq;
+use serde::Deserialize;
+use serde_json::json;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use thinwedge_features::Feature;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
@@ -28,7 +36,6 @@ use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseInputItem;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::models::SandboxEnforcement;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AgentStatus;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
@@ -47,15 +54,8 @@ use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_protocol::protocol::TurnAbortReason;
 use thinwedge_protocol::protocol::TurnAbortedEvent;
 use thinwedge_protocol::protocol::TurnCompleteEvent;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::UserInput;
-use core_test_support::TempDirExt;
-use pretty_assertions::assert_eq;
-use serde::Deserialize;
-use serde_json::json;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
@@ -91,7 +91,8 @@ fn parse_agent_id(id: &str) -> ThreadId {
 fn thread_manager() -> ThreadManager {
     ThreadManager::with_models_provider_for_tests(
         ThinWedgeAuth::from_api_key("dummy"),
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone(),
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"]
+            .clone(),
     )
 }
 
@@ -243,7 +244,8 @@ async fn spawn_agent_uses_pricing_role_and_preserves_approval_policy() {
     session.services.agent_control = manager.agent_control();
     let mut config = (*turn.config).clone();
     let provider_info =
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["ollama"].clone();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["ollama"]
+            .clone();
     config.model_provider_id = "ollama".to_string();
     config.model_provider = provider_info.clone();
     config

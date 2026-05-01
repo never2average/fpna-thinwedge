@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use crate::Environment;
 use crate::ExecServerError;
 use crate::ExecServerRuntimePaths;
-use crate::environment::THINWEDGE_EXEC_SERVER_URL_ENV_VAR;
 use crate::environment::LOCAL_ENVIRONMENT_ID;
 use crate::environment::REMOTE_ENVIRONMENT_ID;
+use crate::environment::THINWEDGE_EXEC_SERVER_URL_ENV_VAR;
 
 /// Lists the concrete environments available to ThinWedge.
 ///

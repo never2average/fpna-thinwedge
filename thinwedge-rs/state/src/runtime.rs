@@ -29,9 +29,6 @@ use crate::model::epoch_millis_to_datetime;
 use crate::paths::file_modified_time_utc;
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
-use thinwedge_protocol::protocol::RolloutItem;
 use log::LevelFilter;
 use serde_json::Value;
 use sqlx::ConnectOptions;
@@ -52,6 +49,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::time::Duration;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
+use thinwedge_protocol::protocol::RolloutItem;
 use tracing::warn;
 
 mod agent_jobs;
@@ -98,7 +98,10 @@ impl StateRuntime {
     /// This opens (and migrates) the SQLite databases under `thinwedge_home`,
     /// keeping logs in a dedicated file to reduce lock contention with the
     /// rest of the state store.
-    pub async fn init(thinwedge_home: PathBuf, default_provider: String) -> anyhow::Result<Arc<Self>> {
+    pub async fn init(
+        thinwedge_home: PathBuf,
+        default_provider: String,
+    ) -> anyhow::Result<Arc<Self>> {
         tokio::fs::create_dir_all(&thinwedge_home).await?;
         let state_migrator = runtime_state_migrator();
         let logs_migrator = runtime_logs_migrator();

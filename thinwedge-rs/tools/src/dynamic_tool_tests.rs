@@ -1,9 +1,9 @@
 use super::parse_dynamic_tool;
 use crate::JsonSchema;
 use crate::ToolDefinition;
-use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
+use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 
 #[test]
 fn parse_dynamic_tool_sanitizes_input_schema() {

@@ -1,8 +1,8 @@
 use super::*;
-use thinwedge_protocol::protocol::Product;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::tempdir;
+use thinwedge_protocol::protocol::Product;
 
 const ALTERNATE_MARKETPLACE_RELATIVE_PATH: &str = ".claude-plugin/marketplace.json";
 const ALTERNATE_PLUGIN_MANIFEST_RELATIVE_PATH: &str = ".claude-plugin/plugin.json";
@@ -1487,7 +1487,10 @@ fn find_marketplace_plugin_allows_missing_products_field() {
     )
     .unwrap();
 
-    assert_eq!(resolved.plugin_id.as_key(), "default-plugin@thinwedge-curated");
+    assert_eq!(
+        resolved.plugin_id.as_key(),
+        "default-plugin@thinwedge-curated"
+    );
 }
 
 #[test]

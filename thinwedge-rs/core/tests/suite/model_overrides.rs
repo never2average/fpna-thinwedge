@@ -1,10 +1,10 @@
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 const CONFIG_TOML: &str = "config.toml";
 
@@ -42,7 +42,10 @@ async fn override_turn_context_does_not_persist_when_config_exists() {
         .await
         .expect("submit override");
 
-    thinwedge.submit(Op::Shutdown).await.expect("request shutdown");
+    thinwedge
+        .submit(Op::Shutdown)
+        .await
+        .expect("request shutdown");
     wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
     let contents = tokio::fs::read_to_string(&config_path)
@@ -81,7 +84,10 @@ async fn override_turn_context_does_not_create_config_file() {
         .await
         .expect("submit override");
 
-    thinwedge.submit(Op::Shutdown).await.expect("request shutdown");
+    thinwedge
+        .submit(Op::Shutdown)
+        .await
+        .expect("request shutdown");
     wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
 
     assert!(

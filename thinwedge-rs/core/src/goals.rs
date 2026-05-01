@@ -11,6 +11,13 @@ use crate::state::ActiveTurn;
 use crate::state::TurnState;
 use crate::tasks::RegularTask;
 use anyhow::Context;
+use futures::future::BoxFuture;
+use std::sync::Arc;
+use std::sync::LazyLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+use std::time::Instant;
 use thinwedge_features::Feature;
 use thinwedge_protocol::config_types::ModeKind;
 use thinwedge_protocol::models::ContentItem;
@@ -26,13 +33,6 @@ use thinwedge_protocol::protocol::validate_thread_goal_objective;
 use thinwedge_rollout::state_db::reconcile_rollout;
 use thinwedge_thread_store::LocalThreadStore;
 use thinwedge_utils_template::Template;
-use futures::future::BoxFuture;
-use std::sync::Arc;
-use std::sync::LazyLock;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
-use std::time::Instant;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio::sync::SemaphorePermit;
@@ -601,7 +601,8 @@ impl Session {
                     self.clear_stopped_thread_goal_runtime_state().await;
                 }
             }
-            thinwedge_state::ThreadGoalStatus::Paused | thinwedge_state::ThreadGoalStatus::Complete => {
+            thinwedge_state::ThreadGoalStatus::Paused
+            | thinwedge_state::ThreadGoalStatus::Complete => {
                 self.clear_stopped_thread_goal_runtime_state().await;
             }
         }
@@ -1514,13 +1515,13 @@ mod tests {
     use super::escape_xml_text;
     use super::goal_token_delta_for_usage;
     use super::should_ignore_goal_for_mode;
+    use std::time::Duration;
+    use std::time::Instant;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::config_types::ModeKind;
     use thinwedge_protocol::protocol::ThreadGoal;
     use thinwedge_protocol::protocol::ThreadGoalStatus;
     use thinwedge_protocol::protocol::TokenUsage;
-    use std::time::Duration;
-    use std::time::Instant;
 
     #[test]
     fn goal_continuation_is_ignored_only_in_plan_mode() {

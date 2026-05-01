@@ -20,6 +20,11 @@ use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::managed_network_for_sandbox_permissions;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use thinwedge_execpolicy::Decision;
 use thinwedge_execpolicy::Evaluation;
 use thinwedge_execpolicy::MatchOptions;
@@ -28,8 +33,8 @@ use thinwedge_execpolicy::RuleMatch;
 use thinwedge_features::Feature;
 use thinwedge_hooks::PermissionRequestDecision;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::exec_output::ExecToolCallOutput;
 use thinwedge_protocol::exec_output::StreamOutput;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
@@ -60,11 +65,6 @@ use thinwedge_shell_escalation::ResolvedPermissionProfile;
 use thinwedge_shell_escalation::ShellCommandExecutor;
 use thinwedge_shell_escalation::Stopwatch;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -985,16 +985,20 @@ fn map_exec_result(
     };
 
     if result.timed_out {
-        return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Timeout {
-            output: Box::new(output),
-        })));
+        return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(
+            SandboxErr::Timeout {
+                output: Box::new(output),
+            },
+        )));
     }
 
     if is_likely_sandbox_denied(sandbox, &output) {
-        return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
-            output: Box::new(output),
-            network_policy_decision: None,
-        })));
+        return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(
+            SandboxErr::Denied {
+                output: Box::new(output),
+                network_policy_decision: None,
+            },
+        )));
     }
 
     Ok(output)

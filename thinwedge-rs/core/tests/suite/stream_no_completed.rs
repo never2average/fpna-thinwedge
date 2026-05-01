@@ -1,12 +1,6 @@
 //! Verifies that the agent retries when the SSE stream terminates before
 //! delivering a `response.completed` event.
 
-use thinwedge_model_provider_info::ModelProviderInfo;
-use thinwedge_model_provider_info::WireApi;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
-use thinwedge_utils_cargo_bin::find_resource;
 use core_test_support::load_sse_fixture;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
@@ -15,6 +9,12 @@ use core_test_support::streaming_sse::start_streaming_sse_server;
 use core_test_support::test_thinwedge::TestThinWedge;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
+use thinwedge_model_provider_info::ModelProviderInfo;
+use thinwedge_model_provider_info::WireApi;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
+use thinwedge_utils_cargo_bin::find_resource;
 
 fn sse_incomplete() -> String {
     let fixture = find_resource!("tests/fixtures/incomplete_sse.json")
@@ -90,7 +90,10 @@ async fn retries_on_early_close() {
         .unwrap();
 
     // Wait until TurnComplete (should succeed after retry).
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = server.requests().await;
     assert_eq!(

@@ -4,14 +4,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Result;
-use thinwedge_git_utils::get_git_repo_root;
-use thinwedge_keyring_store::DefaultKeyringStore;
-use thinwedge_keyring_store::KeyringStore;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
+use thinwedge_git_utils::get_git_repo_root;
+use thinwedge_keyring_store::DefaultKeyringStore;
+use thinwedge_keyring_store::KeyringStore;
 
 mod local;
 mod sanitizer;
@@ -183,8 +183,8 @@ pub(crate) fn keyring_service() -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_keyring_store::tests::MockKeyringStore;
     use pretty_assertions::assert_eq;
+    use thinwedge_keyring_store::tests::MockKeyringStore;
 
     #[test]
     fn environment_id_fallback_has_cwd_prefix() {

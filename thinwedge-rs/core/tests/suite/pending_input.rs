@@ -1,14 +1,5 @@
 use std::sync::Arc;
 
-use thinwedge_core::ThinWedgeThread;
-use thinwedge_protocol::AgentPath;
-use thinwedge_protocol::items::TurnItem;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::InterAgentCommunication;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::responses;
@@ -31,6 +22,15 @@ use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::from_slice;
 use serde_json::json;
+use thinwedge_core::ThinWedgeThread;
+use thinwedge_protocol::AgentPath;
+use thinwedge_protocol::items::TurnItem;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::InterAgentCommunication;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::sync::oneshot;
 
 fn ev_message_item_done(id: &str, text: &str) -> Value {
@@ -194,7 +194,10 @@ async fn wait_for_agent_message(thinwedge: &ThinWedgeThread, text: &str) {
 }
 
 async fn wait_for_turn_complete(thinwedge: &ThinWedgeThread) {
-    wait_for_event(thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 }
 
 fn assert_two_responses_input_snapshot(snapshot_name: &str, requests: &[Vec<u8>]) {
@@ -309,7 +312,10 @@ async fn injected_user_input_triggers_follow_up_request_with_deltas() {
 
     let _ = gate_completed_tx.send(());
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = server.requests().await;
     assert_eq!(requests.len(), 2);
@@ -756,7 +762,10 @@ async fn steered_user_input_waits_when_tool_output_triggers_compact_before_next_
     let thinwedge = test.thinwedge.clone();
 
     submit_danger_full_access_user_turn(&test, "first prompt").await;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnStarted(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnStarted(_))
+    })
+    .await;
     steer_user_input(&thinwedge, "second prompt").await;
     let _ = gate_first_completed_tx.send(());
 

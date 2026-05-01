@@ -1,25 +1,4 @@
 #![allow(clippy::expect_used)]
-use thinwedge_core::compact::SUMMARIZATION_PROMPT;
-use thinwedge_core::compact::SUMMARY_PREFIX;
-use thinwedge_core::config::Config;
-use thinwedge_features::Feature;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_model_provider_info::ModelProviderInfo;
-use thinwedge_model_provider_info::built_in_model_providers;
-use thinwedge_models_manager::bundled_models_response;
-use thinwedge_protocol::items::TurnItem;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ItemCompletedEvent;
-use thinwedge_protocol::protocol::ItemStartedEvent;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::RolloutItem;
-use thinwedge_protocol::protocol::RolloutLine;
-use thinwedge_protocol::protocol::WarningEvent;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -32,6 +11,27 @@ use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
 use std::path::PathBuf;
+use thinwedge_core::compact::SUMMARIZATION_PROMPT;
+use thinwedge_core::compact::SUMMARY_PREFIX;
+use thinwedge_core::config::Config;
+use thinwedge_features::Feature;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_model_provider_info::ModelProviderInfo;
+use thinwedge_model_provider_info::built_in_model_providers;
+use thinwedge_models_manager::bundled_models_response;
+use thinwedge_protocol::items::TurnItem;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ItemCompletedEvent;
+use thinwedge_protocol::protocol::ItemStartedEvent;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::RolloutItem;
+use thinwedge_protocol::protocol::RolloutLine;
+use thinwedge_protocol::protocol::WarningEvent;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::user_input::UserInput;
 
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -121,7 +121,8 @@ fn json_fragment(text: &str) -> String {
 
 fn non_thinwedge_model_provider(server: &MockServer) -> ModelProviderInfo {
     let mut provider =
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"]
+            .clone();
     provider.name = "ThinWedge (test)".into();
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
@@ -167,7 +168,9 @@ fn assert_pre_sampling_switch_compaction_requests(
     );
 }
 
-async fn assert_compaction_uses_turn_lifecycle_id(thinwedge: &std::sync::Arc<thinwedge_core::ThinWedgeThread>) {
+async fn assert_compaction_uses_turn_lifecycle_id(
+    thinwedge: &std::sync::Arc<thinwedge_core::ThinWedgeThread>,
+) {
     let mut turn_started_id = None;
     let mut turn_completed_id = None;
     let mut compact_started_id = None;
@@ -479,7 +482,10 @@ async fn manual_compact_uses_custom_prompt() {
         .expect("submit first user turn");
     wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    thinwedge.submit(Op::Compact).await.expect("trigger compact");
+    thinwedge
+        .submit(Op::Compact)
+        .await
+        .expect("trigger compact");
     let warning_event = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
         panic!("expected warning event after compact");
@@ -623,7 +629,10 @@ async fn manual_compact_emits_context_compaction_items() {
         })
         .await
         .unwrap();
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     thinwedge.submit(Op::Compact).await.unwrap();
 
@@ -2261,7 +2270,10 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
         .expect("submit user input");
     wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
-    thinwedge.submit(Op::Compact).await.expect("trigger compact");
+    thinwedge
+        .submit(Op::Compact)
+        .await
+        .expect("trigger compact");
 
     let reconnect_message = wait_for_event_match(&thinwedge, |event| match event {
         EventMsg::StreamError(stream_error) => Some(stream_error.message.clone()),
@@ -2746,7 +2758,10 @@ async fn auto_compact_clamps_config_limit_to_context_window() {
     let thinwedge = builder.build(&server).await.unwrap();
 
     thinwedge.submit_turn("OVER_LIMIT_TURN").await.unwrap();
-    thinwedge.submit_turn("FOLLOW_UP_AFTER_CLAMP").await.unwrap();
+    thinwedge
+        .submit_turn("FOLLOW_UP_AFTER_CLAMP")
+        .await
+        .unwrap();
 
     assert!(
         first_turn_mock.single_request().input().iter().any(|item| {

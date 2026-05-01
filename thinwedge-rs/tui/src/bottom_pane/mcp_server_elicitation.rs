@@ -2,6 +2,17 @@ use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::Stylize;
+use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Widget;
+use serde_json::Value;
 use thinwedge_app_server_protocol::McpElicitationEnumSchema;
 use thinwedge_app_server_protocol::McpElicitationPrimitiveSchema;
 use thinwedge_app_server_protocol::McpElicitationSingleSelectEnumSchema;
@@ -15,17 +26,6 @@ use thinwedge_protocol::mcp::RequestId as McpRequestId;
 #[cfg(test)]
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::user_input::TextElement;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
-use crossterm::event::KeyModifiers;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::Stylize;
-use ratatui::text::Line;
-use ratatui::widgets::Paragraph;
-use ratatui::widgets::Widget;
-use serde_json::Value;
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::app_server_requests::ResolvedAppServerRequest;

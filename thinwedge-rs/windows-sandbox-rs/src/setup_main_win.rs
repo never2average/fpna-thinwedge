@@ -6,6 +6,19 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64;
+use serde::Deserialize;
+use serde::Serialize;
+use std::collections::HashSet;
+use std::ffi::OsStr;
+use std::ffi::c_void;
+use std::fs::File;
+use std::io::Write;
+use std::os::windows::process::CommandExt;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
+use std::sync::mpsc;
 use thinwedge_windows_sandbox::LOG_FILE_NAME;
 use thinwedge_windows_sandbox::SETUP_VERSION;
 use thinwedge_windows_sandbox::SetupErrorCode;
@@ -29,19 +42,6 @@ use thinwedge_windows_sandbox::string_from_sid_bytes;
 use thinwedge_windows_sandbox::to_wide;
 use thinwedge_windows_sandbox::workspace_cap_sid_for_cwd;
 use thinwedge_windows_sandbox::write_setup_error_report;
-use serde::Deserialize;
-use serde::Serialize;
-use std::collections::HashSet;
-use std::ffi::OsStr;
-use std::ffi::c_void;
-use std::fs::File;
-use std::io::Write;
-use std::os::windows::process::CommandExt;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
-use std::sync::mpsc;
 use windows_sys::Win32::Foundation::GetLastError;
 use windows_sys::Win32::Foundation::HLOCAL;
 use windows_sys::Win32::Foundation::LocalFree;
@@ -569,7 +569,8 @@ fn run_setup_full(payload: &Payload, log: &mut File, sbx_dir: &Path) -> Result<(
             ))
         })?
     };
-    let workspace_sid_str = workspace_cap_sid_for_cwd(&payload.thinwedge_home, &payload.command_cwd)?;
+    let workspace_sid_str =
+        workspace_cap_sid_for_cwd(&payload.thinwedge_home, &payload.command_cwd)?;
     let workspace_psid = unsafe {
         convert_string_sid_to_sid(&workspace_sid_str)
             .ok_or_else(|| anyhow::anyhow!("convert workspace capability SID failed"))?

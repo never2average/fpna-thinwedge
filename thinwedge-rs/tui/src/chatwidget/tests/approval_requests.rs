@@ -222,7 +222,10 @@ async fn exec_approval_uses_approval_id_when_present() {
         } = app_ev
         {
             assert_eq!(id, "approval-subcommand");
-            assert_matches!(decision, thinwedge_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                thinwedge_protocol::protocol::ReviewDecision::Approved
+            );
             found = true;
             break;
         }

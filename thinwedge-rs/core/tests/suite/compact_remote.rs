@@ -4,6 +4,23 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Result;
+use core_test_support::context_snapshot;
+use core_test_support::context_snapshot::ContextSnapshotOptions;
+use core_test_support::context_snapshot::ContextSnapshotRenderMode;
+use core_test_support::responses;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_websocket_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_thinwedge::TestThinWedgeBuilder;
+use core_test_support::test_thinwedge::TestThinWedgeHarness;
+use core_test_support::test_thinwedge::test_thinwedge;
+use core_test_support::wait_for_event;
+use core_test_support::wait_for_event_match;
+use core_test_support::wait_for_event_with_timeout;
+use pretty_assertions::assert_eq;
+use serde_json::Value;
+use serde_json::json;
 use thinwedge_core::compact::SUMMARY_PREFIX;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
@@ -22,23 +39,6 @@ use thinwedge_protocol::protocol::RealtimeOutputModality;
 use thinwedge_protocol::protocol::RolloutItem;
 use thinwedge_protocol::protocol::RolloutLine;
 use thinwedge_protocol::user_input::UserInput;
-use core_test_support::context_snapshot;
-use core_test_support::context_snapshot::ContextSnapshotOptions;
-use core_test_support::context_snapshot::ContextSnapshotRenderMode;
-use core_test_support::responses;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_websocket_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_thinwedge::TestThinWedgeBuilder;
-use core_test_support::test_thinwedge::TestThinWedgeHarness;
-use core_test_support::test_thinwedge::test_thinwedge;
-use core_test_support::wait_for_event;
-use core_test_support::wait_for_event_match;
-use core_test_support::wait_for_event_with_timeout;
-use pretty_assertions::assert_eq;
-use serde_json::Value;
-use serde_json::json;
 use tokio::time::Duration;
 use wiremock::ResponseTemplate;
 
@@ -412,7 +412,8 @@ async fn remote_compact_filters_deferred_dynamic_tools() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = responses::start_mock_server().await;
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     let mut test = builder.build(&server).await?;
     let hidden_tool = "hidden_dynamic_tool";
     let visible_tool = "visible_dynamic_tool";
@@ -552,7 +553,10 @@ async fn remote_compact_runs_automatically() -> Result<()> {
         _ => None,
     })
     .await;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     assert!(message);
     assert_eq!(compact_mock.requests().len(), 1);
     assert_eq!(
@@ -622,7 +626,10 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     thinwedge
         .submit(Op::UserInput {
@@ -635,7 +642,10 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -644,7 +654,10 @@ async fn remote_compact_trims_function_call_history_to_fit_context_window() -> R
     .await;
 
     thinwedge.submit(Op::Compact).await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let compact_request = compact_mock.single_request();
     let user_messages = compact_request.message_input_texts("user");
@@ -752,7 +765,10 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     thinwedge
         .submit(Op::UserInput {
@@ -765,7 +781,10 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let compact_mock = responses::mount_compact_user_history_with_summary_once(
         harness.server(),
@@ -784,7 +803,10 @@ async fn auto_remote_compact_trims_function_call_history_to_fit_context_window()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     assert_eq!(
         compact_mock.requests().len(),
         1,
@@ -883,7 +905,10 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     thinwedge
         .submit(Op::UserInput {
@@ -902,7 +927,10 @@ async fn auto_remote_compact_failure_stops_agent_loop() -> Result<()> {
         _ => None,
     })
     .await;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert!(
         error_message.contains("Error running remote compact task"),
@@ -1181,7 +1209,10 @@ async fn remote_manual_compact_emits_context_compaction_items() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     thinwedge.submit(Op::Compact).await?;
 
@@ -1261,7 +1292,10 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     thinwedge.submit(Op::Compact).await?;
 
@@ -1279,7 +1313,10 @@ async fn remote_manual_compact_failure_emits_task_error_event() -> Result<()> {
             || error_message.contains("invalid type: string"),
         "expected invalid compact payload details, got {error_message}"
     );
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
 
@@ -1486,10 +1523,16 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial.thinwedge.submit(Op::Compact).await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial
         .thinwedge
@@ -1503,7 +1546,10 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial.thinwedge.submit(Op::Shutdown).await?;
     wait_for_event(&initial.thinwedge, |ev| {
@@ -1527,7 +1573,10 @@ async fn remote_compact_and_resume_refresh_stale_developer_instructions() -> Res
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1574,7 +1623,8 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
     let server = wiremock::MockServer::start().await;
     let stale_developer_message = "STALE_DEVELOPER_INSTRUCTIONS_SHOULD_BE_REMOVED";
 
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -1622,10 +1672,16 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge.submit(Op::Compact).await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::UserInput {
@@ -1638,7 +1694,10 @@ async fn remote_compact_refreshes_stale_developer_instructions_without_resume() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1667,9 +1726,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_thinwedge_builder(&realtime_server).with_config(|config| {
-        config.model_auto_compact_token_limit = Some(200);
-    });
+    let mut builder =
+        remote_realtime_test_thinwedge_builder(&realtime_server).with_config(|config| {
+            config.model_auto_compact_token_limit = Some(200);
+        });
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -1709,7 +1769,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::UserInput {
@@ -1722,7 +1785,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_sta
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1788,7 +1854,10 @@ async fn remote_request_uses_custom_experimental_realtime_start_instructions() -
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_request_contains_custom_realtime_start(
         &responses_mock.single_request(),
@@ -1806,9 +1875,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_thinwedge_builder(&realtime_server).with_config(|config| {
-        config.model_auto_compact_token_limit = Some(200);
-    });
+    let mut builder =
+        remote_realtime_test_thinwedge_builder(&realtime_server).with_config(|config| {
+            config.model_auto_compact_token_limit = Some(200);
+        });
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -1848,7 +1918,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     close_realtime_conversation(test.thinwedge.as_ref()).await?;
 
@@ -1863,7 +1936,10 @@ async fn snapshot_request_shape_remote_pre_turn_compaction_restates_realtime_end
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1937,10 +2013,16 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge.submit(Op::Compact).await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::UserInput {
@@ -1953,7 +2035,10 @@ async fn snapshot_request_shape_remote_manual_compact_restates_realtime_start() 
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -1989,9 +2074,10 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
 
     let server = wiremock::MockServer::start().await;
     let realtime_server = start_remote_realtime_server().await;
-    let mut builder = remote_realtime_test_thinwedge_builder(&realtime_server).with_config(|config| {
-        config.model_auto_compact_token_limit = Some(200);
-    });
+    let mut builder =
+        remote_realtime_test_thinwedge_builder(&realtime_server).with_config(|config| {
+            config.model_auto_compact_token_limit = Some(200);
+        });
     let test = builder.build(&server).await?;
 
     let responses_mock = responses::mount_sse_sequence(
@@ -2035,7 +2121,10 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     close_realtime_conversation(test.thinwedge.as_ref()).await?;
 
@@ -2050,7 +2139,10 @@ async fn snapshot_request_shape_remote_mid_turn_compaction_does_not_restate_real
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();
@@ -2140,12 +2232,18 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     close_realtime_conversation(initial.thinwedge.as_ref()).await?;
 
     initial.thinwedge.submit(Op::Compact).await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial.thinwedge.submit(Op::Shutdown).await?;
     wait_for_event(&initial.thinwedge, |ev| {
@@ -2169,7 +2267,10 @@ async fn snapshot_request_shape_remote_compact_resume_restates_realtime_end() ->
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(compact_mock.requests().len(), 1);
     let requests = responses_mock.requests();

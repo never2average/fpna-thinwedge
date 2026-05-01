@@ -28,9 +28,10 @@ async fn apps_enabled(config: &Config) -> bool {
     let auth_manager =
         AuthManager::shared_from_config(config, /*enable_thinwedge_api_key_env*/ false).await;
     let auth = auth_manager.auth().await;
-    config
-        .features
-        .apps_enabled_for_auth(auth.as_ref().is_some_and(ThinWedgeAuth::uses_thinwedge_backend))
+    config.features.apps_enabled_for_auth(
+        auth.as_ref()
+            .is_some_and(ThinWedgeAuth::uses_thinwedge_backend),
+    )
 }
 
 async fn connector_auth(config: &Config) -> anyhow::Result<ThinWedgeAuth> {
@@ -187,9 +188,9 @@ pub fn merge_connectors_with_accessible(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_connectors::metadata::connector_install_url;
     use thinwedge_core::plugins::AppConnectorId;
-    use pretty_assertions::assert_eq;
 
     fn app(id: &str) -> AppInfo {
         AppInfo {

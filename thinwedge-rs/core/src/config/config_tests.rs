@@ -6,6 +6,8 @@ use crate::config::edit::ConfigEditsBuilder;
 use crate::config::edit::apply_blocking;
 use crate::plugins::PluginsManager;
 use assert_matches::assert_matches;
+use serde::Deserialize;
+use tempfile::tempdir;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::RequirementSource;
 use thinwedge_config::config_toml::AgentRoleToml;
@@ -72,8 +74,6 @@ use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::NetworkAccess;
 use thinwedge_protocol::protocol::RealtimeVoice;
 use thinwedge_protocol::protocol::SandboxPolicy;
-use serde::Deserialize;
-use tempfile::tempdir;
 
 use super::*;
 use core_test_support::PathBufExt;
@@ -2986,12 +2986,14 @@ async fn managed_config_overrides_oauth_store_mode() -> anyhow::Result<()> {
         &thinwedge_config::NoopThreadConfigLoader,
     )
     .await?;
-    let cfg =
-        deserialize_config_toml_with_base(config_layer_stack.effective_config(), thinwedge_home.path())
-            .map_err(|e| {
-                tracing::error!("Failed to deserialize overridden config: {e}");
-                e
-            })?;
+    let cfg = deserialize_config_toml_with_base(
+        config_layer_stack.effective_config(),
+        thinwedge_home.path(),
+    )
+    .map_err(|e| {
+        tracing::error!("Failed to deserialize overridden config: {e}");
+        e
+    })?;
     assert_eq!(
         cfg.mcp_oauth_credentials_store,
         Some(OAuthCredentialsStoreMode::Keyring),
@@ -3122,12 +3124,14 @@ async fn managed_config_wins_over_cli_overrides() -> anyhow::Result<()> {
     )
     .await?;
 
-    let cfg =
-        deserialize_config_toml_with_base(config_layer_stack.effective_config(), thinwedge_home.path())
-            .map_err(|e| {
-                tracing::error!("Failed to deserialize overridden config: {e}");
-                e
-            })?;
+    let cfg = deserialize_config_toml_with_base(
+        config_layer_stack.effective_config(),
+        thinwedge_home.path(),
+    )
+    .map_err(|e| {
+        tracing::error!("Failed to deserialize overridden config: {e}");
+        e
+    })?;
 
     assert_eq!(cfg.model.as_deref(), Some("managed_config"));
     Ok(())
@@ -4108,7 +4112,8 @@ async fn set_model_updates_defaults() -> anyhow::Result<()> {
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
 
     assert_eq!(parsed.model.as_deref(), Some("gpt-5.4"));
@@ -4165,7 +4170,8 @@ async fn set_model_updates_profile() -> anyhow::Result<()> {
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -4239,7 +4245,8 @@ async fn set_feature_enabled_updates_profile() -> anyhow::Result<()> {
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -4280,7 +4287,8 @@ async fn set_feature_enabled_persists_feature_disable_in_profile() -> anyhow::Re
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -4320,7 +4328,8 @@ async fn set_feature_enabled_profile_disable_overrides_root_enable() -> anyhow::
         .apply()
         .await?;
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     let parsed: ConfigToml = toml::from_str(&serialized)?;
     let profile = parsed
         .profiles
@@ -5836,7 +5845,10 @@ model_verbosity = "high"
     let model_provider_map = {
         let mut model_provider_map =
             built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None);
-        model_provider_map.insert("thinwedge-custom".to_string(), thinwedge_custom_provider.clone());
+        model_provider_map.insert(
+            "thinwedge-custom".to_string(),
+            thinwedge_custom_provider.clone(),
+        );
         model_provider_map
     };
 
@@ -7144,7 +7156,9 @@ async fn requirements_disallowing_default_sandbox_falls_back_to_required_default
         .thinwedge_home(thinwedge_home.path().to_path_buf())
         .cloud_requirements(CloudRequirementsLoader::new(async {
             Ok(Some(thinwedge_config::ConfigRequirementsToml {
-                allowed_sandbox_modes: Some(vec![thinwedge_config::SandboxModeRequirement::ReadOnly]),
+                allowed_sandbox_modes: Some(vec![
+                    thinwedge_config::SandboxModeRequirement::ReadOnly,
+                ]),
                 ..Default::default()
             }))
         }))
@@ -7759,7 +7773,8 @@ smart_approvals = true
     assert!(config.features.enabled(Feature::GuardianApproval));
     assert_eq!(config.approvals_reviewer, ApprovalsReviewer::User);
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     assert!(serialized.contains("smart_approvals = true"));
     assert!(!serialized.contains("guardian_approval"));
     assert!(!serialized.contains("approvals_reviewer"));
@@ -7788,7 +7803,8 @@ smart_approvals = true
     assert!(config.features.enabled(Feature::GuardianApproval));
     assert_eq!(config.approvals_reviewer, ApprovalsReviewer::User);
 
-    let serialized = tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
+    let serialized =
+        tokio::fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).await?;
     assert!(serialized.contains("[profiles.guardian.features]"));
     assert!(serialized.contains("smart_approvals = true"));
     assert!(!serialized.contains("guardian_approval"));

@@ -2,6 +2,10 @@ use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
 use chrono::Utc;
+use pretty_assertions::assert_eq;
+use std::path::Path;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::MemoryResetResponse;
 use thinwedge_app_server_protocol::RequestId;
@@ -10,10 +14,6 @@ use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_state::Stage1JobClaimOutcome;
 use thinwedge_state::StateRuntime;
 use thinwedge_state::ThreadMetadataBuilder;
-use pretty_assertions::assert_eq;
-use std::path::Path;
-use std::sync::Arc;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use uuid::Uuid;
 
@@ -65,7 +65,10 @@ async fn memory_reset_clears_memory_files_and_rows_preserves_threads() -> Result
     Ok(())
 }
 
-async fn seed_stage1_output(state_db: &Arc<StateRuntime>, thinwedge_home: &Path) -> Result<ThreadId> {
+async fn seed_stage1_output(
+    state_db: &Arc<StateRuntime>,
+    thinwedge_home: &Path,
+) -> Result<ThreadId> {
     let now = Utc::now();
     let thread_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;
     let worker_id = ThreadId::from_string(&Uuid::new_v4().to_string())?;

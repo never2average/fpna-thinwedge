@@ -5,13 +5,13 @@ use super::fingerprint::record_origins;
 use super::fingerprint::version_for_toml;
 use super::key_aliases::normalized_with_key_aliases;
 use super::merge::merge_toml_values;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::ConfigLayer;
 use thinwedge_app_server_protocol::ConfigLayerMetadata;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use serde_json::Value as JsonValue;
-use std::collections::HashMap;
-use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 /// LoaderOverrides overrides managed configuration inputs (primarily for tests).
@@ -136,7 +136,9 @@ impl ConfigLayerEntry {
             ConfigLayerSource::Mdm { .. } => None,
             ConfigLayerSource::System { file } => file.parent(),
             ConfigLayerSource::User { file } => file.parent(),
-            ConfigLayerSource::Project { dot_thinwedge_folder } => Some(dot_thinwedge_folder.clone()),
+            ConfigLayerSource::Project {
+                dot_thinwedge_folder,
+            } => Some(dot_thinwedge_folder.clone()),
             ConfigLayerSource::SessionFlags => None,
             ConfigLayerSource::LegacyManagedConfigTomlFromFile { .. } => None,
             ConfigLayerSource::LegacyManagedConfigTomlFromMdm => None,

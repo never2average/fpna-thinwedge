@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use thinwedge_file_search::FileMatch;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::widgets::WidgetRef;
+use thinwedge_file_search::FileMatch;
 
 use crate::render::Insets;
 use crate::render::RectExt;
@@ -156,8 +156,8 @@ impl WidgetRef for &FileSearchPopup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_file_search::MatchType;
     use pretty_assertions::assert_eq;
+    use thinwedge_file_search::MatchType;
 
     fn file_match(index: usize) -> FileMatch {
         FileMatch {

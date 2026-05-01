@@ -1,4 +1,3 @@
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -10,6 +9,7 @@ use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Block;
 use ratatui::widgets::Widget;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;

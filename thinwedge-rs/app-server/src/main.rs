@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::path::PathBuf;
 use thinwedge_app_server::AppServerRuntimeOptions;
 use thinwedge_app_server::AppServerTransport;
 use thinwedge_app_server::AppServerWebsocketAuthArgs;
@@ -9,7 +10,6 @@ use thinwedge_arg0::arg0_dispatch_or_else;
 use thinwedge_config::LoaderOverrides;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_utils_cli::CliConfigOverrides;
-use std::path::PathBuf;
 
 // Debug-only test hook: lets integration tests point the server at a temporary
 // managed config file without writing to /etc.

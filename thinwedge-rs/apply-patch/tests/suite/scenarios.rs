@@ -1,4 +1,3 @@
-use thinwedge_utils_cargo_bin::repo_root;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
 use std::fs;
@@ -6,6 +5,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::tempdir;
+use thinwedge_utils_cargo_bin::repo_root;
 
 #[test]
 fn test_apply_patch_scenarios() -> anyhow::Result<()> {

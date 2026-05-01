@@ -101,10 +101,10 @@ pub(super) async fn unarchive_thread(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use thinwedge_protocol::ThreadId;
+    use thinwedge_protocol::protocol::SessionSource;
     use uuid::Uuid;
 
     use super::*;

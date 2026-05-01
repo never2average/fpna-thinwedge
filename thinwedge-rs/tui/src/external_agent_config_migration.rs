@@ -7,8 +7,6 @@ use crate::selection_list::selection_option_row_with_dim;
 use crate::tui::FrameRequester;
 use crate::tui::Tui;
 use crate::tui::TuiEvent;
-use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItem;
-use thinwedge_app_server_protocol::PluginsMigration;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -24,6 +22,8 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
+use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItem;
+use thinwedge_app_server_protocol::PluginsMigration;
 use tokio_stream::StreamExt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -764,9 +764,6 @@ mod tests {
     use crate::custom_terminal::Terminal;
     use crate::test_backend::VT100Backend;
     use crate::tui::FrameRequester;
-    use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItem;
-    use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItemType;
-    use thinwedge_app_server_protocol::PluginsMigration;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyModifiers;
@@ -774,6 +771,9 @@ mod tests {
     use pretty_assertions::assert_eq;
     use ratatui::layout::Rect;
     use std::path::PathBuf;
+    use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItem;
+    use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItemType;
+    use thinwedge_app_server_protocol::PluginsMigration;
 
     fn sample_plugin_details() -> thinwedge_app_server_protocol::MigrationDetails {
         thinwedge_app_server_protocol::MigrationDetails {

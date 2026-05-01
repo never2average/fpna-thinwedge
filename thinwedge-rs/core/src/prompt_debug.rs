@@ -50,7 +50,8 @@ pub async fn build_prompt_input(
     );
     let thread = thread_manager.start_thread(config).await?;
 
-    let output = build_prompt_input_from_session(thread.thread.thinwedge.session.as_ref(), input).await;
+    let output =
+        build_prompt_input_from_session(thread.thread.thinwedge.session.as_ref(), input).await;
     let shutdown = thread.thread.shutdown_and_wait().await;
     let _removed = thread_manager.remove_thread(&thread.thread_id).await;
 

@@ -3,12 +3,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_rollout_trace::ExecutionStatus;
 use thinwedge_rollout_trace::ThreadStartedTraceMetadata;
 use thinwedge_rollout_trace::ToolCallRequester;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
 use crate::function_tool::FunctionCallError;

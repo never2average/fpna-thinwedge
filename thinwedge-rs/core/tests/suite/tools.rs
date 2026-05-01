@@ -9,18 +9,6 @@ use std::time::Instant;
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_config::types::McpServerConfig;
-use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_core::sandboxing::SandboxPermissions;
-use thinwedge_features::Feature;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::permissions::FileSystemAccessMode;
-use thinwedge_protocol::permissions::FileSystemPath;
-use thinwedge_protocol::permissions::FileSystemSandboxEntry;
-use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
-use thinwedge_protocol::permissions::NetworkSandboxPolicy;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -40,6 +28,18 @@ use serde_json::Value;
 use serde_json::json;
 use serial_test::serial;
 use tempfile::TempDir;
+use thinwedge_config::types::McpServerConfig;
+use thinwedge_config::types::McpServerTransportConfig;
+use thinwedge_core::sandboxing::SandboxPermissions;
+use thinwedge_features::Feature;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::permissions::FileSystemAccessMode;
+use thinwedge_protocol::permissions::FileSystemPath;
+use thinwedge_protocol::permissions::FileSystemSandboxEntry;
+use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
+use thinwedge_protocol::permissions::NetworkSandboxPolicy;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 
 fn tool_names(body: &Value) -> Vec<String> {
     body.get("tools")
@@ -316,12 +316,14 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
     )
     .await;
 
-    let mut resume_builder = test_thinwedge().with_model("gpt-5.4").with_config(|config| {
-        config
-            .features
-            .enable(Feature::UnavailableDummyTools)
-            .expect("unavailable dummy tools should be enabled for this test");
-    });
+    let mut resume_builder = test_thinwedge()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::UnavailableDummyTools)
+                .expect("unavailable dummy tools should be enabled for this test");
+        });
     let test = resume_builder
         .resume(&server, thinwedge_home, rollout_path)
         .await?;
@@ -785,12 +787,14 @@ async fn shell_timeout_handles_background_grandchild_stdout() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_thinwedge().with_model("gpt-5.4").with_config(|config| {
-        config
-            .permissions
-            .set_permission_profile(PermissionProfile::Disabled)
-            .expect("set permission profile");
-    });
+    let mut builder = test_thinwedge()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config
+                .permissions
+                .set_permission_profile(PermissionProfile::Disabled)
+                .expect("set permission profile");
+        });
     let test = builder.build(&server).await?;
 
     let call_id = "shell-grandchild-timeout";

@@ -1,4 +1,11 @@
 use super::*;
+use dunce::canonicalize as canonicalize_path;
+use pretty_assertions::assert_eq;
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerStack;
@@ -10,13 +17,6 @@ use thinwedge_protocol::protocol::SkillScope;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::test_support::PathBufExt;
 use thinwedge_utils_absolute_path::test_support::PathExt;
-use dunce::canonicalize as canonicalize_path;
-use pretty_assertions::assert_eq;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tempfile::TempDir;
 use toml::Value as TomlValue;
 
 const REPO_ROOT_CONFIG_DIR_NAME: &str = ".thinwedge";
@@ -329,10 +329,20 @@ async fn loads_skills_from_home_agents_dir_for_user_scope() -> anyhow::Result<()
 }
 
 fn write_skill(thinwedge_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
-    write_skill_at(&thinwedge_home.path().join("skills"), dir, name, description)
+    write_skill_at(
+        &thinwedge_home.path().join("skills"),
+        dir,
+        name,
+        description,
+    )
 }
 
-fn write_system_skill(thinwedge_home: &TempDir, dir: &str, name: &str, description: &str) -> PathBuf {
+fn write_system_skill(
+    thinwedge_home: &TempDir,
+    dir: &str,
+    name: &str,
+    description: &str,
+) -> PathBuf {
     write_skill_at(
         &thinwedge_home.path().join("skills/.system"),
         dir,
@@ -1072,7 +1082,12 @@ async fn respects_max_scan_depth_for_user_scope() {
 #[tokio::test]
 async fn loads_valid_skill() {
     let thinwedge_home = tempfile::tempdir().expect("tempdir");
-    let skill_path = write_skill(&thinwedge_home, "demo", "demo-skill", "does things\ncarefully");
+    let skill_path = write_skill(
+        &thinwedge_home,
+        "demo",
+        "demo-skill",
+        "does things\ncarefully",
+    );
     let cfg = make_config(&thinwedge_home).await;
 
     let outcome = load_skills_for_test(&cfg).await;

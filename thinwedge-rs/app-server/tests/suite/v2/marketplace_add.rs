@@ -1,13 +1,13 @@
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::MarketplaceAddParams;
 use thinwedge_app_server_protocol::MarketplaceAddResponse;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::Duration;
 use tokio::time::timeout;
 

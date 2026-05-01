@@ -1,10 +1,10 @@
 use anyhow::Result;
-use thinwedge_config::CONFIG_TOML_FILE;
-use thinwedge_core_plugins::installed_marketplaces::marketplace_install_root;
 use predicates::str::contains;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use tempfile::TempDir;
+use thinwedge_config::CONFIG_TOML_FILE;
+use thinwedge_core_plugins::installed_marketplaces::marketplace_install_root;
 
 fn thinwedge_command(thinwedge_home: &Path) -> Result<assert_cmd::Command> {
     let mut cmd = assert_cmd::Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge")?);

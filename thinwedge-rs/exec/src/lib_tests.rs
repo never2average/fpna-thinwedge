@@ -1,14 +1,14 @@
 use super::*;
-use thinwedge_otel::set_parent_from_w3c_trace_context;
-use thinwedge_protocol::config_types::ApprovalsReviewer;
-use thinwedge_utils_absolute_path::test_support::PathBufExt;
-use thinwedge_utils_absolute_path::test_support::test_path_buf;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry::trace::TraceId;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::trace::SdkTracerProvider;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
+use thinwedge_otel::set_parent_from_w3c_trace_context;
+use thinwedge_protocol::config_types::ApprovalsReviewer;
+use thinwedge_utils_absolute_path::test_support::PathBufExt;
+use thinwedge_utils_absolute_path::test_support::test_path_buf;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 fn test_tracing_subscriber() -> impl tracing::Subscriber + Send + Sync {
@@ -303,8 +303,8 @@ fn turn_items_for_thread_returns_matching_turn_items() {
 
 #[test]
 fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
-    let notification =
-        ServerNotification::TurnCompleted(thinwedge_app_server_protocol::TurnCompletedNotification {
+    let notification = ServerNotification::TurnCompleted(
+        thinwedge_app_server_protocol::TurnCompletedNotification {
             thread_id: "thread-1".to_string(),
             turn: thinwedge_app_server_protocol::Turn {
                 id: "turn-1".to_string(),
@@ -315,7 +315,8 @@ fn should_backfill_turn_completed_items_skips_ephemeral_threads() {
                 completed_at: None,
                 duration_ms: None,
             },
-        });
+        },
+    );
 
     assert!(!should_backfill_turn_completed_items(
         /*thread_ephemeral*/ true,

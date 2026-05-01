@@ -24,32 +24,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: windows-x64
+          - runner: windows-2025
             target: x86_64-pc-windows-msvc
             bundle: primary
             binaries: "thinwedge thinwedge-responses-api-proxy"
             runs_on: windows-2025
-          - runner: windows-arm64
+          - runner: windows-11-arm
             target: aarch64-pc-windows-msvc
             bundle: primary
             binaries: "thinwedge thinwedge-responses-api-proxy"
             runs_on: windows-11-arm
-          - runner: windows-x64
+          - runner: windows-2025
             target: x86_64-pc-windows-msvc
             bundle: helpers
             binaries: "thinwedge-windows-sandbox-setup thinwedge-command-runner"
             runs_on: windows-2025
-          - runner: windows-arm64
+          - runner: windows-11-arm
             target: aarch64-pc-windows-msvc
             bundle: helpers
             binaries: "thinwedge-windows-sandbox-setup thinwedge-command-runner"
             runs_on: windows-11-arm
-          - runner: windows-x64
+          - runner: windows-2025
             target: x86_64-pc-windows-msvc
             bundle: app-server
             binaries: "thinwedge-app-server"
             runs_on: windows-2025
-          - runner: windows-arm64
+          - runner: windows-11-arm
             target: aarch64-pc-windows-msvc
             bundle: app-server
             binaries: "thinwedge-app-server"
@@ -125,10 +125,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: windows-x64
+          - runner: windows-2025
             target: x86_64-pc-windows-msvc
             runs_on: windows-2025
-          - runner: windows-arm64
+          - runner: windows-11-arm
             target: aarch64-pc-windows-msvc
             runs_on: windows-11-arm
 

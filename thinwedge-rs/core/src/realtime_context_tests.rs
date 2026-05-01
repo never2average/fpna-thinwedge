@@ -10,6 +10,13 @@ use super::format_section;
 use super::format_startup_context_blob;
 use chrono::TimeZone;
 use chrono::Utc;
+use core_test_support::PathBufExt;
+use core_test_support::PathExt;
+use pretty_assertions::assert_eq;
+use std::fs;
+use std::path::PathBuf;
+use std::process::Command;
+use tempfile::TempDir;
 use thinwedge_git_utils::GitSha;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ContentItem;
@@ -19,13 +26,6 @@ use thinwedge_protocol::protocol::GitInfo;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_thread_store::StoredThread;
-use core_test_support::PathBufExt;
-use core_test_support::PathExt;
-use pretty_assertions::assert_eq;
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
-use tempfile::TempDir;
 
 fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredThread {
     StoredThread {

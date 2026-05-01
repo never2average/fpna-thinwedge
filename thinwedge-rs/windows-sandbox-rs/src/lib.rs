@@ -675,9 +675,9 @@ mod windows_impl {
 mod stub {
     use anyhow::Result;
     use anyhow::bail;
-    use thinwedge_protocol::protocol::SandboxPolicy;
     use std::collections::HashMap;
     use std::path::Path;
+    use thinwedge_protocol::protocol::SandboxPolicy;
 
     #[derive(Debug, Default)]
     pub struct CaptureResult {

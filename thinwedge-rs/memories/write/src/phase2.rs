@@ -13,6 +13,10 @@ use crate::workspace::memory_workspace_diff;
 use crate::workspace::prepare_memory_workspace;
 use crate::workspace::reset_memory_workspace_baseline;
 use crate::workspace::write_workspace_diff;
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 use thinwedge_config::Constrained;
 use thinwedge_core::config::Config;
 use thinwedge_features::Feature;
@@ -24,10 +28,6 @@ use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::user_input::UserInput;
 use thinwedge_state::Stage1Output;
 use thinwedge_state::StateRuntime;
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
 
 #[derive(Debug, Clone, Default)]
 struct Claim {
@@ -241,7 +241,9 @@ mod job {
             thinwedge_state::Phase2JobClaimOutcome::SkippedCooldown => {
                 return Err("skipped_cooldown");
             }
-            thinwedge_state::Phase2JobClaimOutcome::SkippedRunning => return Err("skipped_running"),
+            thinwedge_state::Phase2JobClaimOutcome::SkippedRunning => {
+                return Err("skipped_running");
+            }
         };
 
         Ok(Claim { token, watermark })

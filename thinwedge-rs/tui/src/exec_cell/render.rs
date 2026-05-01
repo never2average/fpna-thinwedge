@@ -12,11 +12,6 @@ use crate::shimmer::shimmer_spans;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use crate::wrapping::adaptive_wrap_lines;
-use thinwedge_ansi_escape::ansi_escape_line;
-use thinwedge_protocol::parse_command::ParsedCommand;
-use thinwedge_protocol::protocol::ExecCommandSource;
-use thinwedge_shell_command::bash::extract_bash_command;
-use thinwedge_utils_elapsed::format_duration;
 use itertools::Itertools;
 use ratatui::prelude::*;
 use ratatui::style::Modifier;
@@ -24,6 +19,11 @@ use ratatui::style::Stylize;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 use textwrap::WordSplitter;
+use thinwedge_ansi_escape::ansi_escape_line;
+use thinwedge_protocol::parse_command::ParsedCommand;
+use thinwedge_protocol::protocol::ExecCommandSource;
+use thinwedge_shell_command::bash::extract_bash_command;
+use thinwedge_utils_elapsed::format_duration;
 use unicode_width::UnicodeWidthStr;
 
 pub(crate) const TOOL_CALL_MAX_LINES: usize = 5;
@@ -713,8 +713,8 @@ const EXEC_DISPLAY_LAYOUT: ExecDisplayLayout = ExecDisplayLayout::new(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_protocol::protocol::ExecCommandSource;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::protocol::ExecCommandSource;
 
     fn render_line_text(line: &Line<'static>) -> String {
         line.spans

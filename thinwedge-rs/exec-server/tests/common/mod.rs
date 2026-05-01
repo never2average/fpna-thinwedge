@@ -6,20 +6,21 @@ use std::process::Command;
 use std::process::Stdio;
 use std::time::Duration;
 
-use thinwedge_exec_server::THINWEDGE_FS_HELPER_ARG1;
+use ctor::ctor;
 use thinwedge_exec_server::ExecServerRuntimePaths;
+use thinwedge_exec_server::THINWEDGE_FS_HELPER_ARG1;
 use thinwedge_sandboxing::landlock::THINWEDGE_LINUX_SANDBOX_ARG0;
 use thinwedge_test_binary_support::TestBinaryDispatchGuard;
 use thinwedge_test_binary_support::TestBinaryDispatchMode;
 use thinwedge_test_binary_support::configure_test_binary_dispatch;
-use ctor::ctor;
 
 pub(crate) mod exec_server;
 
 pub(crate) const DELAYED_OUTPUT_AFTER_EXIT_PARENT_ARG: &str =
     "--thinwedge-test-delayed-output-after-exit-parent";
 
-const DELAYED_OUTPUT_AFTER_EXIT_CHILD_ARG: &str = "--thinwedge-test-delayed-output-after-exit-child";
+const DELAYED_OUTPUT_AFTER_EXIT_CHILD_ARG: &str =
+    "--thinwedge-test-delayed-output-after-exit-child";
 
 #[ctor]
 pub static TEST_BINARY_DISPATCH_GUARD: Option<TestBinaryDispatchGuard> = {
@@ -180,14 +181,14 @@ fn maybe_run_exec_server_from_test_binary(guard: Option<&TestBinaryDispatchGuard
             std::process::exit(1);
         }
     };
-    let exit_code = match runtime.block_on(thinwedge_exec_server::run_main(&listen_url, runtime_paths))
-    {
-        Ok(()) => 0,
-        Err(error) => {
-            eprintln!("exec-server failed: {error}");
-            1
-        }
-    };
+    let exit_code =
+        match runtime.block_on(thinwedge_exec_server::run_main(&listen_url, runtime_paths)) {
+            Ok(()) => 0,
+            Err(error) => {
+                eprintln!("exec-server failed: {error}");
+                1
+            }
+        };
     std::process::exit(exit_code);
 }
 

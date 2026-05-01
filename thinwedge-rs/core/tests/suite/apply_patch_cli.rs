@@ -12,16 +12,6 @@ use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use thinwedge_features::Feature;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::permissions::NetworkSandboxPolicy;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::SandboxPolicy;
-use thinwedge_protocol::user_input::UserInput;
-#[cfg(target_os = "linux")]
-use thinwedge_sandboxing::landlock::THINWEDGE_LINUX_SANDBOX_ARG0;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
@@ -40,6 +30,16 @@ use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_with_timeout;
 use serde_json::json;
 use test_case::test_case;
+use thinwedge_features::Feature;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::permissions::NetworkSandboxPolicy;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::user_input::UserInput;
+#[cfg(target_os = "linux")]
+use thinwedge_sandboxing::landlock::THINWEDGE_LINUX_SANDBOX_ARG0;
 use wiremock::Mock;
 use wiremock::Respond;
 use wiremock::ResponseTemplate;

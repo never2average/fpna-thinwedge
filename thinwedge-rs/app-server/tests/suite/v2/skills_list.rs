@@ -6,6 +6,8 @@ use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_app_server_protocol::SkillsChangedNotification;
@@ -15,8 +17,6 @@ use thinwedge_app_server_protocol::SkillsListResponse;
 use thinwedge_app_server_protocol::ThreadStartParams;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_exec_server::THINWEDGE_EXEC_SERVER_URL_ENV_VAR;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -132,7 +132,8 @@ async fn skills_list_includes_skills_from_per_cwd_extra_user_roots() -> Result<(
 }
 
 #[tokio::test]
-async fn skills_list_excludes_plugin_skills_when_workspace_thinwedge_plugins_disabled() -> Result<()> {
+async fn skills_list_excludes_plugin_skills_when_workspace_thinwedge_plugins_disabled() -> Result<()>
+{
     let thinwedge_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     let server = MockServer::start().await;

@@ -2,14 +2,14 @@ use crate::auth::SharedAuthProvider;
 use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use thinwedge_client::HttpTransport;
-use thinwedge_client::RequestTelemetry;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use http::HeaderMap;
 use http::Method;
 use http::header::ETAG;
 use std::sync::Arc;
+use thinwedge_client::HttpTransport;
+use thinwedge_client::RequestTelemetry;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 
 pub struct ModelsClient<T: HttpTransport> {
     session: EndpointSession<T>,
@@ -79,10 +79,6 @@ mod tests {
     use crate::auth::AuthProvider;
     use crate::provider::RetryConfig;
     use async_trait::async_trait;
-    use thinwedge_client::Request;
-    use thinwedge_client::Response;
-    use thinwedge_client::StreamResponse;
-    use thinwedge_client::TransportError;
     use http::HeaderMap;
     use http::StatusCode;
     use pretty_assertions::assert_eq;
@@ -90,6 +86,10 @@ mod tests {
     use std::sync::Arc;
     use std::sync::Mutex;
     use std::time::Duration;
+    use thinwedge_client::Request;
+    use thinwedge_client::Response;
+    use thinwedge_client::StreamResponse;
+    use thinwedge_client::TransportError;
 
     #[derive(Clone)]
     struct CapturingTransport {

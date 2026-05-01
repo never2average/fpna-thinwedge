@@ -1,6 +1,8 @@
 #[cfg(test)]
 use super::*;
 #[cfg(test)]
+use pretty_assertions::assert_eq;
+#[cfg(test)]
 use thinwedge_protocol::models::PermissionProfile;
 #[cfg(test)]
 use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
@@ -8,8 +10,6 @@ use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
 use thinwedge_protocol::protocol::NetworkSandboxPolicy;
 #[cfg(test)]
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-#[cfg(test)]
-use pretty_assertions::assert_eq;
 
 fn read_only_permission_profile() -> PermissionProfile {
     PermissionProfile::read_only()
@@ -109,8 +109,9 @@ fn rewrites_inner_command_path_when_bwrap_lacks_argv0() {
 
     assert!(!argv.iter().any(|arg| arg == "--argv0"));
     assert!(
-        argv.windows(2)
-            .any(|window| { window == ["--", "/tmp/thinwedge-arg0-session/thinwedge-linux-sandbox"] })
+        argv.windows(2).any(|window| {
+            window == ["--", "/tmp/thinwedge-arg0-session/thinwedge-linux-sandbox"]
+        })
     );
 }
 

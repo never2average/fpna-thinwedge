@@ -33,19 +33,23 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::sandboxing::PermissionRequestPayload;
+use rmcp::model::ToolAnnotations;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Value as JsonValue;
+use std::sync::Arc;
 use thinwedge_analytics::AppInvocation;
 use thinwedge_analytics::InvocationType;
 use thinwedge_analytics::build_track_events_context;
 use thinwedge_config::types::AppToolApproval;
 use thinwedge_features::Feature;
 use thinwedge_hooks::PermissionRequestDecision;
-use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_mcp::SandboxState;
+use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_mcp::declared_thinwedge_file_input_param_names;
 use thinwedge_mcp::mcp_permission_prompt_is_auto_approved;
 use thinwedge_otel::sanitize_metric_tag_value;
 use thinwedge_protocol::mcp::CallToolResult;
-use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::McpInvocation;
 use thinwedge_protocol::protocol::McpToolCallBeginEvent;
@@ -56,15 +60,11 @@ use thinwedge_protocol::request_user_input::RequestUserInputArgs;
 use thinwedge_protocol::request_user_input::RequestUserInputQuestion;
 use thinwedge_protocol::request_user_input::RequestUserInputQuestionOption;
 use thinwedge_protocol::request_user_input::RequestUserInputResponse;
+use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_rmcp_client::ElicitationAction;
 use thinwedge_rmcp_client::ElicitationResponse;
 use thinwedge_rollout::state_db;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use rmcp::model::ToolAnnotations;
-use serde::Deserialize;
-use serde::Serialize;
-use serde_json::Value as JsonValue;
-use std::sync::Arc;
 use toml_edit::value;
 use tracing::Instrument;
 use tracing::Span;
@@ -1714,8 +1714,12 @@ async fn maybe_persist_mcp_tool_approval(
             remember_mcp_tool_approval(sess, key).await;
             return;
         };
-        persist_thinwedge_app_tool_approval(&turn_context.config.thinwedge_home, &connector_id, &tool_name)
-            .await
+        persist_thinwedge_app_tool_approval(
+            &turn_context.config.thinwedge_home,
+            &connector_id,
+            &tool_name,
+        )
+        .await
     } else {
         persist_custom_mcp_tool_approval(&turn_context.config, &key.server, &tool_name).await
     };
@@ -1806,7 +1810,8 @@ fn project_mcp_tool_approval_config_folder(
                 .and_then(|table| table.get("mcp_servers"))
                 .cloned()
                 .and_then(|value| {
-                    HashMap::<String, thinwedge_config::types::McpServerConfig>::deserialize(value).ok()
+                    HashMap::<String, thinwedge_config::types::McpServerConfig>::deserialize(value)
+                        .ok()
                 })?;
             if servers.contains_key(server) {
                 layer.config_folder()

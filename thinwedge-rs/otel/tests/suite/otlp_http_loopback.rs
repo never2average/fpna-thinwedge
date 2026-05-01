@@ -1,10 +1,3 @@
-use thinwedge_otel::MetricsClient;
-use thinwedge_otel::MetricsConfig;
-use thinwedge_otel::OtelExporter;
-use thinwedge_otel::OtelHttpProtocol;
-use thinwedge_otel::OtelProvider;
-use thinwedge_otel::OtelSettings;
-use thinwedge_otel::Result;
 use std::collections::HashMap;
 use std::io::Read as _;
 use std::io::Write as _;
@@ -15,6 +8,13 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_otel::MetricsClient;
+use thinwedge_otel::MetricsConfig;
+use thinwedge_otel::OtelExporter;
+use thinwedge_otel::OtelHttpProtocol;
+use thinwedge_otel::OtelProvider;
+use thinwedge_otel::OtelSettings;
+use thinwedge_otel::Result;
 use tracing_subscriber::layer::SubscriberExt;
 
 struct CapturedRequest {

@@ -1,9 +1,9 @@
 use anyhow::Context;
+use std::path::Path;
 use thinwedge_git_utils::GitBaselineDiff;
 use thinwedge_git_utils::diff_since_latest_init;
 use thinwedge_git_utils::ensure_git_baseline_repository;
 use thinwedge_git_utils::reset_git_repository;
-use std::path::Path;
 
 /// Prepares the memory directory for git-baseline diffing.
 ///

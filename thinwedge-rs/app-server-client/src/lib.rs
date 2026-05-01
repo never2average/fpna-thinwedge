@@ -25,6 +25,7 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 use std::time::Duration;
 
+use serde::de::DeserializeOwned;
 pub use thinwedge_app_server::in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
 pub use thinwedge_app_server::in_process::InProcessServerEvent;
 use thinwedge_app_server::in_process::InProcessStartArgs;
@@ -52,7 +53,6 @@ pub use thinwedge_exec_server::EnvironmentManagerArgs;
 pub use thinwedge_exec_server::ExecServerRuntimePaths;
 use thinwedge_feedback::ThinWedgeFeedback;
 use thinwedge_protocol::protocol::SessionSource;
-use serde::de::DeserializeOwned;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
@@ -913,6 +913,9 @@ pub(crate) fn request_method_name(request: &ClientRequest) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures::SinkExt;
+    use futures::StreamExt;
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::AccountUpdatedNotification;
     use thinwedge_app_server_protocol::ConfigRequirementsReadResponse;
     use thinwedge_app_server_protocol::GetAccountResponse;
@@ -926,9 +929,6 @@ mod tests {
     use thinwedge_app_server_protocol::ToolRequestUserInputParams;
     use thinwedge_app_server_protocol::ToolRequestUserInputQuestion;
     use thinwedge_core::config::ConfigBuilder;
-    use futures::SinkExt;
-    use futures::StreamExt;
-    use pretty_assertions::assert_eq;
     use tokio::net::TcpListener;
     use tokio::time::Duration;
     use tokio::time::timeout;
@@ -1107,31 +1107,35 @@ mod tests {
     }
 
     fn item_completed_notification(text: &str) -> ServerNotification {
-        ServerNotification::ItemCompleted(thinwedge_app_server_protocol::ItemCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn_id: "turn".to_string(),
-            item: thinwedge_app_server_protocol::ThreadItem::AgentMessage {
-                id: "item".to_string(),
-                text: text.to_string(),
-                phase: None,
-                memory_citation: None,
+        ServerNotification::ItemCompleted(
+            thinwedge_app_server_protocol::ItemCompletedNotification {
+                thread_id: "thread".to_string(),
+                turn_id: "turn".to_string(),
+                item: thinwedge_app_server_protocol::ThreadItem::AgentMessage {
+                    id: "item".to_string(),
+                    text: text.to_string(),
+                    phase: None,
+                    memory_citation: None,
+                },
             },
-        })
+        )
     }
 
     fn turn_completed_notification() -> ServerNotification {
-        ServerNotification::TurnCompleted(thinwedge_app_server_protocol::TurnCompletedNotification {
-            thread_id: "thread".to_string(),
-            turn: thinwedge_app_server_protocol::Turn {
-                id: "turn".to_string(),
-                items: Vec::new(),
-                status: thinwedge_app_server_protocol::TurnStatus::Completed,
-                error: None,
-                started_at: None,
-                completed_at: Some(0),
-                duration_ms: Some(1),
+        ServerNotification::TurnCompleted(
+            thinwedge_app_server_protocol::TurnCompletedNotification {
+                thread_id: "thread".to_string(),
+                turn: thinwedge_app_server_protocol::Turn {
+                    id: "turn".to_string(),
+                    items: Vec::new(),
+                    status: thinwedge_app_server_protocol::TurnStatus::Completed,
+                    error: None,
+                    started_at: None,
+                    completed_at: Some(0),
+                    duration_ms: Some(1),
+                },
             },
-        })
+        )
     }
 
     fn test_remote_connect_args(websocket_url: String) -> RemoteAppServerConnectArgs {

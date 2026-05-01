@@ -1,11 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 use anyhow::Context;
-use thinwedge_utils_cargo_bin::find_resource;
 use core_test_support::test_thinwedge_exec::test_thinwedge_exec;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::string::ToString;
 use tempfile::TempDir;
+use thinwedge_utils_cargo_bin::find_resource;
 use uuid::Uuid;
 use walkdir::WalkDir;
 

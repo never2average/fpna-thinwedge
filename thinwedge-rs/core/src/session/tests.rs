@@ -69,6 +69,33 @@ use crate::tools::handlers::UnifiedExecHandler;
 use crate::tools::registry::ToolHandler;
 use crate::tools::router::ToolCallSource;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use core_test_support::PathBufExt;
+use core_test_support::PathExt;
+use core_test_support::context_snapshot;
+use core_test_support::context_snapshot::ContextSnapshotOptions;
+use core_test_support::context_snapshot::ContextSnapshotRenderMode;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_completed_with_tokens;
+use core_test_support::responses::ev_function_call;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::test_path_buf;
+use core_test_support::test_thinwedge::test_thinwedge;
+use core_test_support::tracing::install_test_tracing;
+use core_test_support::wait_for_event;
+use opentelemetry::trace::TraceContextExt;
+use opentelemetry::trace::TraceId;
+use opentelemetry_sdk::metrics::InMemoryMetricExporter;
+use opentelemetry_sdk::metrics::data::AggregatedMetrics;
+use opentelemetry_sdk::metrics::data::Metric;
+use opentelemetry_sdk::metrics::data::MetricData;
+use opentelemetry_sdk::metrics::data::ResourceMetrics;
+use std::path::Path;
+use std::time::Duration;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_config::config_toml::ProjectConfig;
@@ -118,45 +145,18 @@ use thinwedge_protocol::protocol::TurnCompleteEvent;
 use thinwedge_protocol::protocol::TurnStartedEvent;
 use thinwedge_protocol::protocol::UserMessageEvent;
 use thinwedge_protocol::protocol::W3cTraceContext;
-use core_test_support::PathBufExt;
-use core_test_support::PathExt;
-use core_test_support::context_snapshot;
-use core_test_support::context_snapshot::ContextSnapshotOptions;
-use core_test_support::context_snapshot::ContextSnapshotRenderMode;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_completed_with_tokens;
-use core_test_support::responses::ev_function_call;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::test_thinwedge::test_thinwedge;
-use core_test_support::test_path_buf;
-use core_test_support::tracing::install_test_tracing;
-use core_test_support::wait_for_event;
-use opentelemetry::trace::TraceContextExt;
-use opentelemetry::trace::TraceId;
-use opentelemetry_sdk::metrics::InMemoryMetricExporter;
-use opentelemetry_sdk::metrics::data::AggregatedMetrics;
-use opentelemetry_sdk::metrics::data::Metric;
-use opentelemetry_sdk::metrics::data::MetricData;
-use opentelemetry_sdk::metrics::data::ResourceMetrics;
-use std::path::Path;
-use std::time::Duration;
 use tokio::sync::Semaphore;
 use tokio::time::sleep;
 use tokio::time::timeout;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use thinwedge_protocol::mcp::CallToolResult as McpCallToolResult;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration as StdDuration;
+use thinwedge_protocol::mcp::CallToolResult as McpCallToolResult;
 
 mod guardian_tests;
 
@@ -194,8 +194,13 @@ fn assistant_message(text: &str) -> ResponseItem {
 fn test_session_telemetry_without_metadata() -> SessionTelemetry {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "thinwedge-core", env!("CARGO_PKG_VERSION"), exporter)
-            .with_runtime_reader(),
+        MetricsConfig::in_memory(
+            "test",
+            "thinwedge-core",
+            env!("CARGO_PKG_VERSION"),
+            exporter,
+        )
+        .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
     SessionTelemetry::new(
@@ -701,13 +706,14 @@ async fn managed_network_proxy_decider_survives_full_access_start() -> anyhow::R
     )?;
     let exec_policy = Policy::empty();
     let decider_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let network_policy_decider: Arc<dyn thinwedge_network_proxy::NetworkPolicyDecider> = Arc::new({
-        let decider_calls = Arc::clone(&decider_calls);
-        move |_request| {
-            decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            async { thinwedge_network_proxy::NetworkDecision::ask("not_allowed") }
-        }
-    });
+    let network_policy_decider: Arc<dyn thinwedge_network_proxy::NetworkPolicyDecider> =
+        Arc::new({
+            let decider_calls = Arc::clone(&decider_calls);
+            move |_request| {
+                decider_calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                async { thinwedge_network_proxy::NetworkDecision::ask("not_allowed") }
+            }
+        });
 
     let (started_proxy, _) = Session::start_managed_network_proxy(
         &spec,
@@ -1241,7 +1247,9 @@ fn filter_connectors_for_input_skips_disabled_connectors() {
 #[test]
 fn filter_connectors_for_input_skips_plugin_mentions() {
     let connectors = vec![make_connector("figma", "Figma")];
-    let input = vec![user_message("use [@figma](plugin://figma@thinwedge-curated)")];
+    let input = vec![user_message(
+        "use [@figma](plugin://figma@thinwedge-curated)",
+    )];
     let explicitly_enabled_connectors = HashSet::new();
     let selected = filter_connectors_for_input(
         &connectors,
@@ -1626,7 +1634,10 @@ async fn fork_startup_context_then_first_turn_diff_snapshot() -> anyhow::Result<
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
     // Forking reads the persisted rollout JSONL, so force the completed source turn to disk
     // before snapshotting from it.
     initial.thinwedge.ensure_rollout_materialized().await;
@@ -2670,7 +2681,8 @@ async fn wait_for_thread_rollback_failed(rx: &async_channel::Receiver<Event>) ->
             .expect("event");
         match evt.msg {
             EventMsg::Error(payload)
-                if payload.thinwedge_error_info == Some(ThinWedgeErrorInfo::ThreadRollbackFailed) =>
+                if payload.thinwedge_error_info
+                    == Some(ThinWedgeErrorInfo::ThreadRollbackFailed) =>
             {
                 return payload;
             }
@@ -2983,10 +2995,11 @@ async fn session_configuration_apply_permission_profile_preserves_existing_deny_
         &workspace_policy,
         session_configuration.cwd.as_path(),
     );
-    let permission_profile = thinwedge_protocol::models::PermissionProfile::from_runtime_permissions(
-        &requested_file_system_policy,
-        NetworkSandboxPolicy::Restricted,
-    );
+    let permission_profile =
+        thinwedge_protocol::models::PermissionProfile::from_runtime_permissions(
+            &requested_file_system_policy,
+            NetworkSandboxPolicy::Restricted,
+        );
     let updated = session_configuration
         .apply(&SessionSettingsUpdate {
             permission_profile: Some(permission_profile),
@@ -3275,7 +3288,8 @@ async fn session_new_fails_when_zsh_fork_enabled_without_zsh_path() {
     config.zsh_path = None;
     let config = Arc::new(config);
 
-    let auth_manager = AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
+    let auth_manager =
+        AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
         config.thinwedge_home.to_path_buf(),
         auth_manager.clone(),
@@ -3371,7 +3385,8 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
     let config = build_test_config(thinwedge_home.path()).await;
     let config = Arc::new(config);
     let conversation_id = ThreadId::default();
-    let auth_manager = AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
+    let auth_manager =
+        AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
         config.thinwedge_home.to_path_buf(),
         auth_manager.clone(),
@@ -3510,7 +3525,9 @@ pub(crate) async fn make_session_and_context() -> (Session, TurnContext) {
             Session::build_model_client_beta_features_header(config.as_ref()),
         ),
         code_mode_service: crate::tools::code_mode::CodeModeService::new(),
-        environment_manager: Arc::new(thinwedge_exec_server::EnvironmentManager::default_for_tests()),
+        environment_manager: Arc::new(
+            thinwedge_exec_server::EnvironmentManager::default_for_tests(),
+        ),
     };
 
     let plugin_outcome = services
@@ -3587,7 +3604,8 @@ async fn make_session_with_config_and_rx(
     let mut config = build_test_config(thinwedge_home.path()).await;
     mutator(&mut config);
     let config = Arc::new(config);
-    let auth_manager = AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
+    let auth_manager =
+        AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
         config.thinwedge_home.to_path_buf(),
         auth_manager.clone(),
@@ -4511,7 +4529,8 @@ async fn spawn_task_turn_span_inherits_dispatch_trace_context() {
         .expect("turn task should capture the current span trace context");
     let submission_context =
         thinwedge_otel::context_from_w3c_trace_context(&submission_trace).expect("submission");
-    let task_context = thinwedge_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
+    let task_context =
+        thinwedge_otel::context_from_w3c_trace_context(&task_trace).expect("task trace");
 
     assert_eq!(
         task_context.span().span_context().trace_id(),
@@ -4904,7 +4923,9 @@ where
             Session::build_model_client_beta_features_header(config.as_ref()),
         ),
         code_mode_service: crate::tools::code_mode::CodeModeService::new(),
-        environment_manager: Arc::new(thinwedge_exec_server::EnvironmentManager::default_for_tests()),
+        environment_manager: Arc::new(
+            thinwedge_exec_server::EnvironmentManager::default_for_tests(),
+        ),
     };
 
     let plugin_outcome = services
@@ -6955,8 +6976,11 @@ fn post_goal_token_usage() -> TokenUsage {
 
 async fn goal_test_state_db(sess: &Session) -> anyhow::Result<crate::StateDbHandle> {
     let config = sess.get_config().await;
-    thinwedge_state::StateRuntime::init(config.sqlite_home.clone(), config.model_provider_id.clone())
-        .await
+    thinwedge_state::StateRuntime::init(
+        config.sqlite_home.clone(),
+        config.model_provider_id.clone(),
+    )
+    .await
 }
 
 #[tokio::test]
@@ -7028,7 +7052,10 @@ async fn budget_limited_accounting_steers_active_turn_without_aborting() -> anyh
         .get_thread_goal(sess.conversation_id)
         .await?
         .expect("goal should remain persisted after accounting");
-    assert_eq!(thinwedge_state::ThreadGoalStatus::BudgetLimited, goal.status);
+    assert_eq!(
+        thinwedge_state::ThreadGoalStatus::BudgetLimited,
+        goal.status
+    );
     assert_eq!(25, goal.tokens_used);
 
     set_total_token_usage(
@@ -7051,7 +7078,10 @@ async fn budget_limited_accounting_steers_active_turn_without_aborting() -> anyh
         .get_thread_goal(sess.conversation_id)
         .await?
         .expect("goal should remain persisted after follow-up accounting");
-    assert_eq!(thinwedge_state::ThreadGoalStatus::BudgetLimited, goal.status);
+    assert_eq!(
+        thinwedge_state::ThreadGoalStatus::BudgetLimited,
+        goal.status
+    );
     assert_eq!(40, goal.tokens_used);
 
     sess.abort_all_tasks(TurnAbortReason::Interrupted).await;
@@ -7967,8 +7997,8 @@ async fn rejects_escalated_permissions_when_policy_not_on_request() {
     use crate::sandboxing::SandboxPermissions;
     use crate::tools::sandboxing::ExecApprovalRequirement;
     use crate::turn_diff_tracker::TurnDiffTracker;
-    use thinwedge_protocol::protocol::AskForApproval;
     use std::collections::HashMap;
+    use thinwedge_protocol::protocol::AskForApproval;
 
     let (session, mut turn_context_raw) = make_session_and_context().await;
     // Ensure policy is NOT OnRequest so the early rejection path triggers

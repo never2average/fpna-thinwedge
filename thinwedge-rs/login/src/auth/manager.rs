@@ -36,13 +36,13 @@ use crate::default_client::create_client;
 use crate::token_data::TokenData;
 use crate::token_data::parse_chatgpt_jwt_claims;
 use crate::token_data::parse_jwt_expiration;
+use serde_json::Value;
 use thinwedge_client::ThinWedgeHttpClient;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_protocol::account::PlanType as AccountPlanType;
 use thinwedge_protocol::auth::PlanType as InternalPlanType;
 use thinwedge_protocol::auth::RefreshTokenFailedError;
 use thinwedge_protocol::auth::RefreshTokenFailedReason;
-use serde_json::Value;
 use thiserror::Error;
 
 /// Authentication mechanism used by the current user.
@@ -1295,7 +1295,10 @@ impl Debug for AuthManager {
         f.debug_struct("AuthManager")
             .field("thinwedge_home", &self.thinwedge_home)
             .field("inner", &self.inner)
-            .field("enable_thinwedge_api_key_env", &self.enable_thinwedge_api_key_env)
+            .field(
+                "enable_thinwedge_api_key_env",
+                &self.enable_thinwedge_api_key_env,
+            )
             .field(
                 "auth_credentials_store_mode",
                 &self.auth_credentials_store_mode,
@@ -1365,7 +1368,10 @@ impl AuthManager {
     }
 
     /// Create an AuthManager with a specific ThinWedgeAuth and thinwedge home, for testing only.
-    pub fn from_auth_for_testing_with_home(auth: ThinWedgeAuth, thinwedge_home: PathBuf) -> Arc<Self> {
+    pub fn from_auth_for_testing_with_home(
+        auth: ThinWedgeAuth,
+        thinwedge_home: PathBuf,
+    ) -> Arc<Self> {
         let cached = CachedAuth {
             auth: Some(auth),
             permanent_refresh_failure: None,
@@ -1405,7 +1411,10 @@ impl AuthManager {
         self.inner.read().ok().and_then(|c| c.auth.clone())
     }
 
-    pub fn refresh_failure_for_auth(&self, auth: &ThinWedgeAuth) -> Option<RefreshTokenFailedError> {
+    pub fn refresh_failure_for_auth(
+        &self,
+        auth: &ThinWedgeAuth,
+    ) -> Option<RefreshTokenFailedError> {
         self.inner.read().ok().and_then(|cached| {
             cached
                 .permanent_refresh_failure
@@ -1783,7 +1792,9 @@ impl AuthManager {
         if self.has_external_api_key_auth() {
             return Some(ApiAuthMode::ApiKey);
         }
-        self.auth_cached().as_ref().map(ThinWedgeAuth::api_auth_mode)
+        self.auth_cached()
+            .as_ref()
+            .map(ThinWedgeAuth::api_auth_mode)
     }
 
     pub fn auth_mode(&self) -> Option<AuthMode> {

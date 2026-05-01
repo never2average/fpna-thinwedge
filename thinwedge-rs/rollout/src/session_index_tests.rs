@@ -1,15 +1,15 @@
 #![allow(warnings, clippy::all)]
 
 use super::*;
+use pretty_assertions::assert_eq;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use tempfile::TempDir;
 use thinwedge_protocol::protocol::RolloutItem;
 use thinwedge_protocol::protocol::RolloutLine;
 use thinwedge_protocol::protocol::SessionMeta;
 use thinwedge_protocol::protocol::SessionMetaLine;
 use thinwedge_protocol::protocol::SessionSource;
-use pretty_assertions::assert_eq;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use tempfile::TempDir;
 fn write_index(path: &Path, lines: &[SessionIndexEntry]) -> std::io::Result<()> {
     let mut out = String::new();
     for entry in lines {

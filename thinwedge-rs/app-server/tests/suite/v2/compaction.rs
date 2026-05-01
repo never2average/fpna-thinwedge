@@ -13,6 +13,11 @@ use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use app_test_support::write_mock_responses_config_toml;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::ItemCompletedNotification;
 use thinwedge_app_server_protocol::ItemStartedNotification;
 use thinwedge_app_server_protocol::JSONRPCError;
@@ -31,11 +36,6 @@ use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 // macOS and Windows Bazel CI can spend tens of seconds starting app-server
@@ -162,7 +162,8 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;

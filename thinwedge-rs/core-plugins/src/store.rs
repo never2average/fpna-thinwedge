@@ -1,15 +1,15 @@
 use crate::manifest::PluginManifest;
 use crate::manifest::load_plugin_manifest;
-use thinwedge_plugin::PluginId;
-use thinwedge_plugin::validate_plugin_segment;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_plugins::find_plugin_manifest_path;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_plugin::PluginId;
+use thinwedge_plugin::validate_plugin_segment;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_plugins::find_plugin_manifest_path;
 
 pub const DEFAULT_PLUGIN_VERSION: &str = "local";
 pub const PLUGINS_CACHE_DIR: &str = "plugins/cache";
@@ -35,8 +35,9 @@ impl PluginStore {
     }
 
     pub fn try_new(thinwedge_home: PathBuf) -> Result<Self, PluginStoreError> {
-        let root = AbsolutePathBuf::from_absolute_path_checked(thinwedge_home.join(PLUGINS_CACHE_DIR))
-            .map_err(|err| PluginStoreError::io("failed to resolve plugin cache root", err))?;
+        let root =
+            AbsolutePathBuf::from_absolute_path_checked(thinwedge_home.join(PLUGINS_CACHE_DIR))
+                .map_err(|err| PluginStoreError::io("failed to resolve plugin cache root", err))?;
         let data_root =
             AbsolutePathBuf::from_absolute_path_checked(thinwedge_home.join(PLUGINS_DATA_DIR))
                 .map_err(|err| PluginStoreError::io("failed to resolve plugin data root", err))?;

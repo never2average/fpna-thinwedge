@@ -1,10 +1,10 @@
 use super::*;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::hook_names::HookToolName;
-use thinwedge_protocol::protocol::GranularApprovalConfig;
-use thinwedge_protocol::protocol::NetworkAccess;
 use pretty_assertions::assert_eq;
 use serde_json::json;
+use thinwedge_protocol::protocol::GranularApprovalConfig;
+use thinwedge_protocol::protocol::NetworkAccess;
 
 #[test]
 fn bash_permission_request_payload_omits_missing_description() {

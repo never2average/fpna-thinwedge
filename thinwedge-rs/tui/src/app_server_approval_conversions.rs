@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::AdditionalNetworkPermissions;
 use thinwedge_app_server_protocol::FileUpdateChange;
 use thinwedge_app_server_protocol::GrantedPermissionProfile;
@@ -7,8 +9,6 @@ use thinwedge_protocol::protocol::FileChange;
 use thinwedge_protocol::protocol::NetworkApprovalContext;
 use thinwedge_protocol::protocol::NetworkApprovalProtocol;
 use thinwedge_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 pub(crate) fn network_approval_context_to_core(
     value: AppServerNetworkApprovalContext,
@@ -72,6 +72,9 @@ mod tests {
     use super::file_update_changes_to_core;
     use super::granted_permission_profile_from_request;
     use super::network_approval_context_to_core;
+    use pretty_assertions::assert_eq;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
     use thinwedge_app_server_protocol::FileUpdateChange;
     use thinwedge_app_server_protocol::PatchChangeKind;
     use thinwedge_protocol::models::FileSystemPermissions;
@@ -85,9 +88,6 @@ mod tests {
     use thinwedge_protocol::protocol::NetworkApprovalProtocol;
     use thinwedge_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
-    use std::collections::HashMap;
-    use std::path::PathBuf;
 
     fn absolute_path(path: &str) -> AbsolutePathBuf {
         AbsolutePathBuf::try_from(PathBuf::from(path)).expect("path must be absolute")
@@ -96,10 +96,12 @@ mod tests {
     #[test]
     fn converts_app_server_network_approval_context_to_core() {
         assert_eq!(
-            network_approval_context_to_core(thinwedge_app_server_protocol::NetworkApprovalContext {
-                host: "example.com".to_string(),
-                protocol: thinwedge_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
-            }),
+            network_approval_context_to_core(
+                thinwedge_app_server_protocol::NetworkApprovalContext {
+                    host: "example.com".to_string(),
+                    protocol: thinwedge_app_server_protocol::NetworkApprovalProtocol::Socks5Tcp,
+                }
+            ),
             NetworkApprovalContext {
                 host: "example.com".to_string(),
                 protocol: NetworkApprovalProtocol::Socks5Tcp,
@@ -137,28 +139,32 @@ mod tests {
                 )),
             }),
             thinwedge_app_server_protocol::GrantedPermissionProfile {
-                network: Some(thinwedge_app_server_protocol::AdditionalNetworkPermissions {
-                    enabled: Some(true),
-                }),
-                file_system: Some(thinwedge_app_server_protocol::AdditionalFileSystemPermissions {
-                    read: Some(vec![absolute_path("/tmp/read-only")]),
-                    write: Some(vec![absolute_path("/tmp/write")]),
-                    glob_scan_max_depth: None,
-                    entries: Some(vec![
-                        thinwedge_app_server_protocol::FileSystemSandboxEntry {
-                            path: thinwedge_app_server_protocol::FileSystemPath::Path {
-                                path: absolute_path("/tmp/read-only"),
+                network: Some(
+                    thinwedge_app_server_protocol::AdditionalNetworkPermissions {
+                        enabled: Some(true),
+                    }
+                ),
+                file_system: Some(
+                    thinwedge_app_server_protocol::AdditionalFileSystemPermissions {
+                        read: Some(vec![absolute_path("/tmp/read-only")]),
+                        write: Some(vec![absolute_path("/tmp/write")]),
+                        glob_scan_max_depth: None,
+                        entries: Some(vec![
+                            thinwedge_app_server_protocol::FileSystemSandboxEntry {
+                                path: thinwedge_app_server_protocol::FileSystemPath::Path {
+                                    path: absolute_path("/tmp/read-only"),
+                                },
+                                access: thinwedge_app_server_protocol::FileSystemAccessMode::Read,
                             },
-                            access: thinwedge_app_server_protocol::FileSystemAccessMode::Read,
-                        },
-                        thinwedge_app_server_protocol::FileSystemSandboxEntry {
-                            path: thinwedge_app_server_protocol::FileSystemPath::Path {
-                                path: absolute_path("/tmp/write"),
+                            thinwedge_app_server_protocol::FileSystemSandboxEntry {
+                                path: thinwedge_app_server_protocol::FileSystemPath::Path {
+                                    path: absolute_path("/tmp/write"),
+                                },
+                                access: thinwedge_app_server_protocol::FileSystemAccessMode::Write,
                             },
-                            access: thinwedge_app_server_protocol::FileSystemAccessMode::Write,
-                        },
-                    ]),
-                }),
+                        ]),
+                    }
+                ),
             }
         );
     }
@@ -180,17 +186,22 @@ mod tests {
             }),
             thinwedge_app_server_protocol::GrantedPermissionProfile {
                 network: None,
-                file_system: Some(thinwedge_app_server_protocol::AdditionalFileSystemPermissions {
-                    read: None,
-                    write: None,
-                    glob_scan_max_depth: None,
-                    entries: Some(vec![thinwedge_app_server_protocol::FileSystemSandboxEntry {
-                        path: thinwedge_app_server_protocol::FileSystemPath::Special {
-                            value: thinwedge_app_server_protocol::FileSystemSpecialPath::Root,
-                        },
-                        access: thinwedge_app_server_protocol::FileSystemAccessMode::Write,
-                    },]),
-                }),
+                file_system: Some(
+                    thinwedge_app_server_protocol::AdditionalFileSystemPermissions {
+                        read: None,
+                        write: None,
+                        glob_scan_max_depth: None,
+                        entries: Some(vec![
+                            thinwedge_app_server_protocol::FileSystemSandboxEntry {
+                                path: thinwedge_app_server_protocol::FileSystemPath::Special {
+                                    value:
+                                        thinwedge_app_server_protocol::FileSystemSpecialPath::Root,
+                                },
+                                access: thinwedge_app_server_protocol::FileSystemAccessMode::Write,
+                            },
+                        ]),
+                    }
+                ),
             }
         );
     }

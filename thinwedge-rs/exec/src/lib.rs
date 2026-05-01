@@ -13,6 +13,50 @@ pub(crate) mod exec_events;
 pub use cli::Cli;
 pub use cli::Command;
 pub use cli::ReviewArgs;
+use event_processor_with_human_output::EventProcessorWithHumanOutput;
+pub use event_processor_with_jsonl_output::CollectedThreadEvents;
+pub use event_processor_with_jsonl_output::EventProcessorWithJsonOutput;
+pub use event_processor_with_jsonl_output::ThinWedgeStatus;
+pub use exec_events::AgentMessageItem;
+pub use exec_events::CollabAgentState;
+pub use exec_events::CollabAgentStatus;
+pub use exec_events::CollabTool;
+pub use exec_events::CollabToolCallItem;
+pub use exec_events::CollabToolCallStatus;
+pub use exec_events::CommandExecutionItem;
+pub use exec_events::CommandExecutionStatus;
+pub use exec_events::ErrorItem;
+pub use exec_events::FileChangeItem;
+pub use exec_events::FileUpdateChange;
+pub use exec_events::ItemCompletedEvent;
+pub use exec_events::ItemStartedEvent;
+pub use exec_events::ItemUpdatedEvent;
+pub use exec_events::McpToolCallItem;
+pub use exec_events::McpToolCallItemError;
+pub use exec_events::McpToolCallItemResult;
+pub use exec_events::McpToolCallStatus;
+pub use exec_events::PatchApplyStatus;
+pub use exec_events::PatchChangeKind;
+pub use exec_events::ReasoningItem;
+pub use exec_events::ThreadErrorEvent;
+pub use exec_events::ThreadEvent;
+pub use exec_events::ThreadItem as ExecThreadItem;
+pub use exec_events::ThreadItemDetails;
+pub use exec_events::ThreadStartedEvent;
+pub use exec_events::TodoItem;
+pub use exec_events::TodoListItem;
+pub use exec_events::TurnCompletedEvent;
+pub use exec_events::TurnFailedEvent;
+pub use exec_events::TurnStartedEvent;
+pub use exec_events::Usage;
+pub use exec_events::WebSearchItem;
+use serde_json::Value;
+use std::collections::HashMap;
+use std::io::IsTerminal;
+use std::io::Read;
+use std::path::Path;
+use std::path::PathBuf;
+use supports_color::Stream;
 use thinwedge_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
 use thinwedge_app_server_client::EnvironmentManager;
 use thinwedge_app_server_client::EnvironmentManagerArgs;
@@ -91,50 +135,6 @@ use thinwedge_utils_absolute_path::canonicalize_existing_preserving_symlinks;
 use thinwedge_utils_cli::SharedCliOptions;
 use thinwedge_utils_oss::ensure_oss_provider_ready;
 use thinwedge_utils_oss::get_default_model_for_oss_provider;
-use event_processor_with_human_output::EventProcessorWithHumanOutput;
-pub use event_processor_with_jsonl_output::ThinWedgeStatus;
-pub use event_processor_with_jsonl_output::CollectedThreadEvents;
-pub use event_processor_with_jsonl_output::EventProcessorWithJsonOutput;
-pub use exec_events::AgentMessageItem;
-pub use exec_events::CollabAgentState;
-pub use exec_events::CollabAgentStatus;
-pub use exec_events::CollabTool;
-pub use exec_events::CollabToolCallItem;
-pub use exec_events::CollabToolCallStatus;
-pub use exec_events::CommandExecutionItem;
-pub use exec_events::CommandExecutionStatus;
-pub use exec_events::ErrorItem;
-pub use exec_events::FileChangeItem;
-pub use exec_events::FileUpdateChange;
-pub use exec_events::ItemCompletedEvent;
-pub use exec_events::ItemStartedEvent;
-pub use exec_events::ItemUpdatedEvent;
-pub use exec_events::McpToolCallItem;
-pub use exec_events::McpToolCallItemError;
-pub use exec_events::McpToolCallItemResult;
-pub use exec_events::McpToolCallStatus;
-pub use exec_events::PatchApplyStatus;
-pub use exec_events::PatchChangeKind;
-pub use exec_events::ReasoningItem;
-pub use exec_events::ThreadErrorEvent;
-pub use exec_events::ThreadEvent;
-pub use exec_events::ThreadItem as ExecThreadItem;
-pub use exec_events::ThreadItemDetails;
-pub use exec_events::ThreadStartedEvent;
-pub use exec_events::TodoItem;
-pub use exec_events::TodoListItem;
-pub use exec_events::TurnCompletedEvent;
-pub use exec_events::TurnFailedEvent;
-pub use exec_events::TurnStartedEvent;
-pub use exec_events::Usage;
-pub use exec_events::WebSearchItem;
-use serde_json::Value;
-use std::collections::HashMap;
-use std::io::IsTerminal;
-use std::io::Read;
-use std::path::Path;
-use std::path::PathBuf;
-use supports_color::Stream;
 use tokio::sync::mpsc;
 use tracing::Instrument;
 use tracing::error;
@@ -222,7 +222,10 @@ pub async fn run_main(cli: Cli, arg0_paths: Arg0DispatchPaths) -> anyhow::Result
     }
 
     if let Err(err) = set_default_originator("thinwedge_exec".to_string()) {
-        tracing::warn!(?err, "Failed to set thinwedge exec originator override {err:?}");
+        tracing::warn!(
+            ?err,
+            "Failed to set thinwedge exec originator override {err:?}"
+        );
     }
 
     let Cli {
@@ -724,8 +727,9 @@ async fn run_exec_session(args: ExecRunArgs) -> anyhow::Result<()> {
     // is using.
     event_processor.print_config_summary(&config, &prompt_summary, &session_configured);
     if !json_mode
-        && let Some(message) =
-            thinwedge_core::config::system_bwrap_warning(config.permissions.permission_profile.get())
+        && let Some(message) = thinwedge_core::config::system_bwrap_warning(
+            config.permissions.permission_profile.get(),
+        )
     {
         event_processor.process_warning(message);
     }
@@ -1402,11 +1406,14 @@ async fn reject_server_request(
     reason: String,
 ) -> Result<(), String> {
     client
-        .reject_server_request(request_id, JSONRPCErrorError {
-            code: -32000,
-            message: reason,
-            data: None,
-        })
+        .reject_server_request(
+            request_id,
+            JSONRPCErrorError {
+                code: -32000,
+                message: reason,
+                data: None,
+            },
+        )
         .await
         .map_err(|err| format!("failed to reject `{method}` server request: {err}"))
 }

@@ -3,8 +3,8 @@ mod infra;
 #[path = "cost_context_llm.rs"]
 mod llm;
 
-use thinwedge_app_server_protocol::DynamicToolSpec;
 use serde_json::Value as JsonValue;
+use thinwedge_app_server_protocol::DynamicToolSpec;
 
 pub(super) fn dynamic_tool_specs() -> Vec<DynamicToolSpec> {
     let mut specs = llm::dynamic_tool_specs();

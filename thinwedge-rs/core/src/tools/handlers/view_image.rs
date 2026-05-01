@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
 use thinwedge_protocol::models::FunctionCallOutputBody;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
@@ -7,7 +8,6 @@ use thinwedge_protocol::models::ResponseInputItem;
 use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_utils_image::PromptImageMode;
 use thinwedge_utils_image::load_for_prompt_bytes;
-use serde::Deserialize;
 
 use crate::function_tool::FunctionCallError;
 use crate::original_image_detail::can_request_original_image_detail;

@@ -5,11 +5,11 @@ use std::process::Output;
 use std::process::Stdio;
 use std::time::Duration;
 
-use thinwedge_otel::CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC;
-use thinwedge_otel::CURATED_PLUGINS_STARTUP_SYNC_METRIC;
 use reqwest::Client;
 use serde::Deserialize;
 use tempfile::TempDir;
+use thinwedge_otel::CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC;
+use thinwedge_otel::CURATED_PLUGINS_STARTUP_SYNC_METRIC;
 use tracing::warn;
 use zip::ZipArchive;
 
@@ -135,7 +135,10 @@ fn sync_thinwedge_plugins_repo_with_transport_overrides(
     }
 }
 
-fn sync_thinwedge_plugins_repo_via_git(thinwedge_home: &Path, git_binary: &str) -> Result<String, String> {
+fn sync_thinwedge_plugins_repo_via_git(
+    thinwedge_home: &Path,
+    git_binary: &str,
+) -> Result<String, String> {
     let repo_path = curated_plugins_repo_path(thinwedge_home);
     let sha_path = thinwedge_home.join(CURATED_PLUGINS_SHA_FILE);
     let remote_sha = git_ls_remote_head_sha(git_binary)?;
@@ -589,7 +592,8 @@ fn ensure_git_success(output: &Output, context: &str) -> Result<(), String> {
 
 async fn fetch_curated_repo_remote_sha(api_base_url: &str) -> Result<String, String> {
     let api_base_url = api_base_url.trim_end_matches('/');
-    let repo_url = format!("{api_base_url}/repos/{THINWEDGE_PLUGINS_OWNER}/{THINWEDGE_PLUGINS_REPO}");
+    let repo_url =
+        format!("{api_base_url}/repos/{THINWEDGE_PLUGINS_OWNER}/{THINWEDGE_PLUGINS_REPO}");
     let client = build_reqwest_client();
     let repo_body = fetch_github_text(&client, &repo_url, "get curated plugins repository").await?;
     let repo_summary: GitHubRepositorySummary =
@@ -622,7 +626,8 @@ async fn fetch_curated_repo_zipball(
     remote_sha: &str,
 ) -> Result<Vec<u8>, String> {
     let api_base_url = api_base_url.trim_end_matches('/');
-    let repo_url = format!("{api_base_url}/repos/{THINWEDGE_PLUGINS_OWNER}/{THINWEDGE_PLUGINS_REPO}");
+    let repo_url =
+        format!("{api_base_url}/repos/{THINWEDGE_PLUGINS_OWNER}/{THINWEDGE_PLUGINS_REPO}");
     let zipball_url = format!("{repo_url}/zipball/{remote_sha}");
     let client = build_reqwest_client();
     fetch_github_bytes(&client, &zipball_url, "download curated plugins archive").await

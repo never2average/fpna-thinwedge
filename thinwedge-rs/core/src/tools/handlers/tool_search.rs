@@ -9,11 +9,11 @@ use bm25::Document;
 use bm25::Language;
 use bm25::SearchEngine;
 use bm25::SearchEngineBuilder;
+use std::collections::HashMap;
 use thinwedge_tools::LoadableToolSpec;
 use thinwedge_tools::TOOL_SEARCH_DEFAULT_LIMIT;
 use thinwedge_tools::TOOL_SEARCH_TOOL_NAME;
 use thinwedge_tools::coalesce_loadable_tool_specs;
-use std::collections::HashMap;
 
 const COMPUTER_USE_MCP_SERVER_NAME: &str = "computer-use";
 const COMPUTER_USE_TOOL_SEARCH_LIMIT: usize = 20;
@@ -174,14 +174,14 @@ fn default_limit_for_bucket(bucket: &str) -> usize {
 mod tests {
     use super::*;
     use crate::tools::tool_search_entry::build_tool_search_entries;
+    use pretty_assertions::assert_eq;
+    use rmcp::model::Tool;
+    use std::sync::Arc;
     use thinwedge_mcp::ToolInfo;
     use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
     use thinwedge_tools::ResponsesApiNamespace;
     use thinwedge_tools::ResponsesApiNamespaceTool;
     use thinwedge_tools::ResponsesApiTool;
-    use pretty_assertions::assert_eq;
-    use rmcp::model::Tool;
-    use std::sync::Arc;
 
     #[test]
     fn mixed_search_results_coalesce_mcp_namespaces() {

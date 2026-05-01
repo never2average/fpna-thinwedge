@@ -1,10 +1,10 @@
 use super::*;
+use pretty_assertions::assert_eq;
+use serde_json::json;
 use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::ImageDetail;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
-use pretty_assertions::assert_eq;
-use serde_json::json;
 
 fn model_info() -> ModelInfo {
     serde_json::from_value(json!({

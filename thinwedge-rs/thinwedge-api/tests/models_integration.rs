@@ -1,3 +1,6 @@
+use http::HeaderMap;
+use http::Method;
+use std::sync::Arc;
 use thinwedge_api::AuthProvider;
 use thinwedge_api::ModelsClient;
 use thinwedge_api::Provider;
@@ -12,9 +15,6 @@ use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
 use thinwedge_protocol::thinwedge_models::default_input_modalities;
-use http::HeaderMap;
-use http::Method;
-use std::sync::Arc;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;

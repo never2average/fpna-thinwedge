@@ -1,4 +1,6 @@
 use crate::model::ThreadMetadata;
+use serde::Serialize;
+use serde_json::Value;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -6,8 +8,6 @@ use thinwedge_protocol::protocol::SessionMetaLine;
 use thinwedge_protocol::protocol::TurnContextItem;
 use thinwedge_protocol::protocol::USER_MESSAGE_BEGIN;
 use thinwedge_protocol::protocol::UserMessageEvent;
-use serde::Serialize;
-use serde_json::Value;
 
 const IMAGE_ONLY_USER_MESSAGE_PLACEHOLDER: &str = "[Image]";
 
@@ -151,7 +151,6 @@ mod tests {
     use thinwedge_protocol::config_types::ReasoningSummary;
     use thinwedge_protocol::models::ContentItem;
     use thinwedge_protocol::models::ResponseItem;
-    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use thinwedge_protocol::protocol::AskForApproval;
     use thinwedge_protocol::protocol::EventMsg;
     use thinwedge_protocol::protocol::RolloutItem;
@@ -163,6 +162,7 @@ mod tests {
     use thinwedge_protocol::protocol::TurnContextItem;
     use thinwedge_protocol::protocol::USER_MESSAGE_BEGIN;
     use thinwedge_protocol::protocol::UserMessageEvent;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;

@@ -9,7 +9,8 @@ pub const WEBSOCKET_REQUEST_COUNT_METRIC: &str = "thinwedge.websocket.request";
 pub const WEBSOCKET_REQUEST_DURATION_METRIC: &str = "thinwedge.websocket.request.duration_ms";
 pub const WEBSOCKET_EVENT_COUNT_METRIC: &str = "thinwedge.websocket.event";
 pub const WEBSOCKET_EVENT_DURATION_METRIC: &str = "thinwedge.websocket.event.duration_ms";
-pub const RESPONSES_API_OVERHEAD_DURATION_METRIC: &str = "thinwedge.responses_api_overhead.duration_ms";
+pub const RESPONSES_API_OVERHEAD_DURATION_METRIC: &str =
+    "thinwedge.responses_api_overhead.duration_ms";
 pub const RESPONSES_API_INFERENCE_TIME_DURATION_METRIC: &str =
     "thinwedge.responses_api_inference_time.duration_ms";
 pub const RESPONSES_API_ENGINE_IAPI_TTFT_DURATION_METRIC: &str =

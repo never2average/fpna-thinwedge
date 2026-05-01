@@ -52,11 +52,11 @@ use thinwedge_protocol::protocol::TurnCompleteEvent;
 use thinwedge_protocol::protocol::WarningEvent;
 use thinwedge_protocol::user_input::UserInput;
 
-use thinwedge_features::Feature;
-use thinwedge_protocol::models::ContentItem;
 pub(crate) use compact::CompactTask;
 pub(crate) use regular::RegularTask;
 pub(crate) use review::ReviewTask;
+use thinwedge_features::Feature;
+use thinwedge_protocol::models::ContentItem;
 pub(crate) use undo::UndoTask;
 pub(crate) use user_shell::UserShellCommandMode;
 pub(crate) use user_shell::UserShellCommandTask;

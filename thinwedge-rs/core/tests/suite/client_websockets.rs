@@ -1,4 +1,23 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
+use core_test_support::load_default_config_for_test;
+use core_test_support::responses::WebSocketConnectionConfig;
+use core_test_support::responses::WebSocketTestServer;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::start_websocket_server;
+use core_test_support::responses::start_websocket_server_with_headers;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_thinwedge::test_thinwedge;
+use core_test_support::tracing::install_test_tracing;
+use core_test_support::wait_for_event;
+use futures::StreamExt;
+use opentelemetry_sdk::metrics::InMemoryMetricExporter;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::sync::Arc;
+use std::time::Duration;
+use tempfile::TempDir;
 use thinwedge_api::WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY;
 use thinwedge_api::WS_REQUEST_HEADER_TRACESTATE_CLIENT_METADATA_KEY;
 use thinwedge_core::ModelClient;
@@ -22,32 +41,13 @@ use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::W3cTraceContext;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::user_input::UserInput;
-use core_test_support::load_default_config_for_test;
-use core_test_support::responses::WebSocketConnectionConfig;
-use core_test_support::responses::WebSocketTestServer;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::start_websocket_server;
-use core_test_support::responses::start_websocket_server_with_headers;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_thinwedge::test_thinwedge;
-use core_test_support::tracing::install_test_tracing;
-use core_test_support::wait_for_event;
-use futures::StreamExt;
-use opentelemetry_sdk::metrics::InMemoryMetricExporter;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::sync::Arc;
-use std::time::Duration;
-use tempfile::TempDir;
 use tracing::Instrument;
 use tracing_test::traced_test;
 
@@ -1031,8 +1031,10 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         .await
         .expect("submission should succeed while emitting usage limit error events");
 
-    let token_event =
-        wait_for_event(&test.thinwedge, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
+    let token_event = wait_for_event(&test.thinwedge, |msg| {
+        matches!(msg, EventMsg::TokenCount(_))
+    })
+    .await;
     let EventMsg::TokenCount(event) = token_event else {
         unreachable!();
     };
@@ -1062,7 +1064,8 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
         })
     );
 
-    let error_event = wait_for_event(&test.thinwedge, |msg| matches!(msg, EventMsg::Error(_))).await;
+    let error_event =
+        wait_for_event(&test.thinwedge, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
         unreachable!();
     };
@@ -1119,7 +1122,8 @@ async fn responses_websocket_invalid_request_error_with_status_is_forwarded() {
         .await
         .expect("submission should succeed while emitting invalid request events");
 
-    let error_event = wait_for_event(&test.thinwedge, |msg| matches!(msg, EventMsg::Error(_))).await;
+    let error_event =
+        wait_for_event(&test.thinwedge, |msg| matches!(msg, EventMsg::Error(_))).await;
     let EventMsg::Error(error_event) = error_event else {
         unreachable!();
     };
@@ -1828,12 +1832,18 @@ async fn websocket_harness_with_provider_options(
     let config = Arc::new(config);
     let model_info = thinwedge_core::test_support::construct_model_info_offline(MODEL, &config);
     let conversation_id = ThreadId::new();
-    let auth_manager =
-        thinwedge_core::test_support::auth_manager_from_auth(ThinWedgeAuth::from_api_key("Test API Key"));
+    let auth_manager = thinwedge_core::test_support::auth_manager_from_auth(
+        ThinWedgeAuth::from_api_key("Test API Key"),
+    );
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "thinwedge-core", env!("CARGO_PKG_VERSION"), exporter)
-            .with_runtime_reader(),
+        MetricsConfig::in_memory(
+            "test",
+            "thinwedge-core",
+            env!("CARGO_PKG_VERSION"),
+            exporter,
+        )
+        .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
     let session_telemetry = SessionTelemetry::new(

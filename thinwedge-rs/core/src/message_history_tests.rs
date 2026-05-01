@@ -1,10 +1,10 @@
 use super::*;
 use crate::config::ConfigBuilder;
-use thinwedge_protocol::ThreadId;
 use pretty_assertions::assert_eq;
 use std::fs::File;
 use std::io::Write;
 use tempfile::TempDir;
+use thinwedge_protocol::ThreadId;
 
 #[tokio::test]
 async fn lookup_reads_history_entries() {

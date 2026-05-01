@@ -1,9 +1,9 @@
 use crate::windows_sandbox::run_setup_refresh_with_extra_read_roots;
 use anyhow::Result;
-use thinwedge_protocol::protocol::SandboxPolicy;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_protocol::protocol::SandboxPolicy;
 
 pub fn grant_read_root_non_elevated(
     policy: &SandboxPolicy,

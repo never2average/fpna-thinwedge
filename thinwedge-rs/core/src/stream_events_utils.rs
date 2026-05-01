@@ -16,10 +16,11 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::parallel::ToolCallRuntime;
 use crate::tools::router::ToolRouter;
+use futures::Future;
 use thinwedge_memories_read::citations::parse_memory_citation;
 use thinwedge_memories_read::citations::thread_ids_from_memory_citation;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::models::FunctionCallOutputBody;
 use thinwedge_protocol::models::FunctionCallOutputPayload;
 use thinwedge_protocol::models::MessagePhase;
@@ -28,7 +29,6 @@ use thinwedge_protocol::models::ResponseItem;
 use thinwedge_rollout::state_db;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_stream_parser::strip_proposed_plan_blocks;
-use futures::Future;
 use tracing::debug;
 use tracing::instrument;
 
@@ -364,7 +364,9 @@ pub(crate) async fn handle_non_tool_response_item(
                     .content
                     .iter()
                     .map(|entry| match entry {
-                        thinwedge_protocol::items::AgentMessageContent::Text { text } => text.as_str(),
+                        thinwedge_protocol::items::AgentMessageContent::Text { text } => {
+                            text.as_str()
+                        }
                     })
                     .collect::<String>();
                 let (stripped, memory_citation) =

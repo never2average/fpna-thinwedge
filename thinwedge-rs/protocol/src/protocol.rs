@@ -42,20 +42,20 @@ use crate::models::ResponseItem;
 use crate::models::SandboxEnforcement;
 use crate::models::WebSearchAction;
 use crate::num_format::format_with_separators;
-use crate::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use crate::parse_command::ParsedCommand;
 use crate::plan_tool::UpdatePlanArgs;
 use crate::request_permissions::RequestPermissionsEvent;
 use crate::request_permissions::RequestPermissionsResponse;
 use crate::request_user_input::RequestUserInputResponse;
+use crate::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use crate::user_input::UserInput;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use serde_with::serde_as;
 use strum_macros::Display;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tracing::error;
 use ts_rs::TS;
 
@@ -2898,10 +2898,10 @@ impl From<crate::thinwedge_models::TruncationPolicyConfig> for TruncationPolicy 
 impl TruncationPolicy {
     pub fn token_budget(&self) -> usize {
         match self {
-            TruncationPolicy::Bytes(bytes) => {
-                usize::try_from(thinwedge_utils_string::approx_tokens_from_byte_count(*bytes))
-                    .unwrap_or(usize::MAX)
-            }
+            TruncationPolicy::Bytes(bytes) => usize::try_from(
+                thinwedge_utils_string::approx_tokens_from_byte_count(*bytes),
+            )
+            .unwrap_or(usize::MAX),
             TruncationPolicy::Tokens(tokens) => *tokens,
         }
     }
@@ -3966,14 +3966,14 @@ mod tests {
     use crate::permissions::FileSystemSpecialPath;
     use crate::permissions::NetworkSandboxPolicy;
     use anyhow::Result;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use thinwedge_utils_absolute_path::test_support::PathBufExt;
-    use thinwedge_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::path::PathBuf;
     use tempfile::NamedTempFile;
     use tempfile::TempDir;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
+    use thinwedge_utils_absolute_path::test_support::PathBufExt;
+    use thinwedge_utils_absolute_path::test_support::test_path_buf;
 
     fn sorted_writable_roots(roots: Vec<WritableRoot>) -> Vec<(PathBuf, Vec<PathBuf>)> {
         let mut sorted_roots: Vec<(PathBuf, Vec<PathBuf>)> = roots
@@ -4325,8 +4325,9 @@ mod tests {
     #[test]
     fn restricted_file_system_policy_treats_root_with_carveouts_as_scoped_access() {
         let cwd = TempDir::new().expect("tempdir");
-        let canonical_cwd = thinwedge_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            thinwedge_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let root = AbsolutePathBuf::from_absolute_path(&canonical_cwd)
             .expect("absolute canonical tempdir")
             .as_path()
@@ -4381,8 +4382,9 @@ mod tests {
         let cwd = TempDir::new().expect("tempdir");
         std::fs::create_dir_all(cwd.path().join(".agents")).expect("create .agents");
         std::fs::create_dir_all(cwd.path().join(".thinwedge")).expect("create .thinwedge");
-        let canonical_cwd = thinwedge_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            thinwedge_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let cwd_absolute =
             AbsolutePathBuf::from_absolute_path(&canonical_cwd).expect("absolute tempdir");
         let secret = AbsolutePathBuf::resolve_path_against_base("secret", cwd.path());
@@ -4390,8 +4392,9 @@ mod tests {
             .expect("canonical secret");
         let expected_agents = AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".agents"))
             .expect("canonical .agents");
-        let expected_thinwedge = AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".thinwedge"))
-            .expect("canonical .thinwedge");
+        let expected_thinwedge =
+            AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".thinwedge"))
+                .expect("canonical .thinwedge");
         let policy = FileSystemSandboxPolicy::restricted(vec![
             FileSystemSandboxEntry {
                 path: FileSystemPath::Special {
@@ -4449,8 +4452,9 @@ mod tests {
     #[test]
     fn restricted_file_system_policy_treats_read_entries_as_read_only_subpaths() {
         let cwd = TempDir::new().expect("tempdir");
-        let canonical_cwd = thinwedge_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
-            .expect("canonicalize cwd");
+        let canonical_cwd =
+            thinwedge_utils_absolute_path::canonicalize_preserving_symlinks(cwd.path())
+                .expect("canonicalize cwd");
         let docs = AbsolutePathBuf::resolve_path_against_base("docs", cwd.path());
         let docs_public = AbsolutePathBuf::resolve_path_against_base("docs/public", cwd.path());
         let expected_docs = AbsolutePathBuf::from_absolute_path(canonical_cwd.join("docs"))
@@ -4458,8 +4462,9 @@ mod tests {
         let expected_docs_public =
             AbsolutePathBuf::from_absolute_path(canonical_cwd.join("docs/public"))
                 .expect("canonical docs/public");
-        let expected_dot_thinwedge = AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".thinwedge"))
-            .expect("canonical .thinwedge");
+        let expected_dot_thinwedge =
+            AbsolutePathBuf::from_absolute_path(canonical_cwd.join(".thinwedge"))
+                .expect("canonical .thinwedge");
         let policy = FileSystemSandboxPolicy::restricted(vec![
             FileSystemSandboxEntry {
                 path: FileSystemPath::Special {

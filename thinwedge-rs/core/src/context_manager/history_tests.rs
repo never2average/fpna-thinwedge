@@ -1,6 +1,13 @@
 use super::*;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use image::ImageBuffer;
+use image::ImageFormat;
+use image::Luma;
+use image::Rgba;
+use pretty_assertions::assert_eq;
+use regex_lite::Regex;
+use std::path::PathBuf;
 use thinwedge_protocol::AgentPath;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::BaseInstructions;
@@ -15,21 +22,14 @@ use thinwedge_protocol::models::LocalShellExecAction;
 use thinwedge_protocol::models::LocalShellStatus;
 use thinwedge_protocol::models::ReasoningItemContent;
 use thinwedge_protocol::models::ReasoningItemReasoningSummary;
-use thinwedge_protocol::thinwedge_models::InputModality;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::InterAgentCommunication;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::TurnContextItem;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_utils_output_truncation::TruncationPolicy;
 use thinwedge_utils_output_truncation::truncate_text;
-use image::ImageBuffer;
-use image::ImageFormat;
-use image::Luma;
-use image::Rgba;
-use pretty_assertions::assert_eq;
-use regex_lite::Regex;
-use std::path::PathBuf;
 
 const EXEC_FORMAT_MAX_BYTES: usize = 10_000;
 const EXEC_FORMAT_MAX_TOKENS: usize = 2_500;
@@ -139,7 +139,9 @@ fn reference_context_item() -> TurnContextItem {
         user_instructions: None,
         developer_instructions: None,
         final_output_json_schema: None,
-        truncation_policy: Some(thinwedge_protocol::protocol::TruncationPolicy::Tokens(10_000)),
+        truncation_policy: Some(thinwedge_protocol::protocol::TruncationPolicy::Tokens(
+            10_000,
+        )),
     }
 }
 

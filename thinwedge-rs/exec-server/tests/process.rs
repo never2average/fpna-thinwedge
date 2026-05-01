@@ -2,6 +2,8 @@
 
 mod common;
 
+use common::exec_server::exec_server;
+use pretty_assertions::assert_eq;
 use thinwedge_app_server_protocol::JSONRPCMessage;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_exec_server::ExecResponse;
@@ -12,8 +14,6 @@ use thinwedge_exec_server::ReadResponse;
 use thinwedge_exec_server::TerminateResponse;
 use thinwedge_exec_server::WriteResponse;
 use thinwedge_exec_server::WriteStatus;
-use common::exec_server::exec_server;
-use pretty_assertions::assert_eq;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exec_server_starts_process_over_websocket() -> anyhow::Result<()> {

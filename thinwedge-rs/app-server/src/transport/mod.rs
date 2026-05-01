@@ -7,12 +7,6 @@ use crate::outgoing_message::OutgoingEnvelope;
 use crate::outgoing_message::OutgoingError;
 use crate::outgoing_message::OutgoingMessage;
 use crate::outgoing_message::QueuedOutgoingMessage;
-use thinwedge_app_server_protocol::ExperimentalApi;
-use thinwedge_app_server_protocol::JSONRPCErrorError;
-use thinwedge_app_server_protocol::JSONRPCMessage;
-use thinwedge_app_server_protocol::ServerRequest;
-use thinwedge_core::config::find_thinwedge_home;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -23,6 +17,12 @@ use std::sync::RwLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use thinwedge_app_server_protocol::ExperimentalApi;
+use thinwedge_app_server_protocol::JSONRPCErrorError;
+use thinwedge_app_server_protocol::JSONRPCMessage;
+use thinwedge_app_server_protocol::ServerRequest;
+use thinwedge_core::config::find_thinwedge_home;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
@@ -471,6 +471,8 @@ pub(crate) async fn route_outgoing_envelope(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
     use thinwedge_app_server_protocol::ConfigWarningNotification;
     use thinwedge_app_server_protocol::JSONRPCNotification;
     use thinwedge_app_server_protocol::JSONRPCRequest;
@@ -481,8 +483,6 @@ mod tests {
     use thinwedge_app_server_protocol::ThreadGoalStatus;
     use thinwedge_app_server_protocol::ThreadGoalUpdatedNotification;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
     use tokio::time::Duration;
     use tokio::time::timeout;
 

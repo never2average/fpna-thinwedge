@@ -16,6 +16,8 @@
 //! 3.  We do **not** walk past the project root.
 
 use crate::config::Config;
+use dunce::canonicalize as normalize_path;
+use std::io;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerStackOrdering;
 use thinwedge_config::default_project_root_markers;
@@ -25,8 +27,6 @@ use thinwedge_exec_server::Environment;
 use thinwedge_exec_server::ExecutorFileSystem;
 use thinwedge_features::Feature;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use dunce::canonicalize as normalize_path;
-use std::io;
 use toml::Value as TomlValue;
 use tracing::error;
 

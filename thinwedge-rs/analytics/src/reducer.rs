@@ -1,4 +1,9 @@
 use crate::events::AppServerRpcTransport;
+use crate::events::GuardianReviewEventParams;
+use crate::events::GuardianReviewEventPayload;
+use crate::events::GuardianReviewEventRequest;
+use crate::events::SkillInvocationEventParams;
+use crate::events::SkillInvocationEventRequest;
 use crate::events::ThinWedgeAppMentionedEventRequest;
 use crate::events::ThinWedgeAppServerClientMetadata;
 use crate::events::ThinWedgeAppUsedEventRequest;
@@ -11,28 +16,22 @@ use crate::events::ThinWedgeTurnEventParams;
 use crate::events::ThinWedgeTurnEventRequest;
 use crate::events::ThinWedgeTurnSteerEventParams;
 use crate::events::ThinWedgeTurnSteerEventRequest;
-use crate::events::GuardianReviewEventParams;
-use crate::events::GuardianReviewEventPayload;
-use crate::events::GuardianReviewEventRequest;
-use crate::events::SkillInvocationEventParams;
-use crate::events::SkillInvocationEventRequest;
 use crate::events::ThreadInitializedEvent;
 use crate::events::ThreadInitializedEventParams;
 use crate::events::TrackEventRequest;
+use crate::events::plugin_state_event_type;
+use crate::events::subagent_parent_thread_id;
+use crate::events::subagent_source_name;
+use crate::events::subagent_thread_started_event_request;
 use crate::events::thinwedge_app_metadata;
 use crate::events::thinwedge_compaction_event_params;
 use crate::events::thinwedge_hook_run_metadata;
 use crate::events::thinwedge_plugin_metadata;
 use crate::events::thinwedge_plugin_used_metadata;
-use crate::events::plugin_state_event_type;
-use crate::events::subagent_parent_thread_id;
-use crate::events::subagent_source_name;
-use crate::events::subagent_thread_started_event_request;
 use crate::facts::AnalyticsFact;
 use crate::facts::AnalyticsJsonRpcError;
 use crate::facts::AppMentionedInput;
 use crate::facts::AppUsedInput;
-use crate::facts::ThinWedgeCompactionEvent;
 use crate::facts::CustomAnalyticsFact;
 use crate::facts::HookRunInput;
 use crate::facts::PluginState;
@@ -40,6 +39,7 @@ use crate::facts::PluginStateChangedInput;
 use crate::facts::PluginUsedInput;
 use crate::facts::SkillInvokedInput;
 use crate::facts::SubAgentThreadStartedInput;
+use crate::facts::ThinWedgeCompactionEvent;
 use crate::facts::ThreadInitializationMode;
 use crate::facts::TurnResolvedConfigFact;
 use crate::facts::TurnStatus;
@@ -47,12 +47,15 @@ use crate::facts::TurnSteerRejectionReason;
 use crate::facts::TurnSteerResult;
 use crate::facts::TurnTokenUsageFact;
 use crate::now_unix_seconds;
+use sha1::Digest;
+use std::collections::HashMap;
+use std::path::Path;
 use thinwedge_app_server_protocol::ClientRequest;
 use thinwedge_app_server_protocol::ClientResponse;
-use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::InitializeParams;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_app_server_protocol::ServerNotification;
+use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::TurnSteerResponse;
 use thinwedge_app_server_protocol::UserInput;
 use thinwedge_git_utils::collect_git_info;
@@ -65,9 +68,6 @@ use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SkillScope;
 use thinwedge_protocol::protocol::TokenUsage;
-use sha1::Digest;
-use std::collections::HashMap;
-use std::path::Path;
 
 #[derive(Default)]
 pub(crate) struct AnalyticsReducer {
@@ -459,10 +459,12 @@ impl AnalyticsReducer {
 
     fn ingest_plugin_used(&mut self, input: PluginUsedInput, out: &mut Vec<TrackEventRequest>) {
         let PluginUsedInput { tracking, plugin } = input;
-        out.push(TrackEventRequest::PluginUsed(ThinWedgePluginUsedEventRequest {
-            event_type: "thinwedge_plugin_used",
-            event_params: thinwedge_plugin_used_metadata(&tracking, plugin),
-        }));
+        out.push(TrackEventRequest::PluginUsed(
+            ThinWedgePluginUsedEventRequest {
+                event_type: "thinwedge_plugin_used",
+                event_params: thinwedge_plugin_used_metadata(&tracking, plugin),
+            },
+        ));
     }
 
     fn ingest_plugin_state_changed(
@@ -699,7 +701,11 @@ impl AnalyticsReducer {
         ));
     }
 
-    fn ingest_compaction(&mut self, input: ThinWedgeCompactionEvent, out: &mut Vec<TrackEventRequest>) {
+    fn ingest_compaction(
+        &mut self,
+        input: ThinWedgeCompactionEvent,
+        out: &mut Vec<TrackEventRequest>,
+    ) {
         let Some(connection_id) = self.thread_connections.get(&input.thread_id) else {
             tracing::warn!(
                 thread_id = %input.thread_id,
@@ -784,23 +790,25 @@ impl AnalyticsReducer {
             );
             return;
         };
-        out.push(TrackEventRequest::TurnSteer(ThinWedgeTurnSteerEventRequest {
-            event_type: "thinwedge_turn_steer_event",
-            event_params: ThinWedgeTurnSteerEventParams {
-                thread_id: pending_request.thread_id,
-                expected_turn_id: Some(pending_request.expected_turn_id),
-                accepted_turn_id,
-                app_server_client: connection_state.app_server_client.clone(),
-                runtime: connection_state.runtime.clone(),
-                thread_source: thread_metadata.thread_source.map(str::to_string),
-                subagent_source: thread_metadata.subagent_source.clone(),
-                parent_thread_id: thread_metadata.parent_thread_id.clone(),
-                num_input_images: pending_request.num_input_images,
-                result,
-                rejection_reason,
-                created_at: pending_request.created_at,
+        out.push(TrackEventRequest::TurnSteer(
+            ThinWedgeTurnSteerEventRequest {
+                event_type: "thinwedge_turn_steer_event",
+                event_params: ThinWedgeTurnSteerEventParams {
+                    thread_id: pending_request.thread_id,
+                    expected_turn_id: Some(pending_request.expected_turn_id),
+                    accepted_turn_id,
+                    app_server_client: connection_state.app_server_client.clone(),
+                    runtime: connection_state.runtime.clone(),
+                    thread_source: thread_metadata.thread_source.map(str::to_string),
+                    subagent_source: thread_metadata.subagent_source.clone(),
+                    parent_thread_id: thread_metadata.parent_thread_id.clone(),
+                    num_input_images: pending_request.num_input_images,
+                    result,
+                    rejection_reason,
+                    created_at: pending_request.created_at,
+                },
             },
-        }));
+        ));
     }
 
     fn maybe_emit_turn_event(&mut self, turn_id: &str, out: &mut Vec<TrackEventRequest>) {

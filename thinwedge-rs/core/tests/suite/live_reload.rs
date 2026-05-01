@@ -6,13 +6,6 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use anyhow::Result;
-use thinwedge_config::config_toml::ProjectConfig;
-use thinwedge_protocol::config_types::TrustLevel;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::mount_sse_sequence;
@@ -21,6 +14,13 @@ use core_test_support::test_thinwedge::TestThinWedge;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
+use thinwedge_config::config_toml::ProjectConfig;
+use thinwedge_protocol::config_types::TrustLevel;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::time::timeout;
 
 fn enable_trusted_project(config: &mut thinwedge_core::config::Config) {

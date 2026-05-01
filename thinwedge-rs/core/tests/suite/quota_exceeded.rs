@@ -1,7 +1,4 @@
 use anyhow::Result;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
@@ -11,6 +8,9 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde_json::json;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn quota_exceeded_emits_single_error_event() -> Result<()> {
@@ -70,7 +70,10 @@ async fn quota_exceeded_emits_single_error_event() -> Result<()> {
         }
     }
 
-    assert_eq!(error_events, 1, "expected exactly one ThinWedge:Error event");
+    assert_eq!(
+        error_events, 1,
+        "expected exactly one ThinWedge:Error event"
+    );
 
     Ok(())
 }

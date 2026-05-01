@@ -1,10 +1,5 @@
 #![cfg(not(target_os = "windows"))]
 
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::TestThinWedge;
@@ -16,6 +11,11 @@ use responses::ev_assistant_message;
 use responses::ev_completed;
 use responses::sse;
 use responses::start_mock_server;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 const SCHEMA: &str = r#"
 {

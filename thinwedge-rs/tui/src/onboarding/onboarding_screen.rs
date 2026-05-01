@@ -10,13 +10,6 @@
 //! editing a non-empty API-key field, while control/alt chords remain available
 //! as explicit exit shortcuts.
 
-use thinwedge_app_server_client::AppServerEvent;
-use thinwedge_app_server_client::AppServerRequestHandle;
-use thinwedge_app_server_protocol::ServerNotification;
-use thinwedge_exec_server::LOCAL_FS;
-use thinwedge_git_utils::resolve_root_git_project_for_trust;
-#[cfg(target_os = "windows")]
-use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -27,6 +20,13 @@ use ratatui::prelude::Widget;
 use ratatui::style::Color;
 use ratatui::widgets::Clear;
 use ratatui::widgets::WidgetRef;
+use thinwedge_app_server_client::AppServerEvent;
+use thinwedge_app_server_client::AppServerRequestHandle;
+use thinwedge_app_server_protocol::ServerNotification;
+use thinwedge_exec_server::LOCAL_FS;
+use thinwedge_git_utils::resolve_root_git_project_for_trust;
+#[cfg(target_os = "windows")]
+use thinwedge_protocol::config_types::WindowsSandboxLevel;
 
 use thinwedge_protocol::config_types::ForcedLoginMethod;
 

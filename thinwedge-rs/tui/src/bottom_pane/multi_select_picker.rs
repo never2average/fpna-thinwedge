@@ -25,7 +25,6 @@
 //! .build();
 //! ```
 
-use thinwedge_utils_fuzzy_match::fuzzy_match;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -38,6 +37,7 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use ratatui::widgets::Block;
 use ratatui::widgets::Widget;
+use thinwedge_utils_fuzzy_match::fuzzy_match;
 
 use super::selection_popup_common::GenericDisplayRow;
 use crate::app_event_sender::AppEventSender;

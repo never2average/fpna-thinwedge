@@ -3,12 +3,12 @@
 pub(crate) mod env;
 pub use env::is_wsl;
 
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use std::collections::HashSet;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 pub fn normalize_for_path_comparison(path: impl AsRef<Path>) -> std::io::Result<PathBuf> {
     let canonical = path.as_ref().canonicalize()?;

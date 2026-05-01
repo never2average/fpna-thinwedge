@@ -79,11 +79,24 @@ use crate::terminal_title::clear_terminal_title;
 use crate::terminal_title::set_terminal_title;
 use crate::text_formatting::proper_join;
 use crate::version::THINWEDGE_CLI_VERSION;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
+use rand::Rng;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::Color;
+use ratatui::style::Modifier;
+use ratatui::style::Style;
+use ratatui::style::Stylize;
+use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Wrap;
 use thinwedge_app_server_protocol::AddCreditsNudgeCreditType;
 use thinwedge_app_server_protocol::AddCreditsNudgeEmailStatus;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_app_server_protocol::AppSummary;
-use thinwedge_app_server_protocol::ThinWedgeErrorInfo as AppServerThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::CollabAgentState as AppServerCollabAgentState;
 use thinwedge_app_server_protocol::CollabAgentStatus as AppServerCollabAgentStatus;
 use thinwedge_app_server_protocol::CollabAgentTool;
@@ -101,6 +114,7 @@ use thinwedge_app_server_protocol::McpServerStatusUpdatedNotification;
 use thinwedge_app_server_protocol::ModelVerification as AppServerModelVerification;
 use thinwedge_app_server_protocol::ServerNotification;
 use thinwedge_app_server_protocol::ServerRequest;
+use thinwedge_app_server_protocol::ThinWedgeErrorInfo as AppServerThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::ThreadGoal as AppThreadGoal;
 use thinwedge_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
 use thinwedge_app_server_protocol::ThreadItem;
@@ -162,8 +176,6 @@ use thinwedge_protocol::protocol::AgentStatus;
 use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
 #[cfg(test)]
 use thinwedge_protocol::protocol::BackgroundEventEvent;
-#[cfg(test)]
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo as CoreThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::CollabAgentRef;
 #[cfg(test)]
 use thinwedge_protocol::protocol::CollabAgentSpawnBeginEvent;
@@ -211,6 +223,8 @@ use thinwedge_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
 use thinwedge_protocol::protocol::StreamErrorEvent;
 use thinwedge_protocol::protocol::TerminalInteractionEvent;
 #[cfg(test)]
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo as CoreThinWedgeErrorInfo;
+#[cfg(test)]
 use thinwedge_protocol::protocol::ThreadGoalStatus as ProtocolThreadGoalStatus;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
@@ -241,20 +255,6 @@ use thinwedge_terminal_detection::TerminalName;
 use thinwedge_terminal_detection::terminal_info;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_sleep_inhibitor::SleepInhibitor;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
-use crossterm::event::KeyModifiers;
-use rand::Rng;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::Color;
-use ratatui::style::Modifier;
-use ratatui::style::Style;
-use ratatui::style::Stylize;
-use ratatui::text::Line;
-use ratatui::widgets::Paragraph;
-use ratatui::widgets::Wrap;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::debug;
 use tracing::warn;
@@ -421,17 +421,17 @@ use crate::streaming::controller::PlanStreamController;
 use crate::streaming::controller::StreamController;
 
 use chrono::Local;
+use strum::IntoEnumIterator;
 use thinwedge_file_search::FileMatch;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::InputModality;
-use thinwedge_protocol::thinwedge_models::ModelPreset;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::plan_tool::StepStatus;
 use thinwedge_protocol::plan_tool::UpdatePlanArgs;
 use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_utils_approval_presets::ApprovalPreset;
 use thinwedge_utils_approval_presets::builtin_approval_presets;
-use strum::IntoEnumIterator;
 use unicode_segmentation::UnicodeSegmentation;
 
 const USER_SHELL_COMMAND_HELP_TITLE: &str = "Prefix a command with ! to run it locally";
@@ -670,7 +670,9 @@ fn core_rate_limit_error_kind(info: &CoreThinWedgeErrorInfo) -> Option<RateLimit
     }
 }
 
-fn app_server_rate_limit_error_kind(info: &AppServerThinWedgeErrorInfo) -> Option<RateLimitErrorKind> {
+fn app_server_rate_limit_error_kind(
+    info: &AppServerThinWedgeErrorInfo,
+) -> Option<RateLimitErrorKind> {
     match info {
         AppServerThinWedgeErrorInfo::ServerOverloaded => Some(RateLimitErrorKind::ServerOverloaded),
         AppServerThinWedgeErrorInfo::UsageLimitExceeded => Some(RateLimitErrorKind::UsageLimit),
@@ -2329,7 +2331,10 @@ impl ChatWidget {
 
     // --- Small event handlers ---
     #[cfg(test)]
-    fn on_session_configured(&mut self, event: thinwedge_protocol::protocol::SessionConfiguredEvent) {
+    fn on_session_configured(
+        &mut self,
+        event: thinwedge_protocol::protocol::SessionConfiguredEvent,
+    ) {
         self.on_session_configured_with_display_and_fork_parent_title(
             event,
             SessionConfiguredDisplay::Normal,
@@ -2531,7 +2536,10 @@ impl ChatWidget {
         )));
     }
 
-    fn on_thread_name_updated(&mut self, event: thinwedge_protocol::protocol::ThreadNameUpdatedEvent) {
+    fn on_thread_name_updated(
+        &mut self,
+        event: thinwedge_protocol::protocol::ThreadNameUpdatedEvent,
+    ) {
         if self.thread_id == Some(event.thread_id) {
             if let Some(name) = event.thread_name.as_deref() {
                 let cell = Self::rename_confirmation_cell(name, self.thread_id);
@@ -3035,7 +3043,10 @@ impl ChatWidget {
     }
 
     #[cfg(test)]
-    fn handle_steer_rejected_error(&mut self, thinwedge_error_info: &CoreThinWedgeErrorInfo) -> bool {
+    fn handle_steer_rejected_error(
+        &mut self,
+        thinwedge_error_info: &CoreThinWedgeErrorInfo,
+    ) -> bool {
         matches!(
             thinwedge_error_info,
             CoreThinWedgeErrorInfo::ActiveTurnNotSteerable { .. }
@@ -4166,7 +4177,10 @@ impl ChatWidget {
                     }
                     GuardianAssessmentAction::RequestPermissions { reason, .. } => {
                         history_cell::new_guardian_timed_out_action_request(
-                            permission_request_summary("thinwedge could request permissions", reason),
+                            permission_request_summary(
+                                "thinwedge could request permissions",
+                                reason,
+                            ),
                         )
                     }
                     GuardianAssessmentAction::Command { .. } => unreachable!(),
@@ -6715,14 +6729,14 @@ impl ChatWidget {
                             entries: citation
                                 .entries
                                 .into_iter()
-                                .map(
-                                    |entry| thinwedge_protocol::memory_citation::MemoryCitationEntry {
+                                .map(|entry| {
+                                    thinwedge_protocol::memory_citation::MemoryCitationEntry {
                                         path: entry.path,
                                         line_start: entry.line_start,
                                         line_end: entry.line_end,
                                         note: entry.note,
-                                    },
-                                )
+                                    }
+                                })
                                 .collect(),
                             rollout_ids: citation.thread_ids,
                         }
@@ -7221,9 +7235,10 @@ impl ChatWidget {
                 if !from_replay {
                     self.on_realtime_conversation_realtime(
                         thinwedge_protocol::protocol::RealtimeConversationRealtimeEvent {
-                            payload: thinwedge_protocol::protocol::RealtimeEvent::ConversationItemAdded(
-                                notification.item,
-                            ),
+                            payload:
+                                thinwedge_protocol::protocol::RealtimeEvent::ConversationItemAdded(
+                                    notification.item,
+                                ),
                         },
                     );
                 }
@@ -7904,7 +7919,9 @@ impl ChatWidget {
             }
             EventMsg::ItemCompleted(event) => {
                 let item = event.item;
-                if !from_replay && let thinwedge_protocol::items::TurnItem::UserMessage(item) = &item {
+                if !from_replay
+                    && let thinwedge_protocol::items::TurnItem::UserMessage(item) = &item
+                {
                     self.on_committed_user_message(item, from_replay);
                 }
                 if let thinwedge_protocol::items::TurnItem::Plan(plan_item) = &item {
@@ -11375,7 +11392,8 @@ impl ChatWidget {
         });
         let mut items: Vec<SelectionItem> = Vec::with_capacity(connectors.len());
         for connector in connectors {
-            let connector_label = thinwedge_connectors::metadata::connector_display_label(connector);
+            let connector_label =
+                thinwedge_connectors::metadata::connector_display_label(connector);
             let connector_title = connector_label.clone();
             let link_description = Self::connector_description(connector);
             let description = Self::connector_brief_description(connector);

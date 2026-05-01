@@ -9,6 +9,24 @@ use crate::test_support::models_manager_with_provider;
 use crate::tools::context::FunctionToolOutput;
 use crate::tools::context::ToolCallSource;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use core_test_support::PathExt;
+use core_test_support::TempDirExt;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_response_once;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::sse_response;
+use core_test_support::responses::start_mock_server;
+use core_test_support::thinwedge_linux_sandbox_exe_or_skip;
+use pretty_assertions::assert_eq;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::fs;
+use std::sync::Arc;
+use std::time::Duration;
+use tempfile::tempdir;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigRequirements;
@@ -30,24 +48,6 @@ use thinwedge_protocol::request_permissions::PermissionGrantScope;
 use thinwedge_protocol::request_permissions::RequestPermissionProfile;
 use thinwedge_protocol::request_permissions::RequestPermissionsArgs;
 use thinwedge_protocol::request_permissions::RequestPermissionsResponse;
-use core_test_support::PathExt;
-use core_test_support::TempDirExt;
-use core_test_support::thinwedge_linux_sandbox_exe_or_skip;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_response_once;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::sse_response;
-use core_test_support::responses::start_mock_server;
-use pretty_assertions::assert_eq;
-use serde::Deserialize;
-use std::collections::HashMap;
-use std::fs;
-use std::sync::Arc;
-use std::time::Duration;
-use tempfile::tempdir;
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
@@ -715,7 +715,8 @@ async fn guardian_subagent_does_not_inherit_parent_exec_policy_rules() {
         }
     );
 
-    let auth_manager = AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
+    let auth_manager =
+        AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key("Test API Key"));
     let models_manager = models_manager_with_provider(
         config.thinwedge_home.to_path_buf(),
         auth_manager.clone(),

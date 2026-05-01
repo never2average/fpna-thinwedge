@@ -148,12 +148,12 @@ impl QueuedInterrupt {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::approvals::ExecApprovalRequestEvent;
     use thinwedge_protocol::protocol::ExecCommandBeginEvent;
     use thinwedge_protocol::protocol::ExecCommandSource;
     use thinwedge_protocol::request_user_input::RequestUserInputEvent;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
 
     use super::*;
 

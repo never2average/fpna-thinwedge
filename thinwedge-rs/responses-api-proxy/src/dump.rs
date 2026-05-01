@@ -233,8 +233,11 @@ mod tests {
                 .expect("content-type header"),
             Header::from_bytes(&b"x-thinwedge-window-id"[..], &b"thread-1:0"[..])
                 .expect("window id header"),
-            Header::from_bytes(&b"x-thinwedge-parent-thread-id"[..], &b"parent-thread-1"[..])
-                .expect("parent thread id header"),
+            Header::from_bytes(
+                &b"x-thinwedge-parent-thread-id"[..],
+                &b"parent-thread-1"[..],
+            )
+            .expect("parent thread id header"),
             Header::from_bytes(&b"x-thinwedge-subagent"[..], &b"collab_spawn"[..])
                 .expect("subagent header"),
         ];

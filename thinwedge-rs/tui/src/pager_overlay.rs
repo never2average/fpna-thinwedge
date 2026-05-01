@@ -912,24 +912,24 @@ fn render_offset_content(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_protocol::protocol::ExecCommandSource;
-    use thinwedge_protocol::protocol::ReviewDecision;
     use insta::assert_snapshot;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::sync::Arc;
     use std::time::Duration;
+    use thinwedge_protocol::protocol::ExecCommandSource;
+    use thinwedge_protocol::protocol::ReviewDecision;
 
     use crate::exec_cell::CommandOutput;
     use crate::history_cell;
     use crate::history_cell::HistoryCell;
     use crate::history_cell::new_patch_event;
-    use thinwedge_protocol::parse_command::ParsedCommand;
-    use thinwedge_protocol::protocol::FileChange;
     use ratatui::Terminal;
     use ratatui::backend::TestBackend;
     use ratatui::text::Text;
+    use thinwedge_protocol::parse_command::ParsedCommand;
+    use thinwedge_protocol::protocol::FileChange;
 
     #[derive(Debug)]
     struct TestCell {

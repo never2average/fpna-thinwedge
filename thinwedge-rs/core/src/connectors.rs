@@ -8,6 +8,9 @@ use std::time::Instant;
 
 use anyhow::Context;
 use async_channel::unbounded;
+use rmcp::model::ToolAnnotations;
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use thinwedge_api::SharedAuthProvider;
 pub use thinwedge_app_server_protocol::AppBranding;
 pub use thinwedge_app_server_protocol::AppInfo;
@@ -19,9 +22,6 @@ use thinwedge_exec_server::EnvironmentManagerArgs;
 use thinwedge_exec_server::ExecServerRuntimePaths;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_tools::DiscoverableTool;
-use rmcp::model::ToolAnnotations;
-use serde::Deserialize;
-use serde::de::DeserializeOwned;
 use tracing::warn;
 
 use crate::config::Config;
@@ -38,13 +38,13 @@ use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::default_client::create_client;
 use thinwedge_login::default_client::originator;
-use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_mcp::McpConnectionManager;
 use thinwedge_mcp::McpRuntimeEnvironment;
+use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_mcp::ToolInfo;
 use thinwedge_mcp::ToolPluginProvenance;
-use thinwedge_mcp::thinwedge_apps_tools_cache_key;
 use thinwedge_mcp::compute_auth_statuses;
+use thinwedge_mcp::thinwedge_apps_tools_cache_key;
 use thinwedge_mcp::with_thinwedge_apps_mcp;
 
 const CONNECTORS_READY_TIMEOUT_ON_EMPTY_TOOLS: Duration = Duration::from_secs(30);
@@ -146,10 +146,10 @@ pub async fn list_cached_accessible_connectors_from_mcp_tools(
     let auth_manager =
         AuthManager::shared_from_config(config, /*enable_thinwedge_api_key_env*/ false).await;
     let auth = auth_manager.auth().await;
-    if !config
-        .features
-        .apps_enabled_for_auth(auth.as_ref().is_some_and(ThinWedgeAuth::uses_thinwedge_backend))
-    {
+    if !config.features.apps_enabled_for_auth(
+        auth.as_ref()
+            .is_some_and(ThinWedgeAuth::uses_thinwedge_backend),
+    ) {
         return Some(Vec::new());
     }
     let cache_key = accessible_connectors_cache_key(config, auth.as_ref());
@@ -218,10 +218,10 @@ pub async fn list_accessible_connectors_from_mcp_tools_with_environment_manager(
     let auth_manager =
         AuthManager::shared_from_config(config, /*enable_thinwedge_api_key_env*/ false).await;
     let auth = auth_manager.auth().await;
-    if !config
-        .features
-        .apps_enabled_for_auth(auth.as_ref().is_some_and(ThinWedgeAuth::uses_thinwedge_backend))
-    {
+    if !config.features.apps_enabled_for_auth(
+        auth.as_ref()
+            .is_some_and(ThinWedgeAuth::uses_thinwedge_backend),
+    ) {
         return Ok(AccessibleConnectorsStatus {
             connectors: Vec::new(),
             thinwedge_apps_ready: true,

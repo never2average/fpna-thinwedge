@@ -17,13 +17,6 @@ use super::protocol::ServerEnvelope;
 use super::protocol::StreamId;
 use axum::http::HeaderValue;
 use base64::Engine;
-use thinwedge_app_server_protocol::RemoteControlConnectionStatus;
-use thinwedge_app_server_protocol::RemoteControlStatusChangedNotification;
-use thinwedge_core::util::backoff;
-use thinwedge_login::AuthManager;
-use thinwedge_login::UnauthorizedRecovery;
-use thinwedge_state::StateRuntime;
-use thinwedge_utils_rustls_provider::ensure_rustls_crypto_provider;
 use futures::SinkExt;
 use futures::StreamExt;
 use futures::stream::SplitSink;
@@ -33,6 +26,13 @@ use std::collections::VecDeque;
 use std::io;
 use std::io::ErrorKind;
 use std::sync::Arc;
+use thinwedge_app_server_protocol::RemoteControlConnectionStatus;
+use thinwedge_app_server_protocol::RemoteControlStatusChangedNotification;
+use thinwedge_core::util::backoff;
+use thinwedge_login::AuthManager;
+use thinwedge_login::UnauthorizedRecovery;
+use thinwedge_state::StateRuntime;
+use thinwedge_utils_rustls_provider::ensure_rustls_crypto_provider;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
@@ -1050,6 +1050,10 @@ mod tests {
     use crate::transport::remote_control::protocol::StreamId;
     use crate::transport::remote_control::protocol::normalize_remote_control_url;
     use chrono::Utc;
+    use futures::StreamExt;
+    use pretty_assertions::assert_eq;
+    use std::sync::Arc;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::AuthMode;
     use thinwedge_app_server_protocol::ConfigWarningNotification;
     use thinwedge_app_server_protocol::ServerNotification;
@@ -1061,10 +1065,6 @@ mod tests {
     use thinwedge_login::token_data::TokenData;
     use thinwedge_login::token_data::parse_chatgpt_jwt_claims;
     use thinwedge_state::StateRuntime;
-    use futures::StreamExt;
-    use pretty_assertions::assert_eq;
-    use std::sync::Arc;
-    use tempfile::TempDir;
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncWriteExt;
     use tokio::io::BufReader;
@@ -1094,9 +1094,12 @@ mod tests {
     }
 
     async fn remote_control_state_runtime(thinwedge_home: &TempDir) -> Arc<StateRuntime> {
-        StateRuntime::init(thinwedge_home.path().to_path_buf(), "test-provider".to_string())
-            .await
-            .expect("state runtime should initialize")
+        StateRuntime::init(
+            thinwedge_home.path().to_path_buf(),
+            "test-provider".to_string(),
+        )
+        .await
+        .expect("state runtime should initialize")
     }
 
     fn remote_control_auth_manager() -> Arc<AuthManager> {

@@ -1,7 +1,7 @@
-use thinwedge_protocol::protocol::InterAgentCommunication;
 use std::collections::VecDeque;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
+use thinwedge_protocol::protocol::InterAgentCommunication;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
 

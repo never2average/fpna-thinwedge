@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use serde::Serialize;
+use serde_json::Value;
 use thinwedge_analytics::GuardianReviewedAction;
 use thinwedge_protocol::approvals::GuardianAssessmentAction;
 use thinwedge_protocol::approvals::GuardianCommandSource;
@@ -7,8 +9,6 @@ use thinwedge_protocol::approvals::NetworkApprovalProtocol;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_protocol::request_permissions::RequestPermissionProfile;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use serde::Serialize;
-use serde_json::Value;
 
 use super::GUARDIAN_MAX_ACTION_STRING_TOKENS;
 use super::prompt::guardian_truncate_text;

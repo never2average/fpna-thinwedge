@@ -5,6 +5,7 @@ use super::last_assistant_message_from_item;
 use super::response_item_may_include_external_context;
 use super::save_image_generation_result;
 use crate::session::tests::make_session_and_context;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::items::TurnItem;
 use thinwedge_protocol::models::ContentItem;
@@ -15,7 +16,6 @@ use thinwedge_protocol::models::LocalShellStatus;
 use thinwedge_protocol::models::MessagePhase;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_utils_absolute_path::test_support::PathExt;
-use pretty_assertions::assert_eq;
 
 fn assistant_output_text(text: &str) -> ResponseItem {
     assistant_output_text_with_phase(text, /*phase*/ None)
@@ -212,7 +212,8 @@ fn completed_item_defers_mailbox_delivery_for_image_generation_calls() {
 async fn save_image_generation_result_saves_base64_to_png_in_thinwedge_home() {
     let thinwedge_home = tempfile::tempdir().expect("create thinwedge home");
     let thinwedge_home = thinwedge_home.path().abs();
-    let expected_path = image_generation_artifact_path(&thinwedge_home, "session-1", "ig_save_base64");
+    let expected_path =
+        image_generation_artifact_path(&thinwedge_home, "session-1", "ig_save_base64");
     let _ = std::fs::remove_file(&expected_path);
 
     let saved_path =
@@ -241,7 +242,8 @@ async fn save_image_generation_result_rejects_data_url_payload() {
 async fn save_image_generation_result_overwrites_existing_file() {
     let thinwedge_home = tempfile::tempdir().expect("create thinwedge home");
     let thinwedge_home = thinwedge_home.path().abs();
-    let existing_path = image_generation_artifact_path(&thinwedge_home, "session-1", "ig_overwrite");
+    let existing_path =
+        image_generation_artifact_path(&thinwedge_home, "session-1", "ig_overwrite");
     std::fs::create_dir_all(
         existing_path
             .parent()
@@ -250,9 +252,10 @@ async fn save_image_generation_result_overwrites_existing_file() {
     .expect("create image output dir");
     std::fs::write(&existing_path, b"existing").expect("seed existing image");
 
-    let saved_path = save_image_generation_result(&thinwedge_home, "session-1", "ig_overwrite", "Zm9v")
-        .await
-        .expect("image should be saved");
+    let saved_path =
+        save_image_generation_result(&thinwedge_home, "session-1", "ig_overwrite", "Zm9v")
+            .await
+            .expect("image should be saved");
 
     assert_eq!(saved_path, existing_path);
     assert_eq!(std::fs::read(&saved_path).expect("saved file"), b"foo");

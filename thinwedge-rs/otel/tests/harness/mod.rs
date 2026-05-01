@@ -1,6 +1,3 @@
-use thinwedge_otel::MetricsClient;
-use thinwedge_otel::MetricsConfig;
-use thinwedge_otel::Result;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
@@ -8,6 +5,9 @@ use opentelemetry_sdk::metrics::data::Metric;
 use opentelemetry_sdk::metrics::data::MetricData;
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use std::collections::BTreeMap;
+use thinwedge_otel::MetricsClient;
+use thinwedge_otel::MetricsConfig;
+use thinwedge_otel::Result;
 
 pub(crate) fn build_metrics_with_defaults(
     default_tags: &[(&str, &str)],

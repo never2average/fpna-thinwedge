@@ -1,5 +1,4 @@
 use anyhow::Result;
-use thinwedge_exec_server::CreateDirectoryOptions;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
@@ -7,6 +6,7 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_thinwedge::TestThinWedgeBuilder;
 use core_test_support::test_thinwedge::test_thinwedge;
+use thinwedge_exec_server::CreateDirectoryOptions;
 
 async fn agents_instructions(mut builder: TestThinWedgeBuilder) -> Result<String> {
     let server = start_mock_server().await;

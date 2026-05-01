@@ -19,7 +19,6 @@
 use anyhow::Context;
 use anyhow::Error;
 use anyhow::Result;
-use thinwedge_config::types::OAuthCredentialsStoreMode;
 use oauth2::AccessToken;
 use oauth2::EmptyExtraTokenFields;
 use oauth2::RefreshToken;
@@ -41,11 +40,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use thinwedge_config::types::OAuthCredentialsStoreMode;
 use tracing::warn;
 
+use rmcp::transport::auth::AuthorizationManager;
 use thinwedge_keyring_store::DefaultKeyringStore;
 use thinwedge_keyring_store::KeyringStore;
-use rmcp::transport::auth::AuthorizationManager;
 use tokio::sync::Mutex;
 
 use thinwedge_utils_home_dir::find_thinwedge_home;

@@ -15,8 +15,8 @@ use thinwedge_features::Feature;
 use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::protocol::TurnContextItem;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 
 fn build_environment_update_item(
     previous: Option<&TurnContextItem>,

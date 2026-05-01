@@ -2,7 +2,6 @@
 #![allow(clippy::expect_used)]
 
 use anyhow::Result;
-use thinwedge_protocol::models::PermissionProfile;
 use core_test_support::assert_regex_match;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -23,6 +22,7 @@ use serde_json::Value;
 use serde_json::json;
 use std::fs;
 use test_case::test_case;
+use thinwedge_protocol::models::PermissionProfile;
 
 use crate::suite::apply_patch_cli::apply_patch_harness;
 use crate::suite::apply_patch_cli::mount_apply_patch;
@@ -910,9 +910,11 @@ async fn local_shell_call_output_is_structured() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
     let server = start_mock_server().await;
-    let mut builder = test_thinwedge().with_model("gpt-5.4").with_config(|config| {
-        config.include_apply_patch_tool = true;
-    });
+    let mut builder = test_thinwedge()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config.include_apply_patch_tool = true;
+        });
     let test = builder.build(&server).await?;
 
     let call_id = "local-shell-call";

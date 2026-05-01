@@ -407,9 +407,12 @@ impl ChatWidget {
             )
             .iter()
             .find_map(|layer| match &layer.name {
-                ConfigLayerSource::Project { dot_thinwedge_folder } => {
-                    dot_thinwedge_folder.as_path().parent().map(Path::to_path_buf)
-                }
+                ConfigLayerSource::Project {
+                    dot_thinwedge_folder,
+                } => dot_thinwedge_folder
+                    .as_path()
+                    .parent()
+                    .map(Path::to_path_buf),
                 _ => None,
             })
     }

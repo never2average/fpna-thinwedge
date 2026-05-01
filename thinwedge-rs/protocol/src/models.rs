@@ -3,12 +3,12 @@ use std::io;
 use std::num::NonZeroUsize;
 use std::path::Path;
 
-use thinwedge_utils_image::PromptImageMode;
-use thinwedge_utils_image::load_for_prompt_bytes;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::ser::Serializer;
+use thinwedge_utils_image::PromptImageMode;
+use thinwedge_utils_image::load_for_prompt_bytes;
 use ts_rs::TS;
 
 use crate::permissions::FileSystemAccessMode;
@@ -20,9 +20,9 @@ use crate::permissions::FileSystemSpecialPath;
 use crate::permissions::NetworkSandboxPolicy;
 use crate::protocol::SandboxPolicy;
 use crate::user_input::UserInput;
+use schemars::JsonSchema;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_image::ImageProcessingError;
-use schemars::JsonSchema;
 
 use crate::mcp::CallToolResult;
 
@@ -1584,10 +1584,10 @@ impl std::fmt::Display for FunctionCallOutputPayload {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use thinwedge_execpolicy::Policy;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
     use tempfile::tempdir;
+    use thinwedge_execpolicy::Policy;
 
     #[test]
     fn response_input_message_conversion_preserves_phase() {

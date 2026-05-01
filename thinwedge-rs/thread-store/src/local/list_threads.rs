@@ -133,11 +133,11 @@ async fn list_rollout_threads(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
-    use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use std::fs;
     use tempfile::TempDir;
+    use thinwedge_protocol::ThreadId;
+    use thinwedge_protocol::protocol::SessionSource;
     use uuid::Uuid;
 
     use super::*;

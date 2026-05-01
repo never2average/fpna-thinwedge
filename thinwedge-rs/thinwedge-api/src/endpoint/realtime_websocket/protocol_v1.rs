@@ -3,10 +3,10 @@ use crate::endpoint::realtime_websocket::protocol_common::parse_realtime_payload
 use crate::endpoint::realtime_websocket::protocol_common::parse_session_updated_event;
 use crate::endpoint::realtime_websocket::protocol_common::parse_transcript_delta_event;
 use crate::endpoint::realtime_websocket::protocol_common::parse_transcript_done_event;
+use serde_json::Value;
 use thinwedge_protocol::protocol::RealtimeAudioFrame;
 use thinwedge_protocol::protocol::RealtimeEvent;
 use thinwedge_protocol::protocol::RealtimeHandoffRequested;
-use serde_json::Value;
 use tracing::debug;
 
 pub(super) fn parse_realtime_event_v1(payload: &str) -> Option<RealtimeEvent> {

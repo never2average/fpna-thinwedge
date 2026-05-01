@@ -1,8 +1,8 @@
 use super::*;
 use crate::session::tests::make_session_configuration_for_tests;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::protocol::CreditsSnapshot;
 use thinwedge_protocol::protocol::RateLimitWindow;
-use pretty_assertions::assert_eq;
 
 #[tokio::test]
 // Verifies connector merging deduplicates repeated IDs.

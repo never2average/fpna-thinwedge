@@ -16,9 +16,9 @@ mod start;
 mod storage;
 pub mod workspace;
 
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 pub use control::clear_memory_roots_contents;
 pub use extensions::prune_old_extension_resources;

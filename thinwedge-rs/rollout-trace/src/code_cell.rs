@@ -7,14 +7,14 @@
 
 use std::sync::Arc;
 
-use thinwedge_code_mode::RuntimeResponse;
 use serde::Serialize;
+use thinwedge_code_mode::RuntimeResponse;
 use tracing::warn;
 
 use crate::model::AgentThreadId;
 use crate::model::CodeCellRuntimeStatus;
-use crate::model::ThinWedgeTurnId;
 use crate::model::ModelVisibleCallId;
+use crate::model::ThinWedgeTurnId;
 use crate::payload::RawPayloadKind;
 use crate::payload::RawPayloadRef;
 use crate::raw_event::RawTraceEventContext;

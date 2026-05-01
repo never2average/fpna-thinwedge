@@ -15,6 +15,7 @@ use crate::exec::execute_exec_request;
 #[cfg(target_os = "macos")]
 use crate::spawn::THINWEDGE_SANDBOX_ENV_VAR;
 use crate::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use std::collections::HashMap;
 use thinwedge_network_proxy::NetworkProxy;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::exec_output::ExecToolCallOutput;
@@ -27,7 +28,6 @@ use thinwedge_sandboxing::SandboxExecRequest;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::compatibility_sandbox_policy_for_permission_profile;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub(crate) struct ExecOptions {
@@ -138,7 +138,10 @@ impl ExecRequest {
         }
         #[cfg(target_os = "macos")]
         if sandbox == SandboxType::MacosSeatbelt {
-            env.insert(THINWEDGE_SANDBOX_ENV_VAR.to_string(), "seatbelt".to_string());
+            env.insert(
+                THINWEDGE_SANDBOX_ENV_VAR.to_string(),
+                "seatbelt".to_string(),
+            );
         }
         Self {
             command,

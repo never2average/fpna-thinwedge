@@ -1,9 +1,9 @@
+use std::sync::LazyLock;
 use thinwedge_git_utils::merge_base_with_head;
 use thinwedge_protocol::protocol::ReviewRequest;
 use thinwedge_protocol::protocol::ReviewTarget;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_template::Template;
-use std::sync::LazyLock;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ResolvedReviewRequest {

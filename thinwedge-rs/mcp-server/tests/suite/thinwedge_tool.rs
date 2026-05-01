@@ -3,21 +3,21 @@ use std::env;
 use std::path::Path;
 use std::path::PathBuf;
 
-use thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use thinwedge_mcp_server::ThinWedgeToolCallParam;
-use thinwedge_mcp_server::ExecApprovalElicitRequestParams;
-use thinwedge_mcp_server::ExecApprovalResponse;
-use thinwedge_mcp_server::PatchApprovalElicitRequestParams;
-use thinwedge_mcp_server::PatchApprovalResponse;
-use thinwedge_protocol::protocol::FileChange;
-use thinwedge_protocol::protocol::ReviewDecision;
-use thinwedge_shell_command::parse_command;
 use pretty_assertions::assert_eq;
 use rmcp::model::JsonRpcResponse;
 use rmcp::model::JsonRpcVersion2_0;
 use rmcp::model::RequestId;
 use serde_json::json;
 use tempfile::TempDir;
+use thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use thinwedge_mcp_server::ExecApprovalElicitRequestParams;
+use thinwedge_mcp_server::ExecApprovalResponse;
+use thinwedge_mcp_server::PatchApprovalElicitRequestParams;
+use thinwedge_mcp_server::PatchApprovalResponse;
+use thinwedge_mcp_server::ThinWedgeToolCallParam;
+use thinwedge_protocol::protocol::FileChange;
+use thinwedge_protocol::protocol::ReviewDecision;
+use thinwedge_shell_command::parse_command;
 use tokio::time::timeout;
 use wiremock::MockServer;
 
@@ -385,7 +385,10 @@ async fn thinwedge_tool_passes_base_instructions() -> anyhow::Result<()> {
     )
     .await??;
     assert_eq!(thinwedge_response.jsonrpc, JsonRpcVersion2_0);
-    assert_eq!(thinwedge_response.id, RequestId::Number(thinwedge_request_id));
+    assert_eq!(
+        thinwedge_response.id,
+        RequestId::Number(thinwedge_request_id)
+    );
     assert_eq!(
         thinwedge_response.result,
         json!({

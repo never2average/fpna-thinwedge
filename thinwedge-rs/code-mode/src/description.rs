@@ -1,8 +1,8 @@
-use thinwedge_protocol::ToolName;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::BTreeMap;
+use thinwedge_protocol::ToolName;
 
 use crate::PUBLIC_TOOL_NAME;
 
@@ -718,11 +718,11 @@ mod tests {
     use super::build_exec_tool_description;
     use super::normalize_code_mode_identifier;
     use super::parse_exec_source;
-    use thinwedge_protocol::ToolName;
     use pretty_assertions::assert_eq;
     use serde_json::Value as JsonValue;
     use serde_json::json;
     use std::collections::BTreeMap;
+    use thinwedge_protocol::ToolName;
 
     fn mcp_call_tool_result_schema(structured_content_schema: JsonValue) -> JsonValue {
         json!({

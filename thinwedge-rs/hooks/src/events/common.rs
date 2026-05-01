@@ -155,8 +155,8 @@ fn is_exact_matcher(matcher: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use thinwedge_protocol::protocol::HookEventName;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::protocol::HookEventName;
 
     use super::matcher_pattern_for_event;
     use super::matches_matcher;

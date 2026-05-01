@@ -5,6 +5,10 @@ use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use bytes::Bytes;
+use http::HeaderMap;
+use http::HeaderValue;
+use http::StatusCode;
+use pretty_assertions::assert_eq;
 use thinwedge_api::ApiError;
 use thinwedge_api::AuthError;
 use thinwedge_api::AuthProvider;
@@ -23,10 +27,6 @@ use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
-use http::HeaderMap;
-use http::HeaderValue;
-use http::StatusCode;
-use pretty_assertions::assert_eq;
 
 fn assert_path_ends_with(requests: &[Request], suffix: &str) {
     assert_eq!(requests.len(), 1);

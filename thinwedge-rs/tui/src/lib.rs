@@ -17,6 +17,15 @@ use app::App;
 pub use app::AppExitInfo;
 pub use app::ExitReason;
 use app_server_session::AppServerSession;
+use color_eyre::eyre::WrapErr;
+use cwd_prompt::CwdPromptAction;
+use cwd_prompt::CwdPromptOutcome;
+use cwd_prompt::CwdSelection;
+use std::fs::OpenOptions;
+use std::future::Future;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_app_server_client::AppServerClient;
 use thinwedge_app_server_client::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
 use thinwedge_app_server_client::InProcessAppServerClient;
@@ -59,15 +68,6 @@ use thinwedge_utils_absolute_path::canonicalize_existing_preserving_symlinks;
 use thinwedge_utils_oss::ensure_oss_provider_ready;
 use thinwedge_utils_oss::get_default_model_for_oss_provider;
 use thinwedge_utils_path as path_utils;
-use color_eyre::eyre::WrapErr;
-use cwd_prompt::CwdPromptAction;
-use cwd_prompt::CwdPromptOutcome;
-use cwd_prompt::CwdSelection;
-use std::fs::OpenOptions;
-use std::future::Future;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::Level;
 use tracing::error;
 use tracing::warn;
@@ -190,10 +190,10 @@ mod width;
 mod voice {
     use crate::app_event_sender::AppEventSender;
     use crate::legacy_core::config::Config;
-    use thinwedge_protocol::protocol::RealtimeAudioFrame;
     use std::sync::Arc;
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::AtomicU16;
+    use thinwedge_protocol::protocol::RealtimeAudioFrame;
 
     pub struct VoiceCapture;
 
@@ -251,10 +251,10 @@ use crate::onboarding::onboarding_screen::OnboardingScreenArgs;
 use crate::onboarding::onboarding_screen::run_onboarding_app;
 use crate::tui::Tui;
 pub use cli::Cli;
-use thinwedge_arg0::Arg0DispatchPaths;
 pub use markdown_render::render_markdown_text;
 pub use public_widgets::composer_input::ComposerAction;
 pub use public_widgets::composer_input::ComposerInput;
+use thinwedge_arg0::Arg0DispatchPaths;
 // (tests access modules directly within the crate)
 
 #[allow(clippy::too_many_arguments)]
@@ -1399,7 +1399,9 @@ async fn run_ratatui_app(
     // this must happen after the last possible reload.
     if let Some(w) = crate::render::highlight::set_theme_override(
         config.tui_theme.clone(),
-        find_thinwedge_home().ok().map(AbsolutePathBuf::into_path_buf),
+        find_thinwedge_home()
+            .ok()
+            .map(AbsolutePathBuf::into_path_buf),
     ) {
         config.startup_warnings.push(w);
     }
@@ -1763,6 +1765,9 @@ mod tests {
     use super::*;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::legacy_core::config::ConfigOverrides;
+    use pretty_assertions::assert_eq;
+    use serial_test::serial;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::ClientRequest;
     use thinwedge_app_server_protocol::RequestId;
     use thinwedge_app_server_protocol::ThreadStartParams;
@@ -1776,9 +1781,6 @@ mod tests {
     use thinwedge_protocol::protocol::SessionMetaLine;
     use thinwedge_protocol::protocol::SessionSource;
     use thinwedge_protocol::protocol::TurnContextItem;
-    use pretty_assertions::assert_eq;
-    use serial_test::serial;
-    use tempfile::TempDir;
 
     async fn build_config(temp_dir: &TempDir) -> std::io::Result<Config> {
         ConfigBuilder::default()

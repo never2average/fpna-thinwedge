@@ -9,6 +9,8 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -24,8 +26,6 @@ use thinwedge_state::DB_METRIC_BACKFILL_DURATION_MS;
 use thinwedge_state::ExtractionOutcome;
 use thinwedge_state::ThreadMetadataBuilder;
 use thinwedge_state::apply_rollout_item;
-use std::path::Path;
-use std::path::PathBuf;
 use tracing::info;
 use tracing::warn;
 

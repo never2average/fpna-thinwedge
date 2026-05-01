@@ -5,11 +5,11 @@ use anyhow::Context;
 use chrono::DateTime;
 use clap::Parser;
 use clap::ValueEnum;
+use dirs::home_dir;
+use owo_colors::OwoColorize;
 use thinwedge_state::LogQuery;
 use thinwedge_state::LogRow;
 use thinwedge_state::StateRuntime;
-use dirs::home_dir;
-use owo_colors::OwoColorize;
 
 #[derive(Debug, Parser)]
 #[command(name = "thinwedge-state-logs")]
@@ -135,7 +135,10 @@ fn resolve_db_path(args: &Args) -> anyhow::Result<PathBuf> {
         return Ok(db.clone());
     }
 
-    let thinwedge_home = args.thinwedge_home.clone().unwrap_or_else(default_thinwedge_home);
+    let thinwedge_home = args
+        .thinwedge_home
+        .clone()
+        .unwrap_or_else(default_thinwedge_home);
     Ok(thinwedge_state::logs_db_path(thinwedge_home.as_path()))
 }
 

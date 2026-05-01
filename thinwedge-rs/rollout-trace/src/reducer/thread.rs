@@ -14,11 +14,11 @@ use super::TraceReducer;
 use super::tool::spawn_edge_id;
 use crate::model::AgentOrigin;
 use crate::model::AgentThread;
-use crate::model::ThinWedgeTurn;
-use crate::model::ThinWedgeTurnId;
 use crate::model::ExecutionStatus;
 use crate::model::ExecutionWindow;
 use crate::model::RolloutStatus;
+use crate::model::ThinWedgeTurn;
+use crate::model::ThinWedgeTurnId;
 use crate::payload::RawPayloadRef;
 use crate::raw_event::RawEventSeq;
 
@@ -131,7 +131,11 @@ impl TraceReducer {
         thinwedge_turn_id: ThinWedgeTurnId,
         thread_id: String,
     ) -> Result<()> {
-        if self.rollout.thinwedge_turns.contains_key(&thinwedge_turn_id) {
+        if self
+            .rollout
+            .thinwedge_turns
+            .contains_key(&thinwedge_turn_id)
+        {
             bail!("duplicate thinwedge turn start for {thinwedge_turn_id}");
         }
 

@@ -3,6 +3,10 @@ use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::AddCreditsNudgeCreditType;
 use thinwedge_app_server_protocol::AddCreditsNudgeEmailStatus;
 use thinwedge_app_server_protocol::GetAccountRateLimitsResponse;
@@ -17,10 +21,6 @@ use thinwedge_app_server_protocol::SendAddCreditsNudgeEmailParams;
 use thinwedge_app_server_protocol::SendAddCreditsNudgeEmailResponse;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_protocol::account::PlanType as AccountPlanType;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -37,7 +37,8 @@ const INTERNAL_ERROR_CODE: i64 = -32603;
 async fn get_account_rate_limits_requires_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_get_account_rate_limits_request().await?;
@@ -153,7 +154,8 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_get_account_rate_limits_request().await?;
@@ -238,7 +240,8 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
 async fn send_add_credits_nudge_email_requires_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -321,7 +324,8 @@ async fn send_add_credits_nudge_email_posts_expected_body() -> Result<()> {
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -364,7 +368,8 @@ async fn send_add_credits_nudge_email_maps_cooldown() -> Result<()> {
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -407,7 +412,8 @@ async fn send_add_credits_nudge_email_surfaces_backend_failure() -> Result<()> {
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

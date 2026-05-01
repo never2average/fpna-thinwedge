@@ -3,6 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
+use tempfile::TempDir;
 use thinwedge_protocol::AgentPath;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::AgentStatus;
@@ -10,7 +11,6 @@ use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
-use tempfile::TempDir;
 
 use super::*;
 use crate::AgentResultTracePayload;

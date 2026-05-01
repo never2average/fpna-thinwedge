@@ -2,6 +2,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use http::HeaderMap;
+use serde::Deserialize;
 use thinwedge_api::ModelsClient;
 use thinwedge_api::RequestTelemetry;
 use thinwedge_api::ReqwestTransport;
@@ -20,8 +22,8 @@ use thinwedge_models_manager::manager::ModelsCacheProviderIdentity;
 use thinwedge_models_manager::manager::ModelsEndpointClient;
 use thinwedge_models_manager::model_info::model_info_from_slug;
 use thinwedge_otel::TelemetryAuthMode;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as CoreResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::thinwedge_models::ModelVisibility;
@@ -29,8 +31,6 @@ use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_response_debug_context::extract_response_debug_context;
 use thinwedge_response_debug_context::telemetry_transport_error_message;
-use http::HeaderMap;
-use serde::Deserialize;
 use tokio::time::timeout;
 
 use crate::auth::resolve_provider_auth;
@@ -219,8 +219,10 @@ impl ModelsEndpointClient for ThinWedgeModelsEndpoint {
         &self,
         client_version: &str,
     ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
-        let _timer =
-            thinwedge_otel::start_global_timer("thinwedge.remote_models.fetch_update.duration_ms", &[]);
+        let _timer = thinwedge_otel::start_global_timer(
+            "thinwedge.remote_models.fetch_update.duration_ms",
+            &[],
+        );
         self.list_openrouter_models(client_version).await
     }
 }

@@ -3,12 +3,6 @@
 
 use anyhow::Result;
 use anyhow::anyhow;
-use thinwedge_features::Feature;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -25,6 +19,12 @@ use core_test_support::test_thinwedge::turn_permission_fields;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::time::Duration;
+use thinwedge_features::Feature;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 const PARENT_PROMPT: &str = "spawn a subagent and report when it is started";
 const CHILD_PROMPT: &str = "child: say done";
@@ -89,7 +89,8 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     submit_turn_with_timeout(&test, PARENT_PROMPT).await?;
 
     let parent = wait_for_matching_request(&parent_mock, "parent request", |request| {
-        request.body_contains_text(PARENT_PROMPT) && request.header("x-thinwedge-subagent").is_none()
+        request.body_contains_text(PARENT_PROMPT)
+            && request.header("x-thinwedge-subagent").is_none()
     })
     .await?;
     let child = wait_for_matching_request(&child_mock, "child request", |request| {

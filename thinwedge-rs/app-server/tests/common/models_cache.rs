@@ -1,5 +1,7 @@
 use chrono::DateTime;
 use chrono::Utc;
+use serde_json::json;
+use std::path::Path;
 use thinwedge_core::test_support::all_model_presets;
 use thinwedge_models_manager::client_version_to_whole;
 use thinwedge_protocol::config_types::ReasoningSummary;
@@ -9,8 +11,6 @@ use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_protocol::thinwedge_models::ModelVisibility;
 use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
 use thinwedge_protocol::thinwedge_models::default_input_modalities;
-use serde_json::json;
-use std::path::Path;
 
 /// Convert a ModelPreset to ModelInfo for cache storage.
 fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {

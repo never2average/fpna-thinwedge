@@ -11,11 +11,11 @@ use crate::update_versions::is_source_build_version;
 use chrono::DateTime;
 use chrono::Duration;
 use chrono::Utc;
-use thinwedge_login::default_client::create_client;
 use serde::Deserialize;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_login::default_client::create_client;
 
 use crate::version::THINWEDGE_CLI_VERSION;
 

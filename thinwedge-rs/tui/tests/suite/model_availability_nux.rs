@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_models_manager::bundled_models_response;
 use serde_json::Value as JsonValue;
 use tempfile::tempdir;
+use thinwedge_models_manager::bundled_models_response;
 use tokio::select;
 use tokio::time::sleep;
 use tokio::time::timeout;

@@ -1,9 +1,9 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use thinwedge_shell_command::parse_command::extract_shell_command;
 use dirs::home_dir;
 use shlex::try_join;
+use thinwedge_shell_command::parse_command::extract_shell_command;
 
 pub(crate) fn escape_command(command: &[String]) -> String {
     try_join(command.iter().map(String::as_str)).unwrap_or_else(|_| command.join(" "))

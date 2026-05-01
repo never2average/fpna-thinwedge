@@ -3,12 +3,12 @@ use crate::session::tests::make_session_and_context;
 use crate::tools::context::ToolInvocation;
 use crate::tools::context::ToolPayload;
 use crate::turn_diff_tracker::TurnDiffTracker;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::protocol::SubAgentSource;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::sync::Arc;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::protocol::SubAgentSource;
 use tokio::sync::Mutex;
 
 #[tokio::test]

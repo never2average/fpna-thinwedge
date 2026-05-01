@@ -10,13 +10,13 @@ use crate::JsonSchema;
 use crate::ResponsesApiNamespaceTool;
 use crate::ResponsesApiTool;
 use crate::create_tools_json_for_responses_api;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::collections::BTreeMap;
 use thinwedge_protocol::config_types::WebSearchContextSize;
 use thinwedge_protocol::config_types::WebSearchFilters as ConfigWebSearchFilters;
 use thinwedge_protocol::config_types::WebSearchUserLocation as ConfigWebSearchUserLocation;
 use thinwedge_protocol::config_types::WebSearchUserLocationType;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::collections::BTreeMap;
 
 #[test]
 fn tool_spec_name_covers_all_variants() {

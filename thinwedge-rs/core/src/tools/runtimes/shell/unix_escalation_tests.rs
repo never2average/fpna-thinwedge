@@ -10,6 +10,10 @@ use crate::config::Constrained;
 use crate::sandboxing::SandboxPermissions;
 use crate::session::tests::make_session_and_context;
 use anyhow::Context;
+use pretty_assertions::assert_eq;
+use serde_json::Value;
+use std::path::PathBuf;
+use std::time::Duration;
 use thinwedge_execpolicy::Decision;
 use thinwedge_execpolicy::Evaluation;
 use thinwedge_execpolicy::PolicyParser;
@@ -35,10 +39,6 @@ use thinwedge_shell_escalation::EscalationPermissions;
 use thinwedge_shell_escalation::ExecResult;
 use thinwedge_shell_escalation::ResolvedPermissionProfile;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use serde_json::Value;
-use std::path::PathBuf;
-use std::time::Duration;
 use tokio::sync::RwLock;
 
 fn host_absolute_path(segments: &[&str]) -> String {
@@ -393,8 +393,10 @@ async fn execve_permission_request_hook_short_circuits_prompt() -> anyhow::Resul
     let target = std::env::temp_dir().join("execve-hook-short-circuit.txt");
     let target_str = target.display().to_string();
     let command = vec!["touch".to_string(), target_str.clone()];
-    let expected_hook_command =
-        thinwedge_shell_command::parse_command::shlex_join(&["/usr/bin/touch".to_string(), target_str]);
+    let expected_hook_command = thinwedge_shell_command::parse_command::shlex_join(&[
+        "/usr/bin/touch".to_string(),
+        target_str,
+    ]);
     let provider = CoreShellActionProvider {
         policy: std::sync::Arc::new(RwLock::new(thinwedge_execpolicy::Policy::empty())),
         session: std::sync::Arc::new(session),

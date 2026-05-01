@@ -9,7 +9,6 @@ use crate::metrics::validation::validate_metric_name;
 use crate::metrics::validation::validate_tag_key;
 use crate::metrics::validation::validate_tag_value;
 use crate::metrics::validation::validate_tags;
-use thinwedge_utils_string::sanitize_metric_tag_value;
 use opentelemetry::KeyValue;
 use opentelemetry::metrics::Counter;
 use opentelemetry::metrics::Histogram;
@@ -38,6 +37,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::Weak;
 use std::time::Duration;
+use thinwedge_utils_string::sanitize_metric_tag_value;
 use tracing::debug;
 
 const ENV_ATTRIBUTE: &str = "env";

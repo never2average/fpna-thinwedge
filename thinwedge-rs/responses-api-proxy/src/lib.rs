@@ -35,7 +35,10 @@ use read_api_key::read_auth_header_from_stdin;
 
 /// CLI arguments for the proxy.
 #[derive(Debug, Clone, Parser)]
-#[command(name = "responses-api-proxy", about = "Minimal ThinWedge responses proxy")]
+#[command(
+    name = "responses-api-proxy",
+    about = "Minimal ThinWedge responses proxy"
+)]
 pub struct Args {
     /// Port to listen on. If not set, an ephemeral port is used.
     #[arg(long)]

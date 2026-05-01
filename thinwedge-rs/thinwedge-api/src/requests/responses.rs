@@ -1,5 +1,5 @@
-use thinwedge_protocol::models::ResponseItem;
 use serde_json::Value;
+use thinwedge_protocol::models::ResponseItem;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Compression {

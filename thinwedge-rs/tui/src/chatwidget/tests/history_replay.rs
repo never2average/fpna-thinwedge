@@ -1,4 +1,5 @@
 use super::*;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::protocol::FileSystemAccessMode;
 use thinwedge_protocol::protocol::FileSystemPath;
 use thinwedge_protocol::protocol::FileSystemSandboxEntry;
@@ -6,7 +7,6 @@ use thinwedge_protocol::protocol::FileSystemSandboxKind;
 use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
 use thinwedge_protocol::protocol::FileSystemSpecialPath;
 use thinwedge_protocol::protocol::NetworkSandboxPolicy;
-use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn resumed_initial_messages_render_history() {

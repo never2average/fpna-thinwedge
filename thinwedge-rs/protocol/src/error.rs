@@ -5,21 +5,21 @@ pub use crate::auth::RefreshTokenFailedError;
 pub use crate::auth::RefreshTokenFailedReason;
 use crate::exec_output::ExecToolCallOutput;
 use crate::network_policy::NetworkPolicyDecisionPayload;
-use crate::protocol::ThinWedgeErrorInfo;
 use crate::protocol::ErrorEvent;
 use crate::protocol::RateLimitSnapshot;
+use crate::protocol::ThinWedgeErrorInfo;
 use crate::protocol::TruncationPolicy;
 use chrono::DateTime;
 use chrono::Datelike;
 use chrono::Local;
 use chrono::Utc;
-use thinwedge_async_utils::CancelErr;
-use thinwedge_utils_string::truncate_middle_chars;
-use thinwedge_utils_string::truncate_middle_with_token_budget;
 use reqwest::StatusCode;
 use serde_json;
 use std::io;
 use std::time::Duration;
+use thinwedge_async_utils::CancelErr;
+use thinwedge_utils_string::truncate_middle_chars;
+use thinwedge_utils_string::truncate_middle_with_token_budget;
 use thiserror::Error;
 use tokio::task::JoinError;
 
@@ -227,9 +227,11 @@ impl ThinWedgeErr {
             ThinWedgeErr::ConnectionFailed(_) => ThinWedgeErrorInfo::HttpConnectionFailed {
                 http_status_code: self.http_status_code_value(),
             },
-            ThinWedgeErr::ResponseStreamFailed(_) => ThinWedgeErrorInfo::ResponseStreamConnectionFailed {
-                http_status_code: self.http_status_code_value(),
-            },
+            ThinWedgeErr::ResponseStreamFailed(_) => {
+                ThinWedgeErrorInfo::ResponseStreamConnectionFailed {
+                    http_status_code: self.http_status_code_value(),
+                }
+            }
             ThinWedgeErr::RefreshTokenFailed(_) => ThinWedgeErrorInfo::Unauthorized,
             ThinWedgeErr::SessionConfiguredNotFirstEvent
             | ThinWedgeErr::InternalServerError

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use thinwedge_mcp::ToolInfo;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_tools::LoadableToolSpec;
@@ -5,7 +6,6 @@ use thinwedge_tools::ToolSearchResultSource;
 use thinwedge_tools::ToolsConfig;
 use thinwedge_tools::dynamic_tool_to_loadable_tool_spec;
 use thinwedge_tools::tool_search_result_source_to_loadable_tool_spec;
-use std::collections::HashMap;
 
 #[derive(Clone)]
 pub(crate) struct ToolSearchEntry {

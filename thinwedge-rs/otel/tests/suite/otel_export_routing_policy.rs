@@ -1,7 +1,3 @@
-use thinwedge_otel::AuthEnvTelemetryMetadata;
-use thinwedge_otel::OtelProvider;
-use thinwedge_otel::SessionTelemetry;
-use thinwedge_otel::TelemetryAuthMode;
 use opentelemetry::KeyValue;
 use opentelemetry::logs::AnyValue;
 use opentelemetry::trace::TracerProvider as _;
@@ -14,6 +10,10 @@ use pretty_assertions::assert_eq;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use thinwedge_otel::AuthEnvTelemetryMetadata;
+use thinwedge_otel::OtelProvider;
+use thinwedge_otel::SessionTelemetry;
+use thinwedge_otel::TelemetryAuthMode;
 use tracing_subscriber::Layer;
 use tracing_subscriber::filter::filter_fn;
 use tracing_subscriber::layer::SubscriberExt;

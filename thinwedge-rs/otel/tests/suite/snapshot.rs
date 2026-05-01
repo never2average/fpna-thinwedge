@@ -1,5 +1,10 @@
 use crate::harness::attributes_to_map;
 use crate::harness::find_metric;
+use opentelemetry_sdk::metrics::InMemoryMetricExporter;
+use opentelemetry_sdk::metrics::data::AggregatedMetrics;
+use opentelemetry_sdk::metrics::data::MetricData;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
 use thinwedge_otel::MetricsClient;
 use thinwedge_otel::MetricsConfig;
 use thinwedge_otel::Result;
@@ -7,11 +12,6 @@ use thinwedge_otel::SessionTelemetry;
 use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SessionSource;
-use opentelemetry_sdk::metrics::InMemoryMetricExporter;
-use opentelemetry_sdk::metrics::data::AggregatedMetrics;
-use opentelemetry_sdk::metrics::data::MetricData;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
 
 #[test]
 fn snapshot_collects_metrics_without_shutdown() -> Result<()> {
@@ -65,9 +65,10 @@ fn snapshot_collects_metrics_without_shutdown() -> Result<()> {
 #[test]
 fn manager_snapshot_metrics_collects_without_shutdown() -> Result<()> {
     let exporter = InMemoryMetricExporter::default();
-    let config = MetricsConfig::in_memory("test", "thinwedge-cli", env!("CARGO_PKG_VERSION"), exporter)
-        .with_tag("service", "thinwedge-cli")?
-        .with_runtime_reader();
+    let config =
+        MetricsConfig::in_memory("test", "thinwedge-cli", env!("CARGO_PKG_VERSION"), exporter)
+            .with_tag("service", "thinwedge-cli")?
+            .with_runtime_reader();
     let metrics = MetricsClient::new(config)?;
     let manager = SessionTelemetry::new(
         ThreadId::new(),

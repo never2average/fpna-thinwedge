@@ -14,12 +14,12 @@ pub(crate) mod spec;
 pub(crate) mod tool_dispatch_trace;
 pub(crate) mod tool_search_entry;
 
+pub use router::ToolRouter;
+use serde::Serialize;
 use thinwedge_protocol::exec_output::ExecToolCallOutput;
 use thinwedge_utils_output_truncation::TruncationPolicy;
 use thinwedge_utils_output_truncation::formatted_truncate_text;
 use thinwedge_utils_output_truncation::truncate_text;
-pub use router::ToolRouter;
-use serde::Serialize;
 
 // Telemetry preview limits: keep log events smaller than model budgets.
 pub(crate) const TELEMETRY_PREVIEW_MAX_BYTES: usize = 2 * 1024; // 2 KiB

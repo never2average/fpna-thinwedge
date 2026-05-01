@@ -1,7 +1,7 @@
-use thinwedge_features::FEATURES;
-use thinwedge_features::Feature;
 use std::collections::BTreeMap;
 use std::path::Path;
+use thinwedge_features::FEATURES;
+use thinwedge_features::Feature;
 
 pub fn write_mock_responses_config_toml(
     thinwedge_home: &Path,

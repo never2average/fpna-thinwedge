@@ -52,9 +52,9 @@ pub(crate) fn goal_usage_summary(goal: &ThreadGoal) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::ThreadGoal;
     use thinwedge_app_server_protocol::ThreadGoalStatus;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn format_goal_elapsed_seconds_is_compact() {

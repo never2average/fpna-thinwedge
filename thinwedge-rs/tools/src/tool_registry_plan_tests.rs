@@ -19,6 +19,10 @@ use crate::ToolRegistryPlanMcpTool;
 use crate::ToolsConfigParams;
 use crate::WaitAgentTimeoutOptions;
 use crate::mcp_call_tool_result_output_schema;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_features::Feature;
 use thinwedge_features::Features;
@@ -28,15 +32,11 @@ use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::VIEW_IMAGE_TOOL_NAME;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::thinwedge_models::WebSearchToolType;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::protocol::SubAgentSource;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
 
 const THINWEDGE_APPS_MCP_SERVER_NAME: &str = "thinwedge_apps";
 const DEFAULT_AGENT_TYPE_DESCRIPTION: &str = "Test agent type description.";
@@ -1566,7 +1566,9 @@ fn search_tool_registers_for_deferred_dynamic_tools() {
     let ToolSpec::ToolSearch { description, .. } = &search_tool.spec else {
         panic!("expected tool_search tool");
     };
-    assert!(description.contains("- Dynamic tools: Tools provided by the current ThinWedge thread."));
+    assert!(
+        description.contains("- Dynamic tools: Tools provided by the current ThinWedge thread.")
+    );
     assert_contains_tool_names(&tools, &[TOOL_SEARCH_TOOL_NAME, "thinwedge_app"]);
     assert_eq!(
         tools

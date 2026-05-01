@@ -2,13 +2,13 @@ use super::protocol::EnrollRemoteServerRequest;
 use super::protocol::EnrollRemoteServerResponse;
 use super::protocol::RemoteControlTarget;
 use axum::http::HeaderMap;
+use gethostname::gethostname;
+use std::io;
+use std::io::ErrorKind;
 use thinwedge_api::SharedAuthProvider;
 use thinwedge_login::default_client::build_reqwest_client;
 use thinwedge_state::RemoteControlEnrollmentRecord;
 use thinwedge_state::StateRuntime;
-use gethostname::gethostname;
-use std::io;
-use std::io::ErrorKind;
 use tracing::info;
 use tracing::warn;
 
@@ -259,11 +259,11 @@ pub(super) async fn enroll_remote_control_server(
 mod tests {
     use super::*;
     use crate::transport::remote_control::protocol::normalize_remote_control_url;
-    use thinwedge_state::StateRuntime;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::sync::Arc;
     use tempfile::TempDir;
+    use thinwedge_state::StateRuntime;
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncWriteExt;
     use tokio::io::BufReader;
@@ -273,9 +273,12 @@ mod tests {
     use tokio::time::timeout;
 
     async fn remote_control_state_runtime(thinwedge_home: &TempDir) -> Arc<StateRuntime> {
-        StateRuntime::init(thinwedge_home.path().to_path_buf(), "test-provider".to_string())
-            .await
-            .expect("state runtime should initialize")
+        StateRuntime::init(
+            thinwedge_home.path().to_path_buf(),
+            "test-provider".to_string(),
+        )
+        .await
+        .expect("state runtime should initialize")
     }
 
     #[tokio::test]

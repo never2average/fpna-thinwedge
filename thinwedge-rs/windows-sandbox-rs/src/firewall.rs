@@ -37,7 +37,8 @@ const OFFLINE_BLOCK_LOOPBACK_UDP_RULE_NAME: &str = "thinwedge_sandbox_offline_bl
 const OFFLINE_BLOCK_RULE_FRIENDLY: &str = "ThinWedge Sandbox Offline - Block Non-Loopback Outbound";
 const OFFLINE_BLOCK_LOOPBACK_TCP_RULE_FRIENDLY: &str =
     "ThinWedge Sandbox Offline - Block Loopback TCP (Except Proxy)";
-const OFFLINE_BLOCK_LOOPBACK_UDP_RULE_FRIENDLY: &str = "ThinWedge Sandbox Offline - Block Loopback UDP";
+const OFFLINE_BLOCK_LOOPBACK_UDP_RULE_FRIENDLY: &str =
+    "ThinWedge Sandbox Offline - Block Loopback UDP";
 const OFFLINE_PROXY_ALLOW_RULE_NAME: &str = "thinwedge_sandbox_offline_allow_loopback_proxy";
 const LOOPBACK_REMOTE_ADDRESSES: &str = "127.0.0.0/8,::/127";
 const NON_LOOPBACK_REMOTE_ADDRESSES: &str = "0.0.0.0-126.255.255.255,128.0.0.0-255.255.255.255,::,::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff";

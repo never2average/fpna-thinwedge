@@ -65,9 +65,9 @@ use crate::mcp_tool_to_responses_api_tool;
 use crate::request_permissions_tool_description;
 use crate::request_user_input_tool_description;
 use crate::tool_registry_plan_types::agent_type_description;
+use std::collections::BTreeMap;
 use thinwedge_protocol::thinwedge_models::ApplyPatchToolType;
 use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use std::collections::BTreeMap;
 
 pub fn build_tool_registry_plan(
     config: &ToolsConfig,

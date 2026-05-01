@@ -3,19 +3,6 @@
 use anyhow::Result;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use thinwedge_config::types::McpServerConfig;
-use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_features::Feature;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_models_manager::bundled_models_response;
-use thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use thinwedge_protocol::dynamic_tools::DynamicToolResponse;
-use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
@@ -41,6 +28,19 @@ use std::fs;
 use std::path::Path;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_config::types::McpServerConfig;
+use thinwedge_config::types::McpServerTransportConfig;
+use thinwedge_features::Feature;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_models_manager::bundled_models_response;
+use thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use thinwedge_protocol::dynamic_tools::DynamicToolResponse;
+use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::MockServer;
 
 fn custom_tool_output_items(req: &ResponsesRequest, call_id: &str) -> Vec<Value> {
@@ -200,8 +200,14 @@ async fn run_code_mode_turn_with_rmcp_mode(
     code: &str,
     code_mode_only: bool,
 ) -> Result<(TestThinWedge, ResponseMock)> {
-    run_code_mode_turn_with_rmcp_config(server, prompt, code, "test-gpt-5.1-thinwedge", code_mode_only)
-        .await
+    run_code_mode_turn_with_rmcp_config(
+        server,
+        prompt,
+        code,
+        "test-gpt-5.1-thinwedge",
+        code_mode_only,
+    )
+    .await
 }
 
 async fn run_code_mode_turn_with_rmcp_config(
@@ -212,47 +218,49 @@ async fn run_code_mode_turn_with_rmcp_config(
     code_mode_only: bool,
 ) -> Result<(TestThinWedge, ResponseMock)> {
     let rmcp_test_server_bin = stdio_server_bin()?;
-    let mut builder = test_thinwedge().with_model(model).with_config(move |config| {
-        let _ = if code_mode_only {
-            config.features.enable(Feature::CodeModeOnly)
-        } else {
-            config.features.enable(Feature::CodeMode)
-        };
+    let mut builder = test_thinwedge()
+        .with_model(model)
+        .with_config(move |config| {
+            let _ = if code_mode_only {
+                config.features.enable(Feature::CodeModeOnly)
+            } else {
+                config.features.enable(Feature::CodeMode)
+            };
 
-        let mut servers = config.mcp_servers.get().clone();
-        servers.insert(
-            "rmcp".to_string(),
-            McpServerConfig {
-                transport: McpServerTransportConfig::Stdio {
-                    command: rmcp_test_server_bin,
-                    args: Vec::new(),
-                    env: Some(HashMap::from([(
-                        "MCP_TEST_VALUE".to_string(),
-                        "propagated-env".to_string(),
-                    )])),
-                    env_vars: Vec::new(),
-                    cwd: None,
+            let mut servers = config.mcp_servers.get().clone();
+            servers.insert(
+                "rmcp".to_string(),
+                McpServerConfig {
+                    transport: McpServerTransportConfig::Stdio {
+                        command: rmcp_test_server_bin,
+                        args: Vec::new(),
+                        env: Some(HashMap::from([(
+                            "MCP_TEST_VALUE".to_string(),
+                            "propagated-env".to_string(),
+                        )])),
+                        env_vars: Vec::new(),
+                        cwd: None,
+                    },
+                    experimental_environment: None,
+                    enabled: true,
+                    required: false,
+                    supports_parallel_tool_calls: false,
+                    disabled_reason: None,
+                    startup_timeout_sec: Some(Duration::from_secs(10)),
+                    tool_timeout_sec: None,
+                    default_tools_approval_mode: None,
+                    enabled_tools: None,
+                    disabled_tools: None,
+                    scopes: None,
+                    oauth_resource: None,
+                    tools: HashMap::new(),
                 },
-                experimental_environment: None,
-                enabled: true,
-                required: false,
-                supports_parallel_tool_calls: false,
-                disabled_reason: None,
-                startup_timeout_sec: Some(Duration::from_secs(10)),
-                tool_timeout_sec: None,
-                default_tools_approval_mode: None,
-                enabled_tools: None,
-                disabled_tools: None,
-                scopes: None,
-                oauth_resource: None,
-                tools: HashMap::new(),
-            },
-        );
-        config
-            .mcp_servers
-            .set(servers)
-            .expect("test mcp servers should accept any configuration");
-    });
+            );
+            config
+                .mcp_servers
+                .set(servers)
+                .expect("test mcp servers should accept any configuration");
+        });
     let test = builder.build(server).await?;
 
     responses::mount_sse_once(
@@ -2678,7 +2686,9 @@ text(
     )?;
     assert_eq!(
         parsed.get("name"),
-        Some(&Value::String("thinwedge_app_hidden_dynamic_tool".to_string()))
+        Some(&Value::String(
+            "thinwedge_app_hidden_dynamic_tool".to_string()
+        ))
     );
     assert_eq!(
         parsed.get("out"),

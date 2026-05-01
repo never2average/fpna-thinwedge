@@ -5,6 +5,12 @@ use app_test_support::PathBufExt;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use pretty_assertions::assert_eq;
+use serde_json::Value;
+use serde_json::json;
+use std::path::Path;
+use std::path::PathBuf;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::AskForApproval;
 use thinwedge_app_server_protocol::JSONRPCError;
 use thinwedge_app_server_protocol::JSONRPCMessage;
@@ -29,12 +35,6 @@ use thinwedge_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::TrustLevel;
 use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use pretty_assertions::assert_eq;
-use serde_json::Value;
-use serde_json::json;
-use std::path::Path;
-use std::path::PathBuf;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -874,7 +874,9 @@ fn create_config_toml_without_approval_policy(
     server_uri: &str,
 ) -> std::io::Result<()> {
     create_config_toml_with_optional_approval_policy(
-        thinwedge_home, server_uri, /*approval_policy*/ None,
+        thinwedge_home,
+        server_uri,
+        /*approval_policy*/ None,
     )
 }
 

@@ -5,11 +5,6 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_config::types::AppToolApproval;
-use thinwedge_config::types::McpServerConfig;
-use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_core::config::Config;
-use thinwedge_features::Feature;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call_with_namespace;
@@ -24,6 +19,11 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
+use thinwedge_config::types::AppToolApproval;
+use thinwedge_config::types::McpServerConfig;
+use thinwedge_config::types::McpServerTransportConfig;
+use thinwedge_core::config::Config;
+use thinwedge_features::Feature;
 
 const RMCP_SERVER: &str = "rmcp";
 const RMCP_NAMESPACE: &str = "mcp__rmcp__";

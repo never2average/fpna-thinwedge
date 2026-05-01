@@ -1,5 +1,5 @@
-use thinwedge_protocol::models::PermissionProfile;
 use std::path::PathBuf;
+use thinwedge_protocol::models::PermissionProfile;
 
 /// Returns a warning describing why `--add-dir` entries will be ignored for the
 /// resolved permission profile. The caller is responsible for presenting the
@@ -46,6 +46,9 @@ fn format_warning(additional_dirs: &[PathBuf]) -> String {
 #[cfg(test)]
 mod tests {
     use super::add_dir_warning_message;
+    use pretty_assertions::assert_eq;
+    use std::path::Path;
+    use std::path::PathBuf;
     use thinwedge_protocol::models::ManagedFileSystemPermissions;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::permissions::FileSystemAccessMode;
@@ -53,9 +56,6 @@ mod tests {
     use thinwedge_protocol::permissions::FileSystemSandboxEntry;
     use thinwedge_protocol::permissions::FileSystemSpecialPath;
     use thinwedge_protocol::protocol::NetworkSandboxPolicy;
-    use pretty_assertions::assert_eq;
-    use std::path::Path;
-    use std::path::PathBuf;
 
     #[test]
     fn returns_none_for_workspace_write() {

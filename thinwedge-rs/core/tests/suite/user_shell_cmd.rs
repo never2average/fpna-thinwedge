@@ -1,15 +1,4 @@
 use anyhow::Context;
-use thinwedge_features::Feature;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::permissions::NetworkSandboxPolicy;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ExecCommandEndEvent;
-use thinwedge_protocol::protocol::ExecCommandSource;
-use thinwedge_protocol::protocol::ExecOutputStream;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::TurnAbortReason;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::PathBufExt;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
@@ -30,6 +19,17 @@ use pretty_assertions::assert_eq;
 use regex_lite::escape;
 use std::path::PathBuf;
 use tempfile::TempDir;
+use thinwedge_features::Feature;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::permissions::NetworkSandboxPolicy;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ExecCommandEndEvent;
+use thinwedge_protocol::protocol::ExecCommandSource;
+use thinwedge_protocol::protocol::ExecOutputStream;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::TurnAbortReason;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::time::Duration;
 use tokio::time::timeout;
 
@@ -260,12 +260,13 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
 async fn user_shell_command_history_is_persisted_and_shared_with_model() -> anyhow::Result<()> {
     let server = responses::start_mock_server().await;
     // Disable it to ease command matching.
-    let mut builder = core_test_support::test_thinwedge::test_thinwedge().with_config(move |config| {
-        config
-            .features
-            .disable(Feature::ShellSnapshot)
-            .expect("test config should allow feature update");
-    });
+    let mut builder =
+        core_test_support::test_thinwedge::test_thinwedge().with_config(move |config| {
+            config
+                .features
+                .disable(Feature::ShellSnapshot)
+                .expect("test config should allow feature update");
+        });
     let test = builder.build(&server).await?;
 
     #[cfg(windows)]
@@ -311,7 +312,10 @@ async fn user_shell_command_history_is_persisted_and_shared_with_model() -> anyh
     assert_eq!(end_event.exit_code, 0);
     assert_eq!(end_event.stdout.trim(), "not-set");
 
-    let _ = wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let responses = vec![responses::sse(vec![
         responses::ev_response_created("resp-1"),
@@ -412,7 +416,10 @@ async fn user_shell_command_output_is_truncated_in_history() -> anyhow::Result<(
     .await;
     assert_eq!(end_event.exit_code, 0);
 
-    let _ = wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let responses = vec![responses::sse(vec![
         responses::ev_response_created("resp-1"),
@@ -451,9 +458,11 @@ async fn user_shell_command_is_truncated_only_once() -> anyhow::Result<()> {
 
     let server = start_mock_server().await;
 
-    let mut builder = test_thinwedge().with_model("gpt-5.4").with_config(|config| {
-        config.tool_output_token_limit = Some(100);
-    });
+    let mut builder = test_thinwedge()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config.tool_output_token_limit = Some(100);
+        });
     let fixture = builder.build(&server).await?;
 
     let call_id = "user-shell-double-truncation";

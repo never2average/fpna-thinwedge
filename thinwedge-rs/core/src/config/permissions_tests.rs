@@ -1,6 +1,9 @@
 use super::*;
 use crate::config::Config;
 use crate::config::ConfigOverrides;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use tempfile::TempDir;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_config::permissions_toml::FilesystemPermissionToml;
 use thinwedge_config::permissions_toml::FilesystemPermissionsToml;
@@ -17,9 +20,6 @@ use thinwedge_protocol::permissions::FileSystemSandboxEntry;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::FileSystemSpecialPath;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use tempfile::TempDir;
 
 #[test]
 fn normalize_absolute_path_for_platform_simplifies_windows_verbatim_paths() {

@@ -2,16 +2,16 @@ use anyhow::Result;
 use app_test_support::ChatGptAuthFixture;
 use app_test_support::DEFAULT_CLIENT_NAME;
 use app_test_support::write_chatgpt_auth;
-use thinwedge_config::types::AuthCredentialsStoreMode;
-use thinwedge_config::types::OtelExporterKind;
-use thinwedge_config::types::OtelHttpProtocol;
-use thinwedge_core::config::ConfigBuilder;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::Duration;
 use tempfile::TempDir;
+use thinwedge_config::types::AuthCredentialsStoreMode;
+use thinwedge_config::types::OtelExporterKind;
+use thinwedge_config::types::OtelHttpProtocol;
+use thinwedge_core::config::ConfigBuilder;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -79,7 +79,10 @@ async fn app_server_default_analytics_enabled_with_flag() -> Result<()> {
     Ok(())
 }
 
-pub(crate) async fn mount_analytics_capture(server: &MockServer, thinwedge_home: &Path) -> Result<()> {
+pub(crate) async fn mount_analytics_capture(
+    server: &MockServer,
+    thinwedge_home: &Path,
+) -> Result<()> {
     Mock::given(method("POST"))
         .and(path("/thinwedge/analytics-events/events"))
         .respond_with(ResponseTemplate::new(200))
@@ -109,7 +112,8 @@ pub(crate) async fn wait_for_analytics_payload(
                 continue;
             };
             if let Some(request) = requests.iter().find(|request| {
-                request.method == "POST" && request.url.path() == "/thinwedge/analytics-events/events"
+                request.method == "POST"
+                    && request.url.path() == "/thinwedge/analytics-events/events"
             }) {
                 break request.body.clone();
             }

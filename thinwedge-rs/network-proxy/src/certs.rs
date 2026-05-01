@@ -1,7 +1,6 @@
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use thinwedge_utils_home_dir::find_thinwedge_home;
 use rama_net::tls::ApplicationProtocol;
 use rama_tls_rustls::dep::pki_types::CertificateDer;
 use rama_tls_rustls::dep::pki_types::PrivateKeyDer;
@@ -28,6 +27,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use thinwedge_utils_home_dir::find_thinwedge_home;
 use tracing::info;
 
 pub(super) struct ManagedMitmCa {

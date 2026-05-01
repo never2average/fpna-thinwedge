@@ -1,11 +1,11 @@
-use thinwedge_client::Request;
-use thinwedge_client::RequestCompression;
-use thinwedge_client::RetryOn;
-use thinwedge_client::RetryPolicy;
 use http::Method;
 use http::header::HeaderMap;
 use std::collections::HashMap;
 use std::time::Duration;
+use thinwedge_client::Request;
+use thinwedge_client::RequestCompression;
+use thinwedge_client::RetryOn;
+use thinwedge_client::RetryPolicy;
 use url::Url;
 
 /// High-level retry configuration for a provider.

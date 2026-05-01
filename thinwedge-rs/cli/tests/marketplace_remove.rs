@@ -1,10 +1,10 @@
 use anyhow::Result;
-use thinwedge_config::MarketplaceConfigUpdate;
-use thinwedge_config::record_user_marketplace;
-use thinwedge_core_plugins::installed_marketplaces::marketplace_install_root;
 use predicates::str::contains;
 use std::path::Path;
 use tempfile::TempDir;
+use thinwedge_config::MarketplaceConfigUpdate;
+use thinwedge_config::record_user_marketplace;
+use thinwedge_core_plugins::installed_marketplaces::marketplace_install_root;
 
 fn thinwedge_command(thinwedge_home: &Path) -> Result<assert_cmd::Command> {
     let mut cmd = assert_cmd::Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge")?);
@@ -34,7 +34,11 @@ fn write_installed_marketplace(thinwedge_home: &Path, marketplace_name: &str) ->
 #[tokio::test]
 async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    record_user_marketplace(thinwedge_home.path(), "debug", &configured_marketplace_update())?;
+    record_user_marketplace(
+        thinwedge_home.path(),
+        "debug",
+        &configured_marketplace_update(),
+    )?;
     write_installed_marketplace(thinwedge_home.path(), "debug")?;
 
     thinwedge_command(thinwedge_home.path())?

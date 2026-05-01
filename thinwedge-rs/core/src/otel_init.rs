@@ -1,4 +1,5 @@
 use crate::config::Config;
+use std::error::Error;
 use thinwedge_config::types::OtelExporterKind as Kind;
 use thinwedge_config::types::OtelHttpProtocol as Protocol;
 use thinwedge_features::Feature;
@@ -8,7 +9,6 @@ use thinwedge_otel::OtelHttpProtocol;
 use thinwedge_otel::OtelProvider;
 use thinwedge_otel::OtelSettings;
 use thinwedge_otel::OtelTlsConfig as OtelTlsSettings;
-use std::error::Error;
 
 /// Build an OpenTelemetry provider from the app Config.
 ///

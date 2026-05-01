@@ -3,13 +3,13 @@ use std::future::Future;
 use std::path::Path;
 use std::path::PathBuf;
 
+#[cfg(unix)]
+use std::os::unix::fs::symlink;
+use tempfile::TempDir;
 use thinwedge_apply_patch::THINWEDGE_CORE_APPLY_PATCH_ARG1;
 use thinwedge_exec_server::THINWEDGE_FS_HELPER_ARG1;
 use thinwedge_sandboxing::landlock::THINWEDGE_LINUX_SANDBOX_ARG0;
 use thinwedge_utils_home_dir::find_thinwedge_home;
-#[cfg(unix)]
-use std::os::unix::fs::symlink;
-use tempfile::TempDir;
 
 const APPLY_PATCH_ARG0: &str = "apply_patch";
 const MISSPELLED_APPLY_PATCH_ARG0: &str = "applypatch";
@@ -77,9 +77,8 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
             Ok(runtime) => runtime,
             Err(_) => std::process::exit(1),
         };
-        let exit_code = runtime.block_on(
-            thinwedge_shell_escalation::run_shell_escalation_execve_wrapper(file, argv),
-        );
+        let exit_code = runtime
+            .block_on(thinwedge_shell_escalation::run_shell_escalation_execve_wrapper(file, argv));
         match exit_code {
             Ok(exit_code) => std::process::exit(exit_code),
             Err(_) => std::process::exit(1),
@@ -127,7 +126,9 @@ pub fn arg0_dispatch() -> Option<Arg0PathEntryGuard> {
                 }
             }
             None => {
-                eprintln!("Error: {THINWEDGE_CORE_APPLY_PATCH_ARG1} requires a UTF-8 PATCH argument.");
+                eprintln!(
+                    "Error: {THINWEDGE_CORE_APPLY_PATCH_ARG1} requires a UTF-8 PATCH argument."
+                );
                 1
             }
         };

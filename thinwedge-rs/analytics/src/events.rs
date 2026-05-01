@@ -1,7 +1,6 @@
 use std::time::Instant;
 
 use crate::facts::AppInvocation;
-use crate::facts::ThinWedgeCompactionEvent;
 use crate::facts::CompactionImplementation;
 use crate::facts::CompactionPhase;
 use crate::facts::CompactionReason;
@@ -12,6 +11,7 @@ use crate::facts::HookRunFact;
 use crate::facts::InvocationType;
 use crate::facts::PluginState;
 use crate::facts::SubAgentThreadStartedInput;
+use crate::facts::ThinWedgeCompactionEvent;
 use crate::facts::ThreadInitializationMode;
 use crate::facts::TrackEventsContext;
 use crate::facts::TurnStatus;
@@ -19,6 +19,7 @@ use crate::facts::TurnSteerRejectionReason;
 use crate::facts::TurnSteerResult;
 use crate::facts::TurnSubmissionType;
 use crate::now_unix_seconds;
+use serde::Serialize;
 use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 use thinwedge_login::default_client::originator;
 use thinwedge_plugin::PluginTelemetryMetadata;
@@ -34,7 +35,6 @@ use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::HookSource;
 use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_protocol::protocol::TokenUsage;
-use serde::Serialize;
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -586,7 +586,9 @@ pub(crate) fn thinwedge_app_metadata(
     }
 }
 
-pub(crate) fn thinwedge_plugin_metadata(plugin: PluginTelemetryMetadata) -> ThinWedgePluginMetadata {
+pub(crate) fn thinwedge_plugin_metadata(
+    plugin: PluginTelemetryMetadata,
+) -> ThinWedgePluginMetadata {
     let capability_summary = plugin.capability_summary;
     ThinWedgePluginMetadata {
         plugin_id: Some(plugin.plugin_id.as_key()),

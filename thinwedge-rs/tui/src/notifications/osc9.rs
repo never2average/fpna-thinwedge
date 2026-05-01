@@ -2,10 +2,10 @@ use std::fmt;
 use std::io;
 use std::io::stdout;
 
-use thinwedge_terminal_detection::Multiplexer;
-use thinwedge_terminal_detection::terminal_info;
 use crossterm::Command;
 use ratatui::crossterm::execute;
+use thinwedge_terminal_detection::Multiplexer;
+use thinwedge_terminal_detection::terminal_info;
 
 #[derive(Debug)]
 pub struct Osc9Backend {

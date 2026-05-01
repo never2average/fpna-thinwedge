@@ -1,12 +1,12 @@
 use anyhow::Result;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_core::build_prompt_input;
 use thinwedge_core::config::ConfigBuilder;
 use thinwedge_core::config::ConfigOverrides;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::user_input::UserInput;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 
 #[tokio::test]
 async fn build_prompt_input_includes_context_and_user_message() -> Result<()> {

@@ -3,9 +3,9 @@ mod exit_status;
 pub(crate) mod login;
 
 use clap::Parser;
+use std::path::PathBuf;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_cli::CliConfigOverrides;
-use std::path::PathBuf;
 
 pub use debug_sandbox::run_command_under_landlock;
 pub use debug_sandbox::run_command_under_seatbelt;

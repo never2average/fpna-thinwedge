@@ -23,6 +23,8 @@ use crate::protocol::v2::ItemGuardianApprovalReviewStartedNotification;
 use crate::protocol::v2::PatchApplyStatus;
 use crate::protocol::v2::PatchChangeKind;
 use crate::protocol::v2::ThreadItem;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
@@ -35,8 +37,6 @@ use thinwedge_protocol::protocol::PatchApplyBeginEvent;
 use thinwedge_protocol::protocol::PatchApplyEndEvent;
 use thinwedge_shell_command::parse_command::parse_command;
 use thinwedge_shell_command::parse_command::shlex_join;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 pub fn build_file_change_approval_request_item(
     payload: &ApplyPatchApprovalRequestEvent,

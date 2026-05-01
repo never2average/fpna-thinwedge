@@ -34,6 +34,17 @@ use crate::keymap::primary_binding;
 use crate::render::highlight::highlight_bash_to_lines;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
+use crossterm::event::KeyModifiers;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::style::Stylize;
+use ratatui::text::Line;
+use ratatui::text::Span;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::Wrap;
 use thinwedge_features::Features;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::mcp::RequestId;
@@ -52,17 +63,6 @@ use thinwedge_protocol::protocol::ReviewDecision;
 use thinwedge_protocol::request_permissions::PermissionGrantScope;
 use thinwedge_protocol::request_permissions::RequestPermissionProfile;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use crossterm::event::KeyCode;
-use crossterm::event::KeyEvent;
-use crossterm::event::KeyEventKind;
-use crossterm::event::KeyModifiers;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::style::Stylize;
-use ratatui::text::Line;
-use ratatui::text::Span;
-use ratatui::widgets::Paragraph;
-use ratatui::widgets::Wrap;
 
 /// Request coming from the agent that needs user approval.
 #[derive(Clone, Debug)]
@@ -1018,6 +1018,9 @@ fn elicitation_options(keymap: &ApprovalKeymap) -> Vec<ApprovalOption> {
 mod tests {
     use super::*;
     use crate::app_event::AppEvent;
+    use crossterm::event::KeyModifiers;
+    use insta::assert_snapshot;
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::models::FileSystemPermissions;
     use thinwedge_protocol::models::NetworkPermissions;
     use thinwedge_protocol::permissions::FileSystemPath;
@@ -1027,9 +1030,6 @@ mod tests {
     use thinwedge_protocol::protocol::NetworkApprovalProtocol;
     use thinwedge_protocol::protocol::NetworkPolicyAmendment;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use crossterm::event::KeyModifiers;
-    use insta::assert_snapshot;
-    use pretty_assertions::assert_eq;
     use tokio::sync::mpsc::unbounded_channel;
 
     fn absolute_path(path: &str) -> AbsolutePathBuf {

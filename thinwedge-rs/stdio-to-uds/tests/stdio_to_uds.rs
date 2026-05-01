@@ -9,8 +9,8 @@ use std::time::Duration;
 use std::time::Instant;
 
 use anyhow::Context;
-use thinwedge_uds::UnixListener;
 use pretty_assertions::assert_eq;
+use thinwedge_uds::UnixListener;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 
@@ -72,13 +72,15 @@ async fn pipes_stdin_and_stdout_through_socket() -> anyhow::Result<()> {
     let child_task = tokio::task::spawn_blocking(move || -> anyhow::Result<ChildOutput> {
         let stdin =
             std::fs::File::open(&request_path).context("failed to open child stdin fixture")?;
-        let mut child = Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge-stdio-to-uds")?)
-            .arg(&socket_path)
-            .stdin(Stdio::from(stdin))
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .context("failed to spawn thinwedge-stdio-to-uds")?;
+        let mut child = Command::new(thinwedge_utils_cargo_bin::cargo_bin(
+            "thinwedge-stdio-to-uds",
+        )?)
+        .arg(&socket_path)
+        .stdin(Stdio::from(stdin))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("failed to spawn thinwedge-stdio-to-uds")?;
 
         let mut child_stdout = child.stdout.take().context("missing child stdout")?;
         let mut child_stderr = child.stderr.take().context("missing child stderr")?;

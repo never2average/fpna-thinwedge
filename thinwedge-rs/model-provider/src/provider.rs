@@ -8,9 +8,9 @@ use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use thinwedge_models_manager::manager::ThinWedgeModelsManager;
 use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_models_manager::manager::StaticModelsManager;
+use thinwedge_models_manager::manager::ThinWedgeModelsManager;
 use thinwedge_protocol::account::ProviderAccount;
 use thinwedge_protocol::thinwedge_models::ModelsResponse;
 
@@ -241,14 +241,14 @@ impl ModelProvider for ConfiguredModelProvider {
 mod tests {
     use std::num::NonZeroU64;
 
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
     use thinwedge_model_provider_info::ModelProviderAwsAuthInfo;
     use thinwedge_model_provider_info::WireApi;
     use thinwedge_models_manager::manager::RefreshStrategy;
     use thinwedge_protocol::config_types::ModelProviderAuthInfo;
     use thinwedge_protocol::thinwedge_models::ModelInfo;
     use thinwedge_protocol::thinwedge_models::ModelsResponse;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
     use wiremock::Mock;
     use wiremock::MockServer;
     use wiremock::ResponseTemplate;
@@ -276,7 +276,10 @@ mod tests {
     }
 
     fn test_thinwedge_home() -> std::path::PathBuf {
-        std::env::temp_dir().join(format!("thinwedge-model-provider-test-{}", std::process::id()))
+        std::env::temp_dir().join(format!(
+            "thinwedge-model-provider-test-{}",
+            std::process::id()
+        ))
     }
 
     fn provider_for(base_url: String) -> ModelProviderInfo {
@@ -359,9 +362,9 @@ mod tests {
                 profile: Some("thinwedge-bedrock".to_string()),
                 region: None,
             })),
-            Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-                "thinwedge-api-key",
-            ))),
+            Some(AuthManager::from_auth_for_testing(
+                ThinWedgeAuth::from_api_key("thinwedge-api-key"),
+            )),
         );
 
         assert!(provider.auth_manager().is_none());
@@ -371,9 +374,9 @@ mod tests {
     fn create_model_provider_does_not_use_thinwedge_auth_manager_for_openrouter_provider() {
         let provider = create_model_provider(
             ModelProviderInfo::create_openrouter_provider(),
-            Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-                "thinwedge-api-key",
-            ))),
+            Some(AuthManager::from_auth_for_testing(
+                ThinWedgeAuth::from_api_key("thinwedge-api-key"),
+            )),
         );
 
         assert!(provider.auth_manager().is_none());
@@ -406,9 +409,9 @@ mod tests {
     fn thinwedge_provider_returns_api_key_account_state() {
         let provider = create_model_provider(
             ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None),
-            Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-                "thinwedge-api-key",
-            ))),
+            Some(AuthManager::from_auth_for_testing(
+                ThinWedgeAuth::from_api_key("thinwedge-api-key"),
+            )),
         );
 
         assert_eq!(

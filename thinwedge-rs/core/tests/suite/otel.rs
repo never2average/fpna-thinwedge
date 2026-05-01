@@ -1,11 +1,3 @@
-use thinwedge_core::config::Constrained;
-use thinwedge_features::Feature;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::ReviewDecision;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_custom_tool_call;
@@ -27,6 +19,14 @@ use core_test_support::test_thinwedge::TestThinWedge;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use std::sync::Mutex;
+use thinwedge_core::config::Constrained;
+use thinwedge_features::Feature;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::ReviewDecision;
+use thinwedge_protocol::user_input::UserInput;
 use tracing::Level;
 use tracing_test::traced_test;
 
@@ -1110,7 +1110,9 @@ async fn handle_response_item_records_tool_result_for_local_shell_call() {
     logs_assert(|lines: &[&str]| {
         let line = lines
             .iter()
-            .find(|line| line.contains("thinwedge.tool_result") && line.contains("call_id=shell-call"))
+            .find(|line| {
+                line.contains("thinwedge.tool_result") && line.contains("call_id=shell-call")
+            })
             .ok_or_else(|| "missing thinwedge.tool_result event".to_string())?;
 
         if !line.contains("tool_name=local_shell") {
@@ -1147,7 +1149,8 @@ fn tool_decision_assertion<'a>(
         let line = lines
             .iter()
             .find(|line| {
-                line.contains("thinwedge.tool_decision") && line.contains(&format!("call_id={call_id}"))
+                line.contains("thinwedge.tool_decision")
+                    && line.contains(&format!("call_id={call_id}"))
             })
             .ok_or_else(|| format!("missing thinwedge.tool_decision event for {call_id}"))?;
 
@@ -1274,8 +1277,10 @@ async fn handle_container_exec_user_approved_records_tool_decision() {
         .await
         .unwrap();
 
-    let approval_event =
-        wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+    let approval_event = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::ExecApprovalRequest(_))
+    })
+    .await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
@@ -1346,8 +1351,10 @@ async fn handle_container_exec_user_approved_for_session_records_tool_decision()
         .await
         .unwrap();
 
-    let approval_event =
-        wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+    let approval_event = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::ExecApprovalRequest(_))
+    })
+    .await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
@@ -1418,8 +1425,10 @@ async fn handle_sandbox_error_user_approves_retry_records_tool_decision() {
         .await
         .unwrap();
 
-    let approval_event =
-        wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+    let approval_event = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::ExecApprovalRequest(_))
+    })
+    .await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
@@ -1490,8 +1499,10 @@ async fn handle_container_exec_user_denies_records_tool_decision() {
         .await
         .unwrap();
 
-    let approval_event =
-        wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+    let approval_event = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::ExecApprovalRequest(_))
+    })
+    .await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
@@ -1562,8 +1573,10 @@ async fn handle_sandbox_error_user_approves_for_session_records_tool_decision() 
         .await
         .unwrap();
 
-    let approval_event =
-        wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+    let approval_event = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::ExecApprovalRequest(_))
+    })
+    .await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };
@@ -1635,8 +1648,10 @@ async fn handle_sandbox_error_user_denies_records_tool_decision() {
         .await
         .unwrap();
 
-    let approval_event =
-        wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExecApprovalRequest(_))).await;
+    let approval_event = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::ExecApprovalRequest(_))
+    })
+    .await;
     let EventMsg::ExecApprovalRequest(approval) = approval_event else {
         panic!("expected ExecApprovalRequest event");
     };

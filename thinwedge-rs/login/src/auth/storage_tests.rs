@@ -6,8 +6,8 @@ use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::tempdir;
 
-use thinwedge_keyring_store::tests::MockKeyringStore;
 use keyring::Error as KeyringError;
+use thinwedge_keyring_store::tests::MockKeyringStore;
 
 #[tokio::test]
 async fn file_storage_load_returns_auth_dot_json() -> anyhow::Result<()> {
@@ -318,7 +318,12 @@ fn keyring_auth_storage_save_persists_and_removes_fallback_file() -> anyhow::Res
     storage.save(&auth)?;
 
     let key = compute_store_key(thinwedge_home.path())?;
-    assert_keyring_saved_auth_and_removed_fallback(&mock_keyring, &key, thinwedge_home.path(), &auth);
+    assert_keyring_saved_auth_and_removed_fallback(
+        &mock_keyring,
+        &key,
+        thinwedge_home.path(),
+        &auth,
+    );
     Ok(())
 }
 
@@ -330,10 +335,11 @@ fn keyring_auth_storage_delete_removes_keyring_and_file() -> anyhow::Result<()> 
         thinwedge_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
-    let (key, auth_file) =
-        seed_keyring_and_fallback_auth_file_for_delete(&mock_keyring, thinwedge_home.path(), || {
-            compute_store_key(thinwedge_home.path())
-        })?;
+    let (key, auth_file) = seed_keyring_and_fallback_auth_file_for_delete(
+        &mock_keyring,
+        thinwedge_home.path(),
+        || compute_store_key(thinwedge_home.path()),
+    )?;
 
     let removed = storage.delete()?;
 
@@ -469,10 +475,11 @@ fn auto_auth_storage_delete_removes_keyring_and_file() -> anyhow::Result<()> {
         thinwedge_home.path().to_path_buf(),
         Arc::new(mock_keyring.clone()),
     );
-    let (key, auth_file) =
-        seed_keyring_and_fallback_auth_file_for_delete(&mock_keyring, thinwedge_home.path(), || {
-            compute_store_key(thinwedge_home.path())
-        })?;
+    let (key, auth_file) = seed_keyring_and_fallback_auth_file_for_delete(
+        &mock_keyring,
+        thinwedge_home.path(),
+        || compute_store_key(thinwedge_home.path()),
+    )?;
 
     let removed = storage.delete()?;
 

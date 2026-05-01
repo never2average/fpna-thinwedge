@@ -5,6 +5,16 @@ use std::path::PathBuf;
 
 use crate::RequestId;
 use crate::protocol::common::AuthMode;
+use schemars::JsonSchema;
+use schemars::r#gen::SchemaGenerator;
+use schemars::schema::InstanceType;
+use schemars::schema::Metadata;
+use schemars::schema::Schema;
+use schemars::schema::SchemaObject;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Value as JsonValue;
+use serde_with::serde_as;
 use thinwedge_experimental_api_macros::ExperimentalApi;
 use thinwedge_protocol::account::PlanType;
 use thinwedge_protocol::account::ProviderAccount;
@@ -45,10 +55,6 @@ use thinwedge_protocol::models::MessagePhase;
 use thinwedge_protocol::models::NetworkPermissions as CoreNetworkPermissions;
 use thinwedge_protocol::models::PermissionProfile as CorePermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::InputModality;
-use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux as CoreModelAvailabilityNux;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::parse_command::ParsedCommand as CoreParsedCommand;
 use thinwedge_protocol::permissions::FileSystemAccessMode as CoreFileSystemAccessMode;
 use thinwedge_protocol::permissions::FileSystemPath as CoreFileSystemPath;
@@ -59,7 +65,6 @@ use thinwedge_protocol::plan_tool::PlanItemArg as CorePlanItemArg;
 use thinwedge_protocol::plan_tool::StepStatus as CorePlanStepStatus;
 use thinwedge_protocol::protocol::AgentStatus as CoreAgentStatus;
 use thinwedge_protocol::protocol::AskForApproval as CoreAskForApproval;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo as CoreThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::CreditsSnapshot as CoreCreditsSnapshot;
 use thinwedge_protocol::protocol::ExecCommandSource as CoreExecCommandSource;
 use thinwedge_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
@@ -96,25 +101,20 @@ use thinwedge_protocol::protocol::SkillMetadata as CoreSkillMetadata;
 use thinwedge_protocol::protocol::SkillScope as CoreSkillScope;
 use thinwedge_protocol::protocol::SkillToolDependency as CoreSkillToolDependency;
 use thinwedge_protocol::protocol::SubAgentSource as CoreSubAgentSource;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo as CoreThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::ThreadGoalStatus as CoreThreadGoalStatus;
 use thinwedge_protocol::protocol::TokenUsage as CoreTokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo as CoreTokenUsageInfo;
 use thinwedge_protocol::request_permissions::PermissionGrantScope as CorePermissionGrantScope;
 use thinwedge_protocol::request_permissions::RequestPermissionProfile as CoreRequestPermissionProfile;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux as CoreModelAvailabilityNux;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::user_input::ByteRange as CoreByteRange;
 use thinwedge_protocol::user_input::TextElement as CoreTextElement;
 use thinwedge_protocol::user_input::UserInput as CoreUserInput;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use schemars::JsonSchema;
-use schemars::r#gen::SchemaGenerator;
-use schemars::schema::InstanceType;
-use schemars::schema::Metadata;
-use schemars::schema::Schema;
-use schemars::schema::SchemaObject;
-use serde::Deserialize;
-use serde::Serialize;
-use serde_json::Value as JsonValue;
-use serde_with::serde_as;
 use thiserror::Error;
 use ts_rs::TS;
 
@@ -210,7 +210,9 @@ pub enum ThinWedgeErrorInfo {
 impl From<CoreThinWedgeErrorInfo> for ThinWedgeErrorInfo {
     fn from(value: CoreThinWedgeErrorInfo) -> Self {
         match value {
-            CoreThinWedgeErrorInfo::ContextWindowExceeded => ThinWedgeErrorInfo::ContextWindowExceeded,
+            CoreThinWedgeErrorInfo::ContextWindowExceeded => {
+                ThinWedgeErrorInfo::ContextWindowExceeded
+            }
             CoreThinWedgeErrorInfo::UsageLimitExceeded => ThinWedgeErrorInfo::UsageLimitExceeded,
             CoreThinWedgeErrorInfo::ServerOverloaded => ThinWedgeErrorInfo::ServerOverloaded,
             CoreThinWedgeErrorInfo::CyberPolicy => ThinWedgeErrorInfo::CyberPolicy,
@@ -223,7 +225,9 @@ impl From<CoreThinWedgeErrorInfo> for ThinWedgeErrorInfo {
             CoreThinWedgeErrorInfo::InternalServerError => ThinWedgeErrorInfo::InternalServerError,
             CoreThinWedgeErrorInfo::Unauthorized => ThinWedgeErrorInfo::Unauthorized,
             CoreThinWedgeErrorInfo::BadRequest => ThinWedgeErrorInfo::BadRequest,
-            CoreThinWedgeErrorInfo::ThreadRollbackFailed => ThinWedgeErrorInfo::ThreadRollbackFailed,
+            CoreThinWedgeErrorInfo::ThreadRollbackFailed => {
+                ThinWedgeErrorInfo::ThreadRollbackFailed
+            }
             CoreThinWedgeErrorInfo::SandboxError => ThinWedgeErrorInfo::SandboxError,
             CoreThinWedgeErrorInfo::ResponseStreamDisconnected { http_status_code } => {
                 ThinWedgeErrorInfo::ResponseStreamDisconnected { http_status_code }
@@ -7699,6 +7703,10 @@ pub struct ConfigWarningNotification {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use std::num::NonZeroUsize;
+    use std::path::PathBuf;
     use thinwedge_protocol::items::AgentMessageContent;
     use thinwedge_protocol::items::AgentMessageItem;
     use thinwedge_protocol::items::ReasoningItem;
@@ -7710,10 +7718,6 @@ mod tests {
     use thinwedge_protocol::user_input::UserInput as CoreUserInput;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-    use std::num::NonZeroUsize;
-    use std::path::PathBuf;
 
     fn absolute_path_string(path: &str) -> String {
         let path = format!("/{}", path.trim_start_matches('/'));
@@ -9785,7 +9789,10 @@ mod tests {
             dangerously_allow_non_loopback_proxy: Some(false),
             dangerously_allow_all_unix_sockets: Some(true),
             domains: Some(BTreeMap::from([
-                ("api.thinwedge.com".to_string(), NetworkDomainPermission::Allow),
+                (
+                    "api.thinwedge.com".to_string(),
+                    NetworkDomainPermission::Allow,
+                ),
                 (
                     "blocked.example.com".to_string(),
                     NetworkDomainPermission::Deny,

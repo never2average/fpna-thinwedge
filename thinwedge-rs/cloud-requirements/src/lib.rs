@@ -14,17 +14,6 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
-use thinwedge_backend_client::Client as BackendClient;
-use thinwedge_config::CloudRequirementsLoadError;
-use thinwedge_config::CloudRequirementsLoadErrorCode;
-use thinwedge_config::CloudRequirementsLoader;
-use thinwedge_config::ConfigRequirementsToml;
-use thinwedge_config::types::AuthCredentialsStoreMode;
-use thinwedge_core::util::backoff;
-use thinwedge_login::AuthManager;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_login::RefreshTokenError;
-use thinwedge_protocol::account::PlanType;
 use hmac::Hmac;
 use hmac::Mac;
 use serde::Deserialize;
@@ -36,6 +25,17 @@ use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_backend_client::Client as BackendClient;
+use thinwedge_config::CloudRequirementsLoadError;
+use thinwedge_config::CloudRequirementsLoadErrorCode;
+use thinwedge_config::CloudRequirementsLoader;
+use thinwedge_config::ConfigRequirementsToml;
+use thinwedge_config::types::AuthCredentialsStoreMode;
+use thinwedge_core::util::backoff;
+use thinwedge_login::AuthManager;
+use thinwedge_login::RefreshTokenError;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_protocol::account::PlanType;
 use thiserror::Error;
 use tokio::fs;
 use tokio::task::JoinHandle;
@@ -280,8 +280,10 @@ impl CloudRequirementsService {
     async fn fetch_with_timeout(
         &self,
     ) -> Result<Option<ConfigRequirementsToml>, CloudRequirementsLoadError> {
-        let _timer =
-            thinwedge_otel::start_global_timer("thinwedge.cloud_requirements.fetch.duration_ms", &[]);
+        let _timer = thinwedge_otel::start_global_timer(
+            "thinwedge.cloud_requirements.fetch.duration_ms",
+            &[],
+        );
         let started_at = Instant::now();
         let fetch_result = timeout(self.timeout, self.fetch())
             .await
@@ -829,10 +831,6 @@ mod tests {
     use super::*;
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use thinwedge_config::types::AuthCredentialsStoreMode;
-    use thinwedge_login::auth::AgentIdentityAuth;
-    use thinwedge_login::auth::AgentIdentityAuthRecord;
-    use thinwedge_protocol::protocol::AskForApproval;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -848,6 +846,10 @@ mod tests {
     use std::thread;
     use tempfile::TempDir;
     use tempfile::tempdir;
+    use thinwedge_config::types::AuthCredentialsStoreMode;
+    use thinwedge_login::auth::AgentIdentityAuth;
+    use thinwedge_login::auth::AgentIdentityAuthRecord;
+    use thinwedge_protocol::protocol::AskForApproval;
 
     struct EnvVarGuard {
         key: &'static str,
@@ -866,7 +868,10 @@ mod tests {
     }
 
     fn write_auth_json(thinwedge_home: &Path, value: serde_json::Value) -> std::io::Result<()> {
-        std::fs::write(thinwedge_home.join("auth.json"), serde_json::to_string(&value)?)?;
+        std::fs::write(
+            thinwedge_home.join("auth.json"),
+            serde_json::to_string(&value)?,
+        )?;
         Ok(())
     }
 
@@ -1248,9 +1253,13 @@ mod tests {
             chatgpt_account_is_fedramp: false,
         };
         let authapi_base_url = format!("http://{addr}/backend-api");
-        let original_authapi_base_url = std::env::var_os("THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL");
+        let original_authapi_base_url =
+            std::env::var_os("THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL");
         unsafe {
-            std::env::set_var("THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL", &authapi_base_url);
+            std::env::set_var(
+                "THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL",
+                &authapi_base_url,
+            );
         }
         let _authapi_guard = EnvVarGuard {
             key: "THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL",
@@ -1618,7 +1627,9 @@ enabled = false
             }))
         );
 
-        let path = thinwedge_home.path().join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
+        let path = thinwedge_home
+            .path()
+            .join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
         let cache_file: CloudRequirementsCacheFile =
             serde_json::from_str(&std::fs::read_to_string(path).expect("read cache"))
                 .expect("parse cache");
@@ -1862,7 +1873,9 @@ enabled = false
             }))
         );
 
-        let path = thinwedge_home.path().join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
+        let path = thinwedge_home
+            .path()
+            .join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
         let cache_file: CloudRequirementsCacheFile =
             serde_json::from_str(&std::fs::read_to_string(path).expect("read cache"))
                 .expect("parse cache");
@@ -1991,7 +2004,9 @@ enabled = false
         );
         let _ = prime_service.fetch().await;
 
-        let path = thinwedge_home.path().join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
+        let path = thinwedge_home
+            .path()
+            .join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
         let mut cache_file: CloudRequirementsCacheFile =
             serde_json::from_str(&std::fs::read_to_string(&path).expect("read cache"))
                 .expect("parse cache");
@@ -2038,7 +2053,9 @@ enabled = false
     #[tokio::test]
     async fn fetch_cloud_requirements_ignores_expired_cache() {
         let thinwedge_home = tempdir().expect("tempdir");
-        let path = thinwedge_home.path().join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
+        let path = thinwedge_home
+            .path()
+            .join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
         let cache_file = CloudRequirementsCacheFile {
             signed_payload: CloudRequirementsCacheSignedPayload {
                 cached_at: Utc::now(),
@@ -2107,7 +2124,9 @@ enabled = false
 
         let _ = service.fetch().await;
 
-        let path = thinwedge_home.path().join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
+        let path = thinwedge_home
+            .path()
+            .join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
         let cache_file: CloudRequirementsCacheFile =
             serde_json::from_str(&std::fs::read_to_string(path).expect("read cache"))
                 .expect("parse cache");
@@ -2239,7 +2258,9 @@ enabled = false
 
         assert!(service.refresh_cache().await);
 
-        let path = thinwedge_home.path().join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
+        let path = thinwedge_home
+            .path()
+            .join(CLOUD_REQUIREMENTS_CACHE_FILENAME);
         let cache_file: CloudRequirementsCacheFile =
             serde_json::from_str(&std::fs::read_to_string(path).expect("read cache"))
                 .expect("parse cache");

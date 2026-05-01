@@ -19,7 +19,10 @@ use tokio::task::JoinHandle;
 use tracing::warn;
 
 #[derive(Debug, Clone, Parser)]
-#[command(name = "thinwedge-network-proxy", about = "ThinWedge network sandbox proxy")]
+#[command(
+    name = "thinwedge-network-proxy",
+    about = "ThinWedge network sandbox proxy"
+)]
 pub struct Args {}
 
 #[derive(Debug)]
@@ -460,7 +463,9 @@ fn set_env_keys(env: &mut HashMap<String, String>, keys: &[&str], value: &str) {
 
 #[cfg(target_os = "macos")]
 fn thinwedge_proxy_git_ssh_command(socks_addr: SocketAddr) -> String {
-    format!("{THINWEDGE_PROXY_GIT_SSH_COMMAND_PREFIX}{socks_addr}{THINWEDGE_PROXY_GIT_SSH_COMMAND_SUFFIX}")
+    format!(
+        "{THINWEDGE_PROXY_GIT_SSH_COMMAND_PREFIX}{socks_addr}{THINWEDGE_PROXY_GIT_SSH_COMMAND_SUFFIX}"
+    )
 }
 
 #[cfg(target_os = "macos")]

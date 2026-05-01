@@ -56,7 +56,11 @@ pub struct SkillsManager {
 
 impl SkillsManager {
     pub fn new(thinwedge_home: AbsolutePathBuf, bundled_skills_enabled: bool) -> Self {
-        Self::new_with_restriction_product(thinwedge_home, bundled_skills_enabled, Some(Product::ThinWedge))
+        Self::new_with_restriction_product(
+            thinwedge_home,
+            bundled_skills_enabled,
+            Some(Product::ThinWedge),
+        )
     }
 
     pub fn new_with_restriction_product(

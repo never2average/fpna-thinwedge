@@ -1,10 +1,10 @@
 use crate::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use crate::installed_marketplaces::marketplace_install_root;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use tempfile::Builder;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 mod install;
 mod metadata;
@@ -126,7 +126,9 @@ where
                 "marketplace '{THINWEDGE_CURATED_MARKETPLACE_NAME}' is reserved and cannot be added from this source"
             )));
         }
-        if find_marketplace_root_by_name(thinwedge_home, &install_root, &marketplace_name)?.is_some() {
+        if find_marketplace_root_by_name(thinwedge_home, &install_root, &marketplace_name)?
+            .is_some()
+        {
             return Err(MarketplaceAddError::InvalidRequest(format!(
                 "marketplace '{marketplace_name}' is already added from a different source; remove it before adding this source"
             )));
@@ -246,7 +248,11 @@ mod tests {
                 .is_file()
         );
 
-        let config = fs::read_to_string(thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE))?;
+        let config = fs::read_to_string(
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
+        )?;
         assert!(config.contains("[marketplaces.debug]"));
         assert!(config.contains("source_type = \"git\""));
         assert!(config.contains("source = \"https://github.com/owner/repo.git\""));
@@ -284,7 +290,11 @@ mod tests {
                 .exists()
         );
 
-        let config = fs::read_to_string(thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE))?;
+        let config = fs::read_to_string(
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
+        )?;
         let config: toml::Value = toml::from_str(&config)?;
         assert_eq!(
             config["marketplaces"]["debug"]["source_type"].as_str(),
@@ -341,11 +351,12 @@ mod tests {
             ref_name: None,
             sparse_paths: Vec::new(),
         };
-        let first_result = add_marketplace_sync_with_cloner(thinwedge_home.path(), request.clone(), {
-            |_url, _ref_name, _sparse_paths, _destination| {
-                panic!("git cloner should not be called for local marketplace sources")
-            }
-        })?;
+        let first_result =
+            add_marketplace_sync_with_cloner(thinwedge_home.path(), request.clone(), {
+                |_url, _ref_name, _sparse_paths, _destination| {
+                    panic!("git cloner should not be called for local marketplace sources")
+                }
+            })?;
         let second_result = add_marketplace_sync_with_cloner(thinwedge_home.path(), request, {
             |_url, _ref_name, _sparse_paths, _destination| {
                 panic!("git cloner should not be called for local marketplace sources")

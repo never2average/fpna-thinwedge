@@ -12,6 +12,13 @@ use super::normalize_path_for_sandbox;
 use super::seatbelt_regex_for_unreadable_glob;
 use super::unix_socket_dir_params;
 use super::unix_socket_policy;
+use pretty_assertions::assert_eq;
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_network_proxy::ConfigReloader;
 use thinwedge_network_proxy::ConfigState;
 use thinwedge_network_proxy::NetworkMode;
@@ -29,13 +36,6 @@ use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::permissions::PROTECTED_METADATA_PATH_NAMES;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::Arc;
-use tempfile::TempDir;
 
 fn assert_seatbelt_denied(stderr: &[u8], path: &Path) {
     let stderr = String::from_utf8_lossy(stderr);

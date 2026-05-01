@@ -1,10 +1,10 @@
-use thinwedge_api::ThinWedgeVerbosity;
+use pretty_assertions::assert_eq;
 use thinwedge_api::ResponsesApiRequest;
 use thinwedge_api::TextControls;
+use thinwedge_api::ThinWedgeVerbosity;
 use thinwedge_api::create_text_param_for_request;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::models::FunctionCallOutputPayload;
-use pretty_assertions::assert_eq;
 
 use super::*;
 

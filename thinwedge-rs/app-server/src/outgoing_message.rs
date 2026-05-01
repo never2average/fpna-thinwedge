@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
+use serde::Serialize;
 use thinwedge_app_server_protocol::JSONRPCErrorError;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_app_server_protocol::Result;
@@ -13,7 +14,6 @@ use thinwedge_app_server_protocol::ServerRequestPayload;
 use thinwedge_otel::span_w3c_trace_context;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::W3cTraceContext;
-use serde::Serialize;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -660,6 +660,9 @@ pub(crate) struct OutgoingError {
 mod tests {
     use std::time::Duration;
 
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use std::sync::Arc;
     use thinwedge_app_server_protocol::AccountLoginCompletedNotification;
     use thinwedge_app_server_protocol::AccountRateLimitsUpdatedNotification;
     use thinwedge_app_server_protocol::AccountUpdatedNotification;
@@ -677,9 +680,6 @@ mod tests {
     use thinwedge_app_server_protocol::RateLimitWindow;
     use thinwedge_app_server_protocol::ToolRequestUserInputParams;
     use thinwedge_protocol::ThreadId;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-    use std::sync::Arc;
     use tokio::time::timeout;
     use uuid::Uuid;
 

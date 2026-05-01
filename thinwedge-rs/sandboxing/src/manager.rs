@@ -7,6 +7,9 @@ use crate::landlock::allow_network_for_proxy;
 use crate::landlock::create_linux_sandbox_command_args_for_permission_profile;
 use crate::policy_transforms::effective_permission_profile;
 use crate::policy_transforms::should_require_platform_sandbox;
+use std::collections::HashMap;
+use std::ffi::OsString;
+use std::path::Path;
 use thinwedge_network_proxy::NetworkProxy;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
@@ -15,9 +18,6 @@ use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
-use std::ffi::OsString;
-use std::path::Path;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SandboxType {

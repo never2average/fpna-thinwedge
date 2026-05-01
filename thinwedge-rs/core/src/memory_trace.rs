@@ -2,15 +2,15 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::ModelClient;
+use serde_json::Map;
+use serde_json::Value;
 use thinwedge_api::RawMemory as ApiRawMemory;
 use thinwedge_api::RawMemoryMetadata as ApiRawMemoryMetadata;
 use thinwedge_otel::SessionTelemetry;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
-use serde_json::Map;
-use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BuiltMemory {

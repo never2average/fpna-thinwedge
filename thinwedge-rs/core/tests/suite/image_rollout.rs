@@ -1,14 +1,4 @@
 use anyhow::Context;
-use thinwedge_protocol::models::ContentItem;
-use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::RolloutItem;
-use thinwedge_protocol::protocol::RolloutLine;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -25,6 +15,16 @@ use image::Rgba;
 use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::time::Duration;
+use thinwedge_protocol::models::ContentItem;
+use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::RolloutItem;
+use thinwedge_protocol::protocol::RolloutLine;
+use thinwedge_protocol::user_input::UserInput;
 
 fn find_user_message_with_image(text: &str) -> Option<ResponseItem> {
     for line in text.lines() {
@@ -139,9 +139,15 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         })
         .await?;
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     thinwedge.submit(Op::Shutdown).await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::ShutdownComplete)).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::ShutdownComplete)
+    })
+    .await;
 
     let rollout_path = thinwedge.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;
@@ -154,7 +160,9 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         role: "user".to_string(),
         content: vec![
             ContentItem::InputText {
-                text: thinwedge_protocol::models::local_image_open_tag_text(/*label_number*/ 1),
+                text: thinwedge_protocol::models::local_image_open_tag_text(
+                    /*label_number*/ 1,
+                ),
             },
             ContentItem::InputImage {
                 image_url,
@@ -229,9 +237,15 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
         })
         .await?;
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     thinwedge.submit(Op::Shutdown).await?;
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::ShutdownComplete)).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::ShutdownComplete)
+    })
+    .await;
 
     let rollout_path = thinwedge.rollout_path().expect("rollout path");
     let rollout_text = read_rollout_text(&rollout_path).await?;

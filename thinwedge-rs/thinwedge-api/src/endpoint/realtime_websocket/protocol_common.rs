@@ -1,7 +1,7 @@
+use serde_json::Value;
 use thinwedge_protocol::protocol::RealtimeEvent;
 use thinwedge_protocol::protocol::RealtimeTranscriptDelta;
 use thinwedge_protocol::protocol::RealtimeTranscriptDone;
-use serde_json::Value;
 use tracing::debug;
 
 pub(super) fn parse_realtime_payload(payload: &str, parser_name: &str) -> Option<(Value, String)> {

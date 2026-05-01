@@ -6,6 +6,8 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::MarketplaceUpgradeParams;
 use thinwedge_app_server_protocol::MarketplaceUpgradeResponse;
@@ -13,8 +15,6 @@ use thinwedge_app_server_protocol::RequestId;
 use thinwedge_config::MarketplaceConfigUpdate;
 use thinwedge_config::record_user_marketplace;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 #[cfg(windows)]
@@ -119,7 +119,10 @@ fn marketplace_install_root(thinwedge_home: &Path) -> std::path::PathBuf {
     thinwedge_home.join(INSTALLED_MARKETPLACES_DIR)
 }
 
-fn expected_installed_root(thinwedge_home: &Path, marketplace_name: &str) -> Result<AbsolutePathBuf> {
+fn expected_installed_root(
+    thinwedge_home: &Path,
+    marketplace_name: &str,
+) -> Result<AbsolutePathBuf> {
     AbsolutePathBuf::try_from(
         marketplace_install_root(&thinwedge_home.canonicalize()?).join(marketplace_name),
     )

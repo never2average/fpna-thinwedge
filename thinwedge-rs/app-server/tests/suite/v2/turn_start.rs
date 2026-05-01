@@ -13,6 +13,14 @@ use app_test_support::format_with_current_shell_display;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml_with_chatgpt_base_url;
 use app_test_support::write_models_cache;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server::INPUT_TOO_LARGE_ERROR_CODE;
 use thinwedge_app_server::INVALID_PARAMS_ERROR_CODE;
 use thinwedge_app_server_protocol::ByteRange;
@@ -68,14 +76,6 @@ use thinwedge_protocol::config_types::Settings;
 use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 use super::analytics::mount_analytics_capture;
@@ -502,7 +502,8 @@ async fn turn_start_tracks_turn_event_analytics() -> Result<()> {
     )
     .await??;
 
-    let event = wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "thinwedge_turn_event").await?;
+    let event =
+        wait_for_analytics_event(&server, DEFAULT_READ_TIMEOUT, "thinwedge_turn_event").await?;
     assert_eq!(event["event_params"]["thread_id"], thread.id);
     assert_eq!(event["event_params"]["turn_id"], turn.id);
     assert_eq!(
@@ -1825,12 +1826,14 @@ async fn turn_start_updates_sandbox_and_cwd_between_turns_v2() -> Result<()> {
             cwd: Some(first_cwd.clone()),
             approval_policy: Some(thinwedge_app_server_protocol::AskForApproval::Never),
             approvals_reviewer: None,
-            sandbox_policy: Some(thinwedge_app_server_protocol::SandboxPolicy::WorkspaceWrite {
-                writable_roots: vec![first_cwd.try_into()?],
-                network_access: false,
-                exclude_tmpdir_env_var: false,
-                exclude_slash_tmp: false,
-            }),
+            sandbox_policy: Some(
+                thinwedge_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots: vec![first_cwd.try_into()?],
+                    network_access: false,
+                    exclude_tmpdir_env_var: false,
+                    exclude_slash_tmp: false,
+                },
+            ),
             permission_profile: None,
             model: Some("mock-model".to_string()),
             effort: Some(ReasoningEffort::Medium),
@@ -1932,7 +1935,12 @@ async fn turn_start_resolves_sticky_thread_environments_and_turn_overrides() -> 
     std::fs::create_dir(&workspace)?;
 
     let server = create_mock_responses_server_repeating_assistant("done").await;
-    create_config_toml(&thinwedge_home, &server.uri(), "never", &BTreeMap::default())?;
+    create_config_toml(
+        &thinwedge_home,
+        &server.uri(),
+        "never",
+        &BTreeMap::default(),
+    )?;
 
     let mut mcp = McpProcess::new_with_env(
         &thinwedge_home,
@@ -2332,7 +2340,12 @@ async fn turn_start_does_not_stream_apply_patch_change_updates_without_feature_v
         create_final_assistant_message_sse_response("patch applied")?,
     ];
     let server = create_mock_responses_server_sequence(responses).await;
-    create_config_toml(&thinwedge_home, &server.uri(), "never", &BTreeMap::default())?;
+    create_config_toml(
+        &thinwedge_home,
+        &server.uri(),
+        "never",
+        &BTreeMap::default(),
+    )?;
 
     let mut mcp = McpProcess::new(&thinwedge_home).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

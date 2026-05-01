@@ -19,6 +19,14 @@ use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
 use crate::shimmer::shimmer_spans;
 use crate::tui::FrameRequester;
+use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
+use ratatui::prelude::Widget;
+use ratatui::style::Stylize;
+use ratatui::text::Line;
+use ratatui::widgets::Paragraph;
+use ratatui::widgets::WidgetRef;
+use ratatui::widgets::Wrap;
 use thinwedge_app_server_protocol::MarketplaceAddResponse;
 use thinwedge_app_server_protocol::PluginDetail;
 use thinwedge_app_server_protocol::PluginInstallPolicy;
@@ -31,14 +39,6 @@ use thinwedge_app_server_protocol::PluginUninstallResponse;
 use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use thinwedge_features::Feature;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use ratatui::buffer::Buffer;
-use ratatui::layout::Rect;
-use ratatui::prelude::Widget;
-use ratatui::style::Stylize;
-use ratatui::text::Line;
-use ratatui::widgets::Paragraph;
-use ratatui::widgets::WidgetRef;
-use ratatui::widgets::Wrap;
 use unicode_width::UnicodeWidthStr;
 
 const PLUGINS_SELECTION_VIEW_ID: &str = "plugins-selection";
@@ -111,7 +111,8 @@ impl Renderable for DelayedLoadingHeader {
     }
 }
 
-const APPS_HELP_ARTICLE_URL: &str = "https://help.thinwedge.com/en/articles/11487775-apps-in-chatgpt";
+const APPS_HELP_ARTICLE_URL: &str =
+    "https://help.thinwedge.com/en/articles/11487775-apps-in-chatgpt";
 
 struct PluginDisclosureLine {
     line: Line<'static>,
@@ -1033,7 +1034,9 @@ impl ChatWidget {
             label: "ThinWedge Curated".to_string(),
             header: plugins_header(
                 "ThinWedge Curated marketplace.".to_string(),
-                format!("Installed {curated_installed} of {curated_total} ThinWedge Curated plugins."),
+                format!(
+                    "Installed {curated_installed} of {curated_total} ThinWedge Curated plugins."
+                ),
             ),
             items: self.plugin_selection_items(
                 curated_entries,

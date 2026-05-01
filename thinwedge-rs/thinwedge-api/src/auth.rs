@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use thinwedge_client::Request;
-use thinwedge_client::TransportError;
 use http::HeaderMap;
 use std::sync::Arc;
+use thinwedge_client::Request;
+use thinwedge_client::TransportError;
 
 /// Error returned while applying authentication to an outbound request.
 #[derive(Debug, thiserror::Error)]

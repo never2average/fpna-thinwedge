@@ -1,7 +1,7 @@
 use super::parse_memory_citation;
 use super::thread_ids_from_memory_citation;
-use thinwedge_protocol::ThreadId;
 use pretty_assertions::assert_eq;
+use thinwedge_protocol::ThreadId;
 
 #[test]
 fn parse_memory_citation_supports_legacy_thread_ids() {

@@ -2,9 +2,6 @@ use assert_matches::assert_matches;
 use std::sync::Arc;
 use std::time::Duration;
 
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_response_created;
@@ -16,6 +13,9 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use regex_lite::Regex;
 use serde_json::json;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 /// Integration test: spawn a long‑running shell_command tool via a mocked Responses SSE
 /// function call, then interrupt the session and expect TurnAborted.

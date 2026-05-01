@@ -10,9 +10,9 @@
 mod backends;
 
 use anyhow::Result;
-use thinwedge_utils_pty::SpawnedProcess;
 use std::collections::HashMap;
 use std::path::Path;
+use thinwedge_utils_pty::SpawnedProcess;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn spawn_windows_sandbox_session_legacy(

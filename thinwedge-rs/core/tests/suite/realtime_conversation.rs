@@ -1,33 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
 use chrono::Utc;
-use thinwedge_config::config_toml::RealtimeWsVersion;
-use thinwedge_core::test_support::auth_manager_from_auth;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::models::ContentItem;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
-use thinwedge_protocol::protocol::ConversationAudioParams;
-use thinwedge_protocol::protocol::ConversationStartParams;
-use thinwedge_protocol::protocol::ConversationStartTransport;
-use thinwedge_protocol::protocol::ConversationTextParams;
-use thinwedge_protocol::protocol::ErrorEvent;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::InitialHistory;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::RealtimeAudioFrame;
-use thinwedge_protocol::protocol::RealtimeConversationRealtimeEvent;
-use thinwedge_protocol::protocol::RealtimeConversationVersion;
-use thinwedge_protocol::protocol::RealtimeEvent;
-use thinwedge_protocol::protocol::RealtimeNoopRequested;
-use thinwedge_protocol::protocol::RealtimeOutputModality;
-use thinwedge_protocol::protocol::RealtimeVoice;
-use thinwedge_protocol::protocol::RolloutItem;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::user_input::UserInput;
-use thinwedge_utils_output_truncation::approx_token_count;
 use core_test_support::responses;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::start_mock_server;
@@ -48,6 +21,33 @@ use std::process::Command;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::time::Duration;
+use thinwedge_config::config_toml::RealtimeWsVersion;
+use thinwedge_core::test_support::auth_manager_from_auth;
+use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::models::ContentItem;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::ConversationAudioParams;
+use thinwedge_protocol::protocol::ConversationStartParams;
+use thinwedge_protocol::protocol::ConversationStartTransport;
+use thinwedge_protocol::protocol::ConversationTextParams;
+use thinwedge_protocol::protocol::ErrorEvent;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::InitialHistory;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::RealtimeAudioFrame;
+use thinwedge_protocol::protocol::RealtimeConversationRealtimeEvent;
+use thinwedge_protocol::protocol::RealtimeConversationVersion;
+use thinwedge_protocol::protocol::RealtimeEvent;
+use thinwedge_protocol::protocol::RealtimeNoopRequested;
+use thinwedge_protocol::protocol::RealtimeOutputModality;
+use thinwedge_protocol::protocol::RealtimeVoice;
+use thinwedge_protocol::protocol::RolloutItem;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
+use thinwedge_protocol::user_input::UserInput;
+use thinwedge_utils_output_truncation::approx_token_count;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
 use wiremock::Match;
@@ -615,7 +615,8 @@ async fn conversation_start_uses_thinwedge_env_key_fallback_with_chatgpt_auth() 
     ])
     .await;
 
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     let test = builder.build_with_websocket_server(&server).await?;
     assert!(
         server
@@ -749,7 +750,10 @@ async fn conversation_audio_before_start_emits_error() -> Result<()> {
         _ => None,
     })
     .await;
-    assert_eq!(err.thinwedge_error_info, Some(ThinWedgeErrorInfo::BadRequest));
+    assert_eq!(
+        err.thinwedge_error_info,
+        Some(ThinWedgeErrorInfo::BadRequest)
+    );
     assert_eq!(err.message, "conversation is not running");
 
     server.shutdown().await;
@@ -768,7 +772,8 @@ async fn conversation_start_preflight_failure_emits_realtime_error_only() -> Res
     skip_if_no_network!(Ok(()));
 
     let server = start_websocket_server(vec![]).await;
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     let test = builder.build_with_websocket_server(&server).await?;
 
     test.thinwedge
@@ -867,7 +872,10 @@ async fn conversation_text_before_start_emits_error() -> Result<()> {
         _ => None,
     })
     .await;
-    assert_eq!(err.thinwedge_error_info, Some(ThinWedgeErrorInfo::BadRequest));
+    assert_eq!(
+        err.thinwedge_error_info,
+        Some(ThinWedgeErrorInfo::BadRequest)
+    );
     assert_eq!(err.message, "conversation is not running");
 
     server.shutdown().await;
@@ -1191,7 +1199,9 @@ async fn conversation_uses_explicit_start_voice() -> Result<()> {
         })]],
     ])
     .await;
-    let test = test_thinwedge().build_with_websocket_server(&server).await?;
+    let test = test_thinwedge()
+        .build_with_websocket_server(&server)
+        .await?;
     assert!(
         server
             .wait_for_handshakes(/*expected*/ 1, Duration::from_secs(2))

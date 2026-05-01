@@ -7,8 +7,6 @@
 
 use std::time::Duration;
 
-use thinwedge_app_server_protocol::JSONRPCErrorError;
-use thinwedge_client::build_reqwest_client_with_custom_ca;
 use futures::FutureExt;
 use futures::StreamExt;
 use futures::future::BoxFuture;
@@ -17,6 +15,8 @@ use reqwest::Url;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderName;
 use reqwest::header::HeaderValue;
+use thinwedge_app_server_protocol::JSONRPCErrorError;
+use thinwedge_client::build_reqwest_client_with_custom_ca;
 
 use super::HttpResponseBodyStream;
 use super::response_body_stream::send_body_delta;

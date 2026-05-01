@@ -1,14 +1,14 @@
 use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::SandboxPolicy;
-use thinwedge_protocol::protocol::SessionSource;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
 use std::path::PathBuf;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 /// The sort key to use when listing threads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -468,10 +468,10 @@ mod tests {
     use super::ThreadRow;
     use chrono::DateTime;
     use chrono::Utc;
-    use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
+    use thinwedge_protocol::ThreadId;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
     fn thread_row(reasoning_effort: Option<&str>) -> ThreadRow {
         ThreadRow {

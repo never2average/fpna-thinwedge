@@ -14,12 +14,12 @@
 //! `SessionSource::SubAgent(ThreadSpawn { parent_thread_id, .. })` edges until no new children are
 //! found. The primary thread itself is never included in the output.
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use thinwedge_app_server_protocol::SessionSource;
 use thinwedge_app_server_protocol::Thread;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SubAgentSource;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 /// A subagent thread discovered by the spawn-tree walk, carrying just enough metadata for the
 /// TUI to register it in the navigation cache and rendering metadata map.
@@ -100,6 +100,7 @@ pub(crate) fn find_loaded_subagent_threads_for_primary(
 mod tests {
     use super::LoadedSubagentThread;
     use super::find_loaded_subagent_threads_for_primary;
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::SessionSource;
     use thinwedge_app_server_protocol::Thread;
     use thinwedge_app_server_protocol::ThreadStatus;
@@ -107,7 +108,6 @@ mod tests {
     use thinwedge_protocol::protocol::SubAgentSource;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     fn test_thread(thread_id: ThreadId, source: SessionSource) -> Thread {
         Thread {

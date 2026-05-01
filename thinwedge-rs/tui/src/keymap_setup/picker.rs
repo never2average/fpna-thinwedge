@@ -1,9 +1,9 @@
 //! Shortcut picker construction for `/keymap`.
 
-use thinwedge_config::types::TuiKeymap;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::text::Span;
+use thinwedge_config::types::TuiKeymap;
 use unicode_width::UnicodeWidthStr;
 
 use crate::app_event::AppEvent;

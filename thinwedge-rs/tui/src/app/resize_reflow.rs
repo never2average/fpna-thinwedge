@@ -18,9 +18,9 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Instant;
 
-use thinwedge_features::Feature;
 use color_eyre::eyre::Result;
 use ratatui::text::Line;
+use thinwedge_features::Feature;
 
 use super::App;
 use super::InitialHistoryReplayBuffer;

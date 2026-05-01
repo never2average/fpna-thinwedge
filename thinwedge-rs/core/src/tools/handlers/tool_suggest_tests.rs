@@ -3,8 +3,13 @@ use crate::plugins::PluginInstallRequest;
 use crate::plugins::PluginsManager;
 use crate::plugins::test_support::load_plugins_config;
 use crate::plugins::test_support::write_curated_plugin_sha;
-use crate::plugins::test_support::write_thinwedge_curated_marketplace;
 use crate::plugins::test_support::write_plugins_feature_config;
+use crate::plugins::test_support::write_thinwedge_curated_marketplace;
+use core_test_support::PathExt;
+use pretty_assertions::assert_eq;
+use rmcp::model::ElicitationAction;
+use serde_json::json;
+use tempfile::tempdir;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_config::types::ToolSuggestConfig;
@@ -15,11 +20,6 @@ use thinwedge_core_plugins::startup_sync::curated_plugins_repo_path;
 use thinwedge_rmcp_client::ElicitationResponse;
 use thinwedge_tools::DiscoverablePluginInfo;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::PathExt;
-use pretty_assertions::assert_eq;
-use rmcp::model::ElicitationAction;
-use serde_json::json;
-use tempfile::tempdir;
 
 #[tokio::test]
 async fn verified_plugin_suggestion_completed_requires_installed_plugin() {

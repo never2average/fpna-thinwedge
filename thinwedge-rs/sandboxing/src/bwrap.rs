@@ -1,9 +1,9 @@
 use crate::policy_transforms::should_require_platform_sandbox;
-use thinwedge_protocol::models::PermissionProfile;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Output;
+use thinwedge_protocol::models::PermissionProfile;
 
 const SYSTEM_BWRAP_PROGRAM: &str = "bwrap";
 const MISSING_BWRAP_WARNING: &str = concat!(

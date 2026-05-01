@@ -46,6 +46,16 @@ use async_channel::Receiver;
 use async_channel::Sender;
 use chrono::Local;
 use chrono::Utc;
+use futures::future::BoxFuture;
+use futures::future::Shared;
+use futures::prelude::*;
+use rmcp::model::ListResourceTemplatesResult;
+use rmcp::model::ListResourcesResult;
+use rmcp::model::PaginatedRequestParams;
+use rmcp::model::ReadResourceRequestParams;
+use rmcp::model::ReadResourceResult;
+use rmcp::model::RequestId;
+use serde_json::Value;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_analytics::SubAgentThreadStartedInput;
 use thinwedge_app_server_protocol::McpServerElicitationRequest;
@@ -96,7 +106,6 @@ use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::SandboxEnforcement;
 use thinwedge_protocol::models::format_allow_prefixes;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::FileChange;
@@ -121,6 +130,7 @@ use thinwedge_protocol::request_permissions::RequestPermissionsEvent;
 use thinwedge_protocol::request_permissions::RequestPermissionsResponse;
 use thinwedge_protocol::request_user_input::RequestUserInputArgs;
 use thinwedge_protocol::request_user_input::RequestUserInputResponse;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_rmcp_client::ElicitationResponse;
 use thinwedge_rollout::state_db;
 use thinwedge_rollout_trace::AgentResultTracePayload;
@@ -137,16 +147,6 @@ use thinwedge_thread_store::ResumeThreadParams;
 use thinwedge_thread_store::ThreadEventPersistenceMode;
 use thinwedge_thread_store::ThreadStore;
 use thinwedge_utils_output_truncation::TruncationPolicy;
-use futures::future::BoxFuture;
-use futures::future::Shared;
-use futures::prelude::*;
-use rmcp::model::ListResourceTemplatesResult;
-use rmcp::model::ListResourcesResult;
-use rmcp::model::PaginatedRequestParams;
-use rmcp::model::ReadResourceRequestParams;
-use rmcp::model::ReadResourceResult;
-use rmcp::model::RequestId;
-use serde_json::Value;
 use tokio::sync::Mutex;
 use tokio::sync::RwLock;
 use tokio::sync::oneshot;
@@ -164,7 +164,6 @@ use tracing::warn;
 use uuid::Uuid;
 
 use crate::client::ModelClient;
-use crate::thinwedge_thread::ThreadConfigSnapshot;
 use crate::compact::collect_user_messages;
 use crate::config::Config;
 use crate::config::Constrained;
@@ -173,13 +172,14 @@ use crate::config::StartedNetworkProxy;
 use crate::config::resolve_web_search_mode_for_turn;
 use crate::context_manager::ContextManager;
 use crate::context_manager::TotalTokenUsageBreakdown;
+use crate::thinwedge_thread::ThreadConfigSnapshot;
 use crate::thread_rollout_truncation::initial_history_has_prior_user_turns;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::types::McpServerConfig;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_protocol::config_types::ShellEnvironmentPolicy;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 #[cfg(test)]
 use thinwedge_protocol::exec_output::StreamOutput;
 
@@ -314,11 +314,9 @@ use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseInputItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::BackgroundEventEvent;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::CompactedItem;
 use thinwedge_protocol::protocol::DeprecationNoticeEvent;
 use thinwedge_protocol::protocol::ErrorEvent;
@@ -347,10 +345,12 @@ use thinwedge_protocol::protocol::SkillMetadata as ProtocolSkillMetadata;
 use thinwedge_protocol::protocol::SkillToolDependency as ProtocolSkillToolDependency;
 use thinwedge_protocol::protocol::StreamErrorEvent;
 use thinwedge_protocol::protocol::Submission;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::TokenCountEvent;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
 use thinwedge_protocol::protocol::WarningEvent;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::user_input::UserInput;
 use thinwedge_tools::ToolsConfig;
 use thinwedge_tools::ToolsConfigParams;
@@ -555,8 +555,12 @@ impl ThinWedge {
             match thread_id {
                 Some(thread_id) => {
                     let state_db_ctx = state_db::get_state_db(&config).await;
-                    state_db::get_dynamic_tools(state_db_ctx.as_deref(), thread_id, "thinwedge_spawn")
-                        .await
+                    state_db::get_dynamic_tools(
+                        state_db_ctx.as_deref(),
+                        thread_id,
+                        "thinwedge_spawn",
+                    )
+                    .await
                 }
                 None => None,
             }
@@ -664,7 +668,10 @@ impl ThinWedge {
             session_loop_termination: session_loop_termination_from_handle(session_loop_handle),
         };
 
-        Ok(ThinWedgeSpawnOk { thinwedge, thread_id })
+        Ok(ThinWedgeSpawnOk {
+            thinwedge,
+            thread_id,
+        })
     }
 
     /// Submit the `op` wrapped in a `Submission` with a unique ID.

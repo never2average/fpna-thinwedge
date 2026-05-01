@@ -119,7 +119,10 @@ async fn exec_approval_uses_approval_id_when_present() {
         } = app_ev
         {
             assert_eq!(id, "approval-subcommand");
-            assert_matches!(decision, thinwedge_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                thinwedge_protocol::protocol::ReviewDecision::Approved
+            );
             found = true;
             break;
         }
@@ -647,7 +650,12 @@ async fn unified_exec_wait_after_final_agent_message_snapshot() {
         }),
     });
 
-    begin_unified_exec_startup(&mut chat, "call-wait", "proc-1", "cargo test -p thinwedge-core");
+    begin_unified_exec_startup(
+        &mut chat,
+        "call-wait",
+        "proc-1",
+        "cargo test -p thinwedge-core",
+    );
     terminal_interaction(&mut chat, "call-wait-stdin", "proc-1", "");
 
     complete_assistant_message(&mut chat, "msg-1", "Final response.", /*phase*/ None);
@@ -1717,7 +1725,10 @@ async fn apply_patch_approval_sends_op_with_call_id() {
         } = app_ev
         {
             assert_eq!(id, "call-999");
-            assert_matches!(decision, thinwedge_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                thinwedge_protocol::protocol::ReviewDecision::Approved
+            );
             found = true;
             break;
         }
@@ -1765,7 +1776,10 @@ async fn apply_patch_full_flow_integration_like() {
     match forwarded {
         Op::PatchApproval { id, decision } => {
             assert_eq!(id, "call-1");
-            assert_matches!(decision, thinwedge_protocol::protocol::ReviewDecision::Approved);
+            assert_matches!(
+                decision,
+                thinwedge_protocol::protocol::ReviewDecision::Approved
+            );
         }
         other => panic!("unexpected op forwarded: {other:?}"),
     }

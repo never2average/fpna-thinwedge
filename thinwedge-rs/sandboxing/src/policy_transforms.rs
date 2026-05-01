@@ -1,3 +1,6 @@
+use std::num::NonZeroUsize;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_protocol::models::FileSystemPermissions;
 use thinwedge_protocol::models::NetworkPermissions;
@@ -12,9 +15,6 @@ use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::permissions::ReadDenyMatcher;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::canonicalize_preserving_symlinks;
-use std::num::NonZeroUsize;
-use std::path::Path;
-use std::path::PathBuf;
 
 pub fn normalize_additional_permissions(
     additional_permissions: AdditionalPermissionProfile,

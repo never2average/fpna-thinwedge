@@ -1,7 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -10,6 +9,7 @@ use std::collections::BTreeMap;
 use std::net::IpAddr;
 use std::net::SocketAddr;
 use std::path::Path;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tracing::warn;
 use url::Url;
 

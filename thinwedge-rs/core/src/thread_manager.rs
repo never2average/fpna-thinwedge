@@ -1,6 +1,5 @@
 use crate::SkillsManager;
 use crate::agent::AgentControl;
-use crate::thinwedge_thread::ThinWedgeThread;
 use crate::config::Config;
 use crate::config::ThreadStoreConfig;
 use crate::environment_selection::default_thread_environment_selections;
@@ -11,15 +10,25 @@ use crate::mcp::McpManager;
 use crate::plugins::PluginsManager;
 use crate::rollout::RolloutRecorder;
 use crate::rollout::truncation;
+use crate::session::INITIAL_SUBMIT_ID;
 use crate::session::ThinWedge;
 use crate::session::ThinWedgeSpawnArgs;
 use crate::session::ThinWedgeSpawnOk;
-use crate::session::INITIAL_SUBMIT_ID;
 use crate::shell_snapshot::ShellSnapshot;
 use crate::skills_watcher::SkillsWatcher;
 use crate::skills_watcher::SkillsWatcherEvent;
 use crate::tasks::InterruptedTurnHistoryMarker;
 use crate::tasks::interrupted_turn_history_marker;
+use crate::thinwedge_thread::ThinWedgeThread;
+use futures::StreamExt;
+use futures::stream::FuturesUnordered;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_app_server_protocol::ThreadHistoryBuilder;
 use thinwedge_app_server_protocol::TurnStatus;
@@ -33,11 +42,10 @@ use thinwedge_models_manager::manager::RefreshStrategy;
 use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::CollaborationModeMask;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 #[cfg(test)]
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_protocol::protocol::Event;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::InitialHistory;
@@ -51,6 +59,7 @@ use thinwedge_protocol::protocol::TurnAbortReason;
 use thinwedge_protocol::protocol::TurnAbortedEvent;
 use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 use thinwedge_protocol::protocol::W3cTraceContext;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_rollout::RolloutConfig;
 use thinwedge_state::DirectionalThreadSpawnEdgeStatus;
 #[cfg(debug_assertions)]
@@ -59,15 +68,6 @@ use thinwedge_thread_store::LocalThreadStore;
 use thinwedge_thread_store::RemoteThreadStore;
 use thinwedge_thread_store::ThreadStore;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use futures::StreamExt;
-use futures::stream::FuturesUnordered;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
 use tokio::runtime::Handle;
 use tokio::runtime::RuntimeFlavor;
 use tokio::sync::RwLock;
@@ -331,7 +331,9 @@ impl ThreadManager {
             thinwedge_home.clone(),
             Arc::new(EnvironmentManager::default_for_tests()),
         );
-        manager._test_thinwedge_home_guard = Some(TempThinWedgeHomeGuard { path: thinwedge_home });
+        manager._test_thinwedge_home_guard = Some(TempThinWedgeHomeGuard {
+            path: thinwedge_home,
+        });
         manager
     }
 
@@ -345,10 +347,11 @@ impl ThreadManager {
     ) -> Self {
         set_thread_manager_test_mode_for_tests(/*enabled*/ true);
         let auth_manager = AuthManager::from_auth_for_testing(auth);
-        let skills_thinwedge_home = match AbsolutePathBuf::from_absolute_path_checked(&thinwedge_home) {
-            Ok(thinwedge_home) => thinwedge_home,
-            Err(err) => panic!("test thinwedge_home should be absolute: {err}"),
-        };
+        let skills_thinwedge_home =
+            match AbsolutePathBuf::from_absolute_path_checked(&thinwedge_home) {
+                Ok(thinwedge_home) => thinwedge_home,
+                Err(err) => panic!("test thinwedge_home should be absolute: {err}"),
+            };
         let (thread_created_tx, _) = broadcast::channel(THREAD_CREATED_CHANNEL_CAPACITY);
         let restriction_product = SessionSource::Exec.restriction_product();
         let plugins_manager = Arc::new(PluginsManager::new_with_restriction_product(
@@ -494,7 +497,9 @@ impl ThreadManager {
                     .list_thread_spawn_descendants_with_status(thread_id, status)
                     .await
                     .map_err(|err| {
-                        ThinWedgeErr::Fatal(format!("failed to load thread-spawn descendants: {err}"))
+                        ThinWedgeErr::Fatal(format!(
+                            "failed to load thread-spawn descendants: {err}"
+                        ))
                     })?
                 {
                     if seen_thread_ids.insert(descendant_id) {
@@ -848,7 +853,10 @@ impl ThreadManagerState {
     }
 
     /// Fetch a thread by ID or return ThreadNotFound.
-    pub(crate) async fn get_thread(&self, thread_id: ThreadId) -> ThinWedgeResult<Arc<ThinWedgeThread>> {
+    pub(crate) async fn get_thread(
+        &self,
+        thread_id: ThreadId,
+    ) -> ThinWedgeResult<Arc<ThinWedgeThread>> {
         let threads = self.threads.read().await;
         match threads.get(&thread_id) {
             Some(thread) if !thread.session_source.is_internal() => Ok(thread.clone()),
@@ -1078,7 +1086,9 @@ impl ThreadManagerState {
             .await;
         let tracked_session_source = session_source.clone();
         let ThinWedgeSpawnOk {
-            thinwedge, thread_id, ..
+            thinwedge,
+            thread_id,
+            ..
         } = ThinWedge::spawn(ThinWedgeSpawnArgs {
             config,
             auth_manager,
@@ -1105,7 +1115,12 @@ impl ThreadManagerState {
         })
         .await?;
         let new_thread = self
-            .finalize_thread_spawn(thinwedge, thread_id, tracked_session_source, watch_registration)
+            .finalize_thread_spawn(
+                thinwedge,
+                thread_id,
+                tracked_session_source,
+                watch_registration,
+            )
             .await?;
         if is_resumed_thread
             && let Err(err) = new_thread.thread.apply_goal_resume_runtime_effects().await
@@ -1179,7 +1194,14 @@ impl ThreadManagerState {
         self.get_thread(*parent_thread_id)
             .await
             .ok()
-            .map(|thread| thread.thinwedge.session.services.rollout_thread_trace.clone())
+            .map(|thread| {
+                thread
+                    .thinwedge
+                    .session
+                    .services
+                    .rollout_thread_trace
+                    .clone()
+            })
             .unwrap_or_else(thinwedge_rollout_trace::ThreadTraceContext::disabled)
     }
 }

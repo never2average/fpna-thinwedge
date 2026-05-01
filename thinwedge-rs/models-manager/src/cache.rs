@@ -1,12 +1,12 @@
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use std::io;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use tokio::fs;
 use tracing::error;
 use tracing::info;

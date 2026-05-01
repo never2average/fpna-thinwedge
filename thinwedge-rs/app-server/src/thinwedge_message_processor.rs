@@ -23,6 +23,16 @@ use chrono::DateTime;
 use chrono::Duration as ChronoDuration;
 use chrono::SecondsFormat;
 use chrono::Utc;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::io::Error as IoError;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Duration;
+use std::time::Instant;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_analytics::AnalyticsJsonRpcError;
 use thinwedge_analytics::InputError;
@@ -40,7 +50,6 @@ use thinwedge_app_server_protocol::AskForApproval;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_app_server_protocol::ClientRequest;
 use thinwedge_app_server_protocol::ClientResponse;
-use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::CollaborationModeListParams;
 use thinwedge_app_server_protocol::CollaborationModeListResponse;
 use thinwedge_app_server_protocol::CommandExecParams;
@@ -133,6 +142,7 @@ use thinwedge_app_server_protocol::SkillsConfigWriteResponse;
 use thinwedge_app_server_protocol::SkillsListParams;
 use thinwedge_app_server_protocol::SkillsListResponse;
 use thinwedge_app_server_protocol::SortDirection;
+use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::Thread;
 use thinwedge_app_server_protocol::ThreadApproveGuardianDeniedActionParams;
 use thinwedge_app_server_protocol::ThreadApproveGuardianDeniedActionResponse;
@@ -232,14 +242,14 @@ use thinwedge_config::CloudRequirementsLoadError;
 use thinwedge_config::CloudRequirementsLoadErrorCode;
 use thinwedge_config::loader::project_trust_key;
 use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_core::ThinWedgeThread;
-use thinwedge_core::ThinWedgeThreadTurnContextOverrides;
 use thinwedge_core::ForkSnapshot;
 use thinwedge_core::NewThread;
 use thinwedge_core::RolloutRecorder;
 use thinwedge_core::SessionMeta;
 use thinwedge_core::StartThreadOptions;
 use thinwedge_core::SteerInputError;
+use thinwedge_core::ThinWedgeThread;
+use thinwedge_core::ThinWedgeThreadTurnContextOverrides;
 use thinwedge_core::ThreadConfigSnapshot;
 use thinwedge_core::ThreadManager;
 use thinwedge_core::config::Config;
@@ -290,8 +300,8 @@ use thinwedge_external_agent_sessions::ImportedExternalAgentSession;
 use thinwedge_features::FEATURES;
 use thinwedge_features::Feature;
 use thinwedge_features::Stage;
-use thinwedge_feedback::ThinWedgeFeedback;
 use thinwedge_feedback::FeedbackUploadOptions;
+use thinwedge_feedback::ThinWedgeFeedback;
 use thinwedge_git_utils::git_diff_to_remote;
 use thinwedge_git_utils::resolve_root_git_project_for_trust;
 use thinwedge_login::AuthManager;
@@ -316,8 +326,8 @@ use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::TrustLevel;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec as CoreDynamicToolSpec;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::items::TurnItem;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
@@ -371,16 +381,6 @@ use thinwedge_thread_store::ThreadStoreError;
 use thinwedge_thread_store::UpdateThreadMetadataParams as StoreUpdateThreadMetadataParams;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_pty::DEFAULT_OUTPUT_BYTES_CAP;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::io::Error as IoError;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
-use std::time::Instant;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio::sync::SemaphorePermit;
@@ -1211,7 +1211,9 @@ impl ThinWedgeMessageProcessor {
                 warn!("Filesystem request reached ThinWedgeMessageProcessor unexpectedly");
             }
             ClientRequest::ConfigRequirementsRead { .. } => {
-                warn!("ConfigRequirementsRead request reached ThinWedgeMessageProcessor unexpectedly");
+                warn!(
+                    "ConfigRequirementsRead request reached ThinWedgeMessageProcessor unexpectedly"
+                );
             }
             ClientRequest::ModelProviderCapabilitiesRead { .. } => {
                 warn!(
@@ -1571,7 +1573,8 @@ impl ThinWedgeMessageProcessor {
         let Some(auth) = self.auth_manager.auth().await else {
             return Err(JSONRPCErrorError {
                 code: INVALID_REQUEST_ERROR_CODE,
-                message: "thinwedge account authentication required to read rate limits".to_string(),
+                message: "thinwedge account authentication required to read rate limits"
+                    .to_string(),
                 data: None,
             });
         };
@@ -3547,30 +3550,32 @@ impl ThinWedgeMessageProcessor {
             .resolve_rollout_path(thread_uuid, state_db_ctx.as_ref())
             .await;
         if rollout_path.is_none() {
-            rollout_path =
-                match find_thread_path_by_id_str(&self.config.thinwedge_home, &thread_uuid.to_string())
-                    .await
+            rollout_path = match find_thread_path_by_id_str(
+                &self.config.thinwedge_home,
+                &thread_uuid.to_string(),
+            )
+            .await
+            {
+                Ok(Some(path)) => Some(path),
+                Ok(None) => match find_archived_thread_path_by_id_str(
+                    &self.config.thinwedge_home,
+                    &thread_uuid.to_string(),
+                )
+                .await
                 {
-                    Ok(Some(path)) => Some(path),
-                    Ok(None) => match find_archived_thread_path_by_id_str(
-                        &self.config.thinwedge_home,
-                        &thread_uuid.to_string(),
-                    )
-                    .await
-                    {
-                        Ok(path) => path,
-                        Err(err) => {
-                            return Err(invalid_request(format!(
-                                "failed to locate archived thread id {thread_uuid}: {err}"
-                            )));
-                        }
-                    },
+                    Ok(path) => path,
                     Err(err) => {
                         return Err(invalid_request(format!(
-                            "failed to locate thread id {thread_uuid}: {err}"
+                            "failed to locate archived thread id {thread_uuid}: {err}"
                         )));
                     }
-                };
+                },
+                Err(err) => {
+                    return Err(invalid_request(format!(
+                        "failed to locate thread id {thread_uuid}: {err}"
+                    )));
+                }
+            };
         }
 
         if rollout_path.is_none() {
@@ -5514,10 +5519,10 @@ impl ThinWedgeMessageProcessor {
         }
 
         let auth = self.auth_manager.auth().await;
-        if !config
-            .features
-            .apps_enabled_for_auth(auth.as_ref().is_some_and(ThinWedgeAuth::uses_thinwedge_backend))
-        {
+        if !config.features.apps_enabled_for_auth(
+            auth.as_ref()
+                .is_some_and(ThinWedgeAuth::uses_thinwedge_backend),
+        ) {
             self.outgoing
                 .send_response(
                     request_id,
@@ -5810,7 +5815,8 @@ impl ThinWedgeMessageProcessor {
             let effective_skill_roots = plugins_manager
                 .effective_skill_roots_for_layer_stack(
                     &config_layer_stack,
-                    config.features.enabled(Feature::Plugins) && workspace_thinwedge_plugins_enabled,
+                    config.features.enabled(Feature::Plugins)
+                        && workspace_thinwedge_plugins_enabled,
                 )
                 .await;
             let skills_input = thinwedge_core::skills::SkillsLoadInput::new(
@@ -6289,9 +6295,11 @@ impl ThinWedgeMessageProcessor {
                             };
                             let error = TurnError {
                                 message: message.clone(),
-                                thinwedge_error_info: Some(ThinWedgeErrorInfo::ActiveTurnNotSteerable {
-                                    turn_kind: turn_kind.into(),
-                                }),
+                                thinwedge_error_info: Some(
+                                    ThinWedgeErrorInfo::ActiveTurnNotSteerable {
+                                        turn_kind: turn_kind.into(),
+                                    },
+                                ),
                                 additional_details: None,
                             };
                             let data = match serde_json::to_value(error) {
@@ -7568,10 +7576,10 @@ fn normalize_thread_list_cwd_filters(
 #[cfg(test)]
 mod thread_list_cwd_filter_tests {
     use super::normalize_thread_list_cwd_filters;
-    use thinwedge_app_server_protocol::ThreadListCwdFilter;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
+    use thinwedge_app_server_protocol::ThreadListCwdFilter;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
     #[test]
     fn normalize_thread_list_cwd_filter_preserves_absolute_paths() {
@@ -8017,8 +8025,9 @@ fn collect_resume_override_mismatches(
         }
     }
     if let Some(requested_permission_profile) = request.permission_profile.as_ref() {
-        let requested_permission_profile =
-            thinwedge_protocol::models::PermissionProfile::from(requested_permission_profile.clone());
+        let requested_permission_profile = thinwedge_protocol::models::PermissionProfile::from(
+            requested_permission_profile.clone(),
+        );
         if requested_permission_profile != config_snapshot.permission_profile {
             mismatch_details.push(format!(
                 "permission_profile requested={requested_permission_profile:?} active={:?}",
@@ -8870,7 +8879,9 @@ fn preview_from_rollout_items(items: &[RolloutItem]) -> String {
         .iter()
         .find_map(|item| match item {
             RolloutItem::ResponseItem(item) => match thinwedge_core::parse_turn_item(item) {
-                Some(thinwedge_protocol::items::TurnItem::UserMessage(user)) => Some(user.message()),
+                Some(thinwedge_protocol::items::TurnItem::UserMessage(user)) => {
+                    Some(user.message())
+                }
                 _ => None,
             },
             _ => None,
@@ -9243,6 +9254,12 @@ mod tests {
     use anyhow::Result;
     use chrono::DateTime;
     use chrono::Utc;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use std::collections::BTreeMap;
+    use std::path::PathBuf;
+    use std::sync::Arc;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::ServerRequestPayload;
     use thinwedge_app_server_protocol::ToolRequestUserInputParams;
     use thinwedge_config::CloudRequirementsLoader;
@@ -9253,7 +9270,6 @@ mod tests {
     use thinwedge_model_provider_info::ModelProviderInfo;
     use thinwedge_model_provider_info::WireApi;
     use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use thinwedge_protocol::permissions::FileSystemAccessMode;
     use thinwedge_protocol::permissions::FileSystemPath;
     use thinwedge_protocol::permissions::FileSystemSandboxEntry;
@@ -9262,15 +9278,10 @@ mod tests {
     use thinwedge_protocol::protocol::SandboxPolicy;
     use thinwedge_protocol::protocol::SessionSource;
     use thinwedge_protocol::protocol::SubAgentSource;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use thinwedge_thread_store::StoredThread;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-    use std::collections::BTreeMap;
-    use std::path::PathBuf;
-    use std::sync::Arc;
-    use tempfile::TempDir;
 
     #[test]
     fn validate_dynamic_tools_rejects_unsupported_input_schema() {
@@ -9481,7 +9492,8 @@ mod tests {
     fn requested_permissions_trust_project_uses_permission_profile_intent() {
         let cwd = test_path_buf("/tmp/project").abs();
         let full_access_profile = thinwedge_protocol::models::PermissionProfile::Disabled;
-        let workspace_write_profile = thinwedge_protocol::models::PermissionProfile::workspace_write();
+        let workspace_write_profile =
+            thinwedge_protocol::models::PermissionProfile::workspace_write();
         let read_only_profile = thinwedge_protocol::models::PermissionProfile::read_only();
         let split_write_profile =
             thinwedge_protocol::models::PermissionProfile::from_runtime_permissions(
@@ -9811,7 +9823,10 @@ mod tests {
             &persisted_metadata,
         );
 
-        assert_eq!(typesafe_overrides.model, Some("gpt-5.2-thinwedge".to_string()));
+        assert_eq!(
+            typesafe_overrides.model,
+            Some("gpt-5.2-thinwedge".to_string())
+        );
         assert_eq!(typesafe_overrides.model_provider, None);
         assert_eq!(
             request_overrides,
@@ -9990,11 +10005,11 @@ mod tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_returns_empty_preview_when_no_user_message() -> Result<()> {
+        use std::fs;
+        use std::fs::FileTimes;
         use thinwedge_protocol::protocol::RolloutItem;
         use thinwedge_protocol::protocol::RolloutLine;
         use thinwedge_protocol::protocol::SessionMetaLine;
-        use std::fs;
-        use std::fs::FileTimes;
 
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().join("rollout.jsonl");
@@ -10046,10 +10061,10 @@ mod tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_agent_nickname() -> Result<()> {
+        use std::fs;
         use thinwedge_protocol::protocol::RolloutItem;
         use thinwedge_protocol::protocol::RolloutLine;
         use thinwedge_protocol::protocol::SessionMetaLine;
-        use std::fs;
 
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().join("rollout.jsonl");
@@ -10094,10 +10109,10 @@ mod tests {
 
     #[tokio::test]
     async fn read_summary_from_rollout_preserves_forked_from_id() -> Result<()> {
+        use std::fs;
         use thinwedge_protocol::protocol::RolloutItem;
         use thinwedge_protocol::protocol::RolloutLine;
         use thinwedge_protocol::protocol::SessionMetaLine;
-        use std::fs;
 
         let temp_dir = TempDir::new()?;
         let path = temp_dir.path().join("rollout.jsonl");

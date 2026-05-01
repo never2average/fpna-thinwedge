@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use rmcp::model::RequestId;
+use serde_json::Value;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_config::types::ToolSuggestDisabledTool;
 use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
@@ -17,8 +19,6 @@ use thinwedge_tools::all_suggested_connectors_picked_up;
 use thinwedge_tools::build_tool_suggestion_elicitation_request;
 use thinwedge_tools::filter_tool_suggest_discoverable_tools_for_client;
 use thinwedge_tools::verified_connector_suggestion_completed;
-use rmcp::model::RequestId;
-use serde_json::Value;
 use tracing::warn;
 
 use crate::config::edit::ConfigEdit;

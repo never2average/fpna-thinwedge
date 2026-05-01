@@ -1,8 +1,8 @@
-use thinwedge_protocol::models::WebSearchAction;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use std::collections::HashMap;
+use thinwedge_protocol::models::WebSearchAction;
 use ts_rs::TS;
 
 /// Top-level JSONL events emitted by thinwedge exec

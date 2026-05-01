@@ -7,8 +7,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Context as _;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use socket2::Socket;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tokio::process::Command;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -377,10 +377,6 @@ async fn handle_escalate_session_with_policy(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_protocol::approvals::EscalationPermissions;
-    use thinwedge_protocol::models::AdditionalPermissionProfile as PermissionProfile;
-    use thinwedge_protocol::models::NetworkPermissions;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::io::Write;
@@ -391,6 +387,10 @@ mod tests {
     use std::sync::atomic::AtomicBool;
     use std::sync::atomic::Ordering;
     use tempfile::TempDir;
+    use thinwedge_protocol::approvals::EscalationPermissions;
+    use thinwedge_protocol::models::AdditionalPermissionProfile as PermissionProfile;
+    use thinwedge_protocol::models::NetworkPermissions;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use tokio::sync::Semaphore;
     use tokio::time::Instant;
     use tokio::time::sleep;

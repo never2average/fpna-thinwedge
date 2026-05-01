@@ -9,6 +9,14 @@ use app_test_support::test_absolute_path;
 use app_test_support::to_response;
 use chrono::DateTime;
 use chrono::Utc;
+use core_test_support::responses;
+use pretty_assertions::assert_eq;
+use std::cmp::Reverse;
+use std::fs;
+use std::fs::FileTimes;
+use std::fs::OpenOptions;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::GitInfo as ApiGitInfo;
 use thinwedge_app_server_protocol::JSONRPCError;
 use thinwedge_app_server_protocol::JSONRPCResponse;
@@ -33,14 +41,6 @@ use thinwedge_protocol::protocol::RolloutItem;
 use thinwedge_protocol::protocol::RolloutLine;
 use thinwedge_protocol::protocol::SessionSource as CoreSessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
-use core_test_support::responses;
-use pretty_assertions::assert_eq;
-use std::cmp::Reverse;
-use std::fs;
-use std::fs::FileTimes;
-use std::fs::OpenOptions;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use uuid::Uuid;
 
@@ -301,7 +301,10 @@ approval_policy = "never"
     )
 }
 
-fn create_runtime_config(thinwedge_home: &std::path::Path, server_uri: &str) -> std::io::Result<()> {
+fn create_runtime_config(
+    thinwedge_home: &std::path::Path,
+    server_uri: &str,
+) -> std::io::Result<()> {
     let config_toml = thinwedge_home.join("config.toml");
     std::fs::write(
         config_toml,
@@ -504,7 +507,12 @@ async fn thread_list_respects_cwd_filters() -> Result<()> {
     fs::create_dir_all(&first_target_cwd)?;
     fs::create_dir_all(&second_target_cwd)?;
     set_rollout_cwd(
-        rollout_path(thinwedge_home.path(), "2025-01-02T10-00-00", &first_filtered_id).as_path(),
+        rollout_path(
+            thinwedge_home.path(),
+            "2025-01-02T10-00-00",
+            &first_filtered_id,
+        )
+        .as_path(),
         &first_target_cwd,
     )?;
     set_rollout_cwd(
@@ -600,9 +608,11 @@ sqlite = true
     // `thread/list` applies `search_term` on the sqlite fast path. This test creates
     // rollouts manually, so mark the DB backfill complete and then run an unsearched
     // list large enough to repair every rollout the searched list should find.
-    let state_db =
-        thinwedge_state::StateRuntime::init(thinwedge_home.path().to_path_buf(), "mock_provider".into())
-            .await?;
+    let state_db = thinwedge_state::StateRuntime::init(
+        thinwedge_home.path().to_path_buf(),
+        "mock_provider".into(),
+    )
+    .await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;
@@ -682,9 +692,11 @@ sqlite = true
         Some("mock_provider"),
         /*git_info*/ None,
     )?;
-    let state_db =
-        thinwedge_state::StateRuntime::init(thinwedge_home.path().to_path_buf(), "mock_provider".into())
-            .await?;
+    let state_db = thinwedge_state::StateRuntime::init(
+        thinwedge_home.path().to_path_buf(),
+        "mock_provider".into(),
+    )
+    .await?;
     state_db
         .mark_backfill_complete(/*last_watermark*/ None)
         .await?;

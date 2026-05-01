@@ -113,12 +113,13 @@ pub(crate) async fn monitor_action(
         return ArcMonitorOutcome::Ok;
     }
 
-    let url = read_non_empty_env_var(THINWEDGE_ARC_MONITOR_ENDPOINT_OVERRIDE).unwrap_or_else(|| {
-        format!(
-            "{}/thinwedge/safety/arc",
-            turn_context.config.chatgpt_base_url.trim_end_matches('/')
-        )
-    });
+    let url =
+        read_non_empty_env_var(THINWEDGE_ARC_MONITOR_ENDPOINT_OVERRIDE).unwrap_or_else(|| {
+            format!(
+                "{}/thinwedge/safety/arc",
+                turn_context.config.chatgpt_base_url.trim_end_matches('/')
+            )
+        });
     let action = match action {
         serde_json::Value::Object(action) => action,
         _ => {
@@ -133,8 +134,8 @@ pub(crate) async fn monitor_action(
     if let Some(token) = env_token {
         request = request.bearer_auth(token);
     } else if let Some(auth) = auth.as_ref() {
-        request =
-            request.headers(thinwedge_model_provider::auth_provider_from_auth(auth).to_auth_headers());
+        request = request
+            .headers(thinwedge_model_provider::auth_provider_from_auth(auth).to_auth_headers());
     }
 
     let response = match request.send().await {

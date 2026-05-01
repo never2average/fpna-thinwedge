@@ -1,4 +1,7 @@
 use super::*;
+use core_test_support::PathExt;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::FileSystemAccessMode;
 use thinwedge_protocol::protocol::FileSystemPath;
@@ -7,9 +10,6 @@ use thinwedge_protocol::protocol::FileSystemSpecialPath;
 use thinwedge_protocol::protocol::GranularApprovalConfig;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::PathExt;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 
 fn permission_profile_for_policy(sandbox_policy: &SandboxPolicy) -> PermissionProfile {
     PermissionProfile::from_legacy_sandbox_policy(sandbox_policy)

@@ -12,6 +12,10 @@ use crate::config::ConfigOverrides;
 use crate::config::agent_roles::parse_agent_role_file_contents;
 use crate::config::deserialize_config_toml_with_base;
 use anyhow::anyhow;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::path::Path;
+use std::sync::LazyLock;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerStack;
@@ -19,10 +23,6 @@ use thinwedge_config::ConfigLayerStackOrdering;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_config::loader::resolve_relative_paths_in_config_toml;
 use thinwedge_exec_server::LOCAL_FS;
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
 use toml::Value as TomlValue;
 
 /// The role name used when a caller omits `agent_type`.

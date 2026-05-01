@@ -1,7 +1,7 @@
 use super::*;
+use pretty_assertions::assert_eq;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_features::Stage;
-use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn realtime_error_closes_without_followup_closed_info() {
@@ -2440,11 +2440,13 @@ async fn feedback_upload_consent_popup_snapshot() {
         chat.app_event_tx.clone(),
         crate::app_event::FeedbackCategory::Bug,
         chat.current_rollout_path.clone(),
-        &thinwedge_feedback::FeedbackDiagnostics::new(vec![thinwedge_feedback::FeedbackDiagnostic {
-            headline: "Proxy environment variables are set and may affect connectivity."
-                .to_string(),
-            details: vec!["HTTPS_PROXY = hello".to_string()],
-        }]),
+        &thinwedge_feedback::FeedbackDiagnostics::new(vec![
+            thinwedge_feedback::FeedbackDiagnostic {
+                headline: "Proxy environment variables are set and may affect connectivity."
+                    .to_string(),
+                details: vec!["HTTPS_PROXY = hello".to_string()],
+            },
+        ]),
     ));
 
     let popup = render_bottom_popup(&chat, /*width*/ 80);
@@ -2459,11 +2461,13 @@ async fn feedback_good_result_consent_popup_includes_connectivity_diagnostics_fi
         chat.app_event_tx.clone(),
         crate::app_event::FeedbackCategory::GoodResult,
         chat.current_rollout_path.clone(),
-        &thinwedge_feedback::FeedbackDiagnostics::new(vec![thinwedge_feedback::FeedbackDiagnostic {
-            headline: "Proxy environment variables are set and may affect connectivity."
-                .to_string(),
-            details: vec!["HTTPS_PROXY = hello".to_string()],
-        }]),
+        &thinwedge_feedback::FeedbackDiagnostics::new(vec![
+            thinwedge_feedback::FeedbackDiagnostic {
+                headline: "Proxy environment variables are set and may affect connectivity."
+                    .to_string(),
+                details: vec!["HTTPS_PROXY = hello".to_string()],
+            },
+        ]),
     ));
 
     let popup = render_bottom_popup(&chat, /*width*/ 80);

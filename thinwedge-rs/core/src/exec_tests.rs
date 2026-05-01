@@ -1,12 +1,12 @@
 use super::*;
-use thinwedge_protocol::config_types::WindowsSandboxLevel;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_sandboxing::SandboxType;
 use core_test_support::PathBufExt;
 use core_test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::time::Duration;
+use thinwedge_protocol::config_types::WindowsSandboxLevel;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_sandboxing::SandboxType;
 use tokio::io::AsyncWriteExt;
 
 fn make_exec_output(
@@ -920,8 +920,9 @@ fn windows_elevated_rejects_reopened_writable_descendants() {
 
 #[test]
 fn process_exec_tool_call_uses_platform_sandbox_for_network_only_restrictions() {
-    let expected = thinwedge_sandboxing::get_platform_sandbox(/*windows_sandbox_enabled*/ false)
-        .unwrap_or(SandboxType::None);
+    let expected =
+        thinwedge_sandboxing::get_platform_sandbox(/*windows_sandbox_enabled*/ false)
+            .unwrap_or(SandboxType::None);
 
     assert_eq!(
         select_process_exec_tool_sandbox_type(

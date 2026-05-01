@@ -6,6 +6,7 @@ use crate::config::external_agent_config::NamedMigration as CoreNamedMigration;
 use crate::config::external_agent_config::PendingPluginImport;
 use crate::error_code::internal_error;
 use crate::error_code::invalid_params;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::CommandMigration;
 use thinwedge_app_server_protocol::ExternalAgentConfigDetectParams;
 use thinwedge_app_server_protocol::ExternalAgentConfigDetectResponse;
@@ -24,7 +25,6 @@ use thinwedge_external_agent_sessions::PrepareSessionImportsError;
 use thinwedge_external_agent_sessions::prepare_pending_session_imports;
 use thinwedge_external_agent_sessions::record_imported_session;
 use thinwedge_protocol::ThreadId;
-use std::path::PathBuf;
 
 #[derive(Clone)]
 pub(crate) struct ExternalAgentConfigApi {
@@ -182,7 +182,8 @@ impl ExternalAgentConfigApi {
         source_path: &std::path::Path,
         imported_thread_id: ThreadId,
     ) {
-        if let Err(err) = record_imported_session(&self.thinwedge_home, source_path, imported_thread_id)
+        if let Err(err) =
+            record_imported_session(&self.thinwedge_home, source_path, imported_thread_id)
         {
             tracing::warn!(
                 error = %err,

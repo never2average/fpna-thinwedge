@@ -8,10 +8,10 @@ use super::tool_definition_to_responses_api_tool;
 use crate::JsonSchema;
 use crate::ToolDefinition;
 use crate::ToolName;
-use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
+use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 
 #[test]
 fn tool_definition_to_responses_api_tool_omits_false_defer_loading() {

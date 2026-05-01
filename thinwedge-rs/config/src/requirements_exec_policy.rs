@@ -1,12 +1,12 @@
+use multimap::MultiMap;
+use serde::Deserialize;
+use std::sync::Arc;
 use thinwedge_execpolicy::Decision;
 use thinwedge_execpolicy::Policy;
 use thinwedge_execpolicy::RuleRef;
 use thinwedge_execpolicy::rule::PatternToken;
 use thinwedge_execpolicy::rule::PrefixPattern;
 use thinwedge_execpolicy::rule::PrefixRule;
-use multimap::MultiMap;
-use serde::Deserialize;
-use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Clone)]

@@ -8,10 +8,10 @@ use super::connection_handling_websocket::spawn_websocket_server;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
-use thinwedge_app_server_protocol::RequestId;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
+use thinwedge_app_server_protocol::RequestId;
 use tokio::time::Duration;
 use tokio::time::timeout;
 

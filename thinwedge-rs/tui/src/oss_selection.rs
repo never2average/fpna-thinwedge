@@ -2,10 +2,6 @@ use std::io;
 use std::sync::LazyLock;
 
 use crate::legacy_core::config::set_default_oss_provider;
-use thinwedge_model_provider_info::DEFAULT_LMSTUDIO_PORT;
-use thinwedge_model_provider_info::DEFAULT_OLLAMA_PORT;
-use thinwedge_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
-use thinwedge_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 use crossterm::event::Event;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
@@ -36,6 +32,10 @@ use ratatui::widgets::Widget;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
 use std::time::Duration;
+use thinwedge_model_provider_info::DEFAULT_LMSTUDIO_PORT;
+use thinwedge_model_provider_info::DEFAULT_OLLAMA_PORT;
+use thinwedge_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
+use thinwedge_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
 
 #[derive(Clone)]
 struct ProviderOption {

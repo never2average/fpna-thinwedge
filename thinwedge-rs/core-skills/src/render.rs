@@ -908,9 +908,9 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
+    use pretty_assertions::assert_eq;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     fn make_skill(name: &str, scope: SkillScope) -> SkillMetadata {
         SkillMetadata {
@@ -1265,10 +1265,12 @@ mod tests {
 
     #[test]
     fn outcome_rendering_uses_marketplace_root_for_single_skill_plugin_versions() {
-        let github_root =
-            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills")
-                .abs();
-        let marketplace_root = test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated").abs();
+        let github_root = test_path_buf(
+            "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills",
+        )
+        .abs();
+        let marketplace_root =
+            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated").abs();
         let github = skill_with_path("github:gh-fix-ci", &github_root.join("gh-fix-ci/SKILL.md"));
         let outcome = outcome_with_roots(vec![github.clone()], vec![github_root.clone()]);
         let plan = build_alias_plan(
@@ -1293,9 +1295,10 @@ mod tests {
 
     #[test]
     fn outcome_rendering_uses_skill_root_for_multiple_skills_in_one_plugin_version() {
-        let github_root =
-            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills")
-                .abs();
+        let github_root = test_path_buf(
+            "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills",
+        )
+        .abs();
         let fix_ci = skill_with_path("github:gh-fix-ci", &github_root.join("gh-fix-ci/SKILL.md"));
         let yeet = skill_with_path("github:yeet", &github_root.join("yeet/SKILL.md"));
         let outcome = outcome_with_roots(
@@ -1369,9 +1372,10 @@ mod tests {
 
     #[test]
     fn outcome_rendering_uses_each_skill_root_for_multiple_roots_in_one_plugin_version() {
-        let skills_root =
-            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills")
-                .abs();
+        let skills_root = test_path_buf(
+            "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills",
+        )
+        .abs();
         let extra_root = test_path_buf(
             "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/extra-skills",
         )
@@ -1414,13 +1418,16 @@ mod tests {
 
     #[test]
     fn outcome_rendering_extracts_plugin_marketplace_root_for_multiple_plugins() {
-        let github_root =
-            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills")
-                .abs();
-        let slack_root =
-            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/slack/hash456/skills")
-                .abs();
-        let marketplace_root = test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated").abs();
+        let github_root = test_path_buf(
+            "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills",
+        )
+        .abs();
+        let slack_root = test_path_buf(
+            "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/slack/hash456/skills",
+        )
+        .abs();
+        let marketplace_root =
+            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated").abs();
         let github = skill_with_path("github:gh-fix-ci", &github_root.join("gh-fix-ci/SKILL.md"));
         let slack = skill_with_path(
             "slack:daily-digest",
@@ -1462,14 +1469,16 @@ mod tests {
 
     #[test]
     fn outcome_rendering_uses_one_marketplace_root_for_multiple_plugin_versions() {
-        let skills_root =
-            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills")
-                .abs();
+        let skills_root = test_path_buf(
+            "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash123/skills",
+        )
+        .abs();
         let extra_root = test_path_buf(
             "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/github/hash456/extra-skills",
         )
         .abs();
-        let marketplace_root = test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated").abs();
+        let marketplace_root =
+            test_path_buf("/Users/xl/.thinwedge/plugins/cache/thinwedge-curated").abs();
         let fix_ci = skill_with_path("github:gh-fix-ci", &skills_root.join("gh-fix-ci/SKILL.md"));
         let yeet = skill_with_path("github:yeet", &extra_root.join("yeet/SKILL.md"));
         let outcome = outcome_with_roots(

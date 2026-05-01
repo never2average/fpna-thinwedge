@@ -5,10 +5,10 @@
 //! `thinwedge-file-search` session for the current search root, updates the query
 //! on every keystroke, and drops the session when the query becomes empty.
 
-use thinwedge_file_search as file_search;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
+use thinwedge_file_search as file_search;
 
 use crate::app_event::AppEvent;
 use crate::app_event_sender::AppEventSender;

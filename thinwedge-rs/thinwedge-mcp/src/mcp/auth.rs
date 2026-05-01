@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::Result;
+use futures::future::join_all;
 use thinwedge_config::McpServerConfig;
 use thinwedge_config::McpServerTransportConfig;
 use thinwedge_config::types::OAuthCredentialsStoreMode;
@@ -9,7 +10,6 @@ use thinwedge_protocol::protocol::McpAuthStatus;
 use thinwedge_rmcp_client::OAuthProviderError;
 use thinwedge_rmcp_client::determine_streamable_http_auth_status;
 use thinwedge_rmcp_client::discover_streamable_http_oauth;
-use futures::future::join_all;
 use tracing::warn;
 
 use super::THINWEDGE_APPS_MCP_SERVER_NAME;

@@ -2,15 +2,15 @@ use crate::harness::attributes_to_map;
 use crate::harness::build_metrics_with_defaults;
 use crate::harness::find_metric;
 use crate::harness::latest_metrics;
+use opentelemetry_sdk::metrics::data::AggregatedMetrics;
+use opentelemetry_sdk::metrics::data::MetricData;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
 use thinwedge_otel::Result;
 use thinwedge_otel::SessionTelemetry;
 use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SessionSource;
-use opentelemetry_sdk::metrics::data::AggregatedMetrics;
-use opentelemetry_sdk::metrics::data::MetricData;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
 
 // Ensures SessionTelemetry attaches metadata tags when forwarding metrics.
 #[test]
@@ -38,8 +38,8 @@ fn manager_attaches_metadata_tags_to_metrics() -> Result<()> {
     manager.shutdown_metrics()?;
 
     let resource_metrics = latest_metrics(&exporter);
-    let metric =
-        find_metric(&resource_metrics, "thinwedge.session_started").expect("counter metric missing");
+    let metric = find_metric(&resource_metrics, "thinwedge.session_started")
+        .expect("counter metric missing");
     let attrs = match metric.data() {
         AggregatedMetrics::U64(data) => match data {
             MetricData::Sum(sum) => {
@@ -98,8 +98,8 @@ fn manager_allows_disabling_metadata_tags() -> Result<()> {
     manager.shutdown_metrics()?;
 
     let resource_metrics = latest_metrics(&exporter);
-    let metric =
-        find_metric(&resource_metrics, "thinwedge.session_started").expect("counter metric missing");
+    let metric = find_metric(&resource_metrics, "thinwedge.session_started")
+        .expect("counter metric missing");
     let attrs = match metric.data() {
         AggregatedMetrics::U64(data) => match data {
             MetricData::Sum(sum) => {
@@ -140,8 +140,8 @@ fn manager_attaches_optional_service_name_tag() -> Result<()> {
     manager.shutdown_metrics()?;
 
     let resource_metrics = latest_metrics(&exporter);
-    let metric =
-        find_metric(&resource_metrics, "thinwedge.session_started").expect("counter metric missing");
+    let metric = find_metric(&resource_metrics, "thinwedge.session_started")
+        .expect("counter metric missing");
     let attrs = match metric.data() {
         AggregatedMetrics::U64(data) => match data {
             MetricData::Sum(sum) => {

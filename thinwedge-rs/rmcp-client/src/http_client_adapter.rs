@@ -11,12 +11,6 @@ use std::io;
 use std::sync::Arc;
 
 use bytes::Bytes;
-use thinwedge_api::SharedAuthProvider;
-use thinwedge_exec_server::ExecServerError;
-use thinwedge_exec_server::HttpClient;
-use thinwedge_exec_server::HttpHeader;
-use thinwedge_exec_server::HttpRequestParams;
-use thinwedge_exec_server::HttpResponseBodyStream;
 use futures::StreamExt;
 use futures::stream;
 use futures::stream::BoxStream;
@@ -34,6 +28,12 @@ use rmcp::transport::streamable_http_client::StreamableHttpError;
 use rmcp::transport::streamable_http_client::StreamableHttpPostResponse;
 use sse_stream::Sse;
 use sse_stream::SseStream;
+use thinwedge_api::SharedAuthProvider;
+use thinwedge_exec_server::ExecServerError;
+use thinwedge_exec_server::HttpClient;
+use thinwedge_exec_server::HttpHeader;
+use thinwedge_exec_server::HttpRequestParams;
+use thinwedge_exec_server::HttpResponseBodyStream;
 
 const EVENT_STREAM_MIME_TYPE: &str = "text/event-stream";
 const JSON_MIME_TYPE: &str = "application/json";

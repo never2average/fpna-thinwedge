@@ -1,10 +1,3 @@
-pub use thinwedge_api::ResponseEvent;
-use thinwedge_config::types::Personality;
-use thinwedge_protocol::error::Result;
-use thinwedge_protocol::models::BaseInstructions;
-use thinwedge_protocol::models::FunctionCallOutputBody;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_tools::ToolSpec;
 use futures::Stream;
 use serde::Deserialize;
 use serde_json::Value;
@@ -12,6 +5,13 @@ use std::collections::HashSet;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
+pub use thinwedge_api::ResponseEvent;
+use thinwedge_config::types::Personality;
+use thinwedge_protocol::error::Result;
+use thinwedge_protocol::models::BaseInstructions;
+use thinwedge_protocol::models::FunctionCallOutputBody;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_tools::ToolSpec;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 

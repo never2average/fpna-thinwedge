@@ -10415,7 +10415,6 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "tracing",
- "tungstenite",
  "url",
  "wiremock",
 ]

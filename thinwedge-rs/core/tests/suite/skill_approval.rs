@@ -2,13 +2,6 @@
 #![cfg(unix)]
 
 use anyhow::Result;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
-use thinwedge_protocol::protocol::GranularApprovalConfig;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::mount_function_call_agent_response;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
@@ -22,6 +15,13 @@ use core_test_support::zsh_fork::zsh_fork_runtime;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
+use thinwedge_protocol::protocol::GranularApprovalConfig;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 fn write_skill_metadata(home: &Path, name: &str, contents: &str) -> Result<()> {
     let metadata_dir = home.join("skills").join(name).join("agents");

@@ -1,9 +1,9 @@
 use super::*;
-use thinwedge_git_utils::GitBaselineChange;
-use thinwedge_git_utils::GitBaselineChangeStatus;
 use pretty_assertions::assert_eq;
 use std::fs;
 use tempfile::TempDir;
+use thinwedge_git_utils::GitBaselineChange;
+use thinwedge_git_utils::GitBaselineChangeStatus;
 
 #[test]
 fn render_workspace_diff_file_bounds_large_diff() {

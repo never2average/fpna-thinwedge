@@ -3,8 +3,11 @@ use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
 use crate::tools::context::SharedTurnDiffTracker;
 use crate::tools::sandboxing::ToolError;
-use thinwedge_protocol::error::ThinWedgeErr;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::time::Duration;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::exec_output::ExecToolCallOutput;
 use thinwedge_protocol::parse_command::ParsedCommand;
 use thinwedge_protocol::protocol::EventMsg;
@@ -19,9 +22,6 @@ use thinwedge_protocol::protocol::PatchApplyStatus;
 use thinwedge_protocol::protocol::TurnDiffEvent;
 use thinwedge_shell_command::parse_command::parse_command;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::time::Duration;
 
 use super::format_exec_output_str;
 
@@ -317,7 +317,9 @@ impl ToolEmitter {
                 (event, result)
             }
             Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Timeout { output })))
-            | Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied { output, .. }))) => {
+            | Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
+                output, ..
+            }))) => {
                 let response = self.format_exec_output_for_model(&output, ctx);
                 let event = ToolEventStage::Failure(ToolEventFailure::Output(*output));
                 let result = Err(FunctionCallError::RespondToModel(response));

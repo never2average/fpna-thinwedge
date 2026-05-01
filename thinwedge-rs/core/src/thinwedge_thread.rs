@@ -2,9 +2,13 @@ use crate::agent::AgentStatus;
 use crate::config::ConstraintResult;
 use crate::file_watcher::WatchRegistration;
 use crate::goals::GoalRuntimeEvent;
-use crate::session::ThinWedge;
 use crate::session::SessionSettingsUpdate;
 use crate::session::SteerInputError;
+use crate::session::ThinWedge;
+use rmcp::model::ReadResourceRequestParams;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_features::Feature;
 use thinwedge_protocol::config_types::ApprovalsReviewer;
 use thinwedge_protocol::config_types::CollaborationMode;
@@ -12,14 +16,13 @@ use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::mcp::CallToolResult;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseInputItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::Event;
 use thinwedge_protocol::protocol::Op;
@@ -29,12 +32,9 @@ use thinwedge_protocol::protocol::Submission;
 use thinwedge_protocol::protocol::ThreadMemoryMode;
 use thinwedge_protocol::protocol::TokenUsageInfo;
 use thinwedge_protocol::protocol::W3cTraceContext;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::UserInput;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use rmcp::model::ReadResourceRequestParams;
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::watch;
 
@@ -336,7 +336,10 @@ impl ThinWedgeThread {
                 .session
                 .queue_response_items_for_next_turn(items)
                 .await;
-            self.thinwedge.session.maybe_start_turn_for_pending_work().await;
+            self.thinwedge
+                .session
+                .maybe_start_turn_for_pending_work()
+                .await;
         }
 
         Ok(submission_id)
@@ -351,7 +354,13 @@ impl ThinWedgeThread {
         }
 
         let turn_context = self.thinwedge.session.new_default_turn().await;
-        if self.thinwedge.session.reference_context_item().await.is_none() {
+        if self
+            .thinwedge
+            .session
+            .reference_context_item()
+            .await
+            .is_none()
+        {
             self.thinwedge
                 .session
                 .record_context_updates_and_set_reference_context_item(turn_context.as_ref())

@@ -1,18 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use thinwedge_arg0::Arg0DispatchPaths;
-use thinwedge_core::ThreadManager;
-use thinwedge_core::config::Config;
-use thinwedge_exec_server::EnvironmentManager;
-use thinwedge_features::Feature;
-use thinwedge_login::AuthManager;
-use thinwedge_login::default_client::USER_AGENT_SUFFIX;
-use thinwedge_login::default_client::get_thinwedge_user_agent;
-use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::protocol::Submission;
 use rmcp::model::CallToolRequestParams;
 use rmcp::model::CallToolResult;
 use rmcp::model::ClientNotification;
@@ -29,14 +17,26 @@ use rmcp::model::RequestId;
 use rmcp::model::ServerCapabilities;
 use rmcp::model::ToolsCapability;
 use serde_json::json;
+use thinwedge_arg0::Arg0DispatchPaths;
+use thinwedge_core::ThreadManager;
+use thinwedge_core::config::Config;
+use thinwedge_exec_server::EnvironmentManager;
+use thinwedge_features::Feature;
+use thinwedge_login::AuthManager;
+use thinwedge_login::default_client::USER_AGENT_SUFFIX;
+use thinwedge_login::default_client::get_thinwedge_user_agent;
+use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::protocol::Submission;
 use tokio::sync::Mutex;
 use tokio::task;
 
+use crate::outgoing_message::OutgoingMessageSender;
 use crate::thinwedge_tool_config::ThinWedgeToolCallParam;
 use crate::thinwedge_tool_config::ThinWedgeToolCallReplyParam;
 use crate::thinwedge_tool_config::create_tool_for_thinwedge_tool_call_param;
 use crate::thinwedge_tool_config::create_tool_for_thinwedge_tool_call_reply_param;
-use crate::outgoing_message::OutgoingMessageSender;
 
 pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
@@ -407,7 +407,8 @@ impl MessageProcessor {
         // Clone outgoing and server to move into async task.
         let outgoing = self.outgoing.clone();
         let thread_manager = self.thread_manager.clone();
-        let running_requests_id_to_thinwedge_uuid = self.running_requests_id_to_thinwedge_uuid.clone();
+        let running_requests_id_to_thinwedge_uuid =
+            self.running_requests_id_to_thinwedge_uuid.clone();
 
         // Spawn an async task to handle the ThinWedge session so that we do not
         // block the synchronous message-processing loop.
@@ -435,7 +436,8 @@ impl MessageProcessor {
 
         // parse arguments
         let thinwedge_tool_call_reply_param: ThinWedgeToolCallReplyParam = match arguments {
-            Some(json_val) => match serde_json::from_value::<ThinWedgeToolCallReplyParam>(json_val) {
+            Some(json_val) => match serde_json::from_value::<ThinWedgeToolCallReplyParam>(json_val)
+            {
                 Ok(params) => params,
                 Err(e) => {
                     tracing::error!("Failed to parse ThinWedge tool call reply parameters: {e}");
@@ -487,7 +489,8 @@ impl MessageProcessor {
 
         // Clone outgoing to move into async task.
         let outgoing = self.outgoing.clone();
-        let running_requests_id_to_thinwedge_uuid = self.running_requests_id_to_thinwedge_uuid.clone();
+        let running_requests_id_to_thinwedge_uuid =
+            self.running_requests_id_to_thinwedge_uuid.clone();
 
         let thinwedge = match self.thread_manager.get_thread(thread_id).await {
             Ok(c) => c,
@@ -507,7 +510,8 @@ impl MessageProcessor {
         let prompt = thinwedge_tool_call_reply_param.prompt.clone();
         tokio::spawn({
             let outgoing = outgoing.clone();
-            let running_requests_id_to_thinwedge_uuid = running_requests_id_to_thinwedge_uuid.clone();
+            let running_requests_id_to_thinwedge_uuid =
+                running_requests_id_to_thinwedge_uuid.clone();
 
             async move {
                 crate::thinwedge_tool_runner::run_thinwedge_tool_session_reply(

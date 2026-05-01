@@ -1,6 +1,13 @@
 use crate::error_code::invalid_request;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::OutgoingMessageSender;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::hash_map::Entry;
+use std::hash::Hash;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use thinwedge_app_server_protocol::FsChangedNotification;
 use thinwedge_app_server_protocol::FsUnwatchParams;
 use thinwedge_app_server_protocol::FsUnwatchResponse;
@@ -14,13 +21,6 @@ use thinwedge_core::file_watcher::FileWatcherSubscriber;
 use thinwedge_core::file_watcher::Receiver;
 use thinwedge_core::file_watcher::WatchPath;
 use thinwedge_core::file_watcher::WatchRegistration;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::collections::hash_map::Entry;
-use std::hash::Hash;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::Mutex as AsyncMutex;
 #[cfg(test)]
 use tokio::sync::mpsc;
@@ -217,9 +217,9 @@ impl FsWatchManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
     fn absolute_path(path: PathBuf) -> AbsolutePathBuf {
         assert!(

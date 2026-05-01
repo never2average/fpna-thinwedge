@@ -7,12 +7,12 @@ use std::time::Duration;
 
 use anyhow::Result;
 use base64::Engine;
-use thinwedge_protocol::models::ContentItem;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use futures::SinkExt;
 use futures::StreamExt;
 use serde_json::Value;
+use thinwedge_protocol::models::ContentItem;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
 use tokio::sync::oneshot;

@@ -141,7 +141,10 @@ mod tests {
                 cancellation_token: tokio_util::sync::CancellationToken::new(),
                 tracker: Arc::new(Mutex::new(TurnDiffTracker::new())),
                 call_id: "call-mcp-pre".to_string(),
-                tool_name: thinwedge_tools::ToolName::namespaced("mcp__memory__", "create_entities"),
+                tool_name: thinwedge_tools::ToolName::namespaced(
+                    "mcp__memory__",
+                    "create_entities"
+                ),
                 source: ToolCallSource::Direct,
                 payload,
             }),

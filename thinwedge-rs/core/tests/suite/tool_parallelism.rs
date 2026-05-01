@@ -5,11 +5,6 @@ use std::fs;
 use std::time::Duration;
 use std::time::Instant;
 
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -29,6 +24,11 @@ use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::sync::oneshot;
 
 async fn run_turn(test: &TestThinWedge, prompt: &str) -> anyhow::Result<()> {
@@ -58,7 +58,10 @@ async fn run_turn(test: &TestThinWedge, prompt: &str) -> anyhow::Result<()> {
         })
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     Ok(())
 }
@@ -70,7 +73,9 @@ async fn run_turn_and_measure(test: &TestThinWedge, prompt: &str) -> anyhow::Res
 }
 
 #[allow(clippy::expect_used)]
-async fn build_thinwedge_with_test_tool(server: &wiremock::MockServer) -> anyhow::Result<TestThinWedge> {
+async fn build_thinwedge_with_test_tool(
+    server: &wiremock::MockServer,
+) -> anyhow::Result<TestThinWedge> {
     let mut builder = test_thinwedge().with_model("test-gpt-5.1-thinwedge");
     builder.build(server).await
 }
@@ -403,7 +408,10 @@ async fn shell_tools_start_before_response_completed_when_stream_delayed() -> an
     .await??;
 
     let _ = completion_gate_tx.send(());
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let mut completion_iter = completion_receivers.into_iter();
     let completed_at = completion_iter

@@ -173,10 +173,10 @@ fn map_fs_error(err: io::Error) -> JSONRPCErrorError {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::protocol::NetworkAccess;
     use thinwedge_protocol::protocol::SandboxPolicy;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::FileSystemSandboxContext;

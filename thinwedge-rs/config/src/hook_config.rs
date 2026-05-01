@@ -1,10 +1,10 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use thinwedge_protocol::protocol::HookEventName;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use thinwedge_protocol::protocol::HookEventName;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct HooksFile {

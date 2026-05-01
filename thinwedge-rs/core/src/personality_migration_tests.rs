@@ -1,4 +1,6 @@
 use super::*;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -9,8 +11,6 @@ use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::UserMessageEvent;
 use thinwedge_rollout::ARCHIVED_SESSIONS_SUBDIR;
 use thinwedge_rollout::SESSIONS_SUBDIR;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
 
 const TEST_TIMESTAMP: &str = "2025-01-01T00-00-00";

@@ -6,12 +6,12 @@ use crate::rollout_summaries_dir;
 use crate::sync_rollout_summaries_from_memories;
 use chrono::TimeZone;
 use chrono::Utc;
-use thinwedge_config::types::DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION;
-use thinwedge_protocol::ThreadId;
-use thinwedge_state::Stage1Output;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 use tempfile::tempdir;
+use thinwedge_config::types::DEFAULT_MEMORIES_MAX_RAW_MEMORIES_FOR_CONSOLIDATION;
+use thinwedge_protocol::ThreadId;
+use thinwedge_state::Stage1Output;
 
 const FIXED_PREFIX: &str = "2025-02-11T15-35-19-jqmb";
 

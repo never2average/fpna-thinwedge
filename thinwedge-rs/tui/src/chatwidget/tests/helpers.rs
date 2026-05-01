@@ -8,10 +8,12 @@ pub(super) async fn test_config() -> Config {
         .tempdir()
         .expect("tempdir")
         .keep();
-    let mut config =
-        Config::load_default_with_cli_overrides_for_thinwedge_home(thinwedge_home.clone(), Vec::new())
-            .await
-            .expect("config");
+    let mut config = Config::load_default_with_cli_overrides_for_thinwedge_home(
+        thinwedge_home.clone(),
+        Vec::new(),
+    )
+    .await
+    .expect("config");
     config.thinwedge_home = thinwedge_home.abs();
     config.sqlite_home = thinwedge_home.clone();
     config.log_dir = thinwedge_home.join("log");
