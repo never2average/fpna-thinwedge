@@ -4,16 +4,16 @@ use crate::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use crate::config::ModelsManagerConfig;
 use crate::model_info;
 use async_trait::async_trait;
+use std::fmt;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use thinwedge_login::AuthManager;
 use thinwedge_protocol::config_types::CollaborationModeMask;
 use thinwedge_protocol::error::Result as CoreResult;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use std::fmt;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::sync::TryLockError;
 use tracing::Instrument as _;
@@ -366,8 +366,10 @@ impl ThinWedgeModelsManager {
 
     /// Attempt to satisfy the refresh from the cache when it matches the provider and TTL.
     async fn try_load_cache(&self) -> bool {
-        let _timer =
-            thinwedge_otel::start_global_timer("thinwedge.remote_models.load_cache.duration_ms", &[]);
+        let _timer = thinwedge_otel::start_global_timer(
+            "thinwedge.remote_models.load_cache.duration_ms",
+            &[],
+        );
         let client_version = crate::client_version_to_whole();
         info!(client_version, "models cache: evaluating cache eligibility");
         let cache = match self.cache_manager.load_fresh(&client_version).await {

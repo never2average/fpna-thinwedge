@@ -124,11 +124,14 @@ async fn resolve_rollout_path(
     include_archived: bool,
 ) -> ThreadStoreResult<Option<std::path::PathBuf>> {
     if include_archived {
-        match find_thread_path_by_id_str(store.config.thinwedge_home.as_path(), &thread_id.to_string())
-            .await
-            .map_err(|err| ThreadStoreError::InvalidRequest {
-                message: format!("failed to locate thread id {thread_id}: {err}"),
-            })? {
+        match find_thread_path_by_id_str(
+            store.config.thinwedge_home.as_path(),
+            &thread_id.to_string(),
+        )
+        .await
+        .map_err(|err| ThreadStoreError::InvalidRequest {
+            message: format!("failed to locate thread id {thread_id}: {err}"),
+        })? {
             Some(path) => Ok(Some(path)),
             None => find_archived_thread_path_by_id_str(
                 store.config.thinwedge_home.as_path(),
@@ -140,11 +143,14 @@ async fn resolve_rollout_path(
             }),
         }
     } else {
-        find_thread_path_by_id_str(store.config.thinwedge_home.as_path(), &thread_id.to_string())
-            .await
-            .map_err(|err| ThreadStoreError::InvalidRequest {
-                message: format!("failed to locate thread id {thread_id}: {err}"),
-            })
+        find_thread_path_by_id_str(
+            store.config.thinwedge_home.as_path(),
+            &thread_id.to_string(),
+        )
+        .await
+        .map_err(|err| ThreadStoreError::InvalidRequest {
+            message: format!("failed to locate thread id {thread_id}: {err}"),
+        })
     }
 }
 
@@ -360,11 +366,11 @@ mod tests {
     use std::io::Write;
 
     use chrono::Utc;
+    use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::protocol::SessionSource;
     use thinwedge_state::ThreadMetadataBuilder;
-    use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use uuid::Uuid;
 
     use super::*;

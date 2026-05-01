@@ -33,7 +33,10 @@ pub(super) fn emit_project_config_warnings(app_event_tx: &AppEventSender, config
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_thinwedge_folder } = &layer.name else {
+        let ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        } = &layer.name
+        else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {

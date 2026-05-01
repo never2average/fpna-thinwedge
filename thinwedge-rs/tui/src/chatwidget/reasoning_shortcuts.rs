@@ -12,11 +12,11 @@
 //! next shortcut moves to the nearest supported effort in the requested
 //! direction.
 
+use crossterm::event::KeyEvent;
+use strum::IntoEnumIterator;
 use thinwedge_protocol::config_types::ModeKind;
 use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
-use crossterm::event::KeyEvent;
-use strum::IntoEnumIterator;
 
 use super::ChatWidget;
 use crate::app_event::AppEvent;

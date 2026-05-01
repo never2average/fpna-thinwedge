@@ -1,5 +1,17 @@
-use thinwedge_core::ThinWedgeThread;
+use core_test_support::PathBufExt;
+use core_test_support::load_sse_fixture_with_id_from_str;
+use core_test_support::responses::ResponseMock;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_thinwedge::test_thinwedge;
+use core_test_support::wait_for_event;
+use pretty_assertions::assert_eq;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_core::REVIEW_PROMPT;
+use thinwedge_core::ThinWedgeThread;
 use thinwedge_core::config::Config;
 use thinwedge_core::review_format::render_review_output_text;
 use thinwedge_protocol::models::ContentItem;
@@ -17,18 +29,6 @@ use thinwedge_protocol::protocol::ReviewTarget;
 use thinwedge_protocol::protocol::RolloutItem;
 use thinwedge_protocol::protocol::RolloutLine;
 use thinwedge_protocol::user_input::UserInput;
-use core_test_support::PathBufExt;
-use core_test_support::load_sse_fixture_with_id_from_str;
-use core_test_support::responses::ResponseMock;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_thinwedge::test_thinwedge;
-use core_test_support::wait_for_event;
-use pretty_assertions::assert_eq;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tempfile::TempDir;
 use tokio::io::AsyncWriteExt as _;
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -89,7 +89,10 @@ async fn review_op_emits_lifecycle_and_review_output() {
         .unwrap();
 
     // Verify lifecycle: Entered -> Exited(Some(review)) -> TurnComplete.
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let closed = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExitedReviewMode(_))).await;
     let review = match closed {
         EventMsg::ExitedReviewMode(ev) => ev
@@ -210,7 +213,10 @@ async fn review_op_with_plain_text_emits_review_fallback() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let closed = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::ExitedReviewMode(_))).await;
     let review = match closed {
         EventMsg::ExitedReviewMode(ev) => ev
@@ -417,7 +423,10 @@ async fn review_uses_custom_review_model_from_config() {
         .unwrap();
 
     // Wait for completion
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let _closed = wait_for_event(&thinwedge, |ev| {
         matches!(
             ev,
@@ -470,7 +479,10 @@ async fn review_uses_session_model_when_review_model_unset() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let _closed = wait_for_event(&thinwedge, |ev| {
         matches!(
             ev,
@@ -569,9 +581,13 @@ async fn review_input_isolated_from_parent_history() {
             .await
             .unwrap();
     }
-    let thinwedge =
-        resume_conversation_for_server(&server, thinwedge_home.clone(), session_file.clone(), |_| {})
-            .await;
+    let thinwedge = resume_conversation_for_server(
+        &server,
+        thinwedge_home.clone(),
+        session_file.clone(),
+        |_| {},
+    )
+    .await;
 
     // Submit review request; it must start fresh (no parent history in `input`).
     let review_prompt = "Please review only this".to_string();
@@ -587,7 +603,10 @@ async fn review_input_isolated_from_parent_history() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let _closed = wait_for_event(&thinwedge, |ev| {
         matches!(
             ev,
@@ -703,7 +722,10 @@ async fn review_history_surfaces_in_parent_session() {
         })
         .await
         .unwrap();
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let _closed = wait_for_event(&thinwedge, |ev| {
         matches!(
             ev,
@@ -861,7 +883,10 @@ async fn review_uses_overridden_cwd_for_base_branch_merge_base() {
         .await
         .unwrap();
 
-    let _entered = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::EnteredReviewMode(_))).await;
+    let _entered = wait_for_event(&thinwedge, |ev| {
+        matches!(ev, EventMsg::EnteredReviewMode(_))
+    })
+    .await;
     let _complete = wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
 
     let requests = request_log.requests();

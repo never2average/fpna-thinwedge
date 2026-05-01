@@ -2,8 +2,6 @@ use super::manager::ExternalAuth;
 use super::manager::ExternalAuthRefreshContext;
 use super::manager::ExternalAuthTokens;
 use async_trait::async_trait;
-use thinwedge_app_server_protocol::AuthMode;
-use thinwedge_protocol::config_types::ModelProviderAuthInfo;
 use std::fmt;
 use std::io;
 use std::path::Path;
@@ -11,6 +9,8 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::Instant;
+use thinwedge_app_server_protocol::AuthMode;
+use thinwedge_protocol::config_types::ModelProviderAuthInfo;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 

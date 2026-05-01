@@ -16,6 +16,11 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
+use crate::elicitation::ElicitationRequestManager;
+use crate::mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
+use crate::mcp::ToolPluginProvenance;
+use crate::runtime::McpRuntimeEnvironment;
+use crate::runtime::emit_duration;
 use crate::thinwedge_apps::CachedThinWedgeAppsToolsLoad;
 use crate::thinwedge_apps::ThinWedgeAppsToolsCacheContext;
 use crate::thinwedge_apps::filter_disallowed_thinwedge_apps_tools;
@@ -25,11 +30,6 @@ use crate::thinwedge_apps::normalize_thinwedge_apps_callable_name;
 use crate::thinwedge_apps::normalize_thinwedge_apps_callable_namespace;
 use crate::thinwedge_apps::normalize_thinwedge_apps_tool_title;
 use crate::thinwedge_apps::write_cached_thinwedge_apps_tools_if_needed;
-use crate::elicitation::ElicitationRequestManager;
-use crate::mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
-use crate::mcp::ToolPluginProvenance;
-use crate::runtime::McpRuntimeEnvironment;
-use crate::runtime::emit_duration;
 use crate::tools::ToolFilter;
 use crate::tools::ToolInfo;
 use crate::tools::filter_tools;
@@ -37,6 +37,16 @@ use crate::tools::tool_with_model_visible_input_schema;
 use anyhow::Result;
 use anyhow::anyhow;
 use async_channel::Sender;
+use futures::future::BoxFuture;
+use futures::future::FutureExt;
+use futures::future::Shared;
+use rmcp::model::ClientCapabilities;
+use rmcp::model::ElicitationCapability;
+use rmcp::model::FormElicitationCapability;
+use rmcp::model::Implementation;
+use rmcp::model::InitializeRequestParams;
+use rmcp::model::ProtocolVersion;
+use rmcp::model::Tool as RmcpTool;
 use thinwedge_api::SharedAuthProvider;
 use thinwedge_async_utils::CancelErr;
 use thinwedge_async_utils::OrCancelExt;
@@ -50,16 +60,6 @@ use thinwedge_rmcp_client::ExecutorStdioServerLauncher;
 use thinwedge_rmcp_client::LocalStdioServerLauncher;
 use thinwedge_rmcp_client::RmcpClient;
 use thinwedge_rmcp_client::StdioServerLauncher;
-use futures::future::BoxFuture;
-use futures::future::FutureExt;
-use futures::future::Shared;
-use rmcp::model::ClientCapabilities;
-use rmcp::model::ElicitationCapability;
-use rmcp::model::FormElicitationCapability;
-use rmcp::model::Implementation;
-use rmcp::model::InitializeRequestParams;
-use rmcp::model::ProtocolVersion;
-use rmcp::model::Tool as RmcpTool;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
@@ -362,8 +362,11 @@ pub(crate) async fn list_tools_for_client_uncached(
             let callable_namespace =
                 normalize_thinwedge_apps_callable_namespace(server_name, connector_name.as_deref());
             if let Some(title) = tool_def.title.as_deref() {
-                let normalized_title =
-                    normalize_thinwedge_apps_tool_title(server_name, connector_name.as_deref(), title);
+                let normalized_title = normalize_thinwedge_apps_tool_title(
+                    server_name,
+                    connector_name.as_deref(),
+                    title,
+                );
                 if tool_def.title.as_deref() != Some(normalized_title.as_str()) {
                     tool_def.title = Some(normalized_title);
                 }

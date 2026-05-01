@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::AuthProvider;
-use thinwedge_client::build_reqwest_client_with_custom_ca;
 use reqwest::StatusCode;
 use reqwest::header::CONTENT_LENGTH;
 use serde::Deserialize;
+use thinwedge_client::build_reqwest_client_with_custom_ca;
 use tokio::fs::File;
 use tokio::time::Instant;
 use tokio_util::io::ReaderStream;

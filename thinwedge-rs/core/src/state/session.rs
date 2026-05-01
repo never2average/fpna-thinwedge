@@ -1,10 +1,10 @@
 //! Session-wide mutable state.
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_sandboxing::policy_transforms::merge_permission_profiles;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 use crate::context_manager::ContextManager;
 use crate::session::PreviousTurnSettings;

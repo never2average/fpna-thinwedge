@@ -2,15 +2,6 @@
 
 #![allow(clippy::unwrap_used)]
 
-use thinwedge_app_server_client::AppServerRequestHandle;
-use thinwedge_app_server_protocol::AccountLoginCompletedNotification;
-use thinwedge_app_server_protocol::AccountUpdatedNotification;
-use thinwedge_app_server_protocol::AuthMode as AppServerAuthMode;
-use thinwedge_app_server_protocol::ClientRequest;
-use thinwedge_app_server_protocol::LoginAccountParams;
-use thinwedge_app_server_protocol::LoginAccountResponse;
-use thinwedge_login::read_preferred_api_key_env_var_name;
-use thinwedge_login::read_preferred_api_key_from_env;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -30,11 +21,20 @@ use ratatui::widgets::Borders;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
+use thinwedge_app_server_client::AppServerRequestHandle;
+use thinwedge_app_server_protocol::AccountLoginCompletedNotification;
+use thinwedge_app_server_protocol::AccountUpdatedNotification;
+use thinwedge_app_server_protocol::AuthMode as AppServerAuthMode;
+use thinwedge_app_server_protocol::ClientRequest;
+use thinwedge_app_server_protocol::LoginAccountParams;
+use thinwedge_app_server_protocol::LoginAccountResponse;
+use thinwedge_login::read_preferred_api_key_env_var_name;
+use thinwedge_login::read_preferred_api_key_from_env;
 
-use thinwedge_protocol::config_types::ForcedLoginMethod;
 use std::cell::Cell;
 use std::sync::Arc;
 use std::sync::RwLock;
+use thinwedge_protocol::config_types::ForcedLoginMethod;
 use uuid::Uuid;
 
 use crate::LoginStatus;

@@ -481,8 +481,13 @@ pub(crate) async fn intercept_apply_patch(
         .as_ref()
         .filter(|env| env.is_remote())
         .map(|_| turn.file_system_sandbox_context(/*additional_permissions*/ None));
-    match thinwedge_apply_patch::maybe_parse_apply_patch_verified(command, cwd, fs, sandbox.as_ref())
-        .await
+    match thinwedge_apply_patch::maybe_parse_apply_patch_verified(
+        command,
+        cwd,
+        fs,
+        sandbox.as_ref(),
+    )
+    .await
     {
         thinwedge_apply_patch::MaybeApplyPatchVerified::Body(changes) => {
             session

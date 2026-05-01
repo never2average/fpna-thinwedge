@@ -3,6 +3,7 @@ use crate::metrics::MEMORY_STARTUP;
 use crate::phase1;
 use crate::phase2;
 use crate::runtime::MemoryStartupContext;
+use std::sync::Arc;
 use thinwedge_core::ThinWedgeThread;
 use thinwedge_core::ThreadManager;
 use thinwedge_core::config::Config;
@@ -10,7 +11,6 @@ use thinwedge_features::Feature;
 use thinwedge_login::AuthManager;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SessionSource;
-use std::sync::Arc;
 use tracing::warn;
 
 /// Starts the asynchronous startup memory pipeline for an eligible root session.

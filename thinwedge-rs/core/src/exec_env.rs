@@ -1,9 +1,9 @@
+use std::collections::HashMap;
 use thinwedge_protocol::ThreadId;
 #[cfg(test)]
 use thinwedge_protocol::config_types::EnvironmentVariablePattern;
 use thinwedge_protocol::config_types::ShellEnvironmentPolicy;
 use thinwedge_protocol::shell_environment;
-use std::collections::HashMap;
 
 pub use thinwedge_protocol::shell_environment::THINWEDGE_THREAD_ID_ENV_VAR;
 

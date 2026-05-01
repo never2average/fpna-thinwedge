@@ -79,10 +79,12 @@ impl ThinWedgeMessageProcessor {
                 outcome
                     .errors
                     .into_iter()
-                    .map(|err| thinwedge_app_server_protocol::MarketplaceLoadErrorInfo {
-                        marketplace_path: err.path,
-                        message: err.message,
-                    })
+                    .map(
+                        |err| thinwedge_app_server_protocol::MarketplaceLoadErrorInfo {
+                            marketplace_path: err.path,
+                            message: err.message,
+                        },
+                    )
                     .collect(),
             ))
         })
@@ -436,21 +438,23 @@ impl ThinWedgeMessageProcessor {
                 "remote plugin {plugin_name} is not available for install"
             )));
         }
-        let validated_bundle = thinwedge_core_plugins::remote_bundle::validate_remote_plugin_bundle(
-            &plugin_name,
-            &remote_marketplace_name,
-            &remote_detail.summary.name,
-            remote_detail.release_version.as_deref(),
-            remote_detail.bundle_download_url.as_deref(),
-        )
-        .map_err(remote_plugin_bundle_install_error_to_jsonrpc)?;
+        let validated_bundle =
+            thinwedge_core_plugins::remote_bundle::validate_remote_plugin_bundle(
+                &plugin_name,
+                &remote_marketplace_name,
+                &remote_detail.summary.name,
+                remote_detail.release_version.as_deref(),
+                remote_detail.bundle_download_url.as_deref(),
+            )
+            .map_err(remote_plugin_bundle_install_error_to_jsonrpc)?;
 
-        let result = thinwedge_core_plugins::remote_bundle::download_and_install_remote_plugin_bundle(
-            config.thinwedge_home.to_path_buf(),
-            validated_bundle,
-        )
-        .await
-        .map_err(remote_plugin_bundle_install_error_to_jsonrpc)?;
+        let result =
+            thinwedge_core_plugins::remote_bundle::download_and_install_remote_plugin_bundle(
+                config.thinwedge_home.to_path_buf(),
+                validated_bundle,
+            )
+            .await
+            .map_err(remote_plugin_bundle_install_error_to_jsonrpc)?;
 
         // Cache first so a backend install cannot succeed when local materialization fails.
         // If this backend call fails, the cache entry is harmless because remote installed state

@@ -112,9 +112,9 @@ pub(super) fn plugin_apps_needing_auth(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::AppInfo;
     use thinwedge_core::plugins::AppConnectorId;
-    use pretty_assertions::assert_eq;
 
     use super::plugin_apps_needing_auth;
 

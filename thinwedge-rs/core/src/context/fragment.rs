@@ -1,6 +1,6 @@
+use std::marker::PhantomData;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use std::marker::PhantomData;
 
 /// Type-erased registration for a contextual user fragment.
 ///

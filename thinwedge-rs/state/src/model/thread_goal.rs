@@ -2,9 +2,9 @@ use anyhow::Result;
 use anyhow::anyhow;
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::ThreadId;
 use sqlx::Row;
 use sqlx::sqlite::SqliteRow;
+use thinwedge_protocol::ThreadId;
 
 use super::epoch_millis_to_datetime;
 

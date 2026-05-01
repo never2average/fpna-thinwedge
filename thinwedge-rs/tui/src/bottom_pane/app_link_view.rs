@@ -1,8 +1,3 @@
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::approvals::ElicitationAction;
-use thinwedge_protocol::mcp::RequestId as McpRequestId;
-#[cfg(test)]
-use thinwedge_protocol::protocol::Op;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -17,6 +12,11 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
 use ratatui::widgets::Wrap;
 use textwrap::wrap;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::approvals::ElicitationAction;
+use thinwedge_protocol::mcp::RequestId as McpRequestId;
+#[cfg(test)]
+use thinwedge_protocol::protocol::Op;
 
 use super::CancellationEvent;
 use super::bottom_pane_view::BottomPaneView;

@@ -1,5 +1,7 @@
 use super::*;
 use crate::config::GhostSnapshotConfig;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use thinwedge_model_provider::SharedModelProvider;
 use thinwedge_model_provider::create_model_provider;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
@@ -7,8 +9,6 @@ use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 use thinwedge_sandboxing::compatibility_sandbox_policy_for_permission_profile;
 use thinwedge_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
 use thinwedge_sandboxing::policy_transforms::effective_network_sandbox_policy;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
 pub(super) fn image_generation_tool_auth_allowed(auth_manager: Option<&AuthManager>) -> bool {
     auth_manager.is_some_and(AuthManager::current_auth_uses_thinwedge_backend)

@@ -8,8 +8,8 @@ use std::time::Instant;
 
 use crate::pkce::PkceCodes;
 use crate::server::ServerOptions;
-use thinwedge_client::build_reqwest_client_with_custom_ca;
 use std::io;
+use thinwedge_client::build_reqwest_client_with_custom_ca;
 
 const ANSI_BLUE: &str = "\x1b[94m";
 const ANSI_GRAY: &str = "\x1b[90m";

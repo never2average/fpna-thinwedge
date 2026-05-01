@@ -5,6 +5,9 @@ use crate::tools::handlers::multi_agents_common::DEFAULT_WAIT_TIMEOUT_MS;
 use crate::tools::handlers::multi_agents_common::MAX_WAIT_TIMEOUT_MS;
 use crate::tools::handlers::multi_agents_common::MIN_WAIT_TIMEOUT_MS;
 use crate::tools::registry::ToolRegistryBuilder;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::Arc;
 use thinwedge_mcp::ToolInfo;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_tools::AdditionalProperties;
@@ -22,9 +25,6 @@ use thinwedge_tools::ToolsConfig;
 use thinwedge_tools::WaitAgentTimeoutOptions;
 use thinwedge_tools::augment_tool_spec_for_code_mode;
 use thinwedge_tools::build_tool_registry_plan;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::sync::Arc;
 
 pub(crate) fn tool_user_shell_type(user_shell: &Shell) -> ToolUserShellType {
     match user_shell.shell_type {

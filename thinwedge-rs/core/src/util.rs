@@ -2,8 +2,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use thinwedge_protocol::ThreadId;
 use rand::Rng;
+use thinwedge_protocol::ThreadId;
 use tracing::error;
 
 use thinwedge_shell_command::parse_command::shlex_join;

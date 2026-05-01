@@ -215,8 +215,11 @@ async fn detect_repo_still_reports_non_plugin_items_when_home_config_is_invalid(
     )
     .expect("create repo skills");
     fs::create_dir_all(&thinwedge_home).expect("create thinwedge home");
-    fs::write(thinwedge_home.join("config.toml"), "this is not valid = [toml")
-        .expect("write invalid thinwedge config");
+    fs::write(
+        thinwedge_home.join("config.toml"),
+        "this is not valid = [toml",
+    )
+    .expect("write invalid thinwedge config");
     fs::write(
         repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
         r#"{"env":{"FOO":"bar"}}"#,
@@ -1573,7 +1576,10 @@ async fn detect_repo_filters_plugins_against_installed_marketplace() {
     let external_agent_home = root.path().join(EXTERNAL_AGENT_DIR);
     let thinwedge_home = root.path().join(".thinwedge");
     let repo_root = root.path().join("repo");
-    let marketplace_root = thinwedge_home.join(".tmp").join("marketplaces").join("debug");
+    let marketplace_root = thinwedge_home
+        .join(".tmp")
+        .join("marketplaces")
+        .join("debug");
     fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
     fs::create_dir_all(repo_root.join(EXTERNAL_AGENT_DIR)).expect("create repo external agent dir");
     fs::create_dir_all(marketplace_root.join(".agents").join("plugins"))

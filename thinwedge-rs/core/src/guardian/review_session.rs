@@ -5,13 +5,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::anyhow;
+use serde_json::Value;
 use thinwedge_analytics::GuardianReviewAnalyticsResult;
 use thinwedge_analytics::GuardianReviewSessionKind;
 use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::InitialHistory;
@@ -20,13 +20,12 @@ use thinwedge_protocol::protocol::RolloutItem;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_protocol::protocol::TokenUsage;
-use serde_json::Value;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio_util::sync::CancellationToken;
 use tracing::warn;
 
-use crate::thinwedge_delegate::run_thinwedge_thread_interactive;
 use crate::config::Config;
 use crate::config::Constrained;
 use crate::config::ManagedFeatures;
@@ -38,6 +37,7 @@ use crate::rollout::recorder::RolloutRecorder;
 use crate::session::ThinWedge;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
+use crate::thinwedge_delegate::run_thinwedge_thread_interactive;
 use thinwedge_config::types::McpServerConfig;
 use thinwedge_features::Feature;
 use thinwedge_model_provider_info::ModelProviderInfo;
@@ -721,7 +721,8 @@ async fn run_review_on_session(
     .await;
     if matches!(outcome.0, GuardianReviewSessionOutcome::Completed(_)) {
         if outcome.2
-            && let Some(total_token_usage) = review_session.thinwedge.session.total_token_usage().await
+            && let Some(total_token_usage) =
+                review_session.thinwedge.session.total_token_usage().await
         {
             analytics_result.token_usage = Some(token_usage_delta(
                 &token_usage_at_review_start,

@@ -1,4 +1,5 @@
 use super::parse_turn_item;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::items::AgentMessageContent;
 use thinwedge_protocol::items::HookPromptFragment;
 use thinwedge_protocol::items::TurnItem;
@@ -11,7 +12,6 @@ use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::models::WebSearchAction;
 use thinwedge_protocol::user_input::UserInput;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn parses_user_message_with_text_and_two_images() {

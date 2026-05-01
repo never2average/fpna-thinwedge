@@ -1,4 +1,8 @@
 use super::*;
+#[cfg(not(target_os = "linux"))]
+use std::sync::atomic::AtomicU16;
+#[cfg(not(target_os = "linux"))]
+use std::time::Duration;
 use thinwedge_config::config_toml::RealtimeTransport;
 use thinwedge_protocol::protocol::ConversationStartParams;
 use thinwedge_protocol::protocol::ConversationStartTransport;
@@ -11,10 +15,6 @@ use thinwedge_protocol::protocol::RealtimeOutputModality;
 use thinwedge_realtime_webrtc::RealtimeWebrtcEvent;
 use thinwedge_realtime_webrtc::RealtimeWebrtcSession;
 use thinwedge_realtime_webrtc::RealtimeWebrtcSessionHandle;
-#[cfg(not(target_os = "linux"))]
-use std::sync::atomic::AtomicU16;
-#[cfg(not(target_os = "linux"))]
-use std::time::Duration;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum RealtimeConversationPhase {

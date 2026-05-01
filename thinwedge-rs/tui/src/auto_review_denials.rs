@@ -76,10 +76,10 @@ pub(crate) fn action_summary(action: &GuardianAssessmentAction) -> String {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::protocol::GuardianCommandSource;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     use super::*;
 

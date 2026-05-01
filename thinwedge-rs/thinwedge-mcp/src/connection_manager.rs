@@ -13,9 +13,6 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::McpAuthStatusEntry;
-use crate::thinwedge_apps::ThinWedgeAppsToolsCacheContext;
-use crate::thinwedge_apps::ThinWedgeAppsToolsCacheKey;
-use crate::thinwedge_apps::write_cached_thinwedge_apps_tools_if_needed;
 use crate::elicitation::ElicitationRequestManager;
 use crate::mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use crate::mcp::ToolPluginProvenance;
@@ -28,6 +25,9 @@ use crate::rmcp_client::StartupOutcomeError;
 use crate::rmcp_client::list_tools_for_client_uncached;
 use crate::runtime::McpRuntimeEnvironment;
 use crate::runtime::emit_duration;
+use crate::thinwedge_apps::ThinWedgeAppsToolsCacheContext;
+use crate::thinwedge_apps::ThinWedgeAppsToolsCacheKey;
+use crate::thinwedge_apps::write_cached_thinwedge_apps_tools_if_needed;
 use crate::tools::ToolInfo;
 use crate::tools::filter_tools;
 use crate::tools::qualify_tools;
@@ -36,6 +36,14 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use async_channel::Sender;
+use rmcp::model::ListResourceTemplatesResult;
+use rmcp::model::ListResourcesResult;
+use rmcp::model::PaginatedRequestParams;
+use rmcp::model::ReadResourceRequestParams;
+use rmcp::model::ReadResourceResult;
+use rmcp::model::RequestId;
+use rmcp::model::Resource;
+use rmcp::model::ResourceTemplate;
 use thinwedge_config::Constrained;
 use thinwedge_config::McpServerConfig;
 use thinwedge_config::McpServerTransportConfig;
@@ -52,14 +60,6 @@ use thinwedge_protocol::protocol::McpStartupFailure;
 use thinwedge_protocol::protocol::McpStartupStatus;
 use thinwedge_protocol::protocol::McpStartupUpdateEvent;
 use thinwedge_rmcp_client::ElicitationResponse;
-use rmcp::model::ListResourceTemplatesResult;
-use rmcp::model::ListResourcesResult;
-use rmcp::model::PaginatedRequestParams;
-use rmcp::model::ReadResourceRequestParams;
-use rmcp::model::ReadResourceResult;
-use rmcp::model::RequestId;
-use rmcp::model::Resource;
-use rmcp::model::ResourceTemplate;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use tracing::instrument;
@@ -169,14 +169,15 @@ impl McpConnectionManager {
                 },
             )
             .await;
-            let thinwedge_apps_tools_cache_context = if server_name == THINWEDGE_APPS_MCP_SERVER_NAME {
-                Some(ThinWedgeAppsToolsCacheContext {
-                    thinwedge_home: thinwedge_home.clone(),
-                    user_key: thinwedge_apps_tools_cache_key.clone(),
-                })
-            } else {
-                None
-            };
+            let thinwedge_apps_tools_cache_context =
+                if server_name == THINWEDGE_APPS_MCP_SERVER_NAME {
+                    Some(ThinWedgeAppsToolsCacheContext {
+                        thinwedge_home: thinwedge_home.clone(),
+                        user_key: thinwedge_apps_tools_cache_key.clone(),
+                    })
+                } else {
+                    None
+                };
             let uses_env_bearer_token = match &cfg.transport {
                 McpServerTransportConfig::StreamableHttp {
                     bearer_token_env_var,
@@ -334,7 +335,9 @@ impl McpConnectionManager {
     /// On success, the refreshed tools replace the cache contents and the
     /// latest filtered tool map is returned directly to the caller. On
     /// failure, the existing cache remains unchanged.
-    pub async fn hard_refresh_thinwedge_apps_tools_cache(&self) -> Result<HashMap<String, ToolInfo>> {
+    pub async fn hard_refresh_thinwedge_apps_tools_cache(
+        &self,
+    ) -> Result<HashMap<String, ToolInfo>> {
         let managed_client = self
             .clients
             .get(THINWEDGE_APPS_MCP_SERVER_NAME)

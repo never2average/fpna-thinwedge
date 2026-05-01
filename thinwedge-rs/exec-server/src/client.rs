@@ -7,10 +7,10 @@ use std::sync::atomic::AtomicU64;
 use std::time::Duration;
 
 use arc_swap::ArcSwap;
-use thinwedge_app_server_protocol::JSONRPCNotification;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use serde_json::Value;
+use thinwedge_app_server_protocol::JSONRPCNotification;
 use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
 use tokio::sync::mpsc;
@@ -877,10 +877,10 @@ async fn handle_server_notification(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::JSONRPCMessage;
     use thinwedge_app_server_protocol::JSONRPCNotification;
     use thinwedge_app_server_protocol::JSONRPCResponse;
-    use pretty_assertions::assert_eq;
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncWrite;
     use tokio::io::AsyncWriteExt;

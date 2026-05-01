@@ -4,7 +4,6 @@ use crate::agent::registry::AgentRegistry;
 use crate::agent::role::DEFAULT_ROLE_NAME;
 use crate::agent::role::resolve_role_config;
 use crate::agent::status::is_final;
-use crate::thinwedge_thread::ThreadConfigSnapshot;
 use crate::find_archived_thread_path_by_id_str;
 use crate::find_thread_path_by_id_str;
 use crate::rollout::RolloutRecorder;
@@ -12,13 +11,19 @@ use crate::session::emit_subagent_session_started;
 use crate::session_prefix::format_subagent_context_line;
 use crate::session_prefix::format_subagent_notification_message;
 use crate::shell_snapshot::ShellSnapshot;
+use crate::thinwedge_thread::ThreadConfigSnapshot;
 use crate::thread_manager::ThreadManagerState;
 use crate::thread_rollout_truncation::truncate_rollout_to_last_n_fork_turns;
+use serde::Serialize;
+use std::collections::HashMap;
+use std::collections::VecDeque;
+use std::sync::Arc;
+use std::sync::Weak;
 use thinwedge_features::Feature;
 use thinwedge_protocol::AgentPath;
 use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::MessagePhase;
 use thinwedge_protocol::models::ResponseItem;
@@ -32,11 +37,6 @@ use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 use thinwedge_protocol::user_input::UserInput;
 use thinwedge_rollout::state_db;
 use thinwedge_state::DirectionalThreadSpawnEdgeStatus;
-use serde::Serialize;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::sync::Arc;
-use std::sync::Weak;
 use tokio::sync::watch;
 use tracing::warn;
 
@@ -563,18 +563,20 @@ impl AgentControl {
         let inherited_exec_policy = self
             .inherited_exec_policy_for_source(&state, Some(&session_source), &config)
             .await;
-        let rollout_path =
-            match find_thread_path_by_id_str(config.thinwedge_home.as_path(), &thread_id.to_string())
-                .await?
-            {
-                Some(rollout_path) => rollout_path,
-                None => find_archived_thread_path_by_id_str(
-                    config.thinwedge_home.as_path(),
-                    &thread_id.to_string(),
-                )
-                .await?
-                .ok_or_else(|| ThinWedgeErr::ThreadNotFound(thread_id))?,
-            };
+        let rollout_path = match find_thread_path_by_id_str(
+            config.thinwedge_home.as_path(),
+            &thread_id.to_string(),
+        )
+        .await?
+        {
+            Some(rollout_path) => rollout_path,
+            None => find_archived_thread_path_by_id_str(
+                config.thinwedge_home.as_path(),
+                &thread_id.to_string(),
+            )
+            .await?
+            .ok_or_else(|| ThinWedgeErr::ThreadNotFound(thread_id))?,
+        };
 
         let resumed_thread = state
             .resume_thread_from_rollout_with_source(
@@ -736,7 +738,9 @@ impl AgentControl {
         let result = self.shutdown_live_agent(agent_id).await;
         for descendant_id in descendant_ids {
             match self.shutdown_live_agent(descendant_id).await {
-                Ok(_) | Err(ThinWedgeErr::ThreadNotFound(_)) | Err(ThinWedgeErr::InternalAgentDied) => {}
+                Ok(_)
+                | Err(ThinWedgeErr::ThreadNotFound(_))
+                | Err(ThinWedgeErr::InternalAgentDied) => {}
                 Err(err) => return Err(err),
             }
         }
@@ -1057,7 +1061,11 @@ impl AgentControl {
         };
 
         let parent_thread = state.get_thread(*parent_thread_id).await.ok()?;
-        parent_thread.thinwedge.session.user_shell().shell_snapshot()
+        parent_thread
+            .thinwedge
+            .session
+            .user_shell()
+            .shell_snapshot()
     }
 
     async fn inherited_exec_policy_for_source(

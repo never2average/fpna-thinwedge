@@ -17,10 +17,13 @@ use crate::tools::sandboxing::ToolCtx;
 use crate::tools::sandboxing::ToolError;
 use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::with_cached_approval;
+use futures::future::BoxFuture;
+use std::path::PathBuf;
+use std::time::Instant;
 use thinwedge_apply_patch::ApplyPatchAction;
 use thinwedge_exec_server::FileSystemSandboxContext;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::exec_output::ExecToolCallOutput;
 use thinwedge_protocol::exec_output::StreamOutput;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
@@ -35,9 +38,6 @@ use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::SandboxablePreference;
 use thinwedge_sandboxing::policy_transforms::effective_permission_profile;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use futures::future::BoxFuture;
-use std::path::PathBuf;
-use std::time::Instant;
 
 #[derive(Debug)]
 pub struct ApplyPatchRequest {
@@ -242,10 +242,12 @@ impl ToolRuntime<ApplyPatchRequest, ExecToolCallOutput> for ApplyPatchRuntime {
             timed_out: false,
         };
         if result.is_err() && is_likely_sandbox_denied(attempt.sandbox, &output) {
-            return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
-                output: Box::new(output),
-                network_policy_decision: None,
-            })));
+            return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(
+                SandboxErr::Denied {
+                    output: Box::new(output),
+                    network_policy_decision: None,
+                },
+            )));
         }
         Ok(output)
     }

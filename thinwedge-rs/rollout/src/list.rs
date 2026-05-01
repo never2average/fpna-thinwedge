@@ -1,7 +1,6 @@
 #![allow(warnings, clippy::all)]
 
 use async_trait::async_trait;
-use thinwedge_utils_path as path_utils;
 use std::cmp::Reverse;
 use std::ffi::OsStr;
 use std::io;
@@ -9,6 +8,7 @@ use std::num::NonZero;
 use std::ops::ControlFlow;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_utils_path as path_utils;
 use time::OffsetDateTime;
 use time::PrimitiveDateTime;
 use time::format_description::FormatItem;

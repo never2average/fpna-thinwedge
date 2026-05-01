@@ -1,11 +1,11 @@
 use crate::app_command::AppCommand;
 use crate::app_command::AppCommandView;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use thinwedge_app_server_protocol::RequestId as AppServerRequestId;
 use thinwedge_app_server_protocol::ServerNotification;
 use thinwedge_app_server_protocol::ServerRequest;
 use thinwedge_app_server_protocol::ThreadItem;
-use std::collections::HashMap;
-use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct ElicitationRequestKey {
@@ -570,7 +570,9 @@ fn app_server_request_id_to_mcp_request_id(
     request_id: &AppServerRequestId,
 ) -> thinwedge_protocol::mcp::RequestId {
     match request_id {
-        AppServerRequestId::String(value) => thinwedge_protocol::mcp::RequestId::String(value.clone()),
+        AppServerRequestId::String(value) => {
+            thinwedge_protocol::mcp::RequestId::String(value.clone())
+        }
         AppServerRequestId::Integer(value) => thinwedge_protocol::mcp::RequestId::Integer(*value),
     }
 }
@@ -579,6 +581,9 @@ fn app_server_request_id_to_mcp_request_id(
 mod tests {
     use super::super::ThreadBufferedEvent;
     use super::super::ThreadEventStore;
+    use pretty_assertions::assert_eq;
+    use std::collections::BTreeMap;
+    use std::collections::HashMap;
     use thinwedge_app_server_protocol::CommandExecutionRequestApprovalParams;
     use thinwedge_app_server_protocol::FileChangeRequestApprovalParams;
     use thinwedge_app_server_protocol::McpElicitationObjectType;
@@ -598,9 +603,6 @@ mod tests {
     use thinwedge_protocol::protocol::ReviewDecision;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
-    use std::collections::BTreeMap;
-    use std::collections::HashMap;
 
     fn request_user_input_request(call_id: &str, turn_id: &str) -> ServerRequest {
         ServerRequest::ToolRequestUserInput {

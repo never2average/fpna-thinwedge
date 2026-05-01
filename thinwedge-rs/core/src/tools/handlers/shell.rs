@@ -1,8 +1,8 @@
+use serde_json::Value as JsonValue;
+use std::sync::Arc;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ShellCommandToolCallParams;
 use thinwedge_protocol::models::ShellToolCallParams;
-use serde_json::Value as JsonValue;
-use std::sync::Arc;
 
 use crate::exec::ExecCapturePolicy;
 use crate::exec::ExecParams;
@@ -58,9 +58,9 @@ fn shell_payload_command(payload: &ToolPayload) -> Option<String> {
         ToolPayload::Function { arguments } => parse_arguments::<ShellToolCallParams>(arguments)
             .ok()
             .map(|params| thinwedge_shell_command::parse_command::shlex_join(&params.command)),
-        ToolPayload::LocalShell { params } => Some(thinwedge_shell_command::parse_command::shlex_join(
-            &params.command,
-        )),
+        ToolPayload::LocalShell { params } => Some(
+            thinwedge_shell_command::parse_command::shlex_join(&params.command),
+        ),
         _ => None,
     }
 }
@@ -249,7 +249,9 @@ impl ToolHandler for ShellHandler {
                 Self::run_exec_like(RunExecLikeArgs {
                     tool_name: tool_name.display(),
                     exec_params,
-                    hook_command: thinwedge_shell_command::parse_command::shlex_join(&params.command),
+                    hook_command: thinwedge_shell_command::parse_command::shlex_join(
+                        &params.command,
+                    ),
                     additional_permissions: params.additional_permissions.clone(),
                     prefix_rule,
                     session,
@@ -267,7 +269,9 @@ impl ToolHandler for ShellHandler {
                 Self::run_exec_like(RunExecLikeArgs {
                     tool_name: tool_name.display(),
                     exec_params,
-                    hook_command: thinwedge_shell_command::parse_command::shlex_join(&params.command),
+                    hook_command: thinwedge_shell_command::parse_command::shlex_join(
+                        &params.command,
+                    ),
                     additional_permissions: None,
                     prefix_rule: None,
                     session,
@@ -588,7 +592,9 @@ impl ShellHandler {
         let content = emitter.finish(event_ctx, out).await?;
         Ok(FunctionToolOutput {
             body: vec![
-                thinwedge_protocol::models::FunctionCallOutputContentItem::InputText { text: content },
+                thinwedge_protocol::models::FunctionCallOutputContentItem::InputText {
+                    text: content,
+                },
             ],
             success: Some(true),
             post_tool_use_response,

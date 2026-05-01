@@ -21,8 +21,8 @@ impl CodeModeExecuteHandler {
         call_id: String,
         code: String,
     ) -> Result<FunctionToolOutput, FunctionCallError> {
-        let args =
-            thinwedge_code_mode::parse_exec_source(&code).map_err(FunctionCallError::RespondToModel)?;
+        let args = thinwedge_code_mode::parse_exec_source(&code)
+            .map_err(FunctionCallError::RespondToModel)?;
         let exec = ExecContext { session, turn };
         let enabled_tools = build_enabled_tools(&exec).await;
         let stored_values = exec
@@ -66,7 +66,10 @@ impl CodeModeExecuteHandler {
         code_cell_trace.record_initial_response(&response);
         // Yielded cells keep running, so terminal lifecycle is only emitted
         // here when the first response also ended the runtime.
-        if !matches!(response, thinwedge_code_mode::RuntimeResponse::Yielded { .. }) {
+        if !matches!(
+            response,
+            thinwedge_code_mode::RuntimeResponse::Yielded { .. }
+        ) {
             code_cell_trace.record_ended(&response);
         }
         handle_runtime_response(&exec, response, args.max_output_tokens, started_at)

@@ -59,6 +59,9 @@ use crate::turn_timing::record_turn_ttft_metric;
 use crate::unavailable_tool::collect_unavailable_called_tools;
 use crate::util::backoff;
 use crate::util::error_or_panic;
+use futures::future::BoxFuture;
+use futures::prelude::*;
+use futures::stream::FuturesOrdered;
 use thinwedge_analytics::AppInvocation;
 use thinwedge_analytics::CompactionPhase;
 use thinwedge_analytics::CompactionReason;
@@ -72,8 +75,8 @@ use thinwedge_hooks::HookEventAfterAgent;
 use thinwedge_hooks::HookPayload;
 use thinwedge_hooks::HookResult;
 use thinwedge_protocol::config_types::ModeKind;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::items::PlanItem;
 use thinwedge_protocol::items::TurnItem;
 use thinwedge_protocol::items::UserMessageItem;
@@ -86,12 +89,12 @@ use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::AgentMessageContentDeltaEvent;
 use thinwedge_protocol::protocol::AgentReasoningSectionBreakEvent;
 use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::ErrorEvent;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::PlanDeltaEvent;
 use thinwedge_protocol::protocol::ReasoningContentDeltaEvent;
 use thinwedge_protocol::protocol::ReasoningRawContentDeltaEvent;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::TurnDiffEvent;
 use thinwedge_protocol::protocol::WarningEvent;
 use thinwedge_protocol::user_input::UserInput;
@@ -102,9 +105,6 @@ use thinwedge_utils_stream_parser::AssistantTextStreamParser;
 use thinwedge_utils_stream_parser::ProposedPlanSegment;
 use thinwedge_utils_stream_parser::extract_proposed_plan_text;
 use thinwedge_utils_stream_parser::strip_citations;
-use futures::future::BoxFuture;
-use futures::prelude::*;
-use futures::stream::FuturesOrdered;
 use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
 use tracing::error;
@@ -1878,7 +1878,9 @@ async fn try_run_sampling_request(
             .await
         {
             Ok(event) => event,
-            Err(thinwedge_async_utils::CancelErr::Cancelled) => break Err(ThinWedgeErr::TurnAborted),
+            Err(thinwedge_async_utils::CancelErr::Cancelled) => {
+                break Err(ThinWedgeErr::TurnAborted);
+            }
         };
 
         let event = match event {

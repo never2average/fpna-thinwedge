@@ -1,11 +1,11 @@
 //! Compatibility projections from the canonical permission profile model into
 //! legacy shapes still required by older or remote app-server APIs.
 
+use std::path::Path;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::path::Path;
 
 pub(crate) fn legacy_compatible_permission_profile(
     permission_profile: &PermissionProfile,
@@ -57,12 +57,12 @@ fn compatibility_workspace_write_profile(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::models::ManagedFileSystemPermissions;
     use thinwedge_protocol::permissions::FileSystemAccessMode;
     use thinwedge_protocol::permissions::FileSystemPath;
     use thinwedge_protocol::permissions::FileSystemSandboxEntry;
     use thinwedge_protocol::permissions::FileSystemSpecialPath;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn compatibility_profile_preserves_unbridgeable_write_roots() {

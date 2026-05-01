@@ -1,8 +1,8 @@
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_otel::AuthEnvTelemetryMetadata;
 
-use crate::THINWEDGE_API_KEY_ENV_VAR;
 use crate::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
+use crate::THINWEDGE_API_KEY_ENV_VAR;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthEnvTelemetry {
@@ -49,8 +49,8 @@ fn env_var_present(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_model_provider_info::WireApi;
     use pretty_assertions::assert_eq;
+    use thinwedge_model_provider_info::WireApi;
 
     #[test]
     fn collect_auth_env_telemetry_buckets_provider_env_key_name() {

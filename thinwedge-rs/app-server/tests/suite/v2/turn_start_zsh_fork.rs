@@ -13,6 +13,12 @@ use app_test_support::create_mock_responses_server_sequence;
 use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::create_shell_command_sse_response;
 use app_test_support::to_response;
+use core_test_support::responses;
+use core_test_support::skip_if_no_network;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::CommandAction;
 use thinwedge_app_server_protocol::CommandExecutionApprovalDecision;
 use thinwedge_app_server_protocol::CommandExecutionRequestApprovalResponse;
@@ -32,12 +38,6 @@ use thinwedge_app_server_protocol::TurnStatus;
 use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_features::FEATURES;
 use thinwedge_features::Feature;
-use core_test_support::responses;
-use core_test_support::skip_if_no_network;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 #[cfg(windows)]
@@ -534,12 +534,14 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
             }],
             cwd: Some(workspace.clone()),
             approval_policy: Some(thinwedge_app_server_protocol::AskForApproval::UnlessTrusted),
-            sandbox_policy: Some(thinwedge_app_server_protocol::SandboxPolicy::WorkspaceWrite {
-                writable_roots: vec![workspace.clone().try_into()?],
-                network_access: false,
-                exclude_tmpdir_env_var: false,
-                exclude_slash_tmp: false,
-            }),
+            sandbox_policy: Some(
+                thinwedge_app_server_protocol::SandboxPolicy::WorkspaceWrite {
+                    writable_roots: vec![workspace.clone().try_into()?],
+                    network_access: false,
+                    exclude_tmpdir_env_var: false,
+                    exclude_slash_tmp: false,
+                },
+            ),
             model: Some("mock-model".to_string()),
             effort: Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium),
             summary: Some(thinwedge_protocol::config_types::ReasoningSummary::Auto),

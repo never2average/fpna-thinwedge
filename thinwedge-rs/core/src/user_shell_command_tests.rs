@@ -2,10 +2,10 @@ use super::*;
 use crate::context::ContextualUserFragment;
 use crate::context::UserShellCommand;
 use crate::session::tests::make_session_and_context;
-use thinwedge_protocol::exec_output::StreamOutput;
-use thinwedge_protocol::models::ContentItem;
 use pretty_assertions::assert_eq;
 use std::time::Duration;
+use thinwedge_protocol::exec_output::StreamOutput;
+use thinwedge_protocol::models::ContentItem;
 
 #[test]
 fn detects_user_shell_command_text_variants() {

@@ -4,8 +4,6 @@
 use crate::ConfigLayerEntry;
 use crate::ConfigLayerStack;
 use crate::ConfigLayerStackOrdering;
-use thinwedge_app_server_protocol::ConfigLayerSource;
-use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
 use serde::de::DeserializeOwned;
 use serde_path_to_error::Path as SerdePath;
 use serde_path_to_error::Segment as SerdeSegment;
@@ -14,6 +12,8 @@ use std::fmt::Write;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_app_server_protocol::ConfigLayerSource;
+use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
 use toml_edit::Document;
 use toml_edit::Item;
 use toml_edit::Table;
@@ -195,9 +195,9 @@ fn config_path_for_layer(layer: &ConfigLayerEntry, config_toml_file: &str) -> Op
     match &layer.name {
         ConfigLayerSource::System { file } => Some(file.to_path_buf()),
         ConfigLayerSource::User { file } => Some(file.to_path_buf()),
-        ConfigLayerSource::Project { dot_thinwedge_folder } => {
-            Some(dot_thinwedge_folder.as_path().join(config_toml_file))
-        }
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        } => Some(dot_thinwedge_folder.as_path().join(config_toml_file)),
         ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.to_path_buf()),
         ConfigLayerSource::Mdm { .. }
         | ConfigLayerSource::SessionFlags

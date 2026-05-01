@@ -1,5 +1,8 @@
 use super::*;
 use crate::tools::sandboxing::SandboxAttempt;
+use core_test_support::PathBufExt;
+use pretty_assertions::assert_eq;
+use std::collections::HashMap;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_protocol::models::FileSystemPermissions;
@@ -12,9 +15,6 @@ use thinwedge_sandboxing::SandboxManager;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::policy_transforms::effective_file_system_sandbox_policy;
 use thinwedge_sandboxing::policy_transforms::effective_network_sandbox_policy;
-use core_test_support::PathBufExt;
-use pretty_assertions::assert_eq;
-use std::collections::HashMap;
 
 #[test]
 fn wants_no_sandbox_approval_granular_respects_sandbox_flag() {

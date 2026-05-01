@@ -1,9 +1,9 @@
 use crate::outgoing_message::OutgoingMessage;
-use thinwedge_app_server_protocol::JSONRPCMessage;
 use serde::Deserialize;
 use serde::Serialize;
 use std::io;
 use std::io::ErrorKind;
+use thinwedge_app_server_protocol::JSONRPCMessage;
 use url::Host;
 use url::Url;
 

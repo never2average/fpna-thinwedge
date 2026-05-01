@@ -3,11 +3,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use thinwedge_rmcp_client::ElicitationAction;
-use thinwedge_rmcp_client::ElicitationResponse;
-use thinwedge_rmcp_client::LocalStdioServerLauncher;
-use thinwedge_rmcp_client::RmcpClient;
-use thinwedge_utils_cargo_bin::CargoBinError;
 use futures::FutureExt as _;
 use rmcp::model::AnnotateAble;
 use rmcp::model::ClientCapabilities;
@@ -20,6 +15,11 @@ use rmcp::model::ProtocolVersion;
 use rmcp::model::ReadResourceRequestParams;
 use rmcp::model::ResourceContents;
 use serde_json::json;
+use thinwedge_rmcp_client::ElicitationAction;
+use thinwedge_rmcp_client::ElicitationResponse;
+use thinwedge_rmcp_client::LocalStdioServerLauncher;
+use thinwedge_rmcp_client::RmcpClient;
+use thinwedge_utils_cargo_bin::CargoBinError;
 
 const RESOURCE_URI: &str = "memo://thinwedge/example-note";
 

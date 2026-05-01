@@ -5,22 +5,6 @@ use anyhow::Result;
 use chrono::DateTime;
 use chrono::TimeZone;
 use chrono::Utc;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_models_manager::client_version_to_whole;
-use thinwedge_models_manager::manager::RefreshStrategy;
-use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -33,6 +17,22 @@ use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde::Deserialize;
 use serde::Serialize;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_models_manager::client_version_to_whole;
+use thinwedge_models_manager::manager::RefreshStrategy;
+use thinwedge_protocol::config_types::ReasoningSummary;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::MockServer;
 
 const ETAG: &str = "\"models-etag-ttl\"";
@@ -56,7 +56,8 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder.with_config(|config| {
         config.model = Some("gpt-5.2".to_string());
         config.model_provider.request_max_retries = Some(0);
@@ -113,7 +114,10 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
         })
         .await?;
 
-    let _ = wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    let _ = wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let refreshed_cache = read_cache(&cache_path).await?;
     assert!(
@@ -153,7 +157,8 @@ async fn uses_cache_when_version_matches() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder
         .with_pre_build_hook(move |home| {
             let cache = ModelsCache {
@@ -200,7 +205,8 @@ async fn refreshes_when_cache_version_missing() -> Result<()> {
     )
     .await;
 
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder
         .with_pre_build_hook(move |home| {
             let cache = ModelsCache {
@@ -247,7 +253,8 @@ async fn refreshes_when_cache_version_differs() -> Result<()> {
         models_mocks.push(responses::mount_models_once(&server, models_response.clone()).await);
     }
 
-    let mut builder = test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
+    let mut builder =
+        test_thinwedge().with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing());
     builder = builder
         .with_pre_build_hook(move |home| {
             let client_version = client_version_to_whole();

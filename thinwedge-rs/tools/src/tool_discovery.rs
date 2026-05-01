@@ -7,10 +7,10 @@ use crate::ToolName;
 use crate::ToolSpec;
 use crate::default_namespace_description;
 use crate::mcp_tool_to_deferred_responses_api_tool;
-use thinwedge_app_server_protocol::AppInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
+use thinwedge_app_server_protocol::AppInfo;
 
 const TUI_CLIENT_NAME: &str = "thinwedge-tui";
 pub const TOOL_SEARCH_TOOL_NAME: &str = "tool_search";

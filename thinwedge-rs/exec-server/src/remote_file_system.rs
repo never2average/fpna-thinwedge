@@ -216,6 +216,7 @@ fn map_remote_error(error: ExecServerError) -> io::Error {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::permissions::FileSystemAccessMode;
     use thinwedge_protocol::permissions::FileSystemPath;
@@ -223,7 +224,6 @@ mod tests {
     use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
     use thinwedge_protocol::permissions::FileSystemSpecialPath;
     use thinwedge_protocol::permissions::NetworkSandboxPolicy;
-    use pretty_assertions::assert_eq;
 
     use super::*;
 

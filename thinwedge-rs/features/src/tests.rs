@@ -7,10 +7,10 @@ use crate::FeaturesToml;
 use crate::Stage;
 use crate::feature_for_key;
 use crate::unstable_features_warning_event;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::WarningEvent;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::WarningEvent;
 use toml::Table;
 use toml::Value as TomlValue;
 

@@ -1,12 +1,12 @@
 use crate::config::edit::ConfigEditsBuilder;
+use std::io;
+use std::path::Path;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_protocol::config_types::Personality;
 use thinwedge_thread_store::ListThreadsParams;
 use thinwedge_thread_store::LocalThreadStore;
 use thinwedge_thread_store::ThreadSortKey;
 use thinwedge_thread_store::ThreadStore;
-use std::io;
-use std::path::Path;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 

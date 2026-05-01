@@ -4,13 +4,13 @@ mod pull;
 mod url;
 
 pub use client::OllamaClient;
-use thinwedge_core::config::Config;
-use thinwedge_model_provider_info::ModelProviderInfo;
 pub use pull::CliProgressReporter;
 pub use pull::PullEvent;
 pub use pull::PullProgressReporter;
 pub use pull::TuiProgressReporter;
 use semver::Version;
+use thinwedge_core::config::Config;
+use thinwedge_model_provider_info::ModelProviderInfo;
 
 /// Default OSS model to use when `--oss` is passed without an explicit `-m`.
 pub const DEFAULT_OSS_MODEL: &str = "gpt-oss:20b";

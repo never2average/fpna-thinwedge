@@ -77,7 +77,9 @@ fn exec_server_params_use_env_policy_overlay_contract() {
     let network_sandbox_policy = thinwedge_protocol::permissions::NetworkSandboxPolicy::Restricted;
     let permission_profile =
         thinwedge_protocol::models::PermissionProfile::from_runtime_permissions_with_enforcement(
-            thinwedge_protocol::models::SandboxEnforcement::from_legacy_sandbox_policy(&sandbox_policy),
+            thinwedge_protocol::models::SandboxEnforcement::from_legacy_sandbox_policy(
+                &sandbox_policy,
+            ),
             &file_system_sandbox_policy,
             network_sandbox_policy,
         );

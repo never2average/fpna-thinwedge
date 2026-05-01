@@ -13,18 +13,23 @@ pub(super) async fn archive_thread(
     params: ArchiveThreadParams,
 ) -> ThreadStoreResult<()> {
     let thread_id = params.thread_id;
-    let rollout_path =
-        find_thread_path_by_id_str(store.config.thinwedge_home.as_path(), &thread_id.to_string())
-            .await
-            .map_err(|err| ThreadStoreError::InvalidRequest {
-                message: format!("failed to locate thread id {thread_id}: {err}"),
-            })?
-            .ok_or_else(|| ThreadStoreError::InvalidRequest {
-                message: format!("no rollout found for thread id {thread_id}"),
-            })?;
+    let rollout_path = find_thread_path_by_id_str(
+        store.config.thinwedge_home.as_path(),
+        &thread_id.to_string(),
+    )
+    .await
+    .map_err(|err| ThreadStoreError::InvalidRequest {
+        message: format!("failed to locate thread id {thread_id}: {err}"),
+    })?
+    .ok_or_else(|| ThreadStoreError::InvalidRequest {
+        message: format!("no rollout found for thread id {thread_id}"),
+    })?;
 
     let canonical_rollout_path = scoped_rollout_path(
-        store.config.thinwedge_home.join(thinwedge_rollout::SESSIONS_SUBDIR),
+        store
+            .config
+            .thinwedge_home
+            .join(thinwedge_rollout::SESSIONS_SUBDIR),
         rollout_path.as_path(),
         "sessions",
     )?;
@@ -59,11 +64,11 @@ pub(super) async fn archive_thread(
 #[cfg(test)]
 mod tests {
     use chrono::Utc;
+    use pretty_assertions::assert_eq;
+    use tempfile::TempDir;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::protocol::SessionSource;
     use thinwedge_rollout::ARCHIVED_SESSIONS_SUBDIR;
-    use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use uuid::Uuid;
 
     use super::*;

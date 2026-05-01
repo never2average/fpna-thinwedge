@@ -1,8 +1,8 @@
 use super::MarketplaceAddError;
 use crate::marketplace::validate_marketplace_root;
-use thinwedge_plugin::validate_plugin_segment;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_plugin::validate_plugin_segment;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum MarketplaceSource {

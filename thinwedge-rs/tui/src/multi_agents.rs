@@ -7,18 +7,6 @@
 use crate::history_cell::PlainHistoryCell;
 use crate::render::line_utils::prefix_lines;
 use crate::text_formatting::truncate_text;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
-use thinwedge_protocol::protocol::AgentStatus;
-use thinwedge_protocol::protocol::CollabAgentInteractionEndEvent;
-use thinwedge_protocol::protocol::CollabAgentRef;
-use thinwedge_protocol::protocol::CollabAgentSpawnEndEvent;
-use thinwedge_protocol::protocol::CollabAgentStatusEntry;
-use thinwedge_protocol::protocol::CollabCloseEndEvent;
-use thinwedge_protocol::protocol::CollabResumeBeginEvent;
-use thinwedge_protocol::protocol::CollabResumeEndEvent;
-use thinwedge_protocol::protocol::CollabWaitingBeginEvent;
-use thinwedge_protocol::protocol::CollabWaitingEndEvent;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 #[cfg(target_os = "macos")]
@@ -30,6 +18,18 @@ use ratatui::text::Line;
 use ratatui::text::Span;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::AgentStatus;
+use thinwedge_protocol::protocol::CollabAgentInteractionEndEvent;
+use thinwedge_protocol::protocol::CollabAgentRef;
+use thinwedge_protocol::protocol::CollabAgentSpawnEndEvent;
+use thinwedge_protocol::protocol::CollabAgentStatusEntry;
+use thinwedge_protocol::protocol::CollabCloseEndEvent;
+use thinwedge_protocol::protocol::CollabResumeBeginEvent;
+use thinwedge_protocol::protocol::CollabResumeEndEvent;
+use thinwedge_protocol::protocol::CollabWaitingBeginEvent;
+use thinwedge_protocol::protocol::CollabWaitingEndEvent;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 
 const COLLAB_PROMPT_PREVIEW_GRAPHEMES: usize = 160;
 const COLLAB_AGENT_ERROR_PREVIEW_GRAPHEMES: usize = 160;

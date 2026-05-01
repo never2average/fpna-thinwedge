@@ -2,6 +2,10 @@ use crate::auth::SharedAuthProvider;
 use crate::error::ApiError;
 use crate::provider::Provider;
 use crate::telemetry::run_with_request_telemetry;
+use http::HeaderMap;
+use http::Method;
+use serde_json::Value;
+use std::sync::Arc;
 use thinwedge_client::HttpTransport;
 use thinwedge_client::Request;
 use thinwedge_client::RequestBody;
@@ -9,10 +13,6 @@ use thinwedge_client::RequestTelemetry;
 use thinwedge_client::Response;
 use thinwedge_client::StreamResponse;
 use thinwedge_client::TransportError;
-use http::HeaderMap;
-use http::Method;
-use serde_json::Value;
-use std::sync::Arc;
 use tracing::instrument;
 
 pub(crate) struct EndpointSession<T: HttpTransport> {

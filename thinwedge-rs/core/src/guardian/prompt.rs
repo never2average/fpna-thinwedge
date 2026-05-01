@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 
+use serde::Deserialize;
+use serde_json::Value;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::GuardianRiskLevel;
 use thinwedge_protocol::protocol::GuardianUserAuthorization;
 use thinwedge_protocol::user_input::UserInput;
-use serde::Deserialize;
-use serde_json::Value;
 
 use crate::compact::content_items_to_text;
 use crate::event_mapping::is_contextual_user_message_content;

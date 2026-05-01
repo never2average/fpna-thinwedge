@@ -3,12 +3,6 @@ use crate::common::ResponseStream;
 use crate::error::ApiError;
 use crate::rate_limits::parse_all_rate_limits;
 use crate::telemetry::SseTelemetry;
-use thinwedge_client::ByteStream;
-use thinwedge_client::StreamResponse;
-use thinwedge_client::TransportError;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::protocol::ModelVerification;
-use thinwedge_protocol::protocol::TokenUsage;
 use eventsource_stream::Eventsource;
 use futures::StreamExt;
 use futures::TryStreamExt;
@@ -19,6 +13,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
+use thinwedge_client::ByteStream;
+use thinwedge_client::StreamResponse;
+use thinwedge_client::TransportError;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::ModelVerification;
+use thinwedge_protocol::protocol::TokenUsage;
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 use tokio::time::timeout;
@@ -232,7 +232,8 @@ impl ResponsesStreamEvent {
 fn header_thinwedge_model_value_from_json(value: &Value) -> Option<String> {
     let headers = value.as_object()?;
     headers.iter().find_map(|(name, value)| {
-        if name.eq_ignore_ascii_case("thinwedge-model") || name.eq_ignore_ascii_case("x-thinwedge-model")
+        if name.eq_ignore_ascii_case("thinwedge-model")
+            || name.eq_ignore_ascii_case("x-thinwedge-model")
         {
             json_value_as_string(value)
         } else {
@@ -592,15 +593,15 @@ mod tests {
     use super::*;
     use assert_matches::assert_matches;
     use bytes::Bytes;
-    use thinwedge_client::StreamResponse;
-    use thinwedge_protocol::models::MessagePhase;
-    use thinwedge_protocol::models::ResponseItem;
     use futures::stream;
     use http::HeaderMap;
     use http::HeaderValue;
     use http::StatusCode;
     use pretty_assertions::assert_eq;
     use serde_json::json;
+    use thinwedge_client::StreamResponse;
+    use thinwedge_protocol::models::MessagePhase;
+    use thinwedge_protocol::models::ResponseItem;
     use tokio::sync::mpsc;
     use tokio_test::io::Builder as IoBuilder;
 

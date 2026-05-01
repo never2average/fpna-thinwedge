@@ -26,6 +26,9 @@ use crate::unified_exec::UnifiedExecProcessManager;
 use crate::unified_exec::WriteStdinRequest;
 use crate::unified_exec::generate_chunk_id;
 use crate::unified_exec::resolve_max_tokens;
+use serde::Deserialize;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_features::Feature;
 use thinwedge_otel::SessionTelemetry;
 use thinwedge_otel::TOOL_CALL_UNIFIED_EXEC_METRIC;
@@ -36,9 +39,6 @@ use thinwedge_shell_command::is_safe_command::is_known_safe_command;
 use thinwedge_tools::UnifiedExecShellMode;
 use thinwedge_utils_output_truncation::TruncationPolicy;
 use thinwedge_utils_output_truncation::approx_token_count;
-use serde::Deserialize;
-use std::path::PathBuf;
-use std::sync::Arc;
 
 pub struct UnifiedExecHandler;
 
@@ -227,7 +227,8 @@ impl ToolHandler for UnifiedExecHandler {
                     turn.tools_config.allow_login_shell,
                 )
                 .map_err(FunctionCallError::RespondToModel)?;
-                let command_for_display = thinwedge_shell_command::parse_command::shlex_join(&command);
+                let command_for_display =
+                    thinwedge_shell_command::parse_command::shlex_join(&command);
 
                 let ExecCommandArgs {
                     workdir,

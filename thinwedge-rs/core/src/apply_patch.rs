@@ -3,12 +3,12 @@ use crate::safety::SafetyCheck;
 use crate::safety::assess_patch_safety;
 use crate::session::turn_context::TurnContext;
 use crate::tools::sandboxing::ExecApprovalRequirement;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use thinwedge_apply_patch::ApplyPatchAction;
 use thinwedge_apply_patch::ApplyPatchFileChange;
 use thinwedge_protocol::protocol::FileChange;
 use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 pub(crate) enum InternalApplyPatchInvocation {
     /// The `apply_patch` call was handled programmatically, without any sort

@@ -1,20 +1,20 @@
 use crate::can_request_original_image_detail;
+use std::path::PathBuf;
 use thinwedge_features::Feature;
 use thinwedge_features::Features;
 use thinwedge_protocol::config_types::WebSearchConfig;
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_protocol::thinwedge_models::ApplyPatchToolType;
 use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
 use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_protocol::thinwedge_models::WebSearchToolType;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ShellCommandBackendConfig {

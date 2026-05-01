@@ -75,12 +75,12 @@ pub fn notify_hook(argv: Vec<String>) -> Hook {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use thinwedge_protocol::ThreadId;
-    use thinwedge_utils_absolute_path::test_support::PathBufExt;
-    use thinwedge_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::Value;
     use serde_json::json;
+    use thinwedge_protocol::ThreadId;
+    use thinwedge_utils_absolute_path::test_support::PathBufExt;
+    use thinwedge_utils_absolute_path::test_support::test_path_buf;
 
     use super::*;
     use crate::HookEventAfterAgent;

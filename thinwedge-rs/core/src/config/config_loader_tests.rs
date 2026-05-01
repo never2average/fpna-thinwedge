@@ -1,6 +1,11 @@
 use crate::config::ConfigBuilder;
 use crate::config::ConfigOverrides;
 use crate::config::ConstraintError;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::path::Path;
+use tempfile::tempdir;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::CloudRequirementsLoadError;
@@ -31,11 +36,6 @@ use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::path::Path;
-use tempfile::tempdir;
 use toml::Value as TomlValue;
 
 fn config_error_from_io(err: &std::io::Error) -> &ConfigError {
@@ -236,8 +236,9 @@ fn schema_error_points_to_feature_value() {
     std::fs::write(&config_path, contents).expect("write config");
 
     let _guard = thinwedge_utils_absolute_path::AbsolutePathBufGuard::new(tmp.path());
-    let error = thinwedge_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
-        .expect("schema error");
+    let error =
+        thinwedge_config::config_error_from_typed_toml::<ConfigToml>(&config_path, contents)
+            .expect("schema error");
 
     let value_line = contents.lines().nth(1).expect("value line");
     let value_column = value_line.find("\"true\"").expect("value") + 1;
@@ -1315,12 +1316,17 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            ConfigLayerSource::Project { dot_thinwedge_folder } => Some(dot_thinwedge_folder),
+            ConfigLayerSource::Project {
+                dot_thinwedge_folder,
+            } => Some(dot_thinwedge_folder),
             _ => None,
         })
         .collect();
     assert_eq!(project_layers.len(), 2);
-    assert_eq!(project_layers[0].as_path(), nested.join(".thinwedge").as_path());
+    assert_eq!(
+        project_layers[0].as_path(),
+        nested.join(".thinwedge").as_path()
+    );
     assert_eq!(
         project_layers[1].as_path(),
         project_root.join(".thinwedge").as_path()
@@ -1336,8 +1342,8 @@ async fn project_layers_prefer_closest_cwd() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn project_paths_resolve_relative_to_dot_thinwedge_and_override_in_order() -> std::io::Result<()>
-{
+async fn project_paths_resolve_relative_to_dot_thinwedge_and_override_in_order()
+-> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
@@ -1351,7 +1357,11 @@ model_instructions_file = "root.txt"
     let nested_cfg = r#"
 model_instructions_file = "child.txt"
 "#;
-    tokio::fs::write(project_root.join(".thinwedge").join(CONFIG_TOML_FILE), root_cfg).await?;
+    tokio::fs::write(
+        project_root.join(".thinwedge").join(CONFIG_TOML_FILE),
+        root_cfg,
+    )
+    .await?;
     tokio::fs::write(nested.join(".thinwedge").join(CONFIG_TOML_FILE), nested_cfg).await?;
     tokio::fs::write(
         project_root.join(".thinwedge").join("root.txt"),
@@ -1428,7 +1438,8 @@ async fn cli_override_model_instructions_file_sets_base_instructions() -> std::i
 }
 
 #[tokio::test]
-async fn project_layer_is_added_when_dot_thinwedge_exists_without_config_toml() -> std::io::Result<()> {
+async fn project_layer_is_added_when_dot_thinwedge_exists_without_config_toml()
+-> std::io::Result<()> {
     let tmp = tempdir()?;
     let project_root = tmp.path().join("project");
     let nested = project_root.join("child");
@@ -1465,7 +1476,9 @@ async fn project_layer_is_added_when_dot_thinwedge_exists_without_config_toml() 
     assert_eq!(
         vec![&ConfigLayerEntry {
             name: ConfigLayerSource::Project {
-                dot_thinwedge_folder: AbsolutePathBuf::from_absolute_path(project_root.join(".thinwedge"))?,
+                dot_thinwedge_folder: AbsolutePathBuf::from_absolute_path(
+                    project_root.join(".thinwedge")
+                )?,
             },
             config: TomlValue::Table(toml::map::Map::new()),
             raw_toml: None,
@@ -1526,7 +1539,11 @@ async fn thinwedge_home_within_project_tree_is_not_double_loaded() -> std::io::R
 
     tokio::fs::create_dir_all(&nested_dot_thinwedge).await?;
     tokio::fs::create_dir_all(project_root.join(".git")).await?;
-    tokio::fs::write(nested_dot_thinwedge.join(CONFIG_TOML_FILE), "foo = \"child\"\n").await?;
+    tokio::fs::write(
+        nested_dot_thinwedge.join(CONFIG_TOML_FILE),
+        "foo = \"child\"\n",
+    )
+    .await?;
 
     tokio::fs::create_dir_all(&project_dot_thinwedge).await?;
     make_config_for_test(
@@ -2067,12 +2084,17 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
         .layers_high_to_low()
         .into_iter()
         .filter_map(|layer| match &layer.name {
-            ConfigLayerSource::Project { dot_thinwedge_folder } => Some(dot_thinwedge_folder),
+            ConfigLayerSource::Project {
+                dot_thinwedge_folder,
+            } => Some(dot_thinwedge_folder),
             _ => None,
         })
         .collect();
     assert_eq!(project_layers.len(), 2);
-    assert_eq!(project_layers[0].as_path(), nested.join(".thinwedge").as_path());
+    assert_eq!(
+        project_layers[0].as_path(),
+        nested.join(".thinwedge").as_path()
+    );
     assert_eq!(
         project_layers[1].as_path(),
         project_root.join(".thinwedge").as_path()
@@ -2090,6 +2112,9 @@ async fn project_root_markers_supports_alternate_markers() -> std::io::Result<()
 
 mod requirements_exec_policy_tests {
     use crate::exec_policy::load_exec_policy;
+    use pretty_assertions::assert_eq;
+    use std::path::Path;
+    use tempfile::tempdir;
     use thinwedge_app_server_protocol::ConfigLayerSource;
     use thinwedge_config::ConfigLayerEntry;
     use thinwedge_config::ConfigLayerStack;
@@ -2106,9 +2131,6 @@ mod requirements_exec_policy_tests {
     use thinwedge_execpolicy::Evaluation;
     use thinwedge_execpolicy::RuleMatch;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
-    use std::path::Path;
-    use tempfile::tempdir;
     use toml::Value as TomlValue;
     use toml::from_str;
 
@@ -2127,7 +2149,9 @@ mod requirements_exec_policy_tests {
         let dot_thinwedge_folder = AbsolutePathBuf::from_absolute_path(dot_thinwedge_folder)
             .expect("absolute dot_thinwedge_folder");
         let layer = ConfigLayerEntry::new(
-            ConfigLayerSource::Project { dot_thinwedge_folder },
+            ConfigLayerSource::Project {
+                dot_thinwedge_folder,
+            },
             TomlValue::Table(Default::default()),
         );
         ConfigLayerStack::new(vec![layer], requirements, ConfigRequirementsToml::default())

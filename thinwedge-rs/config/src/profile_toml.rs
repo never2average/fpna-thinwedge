@@ -1,7 +1,7 @@
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 use crate::config_toml::ToolsToml;
 use crate::types::AnalyticsConfigToml;
@@ -14,8 +14,8 @@ use thinwedge_protocol::config_types::SandboxMode;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::Verbosity;
 use thinwedge_protocol::config_types::WebSearchMode;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 /// Collection of common configuration options that a user can define as a unit
 /// in `config.toml`.

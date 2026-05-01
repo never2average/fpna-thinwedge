@@ -101,6 +101,8 @@ mod tests {
     use crate::app::thread_events::ThreadEventChannel;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
+    use pretty_assertions::assert_eq;
+    use std::path::PathBuf;
     use thinwedge_config::types::ApprovalsReviewer;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::protocol::AskForApproval;
@@ -110,8 +112,6 @@ mod tests {
     use thinwedge_protocol::protocol::FileSystemSandboxPolicy;
     use thinwedge_protocol::protocol::FileSystemSpecialPath;
     use thinwedge_protocol::protocol::NetworkSandboxPolicy;
-    use pretty_assertions::assert_eq;
-    use std::path::PathBuf;
 
     fn test_thread_session(thread_id: ThreadId, cwd: PathBuf) -> ThreadSessionState {
         ThreadSessionState {

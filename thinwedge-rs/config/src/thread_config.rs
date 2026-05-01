@@ -211,9 +211,9 @@ fn session_thread_config_to_toml(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_model_provider_info::ModelProviderInfo;
     use thinwedge_model_provider_info::WireApi;
-    use pretty_assertions::assert_eq;
 
     use super::*;
 

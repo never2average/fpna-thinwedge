@@ -51,8 +51,8 @@ use crate::unified_exec::process::OutputHandles;
 use crate::unified_exec::process::SpawnLifecycleHandle;
 use crate::unified_exec::process::UnifiedExecProcess;
 use thinwedge_protocol::config_types::ShellEnvironmentPolicy;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::protocol::ExecCommandSource;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_output_truncation::approx_token_count;
@@ -842,7 +842,9 @@ impl UnifiedExecProcessManager {
             .await
             .map(|result| (result.output, result.deferred_network_approval))
             .map_err(|err| match err {
-                ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied { output, .. })) => {
+                ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
+                    output, ..
+                })) => {
                     let output = *output;
                     let message = if output.aggregated_output.text.is_empty() {
                         let exit_code = output.exit_code;

@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::OnceLock;
 
-use thinwedge_protocol::protocol::W3cTraceContext;
 use opentelemetry::Context;
 use opentelemetry::propagation::TextMapPropagator;
 use opentelemetry::trace::TraceContextExt;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use thinwedge_protocol::protocol::W3cTraceContext;
 use tracing::Span;
 use tracing::debug;
 use tracing::warn;
@@ -108,13 +108,13 @@ mod tests {
     use super::context_from_trace_headers;
     use super::context_from_w3c_trace_context;
     use super::current_span_trace_id;
-    use thinwedge_protocol::protocol::W3cTraceContext;
     use opentelemetry::trace::SpanId;
     use opentelemetry::trace::TraceContextExt;
     use opentelemetry::trace::TraceId;
     use opentelemetry::trace::TracerProvider as _;
     use opentelemetry_sdk::trace::SdkTracerProvider;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::protocol::W3cTraceContext;
     use tracing::trace_span;
     use tracing_subscriber::layer::SubscriberExt;
     use tracing_subscriber::util::SubscriberInitExt;

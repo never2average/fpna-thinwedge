@@ -9,11 +9,11 @@ use super::types::QueryAwsByServiceArgs;
 use super::types::SearchAwsPriceListAttributeNamesArgs;
 use super::types::SearchAwsPriceListAttributeValuesArgs;
 use super::types::SearchAwsServicesArgs;
-use thinwedge_app_server_protocol::DynamicToolSpec;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use std::collections::BTreeSet;
+use thinwedge_app_server_protocol::DynamicToolSpec;
 
 pub(super) fn dynamic_tool_specs() -> Vec<DynamicToolSpec> {
     vec![

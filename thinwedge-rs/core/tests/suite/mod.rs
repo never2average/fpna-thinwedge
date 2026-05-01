@@ -1,10 +1,10 @@
 // Aggregates all former standalone integration tests as modules.
+use ctor::ctor;
 use thinwedge_apply_patch::THINWEDGE_CORE_APPLY_PATCH_ARG1;
 use thinwedge_sandboxing::landlock::THINWEDGE_LINUX_SANDBOX_ARG0;
 use thinwedge_test_binary_support::TestBinaryDispatchGuard;
 use thinwedge_test_binary_support::TestBinaryDispatchMode;
 use thinwedge_test_binary_support::configure_test_binary_dispatch;
-use ctor::ctor;
 
 // This code runs before any other tests are run.
 // It allows the test binary to behave like thinwedge and dispatch to apply_patch and thinwedge-linux-sandbox
@@ -35,7 +35,6 @@ mod cli_stream;
 mod client;
 mod client_websockets;
 mod code_mode;
-mod thinwedge_delegate;
 mod collaboration_instructions;
 mod compact;
 mod compact_remote;
@@ -59,7 +58,6 @@ mod model_switching;
 mod model_visible_layout;
 mod models_cache_ttl;
 mod models_etag_responses;
-mod thinwedge_file_mcp;
 mod otel;
 mod pending_input;
 mod permissions_messages;
@@ -96,6 +94,8 @@ mod sqlite_state;
 mod stream_error_allows_next_turn;
 mod stream_no_completed;
 mod subagent_notifications;
+mod thinwedge_delegate;
+mod thinwedge_file_mcp;
 mod tool_harness;
 mod tool_parallelism;
 mod tool_suggest;

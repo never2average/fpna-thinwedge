@@ -7,6 +7,16 @@ use crate::marketplace::list_marketplaces;
 use crate::marketplace::load_marketplace;
 use crate::store::PluginStore;
 use crate::store::plugin_version_for_source;
+use serde::Deserialize;
+use serde_json::Map as JsonMap;
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_config::ConfigLayerStack;
 use thinwedge_config::HooksFile;
 use thinwedge_config::types::McpServerConfig;
@@ -30,16 +40,6 @@ use thinwedge_protocol::protocol::Product;
 use thinwedge_protocol::protocol::SkillScope;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_plugins::find_plugin_manifest_path;
-use serde::Deserialize;
-use serde_json::Map as JsonMap;
-use serde_json::Value as JsonValue;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::fs;
-use std::path::Path;
-use std::process::Command;
-use std::sync::Arc;
-use tempfile::TempDir;
 use tracing::warn;
 
 const DEFAULT_SKILLS_DIR_NAME: &str = "skills";
@@ -151,7 +151,8 @@ pub fn refresh_curated_plugin_cache(
     configured_curated_plugin_ids: &[PluginId],
 ) -> Result<bool, String> {
     let cache_plugin_version = curated_plugin_cache_version(plugin_version);
-    let store = PluginStore::try_new(thinwedge_home.to_path_buf()).map_err(|err| err.to_string())?;
+    let store =
+        PluginStore::try_new(thinwedge_home.to_path_buf()).map_err(|err| err.to_string())?;
     let curated_marketplace_path = AbsolutePathBuf::try_from(
         thinwedge_home
             .join(".tmp/plugins")
@@ -265,7 +266,8 @@ fn refresh_non_curated_plugin_cache_with_mode(
         .map(PluginId::as_key)
         .collect::<HashSet<_>>();
 
-    let store = PluginStore::try_new(thinwedge_home.to_path_buf()).map_err(|err| err.to_string())?;
+    let store =
+        PluginStore::try_new(thinwedge_home.to_path_buf()).map_err(|err| err.to_string())?;
     let marketplace_outcome = list_marketplaces(additional_roots)
         .map_err(|err| format!("failed to discover marketplaces for cache refresh: {err}"))?;
     let mut plugin_sources = HashMap::<String, MarketplacePluginSource>::new();

@@ -5,14 +5,14 @@ use crate::rate_limits::parse_rate_limit_for_limit;
 use base64::Engine;
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::auth::PlanType;
-use thinwedge_protocol::error::ThinWedgeErr;
-use thinwedge_protocol::error::RetryLimitReachedError;
-use thinwedge_protocol::error::UnexpectedResponseError;
-use thinwedge_protocol::error::UsageLimitReachedError;
 use http::HeaderMap;
 use serde::Deserialize;
 use serde_json::Value;
+use thinwedge_protocol::auth::PlanType;
+use thinwedge_protocol::error::RetryLimitReachedError;
+use thinwedge_protocol::error::ThinWedgeErr;
+use thinwedge_protocol::error::UnexpectedResponseError;
+use thinwedge_protocol::error::UsageLimitReachedError;
 
 pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
     match err {
@@ -22,15 +22,17 @@ pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
         ApiError::Retryable { message, delay } => ThinWedgeErr::Stream(message, delay),
         ApiError::Stream(msg) => ThinWedgeErr::Stream(msg, None),
         ApiError::ServerOverloaded => ThinWedgeErr::ServerOverloaded,
-        ApiError::Api { status, message } => ThinWedgeErr::UnexpectedStatus(UnexpectedResponseError {
-            status,
-            body: message,
-            url: None,
-            cf_ray: None,
-            request_id: None,
-            identity_authorization_error: None,
-            identity_error_code: None,
-        }),
+        ApiError::Api { status, message } => {
+            ThinWedgeErr::UnexpectedStatus(UnexpectedResponseError {
+                status,
+                body: message,
+                url: None,
+                cf_ray: None,
+                request_id: None,
+                identity_authorization_error: None,
+                identity_error_code: None,
+            })
+        }
         ApiError::InvalidRequest { message } => ThinWedgeErr::InvalidRequest(message),
         ApiError::CyberPolicy { message } => ThinWedgeErr::CyberPolicy { message },
         ApiError::Transport(transport) => match transport {

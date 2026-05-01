@@ -2,11 +2,6 @@ use crate::store::PluginInstallResult;
 use crate::store::PluginStore;
 use crate::store::PluginStoreError;
 use crate::store::validate_plugin_version_segment;
-use thinwedge_login::default_client::build_reqwest_client;
-use thinwedge_plugin::PluginId;
-use thinwedge_plugin::PluginIdError;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_plugins::find_plugin_manifest_path;
 use flate2::read::GzDecoder;
 use reqwest::Response;
 use reqwest::StatusCode;
@@ -17,6 +12,11 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 use tar::Archive;
+use thinwedge_login::default_client::build_reqwest_client;
+use thinwedge_plugin::PluginId;
+use thinwedge_plugin::PluginIdError;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_plugins::find_plugin_manifest_path;
 use url::Host;
 use url::Url;
 
@@ -699,7 +699,8 @@ mod tests {
     fn find_extracted_plugin_root_rejects_nested_plugin_root() {
         let extraction_root = tempdir().expect("tempdir");
         let plugin_root = extraction_root.path().join("linear");
-        std::fs::create_dir_all(plugin_root.join(".thinwedge-plugin")).expect("create manifest dir");
+        std::fs::create_dir_all(plugin_root.join(".thinwedge-plugin"))
+            .expect("create manifest dir");
         std::fs::write(
             plugin_root.join(".thinwedge-plugin/plugin.json"),
             r#"{"name":"linear"}"#,

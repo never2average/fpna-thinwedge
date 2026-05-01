@@ -11,8 +11,8 @@ use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::QueuedOutgoingMessage;
 use crate::transport::ConnectionOrigin;
 use crate::transport::remote_control::QueuedServerEnvelope;
-use thinwedge_app_server_protocol::JSONRPCMessage;
 use std::collections::HashMap;
+use thinwedge_app_server_protocol::JSONRPCMessage;
 use tokio::sync::mpsc;
 use tokio::sync::watch;
 use tokio::task::JoinSet;
@@ -333,12 +333,12 @@ mod tests {
     use crate::outgoing_message::OutgoingMessage;
     use crate::transport::remote_control::protocol::ClientEnvelope;
     use crate::transport::remote_control::protocol::ClientEvent;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
     use thinwedge_app_server_protocol::ConfigWarningNotification;
     use thinwedge_app_server_protocol::JSONRPCRequest;
     use thinwedge_app_server_protocol::RequestId;
     use thinwedge_app_server_protocol::ServerNotification;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
     use tokio::time::timeout;
 
     fn initialize_envelope(client_id: &str) -> ClientEnvelope {

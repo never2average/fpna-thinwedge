@@ -1,6 +1,9 @@
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use pretty_assertions::assert_eq;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::Account;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_app_server_protocol::GetAccountParams;
@@ -12,9 +15,6 @@ use thinwedge_app_server_protocol::RequestId;
 use thinwedge_app_server_protocol::ServerNotification;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_login::login_with_api_key;
-use pretty_assertions::assert_eq;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
@@ -28,7 +28,10 @@ struct CreateConfigTomlParams {
     extra_provider_config: Option<String>,
 }
 
-fn create_config_toml(thinwedge_home: &Path, params: CreateConfigTomlParams) -> std::io::Result<()> {
+fn create_config_toml(
+    thinwedge_home: &Path,
+    params: CreateConfigTomlParams,
+) -> std::io::Result<()> {
     let config_toml = thinwedge_home.join("config.toml");
     let base_url = params
         .base_url
@@ -90,7 +93,8 @@ async fn logout_account_removes_auth_and_notifies() -> Result<()> {
     )?;
     assert!(thinwedge_home.path().join("auth.json").exists());
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let id = mcp.send_logout_account_request().await?;
@@ -214,7 +218,8 @@ async fn get_account_no_auth() -> Result<()> {
         },
     )?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

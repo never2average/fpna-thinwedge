@@ -1,12 +1,3 @@
-use thinwedge_core::config::Constrained;
-use thinwedge_core::sandboxing::SandboxPermissions;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::ReviewDecision;
-use thinwedge_protocol::protocol::ReviewRequest;
-use thinwedge_protocol::protocol::ReviewTarget;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -21,6 +12,15 @@ use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
+use thinwedge_core::config::Constrained;
+use thinwedge_core::sandboxing::SandboxPermissions;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::ReviewDecision;
+use thinwedge_protocol::protocol::ReviewRequest;
+use thinwedge_protocol::protocol::ReviewTarget;
 
 /// Delegate should surface ExecApprovalRequest from sub-agent and proceed
 /// after parent submits an approval decision.
@@ -62,13 +62,15 @@ async fn thinwedge_delegate_forwards_exec_approval_and_proceeds_on_approval() {
 
     // Build a conversation configured to require approvals so the delegate
     // routes ExecApprovalRequest via the parent.
-    let mut builder = test_thinwedge().with_model("gpt-5.4").with_config(|config| {
-        config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
-        config
-            .permissions
-            .set_permission_profile(PermissionProfile::read_only())
-            .expect("set permission profile");
-    });
+    let mut builder = test_thinwedge()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
+            config
+                .permissions
+                .set_permission_profile(PermissionProfile::read_only())
+                .expect("set permission profile");
+        });
     let test = builder.build(&server).await.expect("build test thinwedge");
 
     // Kick off review (sub-agent starts internally).
@@ -113,7 +115,10 @@ async fn thinwedge_delegate_forwards_exec_approval_and_proceeds_on_approval() {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 }
 
 /// Delegate should surface ApplyPatchApprovalRequest and honor parent decision
@@ -146,15 +151,17 @@ async fn thinwedge_delegate_forwards_patch_approval_and_proceeds_on_decision() {
     let server = start_mock_server().await;
     mount_sse_sequence(&server, vec![sse1, sse2]).await;
 
-    let mut builder = test_thinwedge().with_model("gpt-5.4").with_config(|config| {
-        config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
-        // Use a restricted sandbox so patch approval is required
-        config
-            .permissions
-            .set_permission_profile(PermissionProfile::read_only())
-            .expect("set permission profile");
-        config.include_apply_patch_tool = true;
-    });
+    let mut builder = test_thinwedge()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config.permissions.approval_policy = Constrained::allow_any(AskForApproval::OnRequest);
+            // Use a restricted sandbox so patch approval is required
+            config
+                .permissions
+                .set_permission_profile(PermissionProfile::read_only())
+                .expect("set permission profile");
+            config.include_apply_patch_tool = true;
+        });
     let test = builder.build(&server).await.expect("build test thinwedge");
 
     test.thinwedge
@@ -194,7 +201,10 @@ async fn thinwedge_delegate_forwards_patch_approval_and_proceeds_on_decision() {
         matches!(ev, EventMsg::ExitedReviewMode(_))
     })
     .await;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

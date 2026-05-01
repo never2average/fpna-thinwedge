@@ -1,7 +1,7 @@
-use thinwedge_core::config::Config;
-use thinwedge_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
 use std::io;
 use std::path::Path;
+use thinwedge_core::config::Config;
+use thinwedge_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
 
 #[derive(Clone)]
 pub struct LMStudioClient {
@@ -210,7 +210,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_happy_path() {
-        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
+        {
             tracing::info!(
                 "{} is set; skipping test_fetch_models_happy_path",
                 thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR
@@ -242,7 +243,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_no_data_array() {
-        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
+        {
             tracing::info!(
                 "{} is set; skipping test_fetch_models_no_data_array",
                 thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR
@@ -273,7 +275,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_models_server_error() {
-        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
+        {
             tracing::info!(
                 "{} is set; skipping test_fetch_models_server_error",
                 thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR
@@ -301,7 +304,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_server_happy_path() {
-        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
+        {
             tracing::info!(
                 "{} is set; skipping test_check_server_happy_path",
                 thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR
@@ -325,7 +329,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_check_server_error() {
-        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok() {
+        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
+        {
             tracing::info!(
                 "{} is set; skipping test_check_server_error",
                 thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR

@@ -6,6 +6,10 @@ use crate::list::ThreadSortKey;
 use crate::metadata;
 use chrono::DateTime;
 use chrono::Utc;
+use serde_json::Value;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -13,10 +17,6 @@ use thinwedge_protocol::protocol::SessionSource;
 pub use thinwedge_state::LogEntry;
 use thinwedge_state::ThreadMetadataBuilder;
 use thinwedge_utils_path::normalize_for_path_comparison;
-use serde_json::Value;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::warn;
 
 /// Core-facing handle to the SQLite-backed state runtime.
@@ -78,15 +78,20 @@ pub async fn get_state_db(config: &impl RolloutConfigView) -> Option<StateDbHand
 /// Open the state runtime when the SQLite file exists, without feature gating.
 ///
 /// This is used for parity checks during the SQLite migration phase.
-pub async fn open_if_present(thinwedge_home: &Path, default_provider: &str) -> Option<StateDbHandle> {
+pub async fn open_if_present(
+    thinwedge_home: &Path,
+    default_provider: &str,
+) -> Option<StateDbHandle> {
     let db_path = thinwedge_state::state_db_path(thinwedge_home);
     if !tokio::fs::try_exists(&db_path).await.unwrap_or(false) {
         return None;
     }
-    let runtime =
-        thinwedge_state::StateRuntime::init(thinwedge_home.to_path_buf(), default_provider.to_string())
-            .await
-            .ok()?;
+    let runtime = thinwedge_state::StateRuntime::init(
+        thinwedge_home.to_path_buf(),
+        default_provider.to_string(),
+    )
+    .await
+    .ok()?;
     require_backfill_complete(runtime, thinwedge_home).await
 }
 

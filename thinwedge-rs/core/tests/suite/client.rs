@@ -1,3 +1,29 @@
+use core_test_support::PathBufExt;
+use core_test_support::apps_test_server::AppsTestServer;
+use core_test_support::load_default_config_for_test;
+use core_test_support::responses::ResponsesRequest;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_completed_with_tokens;
+use core_test_support::responses::ev_message_item_added;
+use core_test_support::responses::ev_output_text_delta;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::mount_sse_once_match;
+use core_test_support::responses::mount_sse_sequence;
+use core_test_support::responses::sse;
+use core_test_support::responses::sse_failed;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_thinwedge::TestThinWedge;
+use core_test_support::test_thinwedge::test_thinwedge;
+use core_test_support::wait_for_event;
+use dunce::canonicalize as normalize_path;
+use futures::StreamExt;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::io::Write;
+use std::num::NonZeroU64;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_config::ConfigLayerStack;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_core::ModelClient;
@@ -37,7 +63,6 @@ use thinwedge_protocol::models::ReasoningItemContent;
 use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::models::WebSearchAction;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -45,33 +70,8 @@ use thinwedge_protocol::protocol::RolloutLine;
 use thinwedge_protocol::protocol::SessionMeta;
 use thinwedge_protocol::protocol::SessionMetaLine;
 use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::UserInput;
-use core_test_support::PathBufExt;
-use core_test_support::apps_test_server::AppsTestServer;
-use core_test_support::load_default_config_for_test;
-use core_test_support::responses::ResponsesRequest;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_completed_with_tokens;
-use core_test_support::responses::ev_message_item_added;
-use core_test_support::responses::ev_output_text_delta;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::mount_sse_once_match;
-use core_test_support::responses::mount_sse_sequence;
-use core_test_support::responses::sse;
-use core_test_support::responses::sse_failed;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_thinwedge::TestThinWedge;
-use core_test_support::test_thinwedge::test_thinwedge;
-use core_test_support::wait_for_event;
-use dunce::canonicalize as normalize_path;
-use futures::StreamExt;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::io::Write;
-use std::num::NonZeroU64;
-use std::sync::Arc;
-use tempfile::TempDir;
 use toml::toml;
 use uuid::Uuid;
 use wiremock::Mock;
@@ -240,7 +240,8 @@ move /y tokens.next tokens.txt >nul
             // Match the model-provider default to avoid brittle shell-startup timing in CI.
             timeout_ms: non_zero_u64(/*value*/ 5_000),
             refresh_interval_ms: 60_000,
-            cwd: match thinwedge_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path()) {
+            cwd: match thinwedge_utils_absolute_path::AbsolutePathBuf::try_from(self.tempdir.path())
+            {
                 Ok(cwd) => cwd,
                 Err(err) => panic!("tempdir should be absolute: {err}"),
             },
@@ -879,9 +880,9 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         SessionSource::Exec,
     );
     let client = ModelClient::new(
-        Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-            "unused-api-key",
-        ))),
+        Some(AuthManager::from_auth_for_testing(
+            ThinWedgeAuth::from_api_key("unused-api-key"),
+        )),
         conversation_id,
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
         provider,
@@ -985,7 +986,8 @@ async fn chatgpt_auth_sends_correct_request() {
     .await;
 
     let mut model_provider =
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"]
+            .clone();
     model_provider.base_url = Some(format!("{}/api/thinwedge", server.uri()));
     model_provider.supports_websockets = false;
     let mut builder = test_thinwedge()
@@ -1113,7 +1115,9 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         Arc::new(thinwedge_exec_server::EnvironmentManager::default_for_tests()),
         /*analytics_events_client*/ None,
     );
-    let NewThread { thread: thinwedge, .. } = thread_manager
+    let NewThread {
+        thread: thinwedge, ..
+    } = thread_manager
         .start_thread(config)
         .await
         .expect("create new conversation");
@@ -1641,7 +1645,10 @@ async fn includes_no_effort_in_request() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestThinWedge { thinwedge, .. } = test_thinwedge().with_model("gpt-5.4").build(&server).await?;
+    let TestThinWedge { thinwedge, .. } = test_thinwedge()
+        .with_model("gpt-5.4")
+        .build(&server)
+        .await?;
 
     thinwedge
         .submit(Op::UserInput {
@@ -1683,7 +1690,10 @@ async fn includes_default_reasoning_effort_in_request_when_defined_by_model_info
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestThinWedge { thinwedge, .. } = test_thinwedge().with_model("gpt-5.4").build(&server).await?;
+    let TestThinWedge { thinwedge, .. } = test_thinwedge()
+        .with_model("gpt-5.4")
+        .build(&server)
+        .await?;
 
     thinwedge
         .submit(Op::UserInput {
@@ -1729,7 +1739,10 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
         config,
         session_configured,
         ..
-    } = test_thinwedge().with_model("gpt-5.4").build(&server).await?;
+    } = test_thinwedge()
+        .with_model("gpt-5.4")
+        .build(&server)
+        .await?;
 
     let collaboration_mode = CollaborationMode {
         mode: ModeKind::Default,
@@ -2011,7 +2024,10 @@ async fn includes_default_verbosity_in_request() -> anyhow::Result<()> {
         sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
     )
     .await;
-    let TestThinWedge { thinwedge, .. } = test_thinwedge().with_model("gpt-5.4").build(&server).await?;
+    let TestThinWedge { thinwedge, .. } = test_thinwedge()
+        .with_model("gpt-5.4")
+        .build(&server)
+        .await?;
 
     thinwedge
         .submit(Op::UserInput {
@@ -2273,8 +2289,9 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     let model_info =
         thinwedge_core::test_support::construct_model_info_offline(model.as_str(), &config);
     let conversation_id = ThreadId::new();
-    let auth_manager =
-        thinwedge_core::test_support::auth_manager_from_auth(ThinWedgeAuth::from_api_key("Test API Key"));
+    let auth_manager = thinwedge_core::test_support::auth_manager_from_auth(
+        ThinWedgeAuth::from_api_key("Test API Key"),
+    );
     let session_telemetry = SessionTelemetry::new(
         conversation_id,
         model.as_str(),
@@ -2435,7 +2452,8 @@ async fn token_count_includes_rate_limits_snapshot() {
         .await;
 
     let mut provider =
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"]
+            .clone();
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
 
@@ -2633,7 +2651,8 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
         .await
         .expect("submission should succeed while emitting usage limit error events");
 
-    let token_event = wait_for_event(&thinwedge, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
+    let token_event =
+        wait_for_event(&thinwedge, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
     let EventMsg::TokenCount(event) = token_event else {
         unreachable!();
     };

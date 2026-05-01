@@ -1,12 +1,4 @@
 use crate::error::ApiError;
-use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
-use thinwedge_protocol::config_types::Verbosity as VerbosityConfig;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
-use thinwedge_protocol::protocol::ModelVerification;
-use thinwedge_protocol::protocol::RateLimitSnapshot;
-use thinwedge_protocol::protocol::TokenUsage;
-use thinwedge_protocol::protocol::W3cTraceContext;
 use futures::Stream;
 use serde::Deserialize;
 use serde::Serialize;
@@ -15,6 +7,14 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::Context;
 use std::task::Poll;
+use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
+use thinwedge_protocol::config_types::Verbosity as VerbosityConfig;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::ModelVerification;
+use thinwedge_protocol::protocol::RateLimitSnapshot;
+use thinwedge_protocol::protocol::TokenUsage;
+use thinwedge_protocol::protocol::W3cTraceContext;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use tokio::sync::mpsc;
 
 pub const WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY: &str = "ws_request_header_traceparent";

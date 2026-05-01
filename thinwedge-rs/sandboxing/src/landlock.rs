@@ -1,5 +1,5 @@
-use thinwedge_protocol::models::PermissionProfile;
 use std::path::Path;
+use thinwedge_protocol::models::PermissionProfile;
 
 /// Basename used when the ThinWedge executable self-invokes as the Linux sandbox
 /// helper.

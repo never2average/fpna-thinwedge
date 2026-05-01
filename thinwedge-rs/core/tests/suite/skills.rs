@@ -2,19 +2,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use thinwedge_core::ThreadManager;
-use thinwedge_exec_server::CreateDirectoryOptions;
-use thinwedge_exec_server::EnvironmentManager;
-use thinwedge_exec_server::ExecServerRuntimePaths;
-use thinwedge_exec_server::ExecutorFileSystem;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::user_input::UserInput;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -30,6 +17,19 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use tempfile::TempDir;
+use thinwedge_core::ThreadManager;
+use thinwedge_exec_server::CreateDirectoryOptions;
+use thinwedge_exec_server::EnvironmentManager;
+use thinwedge_exec_server::ExecServerRuntimePaths;
+use thinwedge_exec_server::ExecutorFileSystem;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::user_input::UserInput;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 async fn write_repo_skill(
     cwd: AbsolutePathBuf,
@@ -129,7 +129,10 @@ async fn user_turn_includes_skill_instructions() -> Result<()> {
         .await?;
 
     core_test_support::wait_for_event(test.thinwedge.as_ref(), |event| {
-        matches!(event, thinwedge_protocol::protocol::EventMsg::TurnComplete(_))
+        matches!(
+            event,
+            thinwedge_protocol::protocol::EventMsg::TurnComplete(_)
+        )
     })
     .await;
 
@@ -191,7 +194,10 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
         .iter()
         .find(|skill| skill.name == "repo-demo")
         .expect("expected repo skill");
-    assert_eq!(repo_skill.scope, thinwedge_protocol::protocol::SkillScope::Repo);
+    assert_eq!(
+        repo_skill.scope,
+        thinwedge_protocol::protocol::SkillScope::Repo
+    );
     let repo_path = repo_skill.path.to_string_lossy().replace('\\', "/");
     assert!(
         repo_path.ends_with("/.agents/skills/repo-demo/SKILL.md"),
@@ -202,7 +208,10 @@ async fn list_skills_includes_repo_and_home_skills_remote_aware() -> Result<()> 
         .iter()
         .find(|skill| skill.name == "home-demo")
         .expect("expected home skill");
-    assert_eq!(home_skill.scope, thinwedge_protocol::protocol::SkillScope::User);
+    assert_eq!(
+        home_skill.scope,
+        thinwedge_protocol::protocol::SkillScope::User
+    );
     let home_path = home_skill.path.to_string_lossy().replace('\\', "/");
     assert!(
         home_path.ends_with("/skills/home-demo/SKILL.md"),
@@ -395,7 +404,10 @@ async fn list_skills_includes_system_cache_entries() -> Result<()> {
         .iter()
         .find(|skill| skill.name == SYSTEM_SKILL_NAME)
         .expect("expected system skill to be present");
-    assert_eq!(skill.scope, thinwedge_protocol::protocol::SkillScope::System);
+    assert_eq!(
+        skill.scope,
+        thinwedge_protocol::protocol::SkillScope::System
+    );
     let path_str = skill.path.to_string_lossy().replace('\\', "/");
     let expected_path_suffix = format!("/skills/.system/{SYSTEM_SKILL_NAME}/SKILL.md");
     assert!(

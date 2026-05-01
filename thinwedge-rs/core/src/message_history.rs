@@ -38,11 +38,11 @@ use crate::config::Config;
 use thinwedge_config::types::HistoryPersistence;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
-use thinwedge_protocol::ThreadId;
 #[cfg(unix)]
 use std::os::unix::fs::OpenOptionsExt;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
+use thinwedge_protocol::ThreadId;
 
 /// Filename that stores the message history inside `~/.thinwedge`.
 const HISTORY_FILENAME: &str = "history.jsonl";

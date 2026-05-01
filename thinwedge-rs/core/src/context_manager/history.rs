@@ -5,6 +5,9 @@ use crate::event_mapping::is_contextual_user_message_content;
 use crate::session::turn_context::TurnContext;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use std::num::NonZeroUsize;
+use std::ops::Deref;
+use std::sync::LazyLock;
 use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::FunctionCallOutputBody;
@@ -12,11 +15,11 @@ use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::FunctionCallOutputPayload;
 use thinwedge_protocol::models::ImageDetail;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::protocol::InterAgentCommunication;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
 use thinwedge_protocol::protocol::TurnContextItem;
+use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_utils_cache::BlockingLruCache;
 use thinwedge_utils_cache::sha1_digest;
 use thinwedge_utils_output_truncation::TruncationPolicy;
@@ -25,9 +28,6 @@ use thinwedge_utils_output_truncation::approx_token_count;
 use thinwedge_utils_output_truncation::approx_tokens_from_byte_count_i64;
 use thinwedge_utils_output_truncation::truncate_function_output_items_with_policy;
 use thinwedge_utils_output_truncation::truncate_text;
-use std::num::NonZeroUsize;
-use std::ops::Deref;
-use std::sync::LazyLock;
 
 /// Transcript of thread history
 #[derive(Debug, Clone, Default)]

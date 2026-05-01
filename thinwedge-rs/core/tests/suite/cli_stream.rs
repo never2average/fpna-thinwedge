@@ -1,13 +1,13 @@
 use assert_cmd::Command as AssertCommand;
-use thinwedge_git_utils::collect_git_info;
-use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
-use thinwedge_protocol::protocol::GitInfo;
-use thinwedge_utils_cargo_bin::find_resource;
 use core_test_support::fs_wait;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use std::time::Duration;
 use tempfile::TempDir;
+use thinwedge_git_utils::collect_git_info;
+use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
+use thinwedge_protocol::protocol::GitInfo;
+use thinwedge_utils_cargo_bin::find_resource;
 use uuid::Uuid;
 use wiremock::MockServer;
 

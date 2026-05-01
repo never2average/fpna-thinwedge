@@ -1,4 +1,10 @@
 use super::AgentRoleConfig;
+use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::io::ErrorKind;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_config::ConfigLayerStack;
 use thinwedge_config::ConfigLayerStackOrdering;
 use thinwedge_config::config_toml::AgentRoleToml;
@@ -7,12 +13,6 @@ use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_exec_server::ExecutorFileSystem;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
-use serde::Deserialize;
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
-use std::io::ErrorKind;
-use std::path::Path;
-use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 pub(crate) async fn load_agent_roles(

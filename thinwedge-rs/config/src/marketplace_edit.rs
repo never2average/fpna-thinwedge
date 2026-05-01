@@ -38,7 +38,10 @@ pub fn record_user_marketplace(
     fs::write(config_path, doc.to_string())
 }
 
-pub fn remove_user_marketplace(thinwedge_home: &Path, marketplace_name: &str) -> std::io::Result<bool> {
+pub fn remove_user_marketplace(
+    thinwedge_home: &Path,
+    marketplace_name: &str,
+) -> std::io::Result<bool> {
     let outcome = remove_user_marketplace_config(thinwedge_home, marketplace_name)?;
     Ok(outcome == RemoveMarketplaceConfigOutcome::Removed)
 }
@@ -203,9 +206,10 @@ mod tests {
         let removed = remove_user_marketplace(thinwedge_home.path(), "debug").unwrap();
 
         assert!(removed);
-        let config: toml::Value =
-            toml::from_str(&fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).unwrap())
-                .unwrap();
+        let config: toml::Value = toml::from_str(
+            &fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).unwrap(),
+        )
+        .unwrap();
         let marketplaces = config
             .get("marketplaces")
             .and_then(toml::Value::as_table)
@@ -263,9 +267,10 @@ marketplaces = {
         let outcome = remove_user_marketplace_config(thinwedge_home.path(), "debug").unwrap();
 
         assert_eq!(outcome, RemoveMarketplaceConfigOutcome::Removed);
-        let config: toml::Value =
-            toml::from_str(&fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).unwrap())
-                .unwrap();
+        let config: toml::Value = toml::from_str(
+            &fs::read_to_string(thinwedge_home.path().join(CONFIG_TOML_FILE)).unwrap(),
+        )
+        .unwrap();
         let marketplaces = config
             .get("marketplaces")
             .and_then(toml::Value::as_table)

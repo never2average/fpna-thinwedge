@@ -29,17 +29,6 @@ use crate::metrics::runtime_metrics::RuntimeMetricsSummary;
 use crate::metrics::timer::Timer;
 use crate::provider::OtelProvider;
 use crate::sanitize_metric_tag_value;
-use thinwedge_api::ApiError;
-use thinwedge_api::ResponseEvent;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::ReviewDecision;
-use thinwedge_protocol::protocol::SandboxPolicy;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::user_input::UserInput;
 use eventsource_stream::Event as StreamEvent;
 use eventsource_stream::EventStreamError as StreamError;
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
@@ -49,6 +38,17 @@ use std::borrow::Cow;
 use std::future::Future;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_api::ApiError;
+use thinwedge_api::ResponseEvent;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::config_types::ReasoningSummary;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::ReviewDecision;
+use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::time::error::Elapsed;
 use tracing::Span;
 
@@ -319,7 +319,8 @@ impl SessionTelemetry {
                     "thinwedge.usage.reasoning_output_tokens",
                     token_usage.reasoning_output_tokens,
                 );
-                handle_responses_span.record("thinwedge.usage.total_tokens", token_usage.total_tokens);
+                handle_responses_span
+                    .record("thinwedge.usage.total_tokens", token_usage.total_tokens);
             }
             _ => {}
         }

@@ -3,6 +3,9 @@ use crate::error_code::invalid_request;
 use async_trait::async_trait;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
+use std::fmt;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_app_server_protocol::DeviceKeyAlgorithm;
 use thinwedge_app_server_protocol::DeviceKeyCreateParams;
 use thinwedge_app_server_protocol::DeviceKeyCreateResponse;
@@ -28,9 +31,6 @@ use thinwedge_device_key::RemoteControlClientEnrollmentAudience;
 use thinwedge_device_key::RemoteControlClientEnrollmentSignPayload;
 use thinwedge_state::DeviceKeyBindingRecord;
 use thinwedge_state::StateRuntime;
-use std::fmt;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tokio::sync::OnceCell;
 
 #[derive(Clone)]
@@ -204,7 +204,9 @@ fn protection_policy_from_params(
     }
 }
 
-fn payload_from_params(payload: DeviceKeySignPayload) -> thinwedge_device_key::DeviceKeySignPayload {
+fn payload_from_params(
+    payload: DeviceKeySignPayload,
+) -> thinwedge_device_key::DeviceKeySignPayload {
     match payload {
         DeviceKeySignPayload::RemoteControlClientConnection {
             nonce,

@@ -2,10 +2,11 @@ use std::path::PathBuf;
 
 use chrono::DateTime;
 use chrono::Utc;
+use serde::Deserialize;
+use serde::Serialize;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_protocol::models::BaseInstructions;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::GitInfo;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -13,8 +14,7 @@ use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::ThreadMemoryMode as MemoryMode;
 use thinwedge_protocol::protocol::TokenUsage;
-use serde::Deserialize;
-use serde::Serialize;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 /// Controls how many event variants should be persisted for future replay.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]

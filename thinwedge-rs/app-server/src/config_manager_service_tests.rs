@@ -1,5 +1,8 @@
 use super::*;
 use anyhow::Result;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use tempfile::tempdir;
 use thinwedge_app_server_protocol::AppConfig;
 use thinwedge_app_server_protocol::AppToolApproval;
 use thinwedge_app_server_protocol::AppsConfig;
@@ -8,9 +11,6 @@ use thinwedge_config::CloudRequirementsLoader;
 use thinwedge_config::FeatureRequirementsToml;
 use thinwedge_config::LoaderOverrides;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use tempfile::tempdir;
 
 #[test]
 fn toml_value_to_item_handles_nested_config_tables() {

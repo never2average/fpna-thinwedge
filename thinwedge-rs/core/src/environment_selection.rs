@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use thinwedge_exec_server::Environment;
 use thinwedge_exec_server::EnvironmentManager;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
@@ -61,11 +61,11 @@ pub(crate) fn selected_primary_environment(
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_exec_server::ExecServerRuntimePaths;
     use thinwedge_exec_server::REMOTE_ENVIRONMENT_ID;
     use thinwedge_protocol::protocol::TurnEnvironmentSelection;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
 
     use super::*;
 

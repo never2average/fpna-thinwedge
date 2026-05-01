@@ -1,6 +1,6 @@
-use thinwedge_api::AuthProvider;
 use http::HeaderMap;
 use http::HeaderValue;
+use thinwedge_api::AuthProvider;
 
 /// Bearer-token auth provider for ThinWedge-compatible model-provider requests.
 #[derive(Clone, Default)]

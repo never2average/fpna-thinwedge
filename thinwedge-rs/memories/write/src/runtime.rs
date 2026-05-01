@@ -1,9 +1,12 @@
-use thinwedge_core::ThinWedgeThread;
+use futures::StreamExt;
+use std::sync::Arc;
+use std::time::Duration;
 use thinwedge_core::ModelClient;
 use thinwedge_core::NewThread;
 use thinwedge_core::Prompt;
 use thinwedge_core::ResponseEvent;
 use thinwedge_core::StartThreadOptions;
+use thinwedge_core::ThinWedgeThread;
 use thinwedge_core::ThreadManager;
 use thinwedge_core::config::Config;
 use thinwedge_core::content_items_to_text;
@@ -18,20 +21,17 @@ use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::ServiceTier;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::InitialHistory;
 use thinwedge_protocol::protocol::InternalSessionSource;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::TokenUsage;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::UserInput;
 use thinwedge_rollout_trace::InferenceTraceContext;
 use thinwedge_state::StateRuntime;
 use thinwedge_terminal_detection::user_agent;
-use futures::StreamExt;
-use std::sync::Arc;
-use std::time::Duration;
 
 pub(crate) struct SpawnedConsolidationAgent {
     pub(crate) thread_id: ThreadId,
@@ -81,7 +81,9 @@ impl MemoryStartupContext {
     ) -> Self {
         let auth = auth_manager.auth_cached();
         let auth = auth.as_ref();
-        let auth_mode = auth.map(ThinWedgeAuth::auth_mode).map(TelemetryAuthMode::from);
+        let auth_mode = auth
+            .map(ThinWedgeAuth::auth_mode)
+            .map(TelemetryAuthMode::from);
         let account_id = auth.and_then(ThinWedgeAuth::get_account_id);
         let account_email = auth.and_then(ThinWedgeAuth::get_account_email);
         let model = config.model.as_deref().unwrap_or("unknown");
@@ -204,7 +206,8 @@ impl MemoryStartupContext {
                 ResponseEvent::OutputTextDelta(delta) => result.push_str(&delta),
                 ResponseEvent::OutputItemDone(item) => {
                     if result.is_empty()
-                        && let thinwedge_protocol::models::ResponseItem::Message { content, .. } = item
+                        && let thinwedge_protocol::models::ResponseItem::Message { content, .. } =
+                            item
                         && let Some(text) = content_items_to_text(&content)
                     {
                         result.push_str(&text);

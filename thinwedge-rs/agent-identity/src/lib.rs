@@ -8,8 +8,6 @@ use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use chrono::SecondsFormat;
 use chrono::Utc;
-use thinwedge_protocol::auth::PlanType as AuthPlanType;
-use thinwedge_protocol::protocol::SessionSource;
 use crypto_box::SecretKey as Curve25519SecretKey;
 use ed25519_dalek::Signer as _;
 use ed25519_dalek::SigningKey;
@@ -29,6 +27,8 @@ use serde::Serialize;
 use serde::de::DeserializeOwned;
 use sha2::Digest as _;
 use sha2::Sha512;
+use thinwedge_protocol::auth::PlanType as AuthPlanType;
+use thinwedge_protocol::protocol::SessionSource;
 
 const AGENT_TASK_REGISTRATION_TIMEOUT: Duration = Duration::from_secs(30);
 const AGENT_IDENTITY_JWKS_TIMEOUT: Duration = Duration::from_secs(10);

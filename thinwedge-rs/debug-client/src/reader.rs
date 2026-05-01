@@ -9,6 +9,8 @@ use std::thread;
 use std::thread::JoinHandle;
 
 use anyhow::Context;
+use serde::Serialize;
+use std::io::Write;
 use thinwedge_app_server_protocol::CommandExecutionApprovalDecision;
 use thinwedge_app_server_protocol::CommandExecutionRequestApprovalResponse;
 use thinwedge_app_server_protocol::FileChangeApprovalDecision;
@@ -23,8 +25,6 @@ use thinwedge_app_server_protocol::ThreadItem;
 use thinwedge_app_server_protocol::ThreadListResponse;
 use thinwedge_app_server_protocol::ThreadResumeResponse;
 use thinwedge_app_server_protocol::ThreadStartResponse;
-use serde::Serialize;
-use std::io::Write;
 
 use crate::output::LabelColor;
 use crate::output::Output;

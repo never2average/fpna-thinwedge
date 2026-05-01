@@ -5,6 +5,10 @@ use app_test_support::McpProcess;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::to_response;
 use app_test_support::write_mock_responses_config_toml;
+use core_test_support::responses;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use tempfile::TempDir;
 use thinwedge_app_server::INVALID_PARAMS_ERROR_CODE;
 use thinwedge_app_server_protocol::ExternalAgentConfigDetectResponse;
 use thinwedge_app_server_protocol::ExternalAgentConfigImportResponse;
@@ -22,10 +26,6 @@ use thinwedge_app_server_protocol::ThreadResumeParams;
 use thinwedge_app_server_protocol::ThreadResumeResponse;
 use thinwedge_app_server_protocol::TurnStartParams;
 use thinwedge_app_server_protocol::UserInput;
-use core_test_support::responses;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -76,7 +76,8 @@ async fn external_agent_config_import_sends_completion_notification_for_local_pl
 
     let home_dir = thinwedge_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -161,7 +162,8 @@ async fn external_agent_config_import_sends_completion_notification_after_pendin
 
     let home_dir = thinwedge_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -239,7 +241,8 @@ async fn external_agent_config_import_creates_session_rollouts() -> Result<()> {
 
     let home_dir = thinwedge_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -394,7 +397,8 @@ async fn external_agent_config_import_skips_already_imported_session_versions() 
 
     let home_dir = thinwedge_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -475,7 +479,8 @@ async fn external_agent_config_import_rejects_undetected_session_paths() -> Resu
 
     let home_dir = thinwedge_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -594,7 +599,8 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
 
     let home_dir = thinwedge_home.path().display().to_string();
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))]).await?;
+        McpProcess::new_with_env(thinwedge_home.path(), &[("HOME", Some(home_dir.as_str()))])
+            .await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

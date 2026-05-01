@@ -16,15 +16,15 @@ use crate::tools::context::ToolPayload;
 use crate::tools::handlers::parse_arguments;
 use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
+use serde::Deserialize;
+use serde::Serialize;
+use std::fmt::Write as _;
+use std::sync::Arc;
 use thinwedge_protocol::protocol::ThreadGoal;
 use thinwedge_protocol::protocol::ThreadGoalStatus;
 use thinwedge_tools::CREATE_GOAL_TOOL_NAME;
 use thinwedge_tools::GET_GOAL_TOOL_NAME;
 use thinwedge_tools::UPDATE_GOAL_TOOL_NAME;
-use serde::Deserialize;
-use serde::Serialize;
-use std::fmt::Write as _;
-use std::sync::Arc;
 
 pub struct GoalHandler;
 
@@ -222,8 +222,8 @@ fn completion_budget_report(goal: &ThreadGoal) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_protocol::ThreadId;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::ThreadId;
 
     #[test]
     fn completed_budgeted_goal_response_reports_final_usage() {

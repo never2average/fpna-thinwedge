@@ -4,14 +4,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use thinwedge_features::Feature;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -24,6 +16,14 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event_with_timeout;
 use pretty_assertions::assert_eq;
+use thinwedge_features::Feature;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::MockServer;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

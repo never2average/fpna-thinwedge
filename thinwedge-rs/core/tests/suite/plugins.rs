@@ -7,10 +7,6 @@ use std::time::Instant;
 
 use anyhow::Result;
 use anyhow::bail;
-use thinwedge_features::Feature;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -23,6 +19,10 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_with_timeout;
 use tempfile::TempDir;
+use thinwedge_features::Feature;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
 use wiremock::MockServer;
 
 const SAMPLE_PLUGIN_CONFIG_NAME: &str = "sample@test";
@@ -35,7 +35,8 @@ fn sample_plugin_root(home: &TempDir) -> std::path::PathBuf {
 
 fn write_sample_plugin_manifest_and_config(home: &TempDir) -> std::path::PathBuf {
     let plugin_root = sample_plugin_root(home);
-    std::fs::create_dir_all(plugin_root.join(".thinwedge-plugin")).expect("create plugin manifest dir");
+    std::fs::create_dir_all(plugin_root.join(".thinwedge-plugin"))
+        .expect("create plugin manifest dir");
     std::fs::write(
         plugin_root.join(".thinwedge-plugin/plugin.json"),
         format!(
@@ -304,9 +305,12 @@ async fn explicit_plugin_mentions_inject_plugin_guidance() -> Result<()> {
     write_plugin_mcp_plugin(thinwedge_home.as_ref(), &rmcp_test_server_bin);
     write_plugin_app_plugin(thinwedge_home.as_ref());
 
-    let thinwedge =
-        build_apps_enabled_plugin_test_thinwedge(&server, thinwedge_home, apps_server.chatgpt_base_url)
-            .await?;
+    let thinwedge = build_apps_enabled_plugin_test_thinwedge(
+        &server,
+        thinwedge_home,
+        apps_server.chatgpt_base_url,
+    )
+    .await?;
     wait_for_sample_mcp_ready(&thinwedge).await?;
 
     thinwedge

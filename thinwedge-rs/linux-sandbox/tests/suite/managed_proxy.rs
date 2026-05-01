@@ -1,9 +1,6 @@
 #![cfg(target_os = "linux")]
 #![allow(clippy::unwrap_used)]
 
-use thinwedge_core::exec_env::create_env;
-use thinwedge_protocol::config_types::ShellEnvironmentPolicy;
-use thinwedge_protocol::models::PermissionProfile;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::io::Read;
@@ -13,6 +10,9 @@ use std::net::TcpListener;
 use std::process::Output;
 use std::process::Stdio;
 use std::time::Duration;
+use thinwedge_core::exec_env::create_env;
+use thinwedge_protocol::config_types::ShellEnvironmentPolicy;
+use thinwedge_protocol::models::PermissionProfile;
 use tokio::process::Command;
 
 const BWRAP_UNAVAILABLE_ERR: &str = "build-time bubblewrap is not available in this build.";

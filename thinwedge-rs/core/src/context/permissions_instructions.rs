@@ -1,4 +1,6 @@
 use super::ContextualUserFragment;
+use std::path::Path;
+use std::sync::LazyLock;
 use thinwedge_execpolicy::Policy;
 use thinwedge_protocol::config_types::ApprovalsReviewer;
 use thinwedge_protocol::config_types::SandboxMode;
@@ -11,8 +13,6 @@ use thinwedge_protocol::protocol::NetworkAccess;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::WritableRoot;
 use thinwedge_utils_template::Template;
-use std::path::Path;
-use std::sync::LazyLock;
 
 const APPROVAL_POLICY_NEVER: &str = include_str!("prompts/permissions/approval_policy/never.md");
 const APPROVAL_POLICY_UNLESS_TRUSTED: &str =

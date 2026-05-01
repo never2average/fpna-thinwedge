@@ -1,4 +1,16 @@
 use anyhow::Result;
+use core_test_support::responses::ResponsesRequest;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use core_test_support::skip_if_no_network;
+use core_test_support::test_thinwedge::test_thinwedge;
+use core_test_support::wait_for_event;
+use pretty_assertions::assert_eq;
+use std::collections::HashSet;
+use tempfile::TempDir;
 use thinwedge_config::ConfigLayerStack;
 use thinwedge_core::ForkSnapshot;
 use thinwedge_core::config::Constrained;
@@ -12,18 +24,6 @@ use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::user_input::UserInput;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::responses::ResponsesRequest;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use core_test_support::skip_if_no_network;
-use core_test_support::test_thinwedge::test_thinwedge;
-use core_test_support::wait_for_event;
-use pretty_assertions::assert_eq;
-use std::collections::HashSet;
-use tempfile::TempDir;
 
 fn permissions_texts(request: &ResponsesRequest) -> Vec<String> {
     request
@@ -60,7 +60,10 @@ async fn permissions_message_sent_once_on_start() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(permissions_texts(&req.single_request()).len(), 1);
 
@@ -99,7 +102,10 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -129,7 +135,10 @@ async fn permissions_message_added_on_override_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -174,7 +183,10 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::UserInput {
@@ -187,7 +199,10 @@ async fn permissions_message_not_added_when_no_change() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_1 = permissions_texts(&req1.single_request());
     let permissions_2 = permissions_texts(&req2.single_request());
@@ -232,7 +247,10 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -262,7 +280,10 @@ async fn permissions_message_omitted_when_disabled() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     assert_eq!(
         permissions_texts(&req1.single_request()),
@@ -320,7 +341,10 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial
         .thinwedge
@@ -352,7 +376,10 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
@@ -367,7 +394,10 @@ async fn resume_replays_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions = permissions_texts(&req3.single_request());
     assert_eq!(permissions.len(), 3);
@@ -426,7 +456,10 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     initial
         .thinwedge
@@ -458,7 +491,10 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_base = permissions_texts(&req2.single_request());
     assert_eq!(permissions_base.len(), 2);
@@ -479,7 +515,10 @@ async fn resume_and_fork_append_permissions_messages() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions_resume = permissions_texts(&req3.single_request());
     assert_eq!(permissions_resume.len(), permissions_base.len() + 1);
@@ -569,7 +608,10 @@ async fn permissions_message_includes_writable_roots() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let permissions = permissions_texts(&req.single_request());
     let normalize_line_endings = |s: &str| s.replace("\r\n", "\n");

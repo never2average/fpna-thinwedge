@@ -1,24 +1,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use thinwedge_core::config::Constrained;
-use thinwedge_core::sandboxing::SandboxPermissions;
-use thinwedge_features::Feature;
-use thinwedge_protocol::config_types::ApprovalsReviewer;
-use thinwedge_protocol::models::AdditionalPermissionProfile as PermissionProfile;
-use thinwedge_protocol::models::FileSystemPermissions;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
-use thinwedge_protocol::protocol::GranularApprovalConfig;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::ReviewDecision;
-use thinwedge_protocol::protocol::SandboxPolicy;
-use thinwedge_protocol::request_permissions::PermissionGrantScope;
-use thinwedge_protocol::request_permissions::RequestPermissionProfile;
-use thinwedge_protocol::request_permissions::RequestPermissionsResponse;
-use thinwedge_protocol::user_input::UserInput;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
@@ -38,6 +20,24 @@ use serde_json::Value;
 use serde_json::json;
 use std::fs;
 use std::path::Path;
+use thinwedge_core::config::Constrained;
+use thinwedge_core::sandboxing::SandboxPermissions;
+use thinwedge_features::Feature;
+use thinwedge_protocol::config_types::ApprovalsReviewer;
+use thinwedge_protocol::models::AdditionalPermissionProfile as PermissionProfile;
+use thinwedge_protocol::models::FileSystemPermissions;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
+use thinwedge_protocol::protocol::GranularApprovalConfig;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::ReviewDecision;
+use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::request_permissions::PermissionGrantScope;
+use thinwedge_protocol::request_permissions::RequestPermissionProfile;
+use thinwedge_protocol::request_permissions::RequestPermissionsResponse;
+use thinwedge_protocol::user_input::UserInput;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 fn absolute_path(path: &Path) -> AbsolutePathBuf {
     AbsolutePathBuf::try_from(path).expect("absolute path")

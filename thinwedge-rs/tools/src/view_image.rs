@@ -1,10 +1,10 @@
 use crate::JsonSchema;
 use crate::ResponsesApiTool;
 use crate::ToolSpec;
-use thinwedge_protocol::models::VIEW_IMAGE_TOOL_NAME;
 use serde_json::Value;
 use serde_json::json;
 use std::collections::BTreeMap;
+use thinwedge_protocol::models::VIEW_IMAGE_TOOL_NAME;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ViewImageToolOptions {

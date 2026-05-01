@@ -1,13 +1,4 @@
 use crate::start_memories_startup_task;
-use thinwedge_features::Feature;
-use thinwedge_git_utils::diff_since_latest_init;
-use thinwedge_git_utils::reset_git_repository;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::config_types::ServiceTier;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::SessionSource;
 use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
@@ -23,6 +14,15 @@ use pretty_assertions::assert_eq;
 use std::path::Path;
 use std::sync::Arc;
 use tempfile::TempDir;
+use thinwedge_features::Feature;
+use thinwedge_git_utils::diff_since_latest_init;
+use thinwedge_git_utils::reset_git_repository;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::config_types::ServiceTier;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use tokio::time::Duration;
 use tokio::time::Instant;
 
@@ -301,8 +301,8 @@ async fn build_test_thinwedge(
 }
 
 async fn init_state_db(home: &Arc<TempDir>) -> anyhow::Result<Arc<thinwedge_state::StateRuntime>> {
-    let db =
-        thinwedge_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into()).await?;
+    let db = thinwedge_state::StateRuntime::init(home.path().to_path_buf(), "test-provider".into())
+        .await?;
     db.mark_backfill_complete(/*last_watermark*/ None).await?;
     Ok(db)
 }
@@ -484,6 +484,9 @@ async fn read_rollout_summary_bodies(memory_root: &Path) -> anyhow::Result<Vec<S
 
 async fn shutdown_test_thinwedge(test: &TestThinWedge) -> anyhow::Result<()> {
     test.thinwedge.submit(Op::Shutdown {}).await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::ShutdownComplete)).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::ShutdownComplete)
+    })
+    .await;
     Ok(())
 }

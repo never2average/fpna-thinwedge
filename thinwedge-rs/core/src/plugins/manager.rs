@@ -4,6 +4,14 @@ use crate::SkillMetadata;
 use crate::config::Config;
 use crate::config::edit::ConfigEdit;
 use crate::config::edit::ConfigEditsBuilder;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
+use std::time::Instant;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_config::ConfigLayerStack;
 use thinwedge_config::types::PluginConfig;
@@ -59,14 +67,6 @@ use thinwedge_plugin::PluginIdError;
 use thinwedge_plugin::prompt_safe_plugin_description;
 use thinwedge_protocol::protocol::Product;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
-use std::time::Instant;
 use tokio::sync::Semaphore;
 use toml_edit::value;
 use tracing::info;
@@ -568,8 +568,8 @@ impl PluginsManager {
         let auth_policy = resolved.policy.authentication;
         let plugin_version =
             if resolved.plugin_id.marketplace_name == THINWEDGE_CURATED_MARKETPLACE_NAME {
-                let curated_plugin_version = read_curated_plugins_sha(self.thinwedge_home.as_path())
-                    .ok_or_else(|| {
+                let curated_plugin_version =
+                    read_curated_plugins_sha(self.thinwedge_home.as_path()).ok_or_else(|| {
                         PluginStoreError::Invalid(
                             "local curated marketplace sha is not available".to_string(),
                         )
@@ -654,7 +654,10 @@ impl PluginsManager {
 
     async fn uninstall_plugin_id(&self, plugin_id: PluginId) -> Result<(), PluginUninstallError> {
         let plugin_telemetry = if self.store.active_plugin_root(&plugin_id).is_some() {
-            Some(installed_plugin_telemetry_metadata(self.thinwedge_home.as_path(), &plugin_id).await)
+            Some(
+                installed_plugin_telemetry_metadata(self.thinwedge_home.as_path(), &plugin_id)
+                    .await,
+            )
         } else {
             None
         };
@@ -1338,7 +1341,9 @@ impl PluginsManager {
                 move || match sync_thinwedge_plugins_repo(thinwedge_home.as_path()) {
                     Ok(curated_plugin_version) => {
                         let configured_curated_plugin_ids =
-                            configured_curated_plugin_ids_from_thinwedge_home(thinwedge_home.as_path());
+                            configured_curated_plugin_ids_from_thinwedge_home(
+                                thinwedge_home.as_path(),
+                            );
                         match refresh_curated_plugin_cache(
                             thinwedge_home.as_path(),
                             &curated_plugin_version,

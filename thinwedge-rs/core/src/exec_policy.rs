@@ -35,10 +35,10 @@ use tracing::instrument;
 use crate::config::Config;
 use crate::sandboxing::SandboxPermissions;
 use crate::tools::sandboxing::ExecApprovalRequirement;
+use shlex::try_join as shlex_try_join;
 use thinwedge_shell_command::bash::parse_shell_lc_plain_commands;
 use thinwedge_shell_command::bash::parse_shell_lc_single_command_prefix;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use shlex::try_join as shlex_try_join;
 
 const PROMPT_CONFLICT_REASON: &str =
     "approval required by policy, but AskForApproval is set to Never";
@@ -695,7 +695,9 @@ fn profile_is_managed_read_only(
 }
 
 fn default_policy_path(thinwedge_home: &Path) -> PathBuf {
-    thinwedge_home.join(RULES_DIR_NAME).join(DEFAULT_POLICY_FILE)
+    thinwedge_home
+        .join(RULES_DIR_NAME)
+        .join(DEFAULT_POLICY_FILE)
 }
 
 fn commands_for_exec_policy(command: &[String]) -> (Vec<Vec<String>>, bool) {

@@ -24,6 +24,12 @@ use crate::state::ConfigLayerStack;
 use crate::state::LoaderOverrides;
 use crate::thread_config::ThreadConfigContext;
 use crate::thread_config::ThreadConfigLoader;
+use dunce::canonicalize as normalize_path;
+use serde::Deserialize;
+use std::io;
+use std::path::Path;
+#[cfg(windows)]
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_file_system::ExecutorFileSystem;
 use thinwedge_git_utils::resolve_root_git_project_for_trust;
@@ -33,12 +39,6 @@ use thinwedge_protocol::config_types::TrustLevel;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
-use dunce::canonicalize as normalize_path;
-use serde::Deserialize;
-use std::io;
-use std::path::Path;
-#[cfg(windows)]
-use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 #[cfg(unix)]
@@ -903,8 +903,8 @@ async fn load_project_layers(
     thinwedge_home: &Path,
 ) -> io::Result<Vec<ConfigLayerEntry>> {
     let thinwedge_home_abs = AbsolutePathBuf::from_absolute_path(thinwedge_home)?;
-    let thinwedge_home_normalized =
-        normalize_path(thinwedge_home_abs.as_path()).unwrap_or_else(|_| thinwedge_home_abs.to_path_buf());
+    let thinwedge_home_normalized = normalize_path(thinwedge_home_abs.as_path())
+        .unwrap_or_else(|_| thinwedge_home_abs.to_path_buf());
     let mut dirs = cwd
         .ancestors()
         .scan(false, |done, a| {
@@ -934,9 +934,11 @@ async fn load_project_layers(
 
         let decision = trust_context.decision_for_dir(&dir);
         let disabled_reason = trust_context.disabled_reason_for_decision(&decision);
-        let dot_thinwedge_normalized =
-            normalize_path(dot_thinwedge_abs.as_path()).unwrap_or_else(|_| dot_thinwedge_abs.to_path_buf());
-        if dot_thinwedge_abs == thinwedge_home_abs || dot_thinwedge_normalized == thinwedge_home_normalized {
+        let dot_thinwedge_normalized = normalize_path(dot_thinwedge_abs.as_path())
+            .unwrap_or_else(|_| dot_thinwedge_abs.to_path_buf());
+        if dot_thinwedge_abs == thinwedge_home_abs
+            || dot_thinwedge_normalized == thinwedge_home_normalized
+        {
             continue;
         }
         let config_file = dot_thinwedge_abs.join(CONFIG_TOML_FILE);
@@ -964,7 +966,8 @@ async fn load_project_layers(
                 };
                 let config =
                     resolve_relative_paths_in_config_toml(config, dot_thinwedge_abs.as_path())?;
-                let entry = project_layer_entry(&dot_thinwedge_abs, config, disabled_reason.clone());
+                let entry =
+                    project_layer_entry(&dot_thinwedge_abs, config, disabled_reason.clone());
                 layers.push(entry);
             }
             Err(err) => {
@@ -1153,7 +1156,11 @@ foo = "xyzzy"
             windows_system_requirements_toml_file()
                 .expect("requirements.toml path")
                 .as_path()
-                .ends_with(Path::new("ThinWedge").join("ThinWedge").join("requirements.toml"))
+                .ends_with(
+                    Path::new("ThinWedge")
+                        .join("ThinWedge")
+                        .join("requirements.toml")
+                )
         );
     }
 

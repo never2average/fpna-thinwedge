@@ -1,7 +1,7 @@
 #![allow(clippy::expect_used)]
-use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
 use std::path::Path;
 use tempfile::TempDir;
+use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
 use wiremock::MockServer;
 
 pub struct TestThinWedgeExecBuilder {

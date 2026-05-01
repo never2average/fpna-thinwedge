@@ -4,6 +4,10 @@ use crate::shell::ShellType;
 use crate::test_support::construct_model_info_offline;
 use crate::tools::ToolRouter;
 use crate::tools::router::ToolRouterParams;
+use core_test_support::assert_regex_match;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_features::Feature;
 use thinwedge_features::Features;
@@ -13,9 +17,9 @@ use thinwedge_models_manager::model_info::with_config_overrides;
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_tools::AdditionalProperties;
 use thinwedge_tools::ConfiguredToolSpec;
 use thinwedge_tools::DiscoverableTool;
@@ -35,10 +39,6 @@ use thinwedge_tools::ZshForkConfig;
 use thinwedge_tools::mcp_call_tool_result_output_schema;
 use thinwedge_tools::mcp_tool_to_deferred_responses_api_tool;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::assert_regex_match;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use super::*;
 use crate::tools::tool_search_entry::build_tool_search_entries_for_config;
@@ -1171,7 +1171,9 @@ async fn unavailable_mcp_tools_are_exposed_as_dummy_function_tools() {
         "mcp__thinwedge_apps__calendar",
         "_create_event"
     )));
-    assert!(!registry.has_handler(&ToolName::plain("mcp__thinwedge_apps__calendar_create_event")));
+    assert!(!registry.has_handler(&ToolName::plain(
+        "mcp__thinwedge_apps__calendar_create_event"
+    )));
 }
 
 #[tokio::test]

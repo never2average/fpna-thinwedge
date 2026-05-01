@@ -1,20 +1,20 @@
 use super::*;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use std::path::PathBuf;
 use thinwedge_features::Feature;
 use thinwedge_features::Features;
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::InputModality;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use std::path::PathBuf;
 
 fn model_info() -> ModelInfo {
     serde_json::from_value(json!({

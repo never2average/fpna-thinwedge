@@ -31,15 +31,15 @@ use super::types::StoredJob;
 use super::types::SubmitJobArgs;
 use super::types::TrainingEnvironmentRecord;
 use chrono::Utc;
-use thinwedge_app_server_protocol::DynamicToolCallOutputContentItem;
-use thinwedge_app_server_protocol::DynamicToolCallParams;
-use thinwedge_app_server_protocol::DynamicToolCallResponse;
-use thinwedge_app_server_protocol::DynamicToolSpec;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use std::path::Path;
+use thinwedge_app_server_protocol::DynamicToolCallOutputContentItem;
+use thinwedge_app_server_protocol::DynamicToolCallParams;
+use thinwedge_app_server_protocol::DynamicToolCallResponse;
+use thinwedge_app_server_protocol::DynamicToolSpec;
 use uuid::Uuid;
 
 pub(crate) fn dynamic_tool_specs() -> Vec<DynamicToolSpec> {
@@ -248,13 +248,19 @@ pub(crate) async fn handle_dynamic_tool_call(
         (Some("statisticalmodels"), "list") => {
             list_models(thinwedge_home, role, params.arguments).await
         }
-        (Some("statisticalmodels"), "get") => get_model(thinwedge_home, role, params.arguments).await,
+        (Some("statisticalmodels"), "get") => {
+            get_model(thinwedge_home, role, params.arguments).await
+        }
         (Some("statisticalmodels"), "submitJob") => {
             submit_job(thinwedge_home, role, params.arguments).await
         }
-        (Some("statisticalmodels"), "listJobs") => list_jobs(thinwedge_home, params.arguments).await,
+        (Some("statisticalmodels"), "listJobs") => {
+            list_jobs(thinwedge_home, params.arguments).await
+        }
         (Some("statisticalmodels"), "getJob") => get_job(thinwedge_home, params.arguments).await,
-        (Some("statisticalmodels"), "listEvals") => list_evals(thinwedge_home, params.arguments).await,
+        (Some("statisticalmodels"), "listEvals") => {
+            list_evals(thinwedge_home, params.arguments).await
+        }
         (Some("statisticalmodels"), "getEval") => get_eval(thinwedge_home, params.arguments).await,
         (Some("trainingenvironments"), "list") => {
             list_training_environments(thinwedge_home, role, params.arguments).await
@@ -507,7 +513,8 @@ async fn get_training_environment(
     arguments: JsonValue,
 ) -> Result<String, String> {
     let args: EnvironmentByIdArgs = parse_arguments(arguments)?;
-    let environment = get_visible_environment(thinwedge_home, agent_role, &args.environment_id).await?;
+    let environment =
+        get_visible_environment(thinwedge_home, agent_role, &args.environment_id).await?;
     let available_actions = environment_available_actions(&environment);
     let tool_commands = environment_tool_commands(&environment);
     pretty_json(&json!({
@@ -523,7 +530,8 @@ async fn attach_training_environment(
     arguments: JsonValue,
 ) -> Result<String, String> {
     let args: EnvironmentByIdArgs = parse_arguments(arguments)?;
-    let environment = get_visible_environment(thinwedge_home, agent_role, &args.environment_id).await?;
+    let environment =
+        get_visible_environment(thinwedge_home, agent_role, &args.environment_id).await?;
     let binding = environment.tools.attach.as_ref().cloned().ok_or_else(|| {
         format!(
             "training environment `{}` does not define an attach action",

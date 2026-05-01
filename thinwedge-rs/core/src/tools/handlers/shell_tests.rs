@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use thinwedge_protocol::models::ShellCommandToolCallParams;
 use core_test_support::PathBufExt;
 use core_test_support::test_path_buf;
 use pretty_assertions::assert_eq;
+use thinwedge_protocol::models::ShellCommandToolCallParams;
 
 use crate::exec_env::create_env;
 use crate::sandboxing::SandboxPermissions;
@@ -21,10 +21,10 @@ use crate::tools::handlers::ShellHandler;
 use crate::tools::hook_names::HookToolName;
 use crate::tools::registry::ToolHandler;
 use crate::turn_diff_tracker::TurnDiffTracker;
+use serde_json::json;
 use thinwedge_shell_command::is_safe_command::is_known_safe_command;
 use thinwedge_shell_command::powershell::try_find_powershell_executable_blocking;
 use thinwedge_shell_command::powershell::try_find_pwsh_executable_blocking;
-use serde_json::json;
 use tokio::sync::Mutex;
 use tokio::sync::watch;
 

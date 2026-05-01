@@ -60,8 +60,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::ExperimentalApi as ExperimentalApiTrait;
-    use thinwedge_experimental_api_macros::ExperimentalApi;
     use pretty_assertions::assert_eq;
+    use thinwedge_experimental_api_macros::ExperimentalApi;
 
     #[allow(dead_code)]
     #[derive(ExperimentalApi)]

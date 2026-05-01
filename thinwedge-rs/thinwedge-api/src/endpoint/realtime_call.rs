@@ -5,9 +5,6 @@ use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
 use bytes::Bytes;
-use thinwedge_client::HttpTransport;
-use thinwedge_client::RequestBody;
-use thinwedge_client::RequestTelemetry;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::Method;
@@ -18,11 +15,15 @@ use serde_json::Value;
 use serde_json::to_string;
 use serde_json::to_value;
 use std::sync::Arc;
+use thinwedge_client::HttpTransport;
+use thinwedge_client::RequestBody;
+use thinwedge_client::RequestTelemetry;
 use tracing::instrument;
 use tracing::trace;
 
 const MULTIPART_BOUNDARY: &str = "thinwedge-realtime-call-boundary";
-const MULTIPART_CONTENT_TYPE: &str = "multipart/form-data; boundary=thinwedge-realtime-call-boundary";
+const MULTIPART_CONTENT_TYPE: &str =
+    "multipart/form-data; boundary=thinwedge-realtime-call-boundary";
 
 pub struct RealtimeCallClient<T: HttpTransport> {
     session: EndpointSession<T>,
@@ -227,15 +228,15 @@ mod tests {
     use crate::endpoint::realtime_websocket::RealtimeSessionMode;
     use crate::provider::RetryConfig;
     use async_trait::async_trait;
+    use http::StatusCode;
+    use pretty_assertions::assert_eq;
+    use std::sync::Mutex;
+    use std::time::Duration;
     use thinwedge_client::Request;
     use thinwedge_client::Response;
     use thinwedge_client::StreamResponse;
     use thinwedge_client::TransportError;
     use thinwedge_protocol::protocol::RealtimeVoice;
-    use http::StatusCode;
-    use pretty_assertions::assert_eq;
-    use std::sync::Mutex;
-    use std::time::Duration;
 
     #[derive(Clone)]
     struct CapturingTransport {

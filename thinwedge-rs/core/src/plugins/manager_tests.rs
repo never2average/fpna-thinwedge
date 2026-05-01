@@ -8,6 +8,10 @@ use crate::plugins::test_support::TEST_CURATED_PLUGIN_SHA;
 use crate::plugins::test_support::write_curated_plugin_sha_with as write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
 use crate::plugins::test_support::write_thinwedge_curated_marketplace;
+use pretty_assertions::assert_eq;
+use std::fs;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerStack;
@@ -23,10 +27,6 @@ use thinwedge_core_plugins::startup_sync::curated_plugins_repo_path;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_protocol::protocol::Product;
 use thinwedge_utils_absolute_path::test_support::PathBufExt;
-use pretty_assertions::assert_eq;
-use std::fs;
-use std::path::Path;
-use tempfile::TempDir;
 use toml::Value;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -70,7 +70,10 @@ fn write_plugin(root: &Path, dir_name: &str, manifest_name: &str) {
 
 fn init_git_repo(repo: &Path) {
     run_git(repo, &["init"]);
-    run_git(repo, &["config", "user.email", "thinwedge-test@example.com"]);
+    run_git(
+        repo,
+        &["config", "user.email", "thinwedge-test@example.com"],
+    );
     run_git(repo, &["config", "user.name", "ThinWedge Test"]);
     run_git(repo, &["add", "."]);
     run_git(repo, &["commit", "-m", "initial"]);
@@ -1172,7 +1175,11 @@ async fn install_plugin_supports_git_subdir_marketplace_sources() {
             auth_policy: MarketplacePluginAuthPolicy::OnInstall,
         }
     );
-    assert!(installed_path.join(".thinwedge-plugin/plugin.json").is_file());
+    assert!(
+        installed_path
+            .join(".thinwedge-plugin/plugin.json")
+            .is_file()
+    );
 }
 
 #[tokio::test]
@@ -1223,7 +1230,11 @@ async fn install_plugin_supports_relative_git_subdir_marketplace_sources() {
             auth_policy: MarketplacePluginAuthPolicy::OnInstall,
         }
     );
-    assert!(installed_path.join(".thinwedge-plugin/plugin.json").is_file());
+    assert!(
+        installed_path
+            .join(".thinwedge-plugin/plugin.json")
+            .is_file()
+    );
 }
 
 #[tokio::test]
@@ -3286,7 +3297,8 @@ async fn load_plugins_ignores_project_config_files() {
     let stack = ConfigLayerStack::new(
         vec![ConfigLayerEntry::new(
             ConfigLayerSource::Project {
-                dot_thinwedge_folder: AbsolutePathBuf::try_from(project_root.join(".thinwedge")).unwrap(),
+                dot_thinwedge_folder: AbsolutePathBuf::try_from(project_root.join(".thinwedge"))
+                    .unwrap(),
             },
             toml::from_str(&plugin_config_toml(
                 /*enabled*/ true, /*plugins_feature_enabled*/ true,

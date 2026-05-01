@@ -4,14 +4,14 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_absolute_path::canonicalize_preserving_symlinks;
 use globset::GlobBuilder;
 use globset::GlobMatcher;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum_macros::Display;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_absolute_path::canonicalize_preserving_symlinks;
 use tracing::error;
 use ts_rs::TS;
 
@@ -516,7 +516,10 @@ impl FileSystemSandboxPolicy {
 
         append_default_read_only_project_root_subpath_if_no_explicit_rule(&mut entries, ".git");
         append_default_read_only_project_root_subpath_if_no_explicit_rule(&mut entries, ".agents");
-        append_default_read_only_project_root_subpath_if_no_explicit_rule(&mut entries, ".thinwedge");
+        append_default_read_only_project_root_subpath_if_no_explicit_rule(
+            &mut entries,
+            ".thinwedge",
+        );
         for writable_root in writable_roots {
             for protected_path in default_read_only_subpaths_for_writable_root(
                 writable_root,
@@ -1906,12 +1909,10 @@ mod tests {
                 .contains(&explicit_dot_thinwedge),
             "explicit .thinwedge rule should win over the default protected carveout"
         );
-        assert!(
-            policy.can_write_path_with_cwd(
-                explicit_dot_thinwedge.join("config.toml").as_path(),
-                cwd.path()
-            )
-        );
+        assert!(policy.can_write_path_with_cwd(
+            explicit_dot_thinwedge.join("config.toml").as_path(),
+            cwd.path()
+        ));
     }
 
     #[test]

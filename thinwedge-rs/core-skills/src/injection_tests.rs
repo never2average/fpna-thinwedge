@@ -1,10 +1,10 @@
 use super::*;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_absolute_path::test_support::PathBufExt;
-use thinwedge_utils_absolute_path::test_support::test_path_buf;
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_absolute_path::test_support::PathBufExt;
+use thinwedge_utils_absolute_path::test_support::test_path_buf;
 
 fn make_skill(name: &str, path: &str) -> SkillMetadata {
     SkillMetadata {

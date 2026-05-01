@@ -1,14 +1,6 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
-use thinwedge_app_server_protocol::ConfigLayerSource;
-use thinwedge_config::ConfigLayerEntry;
-use thinwedge_config::ConfigLayerStack;
-use thinwedge_config::ConfigRequirements;
-use thinwedge_config::ConfigRequirementsToml;
-use thinwedge_features::Feature;
-use thinwedge_protocol::protocol::DeprecationNoticeEvent;
-use thinwedge_protocol::protocol::EventMsg;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_absolute_path;
@@ -17,6 +9,14 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
+use thinwedge_app_server_protocol::ConfigLayerSource;
+use thinwedge_config::ConfigLayerEntry;
+use thinwedge_config::ConfigLayerStack;
+use thinwedge_config::ConfigRequirements;
+use thinwedge_config::ConfigRequirementsToml;
+use thinwedge_features::Feature;
+use thinwedge_protocol::protocol::DeprecationNoticeEvent;
+use thinwedge_protocol::protocol::EventMsg;
 use toml::Value as TomlValue;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

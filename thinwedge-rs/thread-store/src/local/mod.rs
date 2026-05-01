@@ -11,14 +11,14 @@ mod update_thread_metadata;
 mod test_support;
 
 use async_trait::async_trait;
-use thinwedge_protocol::ThreadId;
-use thinwedge_rollout::RolloutConfig;
-use thinwedge_rollout::RolloutRecorder;
-use thinwedge_rollout::StateDbHandle;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thinwedge_protocol::ThreadId;
+use thinwedge_rollout::RolloutConfig;
+use thinwedge_rollout::RolloutRecorder;
+use thinwedge_rollout::StateDbHandle;
 use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
 
@@ -68,7 +68,9 @@ impl LocalThreadStore {
     pub async fn state_db(&self) -> Option<StateDbHandle> {
         self.state_db
             .get_or_try_init(|| async {
-                thinwedge_rollout::state_db::init(&self.config).await.ok_or(())
+                thinwedge_rollout::state_db::init(&self.config)
+                    .await
+                    .ok_or(())
             })
             .await
             .ok()
@@ -246,13 +248,13 @@ impl ThreadStore for LocalThreadStore {
 
 #[cfg(test)]
 mod tests {
+    use tempfile::TempDir;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::models::BaseInstructions;
     use thinwedge_protocol::protocol::EventMsg;
     use thinwedge_protocol::protocol::RolloutItem;
     use thinwedge_protocol::protocol::SessionSource;
     use thinwedge_protocol::protocol::UserMessageEvent;
-    use tempfile::TempDir;
 
     use super::*;
     use crate::ThreadEventPersistenceMode;

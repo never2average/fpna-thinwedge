@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+use pretty_assertions::assert_eq;
+use tempfile::tempdir;
 use thinwedge_config::AbsolutePathBuf;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerSource;
@@ -22,8 +24,6 @@ use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::HookOutputEntryKind;
 use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::HookSource;
-use pretty_assertions::assert_eq;
-use tempfile::tempdir;
 
 use super::ClaudeHooksEngine;
 use super::CommandShell;

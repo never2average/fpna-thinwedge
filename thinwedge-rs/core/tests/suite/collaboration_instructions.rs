@@ -1,12 +1,4 @@
 use anyhow::Result;
-use thinwedge_protocol::config_types::CollaborationMode;
-use thinwedge_protocol::config_types::ModeKind;
-use thinwedge_protocol::config_types::Settings;
-use thinwedge_protocol::protocol::COLLABORATION_MODE_CLOSE_TAG;
-use thinwedge_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once;
@@ -17,6 +9,14 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
+use thinwedge_protocol::config_types::CollaborationMode;
+use thinwedge_protocol::config_types::ModeKind;
+use thinwedge_protocol::config_types::Settings;
+use thinwedge_protocol::protocol::COLLABORATION_MODE_CLOSE_TAG;
+use thinwedge_protocol::protocol::COLLABORATION_MODE_OPEN_TAG;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 fn collab_mode_with_mode_and_instructions(
     mode: ModeKind,
@@ -88,7 +88,10 @@ async fn no_collaboration_instructions_by_default() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     assert_eq!(developer_message_count(&input), 1);
@@ -150,7 +153,10 @@ async fn user_input_includes_collaboration_instructions_after_override() -> Resu
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -200,7 +206,10 @@ async fn collaboration_instructions_added_on_user_turn() -> Result<()> {
             personality: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -253,7 +262,10 @@ async fn override_then_next_turn_uses_updated_collaboration_instructions() -> Re
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -322,7 +334,10 @@ async fn user_turn_overrides_collaboration_instructions_after_override() -> Resu
             personality: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -382,7 +397,10 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -412,7 +430,10 @@ async fn collaboration_mode_update_emits_new_instruction_message() -> Result<()>
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -471,7 +492,10 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -501,7 +525,10 @@ async fn collaboration_mode_update_noop_does_not_append() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -562,7 +589,10 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -595,7 +625,10 @@ async fn collaboration_mode_update_emits_new_instruction_message_when_mode_chang
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -657,7 +690,10 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -690,7 +726,10 @@ async fn collaboration_mode_update_noop_does_not_append_when_mode_is_unchanged()
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -756,7 +795,10 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&initial.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&initial.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let resumed = builder.resume(&server, home, rollout_path).await?;
     resumed
@@ -771,7 +813,10 @@ async fn resume_replays_collaboration_instructions() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&resumed.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&resumed.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req2.single_request().input();
     let dev_texts = developer_texts(&input);
@@ -830,7 +875,10 @@ async fn empty_collaboration_instructions_are_ignored() -> Result<()> {
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let input = req.single_request().input();
     assert_eq!(developer_message_count(&input), 1);

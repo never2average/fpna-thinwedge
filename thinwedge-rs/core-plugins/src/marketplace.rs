@@ -1,12 +1,5 @@
 use crate::manifest::PluginManifestInterface;
 use crate::manifest::load_plugin_manifest;
-use thinwedge_app_server_protocol::PluginAuthPolicy;
-use thinwedge_app_server_protocol::PluginInstallPolicy;
-use thinwedge_git_utils::get_git_repo_root;
-use thinwedge_plugin::PluginId;
-use thinwedge_plugin::PluginIdError;
-use thinwedge_protocol::protocol::Product;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use dirs::home_dir;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
@@ -15,6 +8,13 @@ use std::io;
 use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_app_server_protocol::PluginAuthPolicy;
+use thinwedge_app_server_protocol::PluginInstallPolicy;
+use thinwedge_git_utils::get_git_repo_root;
+use thinwedge_plugin::PluginId;
+use thinwedge_plugin::PluginIdError;
+use thinwedge_protocol::protocol::Product;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tracing::warn;
 
 const MARKETPLACE_MANIFEST_RELATIVE_PATHS: &[&str] = &[

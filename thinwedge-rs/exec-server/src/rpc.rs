@@ -5,6 +5,9 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 use thinwedge_app_server_protocol::JSONRPCError;
 use thinwedge_app_server_protocol::JSONRPCErrorError;
 use thinwedge_app_server_protocol::JSONRPCMessage;
@@ -12,9 +15,6 @@ use thinwedge_app_server_protocol::JSONRPCNotification;
 use thinwedge_app_server_protocol::JSONRPCRequest;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::RequestId;
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-use serde_json::Value;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -514,9 +514,9 @@ async fn drain_pending(pending: &Mutex<HashMap<RequestId, PendingRequest>>) {
 mod tests {
     use std::time::Duration;
 
+    use pretty_assertions::assert_eq;
     use thinwedge_app_server_protocol::JSONRPCMessage;
     use thinwedge_app_server_protocol::JSONRPCResponse;
-    use pretty_assertions::assert_eq;
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncWriteExt;
     use tokio::io::BufReader;

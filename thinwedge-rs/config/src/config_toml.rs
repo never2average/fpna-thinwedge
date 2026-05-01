@@ -27,6 +27,10 @@ use crate::types::ToolSuggestConfig;
 use crate::types::Tui;
 use crate::types::UriBasedFileOpener;
 use crate::types::WindowsToml;
+use schemars::JsonSchema;
+use serde::Deserialize;
+use serde::Deserializer;
+use serde::Serialize;
 use thinwedge_app_server_protocol::Tools;
 use thinwedge_app_server_protocol::UserSavedConfig;
 use thinwedge_features::FeaturesToml;
@@ -36,8 +40,8 @@ use thinwedge_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
 use thinwedge_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
-use thinwedge_model_provider_info::THINWEDGE_PROVIDER_ID;
 use thinwedge_model_provider_info::OPENROUTER_PROVIDER_ID;
+use thinwedge_model_provider_info::THINWEDGE_PROVIDER_ID;
 use thinwedge_protocol::config_types::ForcedLoginMethod;
 use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ReasoningSummary;
@@ -49,15 +53,11 @@ use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WebSearchToolConfig;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_path::normalize_for_path_comparison;
-use schemars::JsonSchema;
-use serde::Deserialize;
-use serde::Deserializer;
-use serde::Serialize;
 
 const RESERVED_MODEL_PROVIDER_IDS: [&str; 5] = [
     AMAZON_BEDROCK_PROVIDER_ID,

@@ -9,16 +9,16 @@ use crate::path_utils;
 use crate::sandboxing::SandboxPermissions;
 use crate::shell::Shell;
 use crate::tools::sandboxing::ToolError;
-#[cfg(target_os = "macos")]
-use thinwedge_network_proxy::THINWEDGE_PROXY_GIT_SSH_COMMAND_MARKER;
+use std::collections::HashMap;
 use thinwedge_network_proxy::PROXY_ACTIVE_ENV_KEY;
 use thinwedge_network_proxy::PROXY_ENV_KEYS;
 #[cfg(target_os = "macos")]
 use thinwedge_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+#[cfg(target_os = "macos")]
+use thinwedge_network_proxy::THINWEDGE_PROXY_GIT_SSH_COMMAND_MARKER;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
 use thinwedge_sandboxing::SandboxCommand;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
 
 pub(crate) mod apply_patch;
 pub(crate) mod shell;

@@ -9,7 +9,6 @@ use crate::render::highlight::highlight_code_to_lines;
 use crate::render::line_utils::line_to_static;
 use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
-use thinwedge_utils_string::normalize_markdown_hash_location_suffix;
 use dirs::home_dir;
 use pulldown_cmark::CodeBlockKind;
 use pulldown_cmark::CowStr;
@@ -27,6 +26,7 @@ use regex_lite::Regex;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
+use thinwedge_utils_string::normalize_markdown_hash_location_suffix;
 use url::Url;
 
 struct MarkdownStyles {

@@ -1,11 +1,11 @@
 use super::*;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::permissions::FileSystemAccessMode;
 use thinwedge_protocol::permissions::FileSystemPath;
 use thinwedge_protocol::permissions::FileSystemSandboxEntry;
 use thinwedge_protocol::permissions::FileSystemSpecialPath;
 use thinwedge_protocol::protocol::NetworkSandboxPolicy;
-use pretty_assertions::assert_eq;
 
 #[tokio::test]
 async fn approvals_selection_popup_snapshot() {

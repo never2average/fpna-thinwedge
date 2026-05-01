@@ -1,12 +1,14 @@
 //! Resolve plugin namespace from skill file paths by walking ancestors for `plugin.json`.
 
-use thinwedge_exec_server::ExecutorFileSystem;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_exec_server::ExecutorFileSystem;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
-const DISCOVERABLE_PLUGIN_MANIFEST_PATHS: &[&str] =
-    &[".thinwedge-plugin/plugin.json", ".claude-plugin/plugin.json"];
+const DISCOVERABLE_PLUGIN_MANIFEST_PATHS: &[&str] = &[
+    ".thinwedge-plugin/plugin.json",
+    ".claude-plugin/plugin.json",
+];
 
 pub fn find_plugin_manifest_path(plugin_root: &Path) -> Option<PathBuf> {
     DISCOVERABLE_PLUGIN_MANIFEST_PATHS
@@ -71,10 +73,10 @@ pub async fn plugin_namespace_for_skill_path(
 mod tests {
     use super::find_plugin_manifest_path;
     use super::plugin_namespace_for_skill_path;
-    use thinwedge_exec_server::LOCAL_FS;
-    use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use std::fs;
     use tempfile::tempdir;
+    use thinwedge_exec_server::LOCAL_FS;
+    use thinwedge_utils_absolute_path::test_support::PathBufExt;
 
     const ALTERNATE_PLUGIN_MANIFEST_RELATIVE_PATH: &str = ".claude-plugin/plugin.json";
 

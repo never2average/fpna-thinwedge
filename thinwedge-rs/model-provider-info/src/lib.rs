@@ -5,14 +5,6 @@
 //!   2. User-defined entries inside `~/.thinwedge/config.toml` under the `model_providers`
 //!      key. These override or extend the defaults at runtime.
 
-use thinwedge_api::Provider as ApiProvider;
-use thinwedge_api::RetryConfig as ApiRetryConfig;
-use thinwedge_api::is_azure_responses_provider;
-use thinwedge_app_server_protocol::AuthMode;
-use thinwedge_protocol::config_types::ModelProviderAuthInfo;
-use thinwedge_protocol::error::ThinWedgeErr;
-use thinwedge_protocol::error::EnvVarError;
-use thinwedge_protocol::error::Result as ThinWedgeResult;
 use http::HeaderMap;
 use http::header::HeaderName;
 use http::header::HeaderValue;
@@ -22,6 +14,14 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
+use thinwedge_api::Provider as ApiProvider;
+use thinwedge_api::RetryConfig as ApiRetryConfig;
+use thinwedge_api::is_azure_responses_provider;
+use thinwedge_app_server_protocol::AuthMode;
+use thinwedge_protocol::config_types::ModelProviderAuthInfo;
+use thinwedge_protocol::error::EnvVarError;
+use thinwedge_protocol::error::Result as ThinWedgeResult;
+use thinwedge_protocol::error::ThinWedgeErr;
 
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS: u64 = 300_000;
 const DEFAULT_STREAM_MAX_RETRIES: u64 = 5;
@@ -336,7 +336,10 @@ impl ModelProviderInfo {
                         "ThinWedge-Organization".to_string(),
                         "THINWEDGE_ORGANIZATION".to_string(),
                     ),
-                    ("ThinWedge-Project".to_string(), "THINWEDGE_PROJECT".to_string()),
+                    (
+                        "ThinWedge-Project".to_string(),
+                        "THINWEDGE_PROJECT".to_string(),
+                    ),
                 ]
                 .into_iter()
                 .collect(),

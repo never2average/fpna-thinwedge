@@ -379,13 +379,13 @@ mod tests {
     use super::*;
     use crate::unified_diff_from_chunks;
     use assert_matches::assert_matches;
-    use thinwedge_exec_server::LOCAL_FS;
-    use thinwedge_utils_absolute_path::test_support::PathExt;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::path::PathBuf;
     use std::string::ToString;
     use tempfile::tempdir;
+    use thinwedge_exec_server::LOCAL_FS;
+    use thinwedge_utils_absolute_path::test_support::PathExt;
 
     /// Helper to construct a patch with the given body.
     fn wrap_patch(body: &str) -> String {

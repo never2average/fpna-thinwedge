@@ -10,10 +10,10 @@ use crate::ipc_framed::SpawnRequest;
 use crate::runner_client::spawn_runner_transport;
 use crate::spawn_prep::prepare_elevated_spawn_context;
 use anyhow::Result;
-use thinwedge_utils_pty::ProcessDriver;
-use thinwedge_utils_pty::SpawnedProcess;
 use std::collections::HashMap;
 use std::path::Path;
+use thinwedge_utils_pty::ProcessDriver;
+use thinwedge_utils_pty::SpawnedProcess;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -59,8 +59,12 @@ pub(crate) async fn spawn_windows_sandbox_session_elevated(
     let sandbox_creds = elevated.sandbox_creds.clone();
     let logs_base_dir = elevated.common.logs_base_dir.clone();
     let transport = tokio::task::spawn_blocking(move || -> Result<_> {
-        let mut transport =
-            spawn_runner_transport(&thinwedge_home, &cwd, &sandbox_creds, logs_base_dir.as_deref())?;
+        let mut transport = spawn_runner_transport(
+            &thinwedge_home,
+            &cwd,
+            &sandbox_creds,
+            logs_base_dir.as_deref(),
+        )?;
         transport.send_spawn_request(spawn_request)?;
         transport.read_spawn_ready_with_timeout()?;
         Ok(transport)

@@ -3,9 +3,9 @@ use crate::harness::build_metrics_with_defaults;
 use crate::harness::find_metric;
 use crate::harness::histogram_data;
 use crate::harness::latest_metrics;
-use thinwedge_otel::Result;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
+use thinwedge_otel::Result;
 
 // Ensures counters/histograms render with default + per-call tags.
 #[test]
@@ -27,7 +27,8 @@ fn send_builds_payload_with_tags_and_histograms() -> Result<()> {
 
     let resource_metrics = latest_metrics(&exporter);
 
-    let counter = find_metric(&resource_metrics, "thinwedge.turns").expect("counter metric missing");
+    let counter =
+        find_metric(&resource_metrics, "thinwedge.turns").expect("counter metric missing");
     let counter_attributes = match counter.data() {
         opentelemetry_sdk::metrics::data::AggregatedMetrics::U64(data) => match data {
             opentelemetry_sdk::metrics::data::MetricData::Sum(sum) => {
@@ -161,7 +162,8 @@ fn client_sends_enqueued_metric() -> Result<()> {
     metrics.shutdown()?;
 
     let resource_metrics = latest_metrics(&exporter);
-    let counter = find_metric(&resource_metrics, "thinwedge.turns").expect("counter metric missing");
+    let counter =
+        find_metric(&resource_metrics, "thinwedge.turns").expect("counter metric missing");
     let points = match counter.data() {
         opentelemetry_sdk::metrics::data::AggregatedMetrics::U64(data) => match data {
             opentelemetry_sdk::metrics::data::MetricData::Sum(sum) => {
@@ -189,7 +191,8 @@ fn shutdown_flushes_in_memory_exporter() -> Result<()> {
     metrics.shutdown()?;
 
     let resource_metrics = latest_metrics(&exporter);
-    let counter = find_metric(&resource_metrics, "thinwedge.turns").expect("counter metric missing");
+    let counter =
+        find_metric(&resource_metrics, "thinwedge.turns").expect("counter metric missing");
     let points = match counter.data() {
         opentelemetry_sdk::metrics::data::AggregatedMetrics::U64(data) => match data {
             opentelemetry_sdk::metrics::data::MetricData::Sum(sum) => {

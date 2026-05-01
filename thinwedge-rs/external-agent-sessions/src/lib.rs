@@ -5,11 +5,11 @@ mod export;
 mod ledger;
 mod records;
 
-use thinwedge_protocol::protocol::RolloutItem;
 use std::collections::HashSet;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_protocol::protocol::RolloutItem;
 
 pub use detect::detect_recent_sessions;
 pub use export::load_session_for_import;
@@ -72,10 +72,11 @@ pub fn prepare_pending_session_imports(
         .collect::<HashSet<_>>();
     let mut pending_session_imports = Vec::new();
     for session in requested_sessions {
-        let has_been_imported = match has_current_session_been_imported(thinwedge_home, &session.path) {
-            Ok(has_been_imported) => has_been_imported,
-            Err(_) => continue,
-        };
+        let has_been_imported =
+            match has_current_session_been_imported(thinwedge_home, &session.path) {
+                Ok(has_been_imported) => has_been_imported,
+                Err(_) => continue,
+            };
         if !detected_session_paths.contains(&session.path) && !has_been_imported {
             return Err(PrepareSessionImportsError::SessionNotDetected(session.path));
         }
@@ -140,8 +141,8 @@ fn now_unix_seconds() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_protocol::ThreadId;
     use tempfile::TempDir;
+    use thinwedge_protocol::ThreadId;
 
     #[test]
     fn rejects_session_that_was_not_detected() {
@@ -170,7 +171,8 @@ mod tests {
         let thinwedge_home = root.path().join("thinwedge-home");
         let source_path = root.path().join("session.jsonl");
         std::fs::write(&source_path, "{}\n").expect("session");
-        record_imported_session(&thinwedge_home, &source_path, ThreadId::new()).expect("record import");
+        record_imported_session(&thinwedge_home, &source_path, ThreadId::new())
+            .expect("record import");
 
         let pending = prepare_pending_session_imports(
             &thinwedge_home,

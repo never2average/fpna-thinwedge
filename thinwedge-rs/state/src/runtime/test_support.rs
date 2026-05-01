@@ -3,14 +3,6 @@ use chrono::DateTime;
 #[cfg(test)]
 use chrono::Utc;
 #[cfg(test)]
-use thinwedge_protocol::ThreadId;
-#[cfg(test)]
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-#[cfg(test)]
-use thinwedge_protocol::protocol::AskForApproval;
-#[cfg(test)]
-use thinwedge_protocol::protocol::SandboxPolicy;
-#[cfg(test)]
 use std::path::Path;
 #[cfg(test)]
 use std::path::PathBuf;
@@ -18,6 +10,14 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 #[cfg(test)]
 use std::time::UNIX_EPOCH;
+#[cfg(test)]
+use thinwedge_protocol::ThreadId;
+#[cfg(test)]
+use thinwedge_protocol::protocol::AskForApproval;
+#[cfg(test)]
+use thinwedge_protocol::protocol::SandboxPolicy;
+#[cfg(test)]
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 #[cfg(test)]
 use uuid::Uuid;
 

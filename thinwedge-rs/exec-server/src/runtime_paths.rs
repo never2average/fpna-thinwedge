@@ -32,7 +32,9 @@ impl ExecServerRuntimePaths {
     ) -> std::io::Result<Self> {
         Ok(Self {
             thinwedge_self_exe: absolute_path(thinwedge_self_exe)?,
-            thinwedge_linux_sandbox_exe: thinwedge_linux_sandbox_exe.map(absolute_path).transpose()?,
+            thinwedge_linux_sandbox_exe: thinwedge_linux_sandbox_exe
+                .map(absolute_path)
+                .transpose()?,
         })
     }
 }

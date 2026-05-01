@@ -41,8 +41,11 @@ impl ThinWedgeMessageProcessor {
                 }
             },
             None => {
-                match find_thread_path_by_id_str(&self.config.thinwedge_home, &thread_id.to_string())
-                    .await
+                match find_thread_path_by_id_str(
+                    &self.config.thinwedge_home,
+                    &thread_id.to_string(),
+                )
+                .await
                 {
                     Ok(Some(path)) => path,
                     Ok(None) => {
@@ -258,8 +261,11 @@ impl ThinWedgeMessageProcessor {
                 }
             },
             None => {
-                match find_thread_path_by_id_str(&self.config.thinwedge_home, &thread_id.to_string())
-                    .await
+                match find_thread_path_by_id_str(
+                    &self.config.thinwedge_home,
+                    &thread_id.to_string(),
+                )
+                .await
                 {
                     Ok(Some(path)) => path,
                     Ok(None) => {
@@ -337,7 +343,8 @@ impl ThinWedgeMessageProcessor {
                 return Ok(state_db);
             }
         } else {
-            match find_thread_path_by_id_str(&self.config.thinwedge_home, &thread_id.to_string()).await
+            match find_thread_path_by_id_str(&self.config.thinwedge_home, &thread_id.to_string())
+                .await
             {
                 Ok(Some(_)) => {}
                 Ok(None) => {

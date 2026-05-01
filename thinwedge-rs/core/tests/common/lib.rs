@@ -2,12 +2,14 @@
 
 use anyhow::Context as _;
 use anyhow::ensure;
-use thinwedge_arg0::Arg0PathEntryGuard;
-use thinwedge_utils_cargo_bin::CargoBinError;
 use ctor::ctor;
 use std::sync::OnceLock;
 use tempfile::TempDir;
+use thinwedge_arg0::Arg0PathEntryGuard;
+use thinwedge_utils_cargo_bin::CargoBinError;
 
+use regex_lite::Regex;
+use std::path::PathBuf;
 use thinwedge_config::CloudRequirementsLoader;
 use thinwedge_config::ConfigRequirementsToml;
 use thinwedge_config::NetworkRequirementsToml;
@@ -18,8 +20,6 @@ use thinwedge_core::config::ConfigOverrides;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 pub use thinwedge_utils_absolute_path::test_support::PathBufExt;
 pub use thinwedge_utils_absolute_path::test_support::PathExt;
-use regex_lite::Regex;
-use std::path::PathBuf;
 
 pub mod apps_test_server;
 pub mod context_snapshot;
@@ -206,7 +206,8 @@ pub fn managed_network_requirements_loader() -> CloudRequirementsLoader {
 fn default_test_overrides() -> ConfigOverrides {
     ConfigOverrides {
         thinwedge_linux_sandbox_exe: Some(
-            find_thinwedge_linux_sandbox_exe().expect("should find binary for thinwedge-linux-sandbox"),
+            find_thinwedge_linux_sandbox_exe()
+                .expect("should find binary for thinwedge-linux-sandbox"),
         ),
         ..ConfigOverrides::default()
     }
@@ -313,10 +314,13 @@ where
     use tokio::time::timeout;
     loop {
         // Allow a bit more time to accommodate async startup work (e.g. config IO, tool discovery)
-        let ev = timeout(wait_time.max(Duration::from_secs(10)), thinwedge.next_event())
-            .await
-            .expect("timeout waiting for event")
-            .expect("stream ended unexpectedly");
+        let ev = timeout(
+            wait_time.max(Duration::from_secs(10)),
+            thinwedge.next_event(),
+        )
+        .await
+        .expect("timeout waiting for event")
+        .expect("stream ended unexpectedly");
         if predicate(&ev.msg) {
             return ev.msg;
         }
@@ -359,7 +363,8 @@ pub fn get_remote_test_env() -> Option<RemoteEnvConfig> {
 }
 
 pub fn format_with_current_shell(command: &str) -> Vec<String> {
-    thinwedge_core::shell::default_user_shell().derive_exec_args(command, /*use_login_shell*/ true)
+    thinwedge_core::shell::default_user_shell()
+        .derive_exec_args(command, /*use_login_shell*/ true)
 }
 
 pub fn format_with_current_shell_display(command: &str) -> String {
@@ -379,7 +384,8 @@ pub fn format_with_current_shell_display_non_login(command: &str) -> String {
 }
 
 pub fn stdio_server_bin() -> Result<String, CargoBinError> {
-    thinwedge_utils_cargo_bin::cargo_bin("test_stdio_server").map(|p| p.to_string_lossy().to_string())
+    thinwedge_utils_cargo_bin::cargo_bin("test_stdio_server")
+        .map(|p| p.to_string_lossy().to_string())
 }
 
 pub mod fs_wait {

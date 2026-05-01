@@ -1,5 +1,10 @@
 use crate::config::Config;
 use crate::config::edit::ConfigEditsBuilder;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+use std::time::Instant;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_config::profile_toml::ConfigProfile;
 use thinwedge_config::types::WindowsSandboxModeToml;
@@ -10,11 +15,6 @@ use thinwedge_login::default_client::originator;
 use thinwedge_otel::sanitize_metric_tag_value;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::protocol::SandboxPolicy;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-use std::time::Instant;
 
 /// Kill switch for the elevated sandbox NUX on Windows.
 ///

@@ -1,15 +1,6 @@
 use super::*;
 use crate::ModelsManagerConfig;
 use chrono::Utc;
-use thinwedge_app_server_protocol::AuthMode;
-use thinwedge_login::AuthCredentialsStoreMode;
-use thinwedge_login::AuthManager;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_login::ExternalAuth;
-use thinwedge_login::ExternalAuthRefreshContext;
-use thinwedge_login::ExternalAuthTokens;
-use thinwedge_login::TokenData;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -19,6 +10,15 @@ use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
 use tempfile::tempdir;
+use thinwedge_app_server_protocol::AuthMode;
+use thinwedge_login::AuthCredentialsStoreMode;
+use thinwedge_login::AuthManager;
+use thinwedge_login::ExternalAuth;
+use thinwedge_login::ExternalAuthRefreshContext;
+use thinwedge_login::ExternalAuthTokens;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_login::TokenData;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 
 #[path = "model_info_overrides_tests.rs"]
 mod model_info_overrides_tests;
@@ -350,7 +350,8 @@ async fn refresh_available_models_sorts_by_priority() {
     ];
     let thinwedge_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
-    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager =
+        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -380,7 +381,8 @@ async fn refresh_available_models_uses_cache_when_fresh() {
     let remote_models = vec![remote_model("cached", "Cached", /*priority*/ 5)];
     let thinwedge_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
-    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager =
+        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -407,7 +409,8 @@ async fn refresh_available_models_refetches_when_cache_stale() {
     let thinwedge_home = tempdir().expect("temp dir");
     let updated_models = vec![remote_model("fresh", "Fresh", /*priority*/ 9)];
     let endpoint = TestModelsEndpoint::new(vec![initial_models.clone(), updated_models.clone()]);
-    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager =
+        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -441,7 +444,8 @@ async fn refresh_available_models_refetches_when_version_mismatch() {
     let thinwedge_home = tempdir().expect("temp dir");
     let updated_models = vec![remote_model("new", "New", /*priority*/ 2)];
     let endpoint = TestModelsEndpoint::new(vec![initial_models.clone(), updated_models.clone()]);
-    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager =
+        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -483,7 +487,8 @@ async fn refresh_available_models_drops_removed_remote_models() {
         /*priority*/ 1,
     )];
     let endpoint = TestModelsEndpoint::new(vec![initial_models, refreshed_models]);
-    let mut manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let mut manager =
+        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
     manager.cache_manager.set_ttl(Duration::ZERO);
 
     manager

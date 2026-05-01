@@ -1,3 +1,7 @@
+use eventsource_stream::Event as StreamEvent;
+use opentelemetry_sdk::metrics::InMemoryMetricExporter;
+use pretty_assertions::assert_eq;
+use std::time::Duration;
 use thinwedge_otel::MetricsClient;
 use thinwedge_otel::MetricsConfig;
 use thinwedge_otel::Result;
@@ -7,10 +11,6 @@ use thinwedge_otel::SessionTelemetry;
 use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SessionSource;
-use eventsource_stream::Event as StreamEvent;
-use opentelemetry_sdk::metrics::InMemoryMetricExporter;
-use pretty_assertions::assert_eq;
-use std::time::Duration;
 use tokio_tungstenite::tungstenite::Message;
 
 #[test]

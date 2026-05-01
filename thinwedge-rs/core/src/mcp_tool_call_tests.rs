@@ -4,6 +4,18 @@ use crate::session::tests::make_session_and_context;
 use crate::session::tests::make_session_and_context_with_rx;
 use crate::state::ActiveTurn;
 use crate::test_support::models_manager_with_provider;
+use core_test_support::PathExt;
+use core_test_support::responses::ev_assistant_message;
+use core_test_support::responses::ev_completed;
+use core_test_support::responses::ev_response_created;
+use core_test_support::responses::mount_sse_once;
+use core_test_support::responses::sse;
+use core_test_support::responses::start_mock_server;
+use pretty_assertions::assert_eq;
+use serde::Deserialize;
+use std::collections::HashMap;
+use std::sync::Arc;
+use tempfile::tempdir;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_config::types::AppConfig;
@@ -18,18 +30,6 @@ use thinwedge_hooks::HooksConfig;
 use thinwedge_model_provider::create_model_provider;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::AskForApproval;
-use core_test_support::PathExt;
-use core_test_support::responses::ev_assistant_message;
-use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_response_created;
-use core_test_support::responses::mount_sse_once;
-use core_test_support::responses::sse;
-use core_test_support::responses::start_mock_server;
-use pretty_assertions::assert_eq;
-use serde::Deserialize;
-use std::collections::HashMap;
-use std::sync::Arc;
-use tempfile::tempdir;
 use tracing::Instrument;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
@@ -431,7 +431,8 @@ async fn mcp_result_telemetry_truncates_long_target_id() {
     .await;
 
     assert!(
-        logs.contains(&format!("thinwedge.mcp.target.id=\"{truncated}\"")) && !logs.contains("tail"),
+        logs.contains(&format!("thinwedge.mcp.target.id=\"{truncated}\""))
+            && !logs.contains("tail"),
         "long MCP result telemetry target_id should be truncated\nlogs:\n{logs}"
     );
 }
@@ -915,7 +916,8 @@ async fn thinwedge_apps_tool_call_request_meta_includes_turn_metadata_and_thinwe
 }
 
 #[tokio::test]
-async fn thinwedge_apps_tool_call_request_meta_includes_call_id_without_existing_thinwedge_apps_meta() {
+async fn thinwedge_apps_tool_call_request_meta_includes_call_id_without_existing_thinwedge_apps_meta()
+ {
     let (_, turn_context) = make_session_and_context().await;
     let expected_turn_metadata = serde_json::from_str::<serde_json::Value>(
         &turn_context

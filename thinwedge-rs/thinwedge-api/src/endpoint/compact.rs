@@ -3,14 +3,14 @@ use crate::common::CompactionInput;
 use crate::endpoint::session::EndpointSession;
 use crate::error::ApiError;
 use crate::provider::Provider;
-use thinwedge_client::HttpTransport;
-use thinwedge_client::RequestTelemetry;
-use thinwedge_protocol::models::ResponseItem;
 use http::HeaderMap;
 use http::Method;
 use serde::Deserialize;
 use serde_json::to_value;
 use std::sync::Arc;
+use thinwedge_client::HttpTransport;
+use thinwedge_client::RequestTelemetry;
+use thinwedge_protocol::models::ResponseItem;
 
 pub struct CompactClient<T: HttpTransport> {
     session: EndpointSession<T>,

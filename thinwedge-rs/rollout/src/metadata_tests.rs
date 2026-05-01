@@ -6,6 +6,12 @@ use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
 use chrono::Utc;
+use pretty_assertions::assert_eq;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
+use std::path::PathBuf;
+use tempfile::tempdir;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::CompactedItem;
 use thinwedge_protocol::protocol::GitInfo;
@@ -16,12 +22,6 @@ use thinwedge_protocol::protocol::SessionMetaLine;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_state::BackfillStatus;
 use thinwedge_state::ThreadMetadataBuilder;
-use pretty_assertions::assert_eq;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
-use std::path::PathBuf;
-use tempfile::tempdir;
 use uuid::Uuid;
 
 fn test_config(thinwedge_home: PathBuf) -> RolloutConfig {
@@ -196,10 +196,12 @@ async fn backfill_sessions_resumes_from_watermark_and_marks_complete() {
         /*git*/ None,
     );
 
-    let runtime = thinwedge_state::StateRuntime::init(thinwedge_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
-    let first_watermark = backfill_watermark_for_path(thinwedge_home.as_path(), first_path.as_path());
+    let runtime =
+        thinwedge_state::StateRuntime::init(thinwedge_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
+    let first_watermark =
+        backfill_watermark_for_path(thinwedge_home.as_path(), first_path.as_path());
     runtime.mark_backfill_running().await.expect("mark running");
     runtime
         .checkpoint_backfill(first_watermark.as_str())
@@ -262,9 +264,10 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
         }),
     );
 
-    let runtime = thinwedge_state::StateRuntime::init(thinwedge_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        thinwedge_state::StateRuntime::init(thinwedge_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
     let thread_id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
     let mut existing = extract_metadata_from_rollout(&rollout_path, "test-provider")
         .await
@@ -309,9 +312,10 @@ async fn backfill_sessions_normalizes_cwd_before_upsert() {
         /*git*/ None,
     );
 
-    let runtime = thinwedge_state::StateRuntime::init(thinwedge_home.clone(), "test-provider".to_string())
-        .await
-        .expect("initialize runtime");
+    let runtime =
+        thinwedge_state::StateRuntime::init(thinwedge_home.clone(), "test-provider".to_string())
+            .await
+            .expect("initialize runtime");
 
     let config = test_config(thinwedge_home.clone());
     backfill_sessions(runtime.as_ref(), &config).await;

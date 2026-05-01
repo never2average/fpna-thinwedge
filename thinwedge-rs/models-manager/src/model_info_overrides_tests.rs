@@ -1,8 +1,8 @@
 use crate::ModelsManagerConfig;
 use crate::manager::ModelsManager;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
 
 use super::TestModelsEndpoint;
 use super::thinwedge_manager_for_tests;

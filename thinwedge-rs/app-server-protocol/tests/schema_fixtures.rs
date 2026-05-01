@@ -1,12 +1,12 @@
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_app_server_protocol::generate_json_with_experimental;
-use thinwedge_app_server_protocol::generate_typescript_schema_fixture_subtree_for_tests;
-use thinwedge_app_server_protocol::read_schema_fixture_subtree;
 use similar::TextDiff;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_app_server_protocol::generate_json_with_experimental;
+use thinwedge_app_server_protocol::generate_typescript_schema_fixture_subtree_for_tests;
+use thinwedge_app_server_protocol::read_schema_fixture_subtree;
 
 #[test]
 fn typescript_schema_fixtures_match_generated() -> Result<()> {
@@ -116,13 +116,13 @@ fn schema_root() -> Result<PathBuf> {
         .to_path_buf();
 
     // Sanity check that the JSON fixtures resolve to the same schema root.
-    let json_bundle =
-        thinwedge_utils_cargo_bin::find_resource!("schema/json/thinwedge_app_server_protocol.schemas.json")
-            .context("resolve JSON schema bundle")?;
-    let json_root = json_bundle
-        .parent()
-        .and_then(|p| p.parent())
-        .context("derive schema root from schema/json/thinwedge_app_server_protocol.schemas.json")?;
+    let json_bundle = thinwedge_utils_cargo_bin::find_resource!(
+        "schema/json/thinwedge_app_server_protocol.schemas.json"
+    )
+    .context("resolve JSON schema bundle")?;
+    let json_root = json_bundle.parent().and_then(|p| p.parent()).context(
+        "derive schema root from schema/json/thinwedge_app_server_protocol.schemas.json",
+    )?;
     anyhow::ensure!(
         schema_root == json_root,
         "schema roots disagree: typescript={} json={}",

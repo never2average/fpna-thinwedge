@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use thinwedge_protocol::user_input::UserInput;
 use pretty_assertions::assert_eq;
+use thinwedge_protocol::user_input::UserInput;
 
 use super::collect_explicit_app_ids;
 use super::collect_explicit_plugin_mentions;

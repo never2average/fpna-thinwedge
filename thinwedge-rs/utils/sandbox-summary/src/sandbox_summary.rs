@@ -1,7 +1,7 @@
+use std::path::Path;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::NetworkAccess;
 use thinwedge_protocol::protocol::SandboxPolicy;
-use std::path::Path;
 
 pub fn summarize_sandbox_policy(sandbox_policy: &SandboxPolicy) -> String {
     match sandbox_policy {
@@ -67,8 +67,8 @@ pub fn summarize_permission_profile(permission_profile: &PermissionProfile, cwd:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
     #[test]
     fn summarizes_external_sandbox_without_network_access_suffix() {

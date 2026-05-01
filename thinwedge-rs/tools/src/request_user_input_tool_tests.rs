@@ -1,8 +1,8 @@
 use super::*;
 use crate::JsonSchema;
-use thinwedge_protocol::config_types::ModeKind;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
+use thinwedge_protocol::config_types::ModeKind;
 
 #[test]
 fn request_user_input_tool_includes_questions_schema() {

@@ -5,9 +5,9 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::NetworkSandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
@@ -271,8 +271,8 @@ mod tests {
     use super::NetworkSeccompMode;
     use super::network_seccomp_mode;
     use super::should_install_network_seccomp;
-    use thinwedge_protocol::protocol::NetworkSandboxPolicy;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::protocol::NetworkSandboxPolicy;
 
     #[test]
     fn managed_network_enforces_seccomp_even_for_full_network_policy() {

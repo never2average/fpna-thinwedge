@@ -20,6 +20,7 @@ use crate::protocol::v2::TurnError;
 use crate::protocol::v2::TurnStatus;
 use crate::protocol::v2::UserInput;
 use crate::protocol::v2::WebSearchAction;
+use std::collections::HashMap;
 use thinwedge_protocol::items::parse_hook_prompt_message;
 use thinwedge_protocol::models::MessagePhase;
 use thinwedge_protocol::protocol::AgentReasoningEvent;
@@ -53,7 +54,6 @@ use thinwedge_protocol::protocol::UserMessageEvent;
 use thinwedge_protocol::protocol::ViewImageToolCallEvent;
 use thinwedge_protocol::protocol::WebSearchBeginEvent;
 use thinwedge_protocol::protocol::WebSearchEndEvent;
-use std::collections::HashMap;
 use tracing::warn;
 use uuid::Uuid;
 
@@ -764,7 +764,10 @@ impl ThreadHistoryBuilder {
         self.upsert_item_in_current_turn(item);
     }
 
-    fn handle_collab_close_end(&mut self, payload: &thinwedge_protocol::protocol::CollabCloseEndEvent) {
+    fn handle_collab_close_end(
+        &mut self,
+        payload: &thinwedge_protocol::protocol::CollabCloseEndEvent,
+    ) {
         let status = match &payload.status {
             AgentStatus::Errored(_) | AgentStatus::NotFound => CollabAgentToolCallStatus::Failed,
             _ => CollabAgentToolCallStatus::Completed,
@@ -842,7 +845,10 @@ impl ThreadHistoryBuilder {
             .push(ThreadItem::ContextCompaction { id });
     }
 
-    fn handle_entered_review_mode(&mut self, payload: &thinwedge_protocol::protocol::ReviewRequest) {
+    fn handle_entered_review_mode(
+        &mut self,
+        payload: &thinwedge_protocol::protocol::ReviewRequest,
+    ) {
         let review = payload
             .user_facing_hint
             .clone()
@@ -1100,9 +1106,9 @@ fn convert_dynamic_tool_content_items(
         .iter()
         .cloned()
         .map(|item| match item {
-            thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText { text } => {
-                DynamicToolCallOutputContentItem::InputText { text }
-            }
+            thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputText {
+                text,
+            } => DynamicToolCallOutputContentItem::InputText { text },
             thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputImage {
                 image_url,
             } => DynamicToolCallOutputContentItem::InputImage { image_url },
@@ -1188,6 +1194,9 @@ impl From<&PendingTurn> for Turn {
 mod tests {
     use super::*;
     use crate::protocol::v2::CommandExecutionSource;
+    use pretty_assertions::assert_eq;
+    use std::path::PathBuf;
+    use std::time::Duration;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem as CoreDynamicToolCallOutputContentItem;
     use thinwedge_protocol::items::HookPromptFragment as CoreHookPromptFragment;
@@ -1202,7 +1211,6 @@ mod tests {
     use thinwedge_protocol::protocol::AgentReasoningEvent;
     use thinwedge_protocol::protocol::AgentReasoningRawContentEvent;
     use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
-    use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
     use thinwedge_protocol::protocol::CompactedItem;
     use thinwedge_protocol::protocol::DynamicToolCallResponseEvent;
     use thinwedge_protocol::protocol::ExecCommandEndEvent;
@@ -1211,6 +1219,7 @@ mod tests {
     use thinwedge_protocol::protocol::McpInvocation;
     use thinwedge_protocol::protocol::McpToolCallEndEvent;
     use thinwedge_protocol::protocol::PatchApplyBeginEvent;
+    use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
     use thinwedge_protocol::protocol::ThreadRolledBackEvent;
     use thinwedge_protocol::protocol::TurnAbortReason;
     use thinwedge_protocol::protocol::TurnAbortedEvent;
@@ -1220,9 +1229,6 @@ mod tests {
     use thinwedge_protocol::protocol::WebSearchEndEvent;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
-    use std::path::PathBuf;
-    use std::time::Duration;
     use uuid::Uuid;
 
     #[test]
@@ -2148,7 +2154,9 @@ mod tests {
                 turn_id: "turn-1".into(),
                 status: GuardianAssessmentStatus::Denied,
                 risk_level: Some(thinwedge_protocol::protocol::GuardianRiskLevel::High),
-                user_authorization: Some(thinwedge_protocol::protocol::GuardianUserAuthorization::Low),
+                user_authorization: Some(
+                    thinwedge_protocol::protocol::GuardianUserAuthorization::Low,
+                ),
                 rationale: Some("Would delete user data.".into()),
                 decision_source: Some(
                     thinwedge_protocol::protocol::GuardianAssessmentDecisionSource::Agent,
@@ -2811,7 +2819,9 @@ mod tests {
                 receiver_thread_ids: vec!["00000000-0000-0000-0000-000000000002".into()],
                 prompt: Some("inspect the repo".into()),
                 model: Some("gpt-5.4-mini".into()),
-                reasoning_effort: Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium),
+                reasoning_effort: Some(
+                    thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium
+                ),
                 agents_states: [(
                     "00000000-0000-0000-0000-000000000002".into(),
                     CollabAgentState {

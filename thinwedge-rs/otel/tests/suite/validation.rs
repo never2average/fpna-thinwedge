@@ -1,12 +1,13 @@
+use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use thinwedge_otel::MetricsClient;
 use thinwedge_otel::MetricsConfig;
 use thinwedge_otel::MetricsError;
 use thinwedge_otel::Result;
-use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 
 fn build_in_memory_client() -> Result<MetricsClient> {
     let exporter = InMemoryMetricExporter::default();
-    let config = MetricsConfig::in_memory("test", "thinwedge-cli", env!("CARGO_PKG_VERSION"), exporter);
+    let config =
+        MetricsConfig::in_memory("test", "thinwedge-cli", env!("CARGO_PKG_VERSION"), exporter);
     MetricsClient::new(config)
 }
 
@@ -81,7 +82,9 @@ fn counter_rejects_invalid_metric_name() -> Result<()> {
 #[test]
 fn counter_rejects_negative_increment() -> Result<()> {
     let metrics = build_in_memory_client()?;
-    let err = metrics.counter("thinwedge.turns", /*inc*/ -1, &[]).unwrap_err();
+    let err = metrics
+        .counter("thinwedge.turns", /*inc*/ -1, &[])
+        .unwrap_err();
     assert!(matches!(
         err,
         MetricsError::NegativeCounterIncrement { name, inc } if name == "thinwedge.turns" && inc == -1

@@ -1,9 +1,9 @@
 use super::*;
 
+use pretty_assertions::assert_eq;
 use thinwedge_execpolicy::Decision;
 use thinwedge_execpolicy::NetworkRuleProtocol;
 use thinwedge_execpolicy::Policy;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn higher_precedence_profile_network_overlays_domain_entries() {

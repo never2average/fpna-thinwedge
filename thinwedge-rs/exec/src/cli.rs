@@ -2,9 +2,9 @@ use clap::Args;
 use clap::FromArgMatches;
 use clap::Parser;
 use clap::ValueEnum;
+use std::path::PathBuf;
 use thinwedge_utils_cli::CliConfigOverrides;
 use thinwedge_utils_cli::SharedCliOptions;
-use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(

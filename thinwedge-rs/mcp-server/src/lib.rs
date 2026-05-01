@@ -28,24 +28,24 @@ use tracing::info;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::prelude::*;
 
-mod thinwedge_tool_config;
-mod thinwedge_tool_runner;
 mod exec_approval;
 pub(crate) mod message_processor;
 mod outgoing_message;
 mod patch_approval;
+mod thinwedge_tool_config;
+mod thinwedge_tool_runner;
 
 use crate::message_processor::MessageProcessor;
 use crate::outgoing_message::OutgoingJsonRpcMessage;
 use crate::outgoing_message::OutgoingMessage;
 use crate::outgoing_message::OutgoingMessageSender;
 
-pub use crate::thinwedge_tool_config::ThinWedgeToolCallParam;
-pub use crate::thinwedge_tool_config::ThinWedgeToolCallReplyParam;
 pub use crate::exec_approval::ExecApprovalElicitRequestParams;
 pub use crate::exec_approval::ExecApprovalResponse;
 pub use crate::patch_approval::PatchApprovalElicitRequestParams;
 pub use crate::patch_approval::PatchApprovalResponse;
+pub use crate::thinwedge_tool_config::ThinWedgeToolCallParam;
+pub use crate::thinwedge_tool_config::ThinWedgeToolCallReplyParam;
 
 /// Size of the bounded channels used to communicate between tasks. The value
 /// is a balance between throughput and memory usage – 128 messages should be
@@ -194,11 +194,11 @@ pub async fn run_main(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_config::types::OtelExporterKind;
-    use thinwedge_core::config::ConfigBuilder;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use tempfile::TempDir;
+    use thinwedge_config::types::OtelExporterKind;
+    use thinwedge_core::config::ConfigBuilder;
 
     #[test]
     fn mcp_server_defaults_analytics_to_enabled() {

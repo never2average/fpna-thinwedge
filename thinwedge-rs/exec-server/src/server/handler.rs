@@ -3,10 +3,10 @@ use std::sync::Mutex as StdMutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use thinwedge_app_server_protocol::JSONRPCErrorError;
-use thinwedge_app_server_protocol::RequestId;
 use serde_json::to_value;
 use std::collections::HashSet;
+use thinwedge_app_server_protocol::JSONRPCErrorError;
+use thinwedge_app_server_protocol::RequestId;
 use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;

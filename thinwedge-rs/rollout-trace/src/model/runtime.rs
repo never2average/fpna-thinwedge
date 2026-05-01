@@ -8,7 +8,6 @@ use super::AgentPath;
 use super::AgentThreadId;
 use super::CodeCellId;
 use super::CodeModeRuntimeToolId;
-use super::ThinWedgeTurnId;
 use super::CompactionId;
 use super::CompactionRequestId;
 use super::ConversationItemId;
@@ -16,6 +15,7 @@ use super::EdgeId;
 use super::ModelVisibleCallId;
 use super::TerminalId;
 use super::TerminalOperationId;
+use super::ThinWedgeTurnId;
 use super::ToolCallId;
 use super::session::ExecutionWindow;
 

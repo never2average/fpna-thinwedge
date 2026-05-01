@@ -1,6 +1,5 @@
 use anyhow::Result;
 use anyhow::anyhow;
-use thinwedge_config::types::McpServerEnvVar;
 use reqwest::ClientBuilder;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderName;
@@ -8,6 +7,7 @@ use reqwest::header::HeaderValue;
 use std::collections::HashMap;
 use std::env;
 use std::ffi::OsString;
+use thinwedge_config::types::McpServerEnvVar;
 
 pub(crate) fn create_env_for_mcp_server(
     extra_env: Option<HashMap<OsString, OsString>>,

@@ -5,8 +5,8 @@ use crate::ToolSpec;
 use crate::ToolsConfig;
 use crate::WaitAgentTimeoutOptions;
 use crate::augment_tool_spec_for_code_mode;
-use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use std::collections::HashMap;
+use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolHandlerKind {

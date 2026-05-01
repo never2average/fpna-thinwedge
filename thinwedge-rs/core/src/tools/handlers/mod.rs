@@ -19,14 +19,14 @@ mod unavailable_tool;
 pub(crate) mod unified_exec;
 mod view_image;
 
+use serde::Deserialize;
+use serde_json::Value;
+use std::path::Path;
 use thinwedge_sandboxing::policy_transforms::intersect_permission_profiles;
 use thinwedge_sandboxing::policy_transforms::merge_permission_profiles;
 use thinwedge_sandboxing::policy_transforms::normalize_additional_permissions;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
-use serde::Deserialize;
-use serde_json::Value;
-use std::path::Path;
 
 use crate::function_tool::FunctionCallError;
 use crate::sandboxing::SandboxPermissions;
@@ -34,8 +34,6 @@ use crate::session::session::Session;
 pub(crate) use crate::tools::code_mode::CodeModeExecuteHandler;
 pub(crate) use crate::tools::code_mode::CodeModeWaitHandler;
 pub use apply_patch::ApplyPatchHandler;
-use thinwedge_protocol::models::AdditionalPermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
 pub use dynamic::DynamicToolHandler;
 pub use goal::GoalHandler;
 pub use list_dir::ListDirHandler;
@@ -47,6 +45,8 @@ pub use request_user_input::RequestUserInputHandler;
 pub use shell::ShellCommandHandler;
 pub use shell::ShellHandler;
 pub use test_sync::TestSyncHandler;
+use thinwedge_protocol::models::AdditionalPermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
 pub use tool_search::ToolSearchHandler;
 pub use tool_suggest::ToolSuggestHandler;
 pub use unavailable_tool::UnavailableToolHandler;
@@ -232,6 +232,8 @@ mod tests {
     use super::normalize_and_validate_additional_permissions;
     use super::permissions_are_preapproved;
     use crate::sandboxing::SandboxPermissions;
+    use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
     use thinwedge_protocol::models::AdditionalPermissionProfile;
     use thinwedge_protocol::models::FileSystemPermissions;
     use thinwedge_protocol::models::NetworkPermissions;
@@ -244,8 +246,6 @@ mod tests {
     use thinwedge_sandboxing::policy_transforms::intersect_permission_profiles;
     use thinwedge_sandboxing::policy_transforms::merge_permission_profiles;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
-    use tempfile::tempdir;
 
     fn network_permissions() -> AdditionalPermissionProfile {
         AdditionalPermissionProfile {

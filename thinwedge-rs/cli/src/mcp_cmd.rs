@@ -255,7 +255,12 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
     let thinwedge_home = find_thinwedge_home().context("failed to resolve THINWEDGE_HOME")?;
     let mut servers = load_global_mcp_servers(&thinwedge_home)
         .await
-        .with_context(|| format!("failed to load MCP servers from {}", thinwedge_home.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers from {}",
+                thinwedge_home.display()
+            )
+        })?;
 
     let transport = match transport_args {
         AddMcpTransportArgs {
@@ -319,7 +324,12 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         .replace_mcp_servers(&servers)
         .apply()
         .await
-        .with_context(|| format!("failed to write MCP servers to {}", thinwedge_home.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to write MCP servers to {}",
+                thinwedge_home.display()
+            )
+        })?;
 
     println!("Added global MCP server '{name}'.");
 
@@ -366,7 +376,12 @@ async fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveAr
     let thinwedge_home = find_thinwedge_home().context("failed to resolve THINWEDGE_HOME")?;
     let mut servers = load_global_mcp_servers(&thinwedge_home)
         .await
-        .with_context(|| format!("failed to load MCP servers from {}", thinwedge_home.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers from {}",
+                thinwedge_home.display()
+            )
+        })?;
 
     let removed = servers.remove(&name).is_some();
 
@@ -375,7 +390,12 @@ async fn run_remove(config_overrides: &CliConfigOverrides, remove_args: RemoveAr
             .replace_mcp_servers(&servers)
             .apply()
             .await
-            .with_context(|| format!("failed to write MCP servers to {}", thinwedge_home.display()))?;
+            .with_context(|| {
+                format!(
+                    "failed to write MCP servers to {}",
+                    thinwedge_home.display()
+                )
+            })?;
     }
 
     if removed {

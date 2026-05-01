@@ -413,7 +413,10 @@ async fn rate_limit_snapshots_keep_separate_entries_per_limit_id() {
         .get("thinwedge_other")
         .expect("thinwedge_other snapshot should exist");
 
-    assert_eq!(thinwedge.primary.as_ref().map(|w| w.used_percent), Some(20.0));
+    assert_eq!(
+        thinwedge.primary.as_ref().map(|w| w.used_percent),
+        Some(20.0)
+    );
     assert_eq!(
         thinwedge
             .credits
@@ -1513,7 +1516,10 @@ async fn terminal_title_model_updates_on_model_change_without_manual_refresh() {
 
     chat.set_model("gpt-5.3-thinwedge");
 
-    assert_eq!(chat.last_terminal_title, Some("gpt-5.3-thinwedge".to_string()));
+    assert_eq!(
+        chat.last_terminal_title,
+        Some("gpt-5.3-thinwedge".to_string())
+    );
 }
 
 #[tokio::test]

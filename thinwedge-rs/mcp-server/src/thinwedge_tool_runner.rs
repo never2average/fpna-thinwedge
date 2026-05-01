@@ -9,8 +9,12 @@ use crate::exec_approval::handle_exec_approval_request;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::OutgoingNotificationMeta;
 use crate::patch_approval::handle_patch_approval_request;
-use thinwedge_core::ThinWedgeThread;
+use rmcp::model::CallToolResult;
+use rmcp::model::Content;
+use rmcp::model::RequestId;
+use serde_json::json;
 use thinwedge_core::NewThread;
+use thinwedge_core::ThinWedgeThread;
 use thinwedge_core::ThreadManager;
 use thinwedge_core::config::Config as ThinWedgeConfig;
 use thinwedge_protocol::ThreadId;
@@ -23,10 +27,6 @@ use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::Submission;
 use thinwedge_protocol::protocol::TurnCompleteEvent;
 use thinwedge_protocol::user_input::UserInput;
-use rmcp::model::CallToolResult;
-use rmcp::model::Content;
-use rmcp::model::RequestId;
-use serde_json::json;
 use tokio::sync::Mutex;
 
 /// To adhere to MCP `tools/call` response format, include the ThinWedge
@@ -72,7 +72,9 @@ pub async fn run_thinwedge_tool_session(
         Ok(res) => res,
         Err(e) => {
             let result = CallToolResult {
-                content: vec![Content::text(format!("Failed to start ThinWedge session: {e}"))],
+                content: vec![Content::text(format!(
+                    "Failed to start ThinWedge session: {e}"
+                ))],
                 is_error: Some(true),
                 structured_content: None,
                 meta: None,
@@ -129,7 +131,10 @@ pub async fn run_thinwedge_tool_session(
         );
         outgoing.send_response(id.clone(), result).await;
         // unregister the id so we don't keep it in the map
-        running_requests_id_to_thinwedge_uuid.lock().await.remove(&id);
+        running_requests_id_to_thinwedge_uuid
+            .lock()
+            .await
+            .remove(&id);
         return;
     }
 

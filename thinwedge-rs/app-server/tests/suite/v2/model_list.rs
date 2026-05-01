@@ -4,6 +4,8 @@ use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_models_cache;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCError;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::Model;
@@ -13,8 +15,6 @@ use thinwedge_app_server_protocol::ModelUpgradeInfo;
 use thinwedge_app_server_protocol::ReasoningEffortOption;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_protocol::thinwedge_models::ModelPreset;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);

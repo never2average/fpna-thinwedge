@@ -18,7 +18,6 @@ use crate::state::validate_policy_against_constraints;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use globset::GlobSet;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -28,6 +27,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use time::OffsetDateTime;
 use tokio::net::lookup_host;
 use tokio::sync::RwLock;
@@ -1171,7 +1171,10 @@ mod tests {
             HostBlockDecision::Allowed
         );
         assert_eq!(
-            state.host_blocked("thinwedge.com", /*port*/ 80).await.unwrap(),
+            state
+                .host_blocked("thinwedge.com", /*port*/ 80)
+                .await
+                .unwrap(),
             HostBlockDecision::Blocked(HostBlockReason::NotAllowed)
         );
     }

@@ -1,5 +1,3 @@
-use thinwedge_feedback::FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME;
-use thinwedge_feedback::FeedbackDiagnostics;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyModifiers;
@@ -13,6 +11,8 @@ use ratatui::widgets::Paragraph;
 use ratatui::widgets::StatefulWidgetRef;
 use ratatui::widgets::Widget;
 use std::cell::RefCell;
+use thinwedge_feedback::FEEDBACK_DIAGNOSTICS_ATTACHMENT_FILENAME;
+use thinwedge_feedback::FeedbackDiagnostics;
 
 use crate::app_event::AppEvent;
 use crate::app_event::FeedbackCategory;
@@ -560,8 +560,8 @@ mod tests {
     use super::*;
     use crate::app_event::AppEvent;
     use crate::app_event_sender::AppEventSender;
-    use thinwedge_feedback::FeedbackDiagnostic;
     use pretty_assertions::assert_eq;
+    use thinwedge_feedback::FeedbackDiagnostic;
 
     fn render(view: &FeedbackNoteView, width: u16) -> String {
         let height = view.desired_height(width);

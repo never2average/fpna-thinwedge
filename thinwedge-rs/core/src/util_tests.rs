@@ -1,11 +1,11 @@
 use super::*;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::sync::Mutex;
 use thinwedge_feedback::FeedbackRequestTags;
 use thinwedge_feedback::emit_feedback_request_tags;
 use thinwedge_feedback::emit_feedback_request_tags_with_auth_env;
 use thinwedge_login::AuthEnvTelemetry;
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::sync::Mutex;
 use tracing::Event;
 use tracing::Subscriber;
 use tracing::field::Visit;

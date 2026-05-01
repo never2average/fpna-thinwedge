@@ -20,6 +20,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use app_test_support::create_mock_responses_server_repeating_assistant;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server::in_process;
 use thinwedge_app_server::in_process::InProcessServerEvent;
 use thinwedge_app_server::in_process::InProcessStartArgs;
@@ -41,8 +43,6 @@ use thinwedge_exec_server::EnvironmentManager;
 use thinwedge_feedback::ThinWedgeFeedback;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_thread_store::InMemoryThreadStore;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use uuid::Uuid;
 

@@ -5,8 +5,6 @@ use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use crate::thinwedge_message_processor::ThinWedgeMessageProcessor;
-use crate::thinwedge_message_processor::ThinWedgeMessageProcessorArgs;
 use crate::config_api::ConfigApi;
 use crate::config_manager::ConfigManager;
 use crate::connection_rpc_gate::ConnectionRpcGate;
@@ -22,10 +20,13 @@ use crate::outgoing_message::RequestContext;
 use crate::request_serialization::QueuedInitializedRequest;
 use crate::request_serialization::RequestSerializationQueueKey;
 use crate::request_serialization::RequestSerializationQueues;
+use crate::thinwedge_message_processor::ThinWedgeMessageProcessor;
+use crate::thinwedge_message_processor::ThinWedgeMessageProcessorArgs;
 use crate::transport::AppServerTransport;
 use crate::transport::ConnectionOrigin;
 use crate::transport::RemoteControlHandle;
 use axum::http::HeaderValue;
+use futures::FutureExt;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_analytics::AppServerRpcTransport;
 use thinwedge_app_server_protocol::AppListUpdatedNotification;
@@ -73,7 +74,6 @@ use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::W3cTraceContext;
 use thinwedge_state::log_db::LogDbLayer;
-use futures::FutureExt;
 use tokio::sync::broadcast;
 use tokio::sync::watch;
 use tracing::Instrument;
@@ -220,17 +220,18 @@ impl MessageProcessor {
             .plugins_manager()
             .set_analytics_events_client(analytics_events_client.clone());
 
-        let thinwedge_message_processor = ThinWedgeMessageProcessor::new(ThinWedgeMessageProcessorArgs {
-            auth_manager: auth_manager.clone(),
-            thread_manager: Arc::clone(&thread_manager),
-            outgoing: outgoing.clone(),
-            analytics_events_client: analytics_events_client.clone(),
-            arg0_paths,
-            config: Arc::clone(&config),
-            config_manager: config_manager.clone(),
-            feedback,
-            log_db,
-        });
+        let thinwedge_message_processor =
+            ThinWedgeMessageProcessor::new(ThinWedgeMessageProcessorArgs {
+                auth_manager: auth_manager.clone(),
+                thread_manager: Arc::clone(&thread_manager),
+                outgoing: outgoing.clone(),
+                analytics_events_client: analytics_events_client.clone(),
+                arg0_paths,
+                config: Arc::clone(&config),
+                config_manager: config_manager.clone(),
+                feedback,
+                log_db,
+            });
         if matches!(plugin_startup_tasks, crate::PluginStartupTasks::Start) {
             // Keep plugin startup warmups aligned at app-server startup.
             // TODO(xl): Move into PluginManager once this no longer depends on config feature gating.
@@ -309,8 +310,9 @@ impl MessageProcessor {
                 let result = async {
                     let request_json = serde_json::to_value(&request)
                         .map_err(|err| invalid_request(format!("Invalid request: {err}")))?;
-                    let thinwedge_request = serde_json::from_value::<ClientRequest>(request_json)
-                        .map_err(|err| invalid_request(format!("Invalid request: {err}")))?;
+                    let thinwedge_request =
+                        serde_json::from_value::<ClientRequest>(request_json)
+                            .map_err(|err| invalid_request(format!("Invalid request: {err}")))?;
                     // Websocket callers finalize outbound readiness in lib.rs after mirroring
                     // session state into outbound state and sending initialize notifications to
                     // this specific connection. Passing `None` avoids marking the connection
@@ -450,7 +452,9 @@ impl MessageProcessor {
     }
 
     pub(crate) async fn drain_background_tasks(&self) {
-        self.thinwedge_message_processor.drain_background_tasks().await;
+        self.thinwedge_message_processor
+            .drain_background_tasks()
+            .await;
     }
 
     pub(crate) async fn cancel_active_login(&self) {

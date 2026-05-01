@@ -2,23 +2,6 @@
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_config::types::ApprovalsReviewer;
-use thinwedge_core::ThinWedgeThread;
-use thinwedge_core::config::Constrained;
-use thinwedge_core::sandboxing::SandboxPermissions;
-use thinwedge_features::Feature;
-use thinwedge_protocol::approvals::NetworkApprovalProtocol;
-use thinwedge_protocol::approvals::NetworkPolicyAmendment;
-use thinwedge_protocol::approvals::NetworkPolicyRuleAction;
-use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
-use thinwedge_protocol::protocol::ExecPolicyAmendment;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::ReviewDecision;
-use thinwedge_protocol::protocol::SandboxPolicy;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::managed_network_requirements_loader;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
@@ -49,6 +32,23 @@ use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use test_case::test_case;
+use thinwedge_config::types::ApprovalsReviewer;
+use thinwedge_core::ThinWedgeThread;
+use thinwedge_core::config::Constrained;
+use thinwedge_core::sandboxing::SandboxPermissions;
+use thinwedge_features::Feature;
+use thinwedge_protocol::approvals::NetworkApprovalProtocol;
+use thinwedge_protocol::approvals::NetworkPolicyAmendment;
+use thinwedge_protocol::approvals::NetworkPolicyRuleAction;
+use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
+use thinwedge_protocol::protocol::ExecPolicyAmendment;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::ReviewDecision;
+use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::Request;
@@ -1721,18 +1721,20 @@ async fn run_scenario(scenario: &ScenarioSpec) -> Result<()> {
     let model_override = scenario.model_override;
     let model = model_override.unwrap_or("gpt-5.4");
 
-    let mut builder = test_thinwedge().with_model(model).with_config(move |config| {
-        config.permissions.approval_policy = Constrained::allow_any(approval_policy);
-        config
-            .set_legacy_sandbox_policy(sandbox_policy.clone())
-            .expect("set sandbox policy");
-        for feature in features {
+    let mut builder = test_thinwedge()
+        .with_model(model)
+        .with_config(move |config| {
+            config.permissions.approval_policy = Constrained::allow_any(approval_policy);
             config
-                .features
-                .enable(feature)
-                .expect("test config should allow feature update");
-        }
-    });
+                .set_legacy_sandbox_policy(sandbox_policy.clone())
+                .expect("set sandbox policy");
+            for feature in features {
+                config
+                    .features
+                    .enable(feature)
+                    .expect("test config should allow feature update");
+            }
+        });
     let test = builder.build(&server).await?;
 
     let call_id = scenario.name;
@@ -2422,8 +2424,7 @@ async fn invalid_requested_prefix_rule_falls_back_for_compound_command() -> Resu
     let test = builder.build(&server).await?;
 
     let call_id = "invalid-prefix-rule";
-    let command =
-        "touch /tmp/thinwedge-fallback-rule-test.txt && echo hello > /tmp/thinwedge-fallback-rule-test.txt";
+    let command = "touch /tmp/thinwedge-fallback-rule-test.txt && echo hello > /tmp/thinwedge-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2475,8 +2476,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     let test = builder.build(&server).await?;
 
     let call_id = "invalid-prefix-rule";
-    let command =
-        "touch /tmp/thinwedge-fallback-rule-test.txt && echo hello > /tmp/thinwedge-fallback-rule-test.txt";
+    let command = "touch /tmp/thinwedge-fallback-rule-test.txt && echo hello > /tmp/thinwedge-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,
@@ -2522,8 +2522,7 @@ async fn approving_fallback_rule_for_compound_command_works() -> Result<()> {
     wait_for_completion(&test).await;
 
     let call_id = "invalid-prefix-rule-again";
-    let command =
-        "touch /tmp/thinwedge-fallback-rule-test.txt && echo hello > /tmp/thinwedge-fallback-rule-test.txt";
+    let command = "touch /tmp/thinwedge-fallback-rule-test.txt && echo hello > /tmp/thinwedge-fallback-rule-test.txt";
     let event = shell_event_with_prefix_rule(
         call_id,
         command,

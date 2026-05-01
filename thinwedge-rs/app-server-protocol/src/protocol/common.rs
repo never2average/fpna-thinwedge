@@ -8,11 +8,11 @@ use crate::export::GeneratedSchema;
 use crate::export::write_json_schema;
 use crate::protocol::v1;
 use crate::protocol::v2;
-use thinwedge_experimental_api_macros::ExperimentalApi;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum_macros::Display;
+use thinwedge_experimental_api_macros::ExperimentalApi;
 use ts_rs::TS;
 
 /// Authentication mode for ThinWedge-backed providers.
@@ -1304,6 +1304,9 @@ client_notification_definitions! {
 mod tests {
     use super::*;
     use anyhow::Result;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use std::path::PathBuf;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::account::PlanType;
     use thinwedge_protocol::parse_command::ParsedCommand;
@@ -1313,9 +1316,6 @@ mod tests {
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-    use std::path::PathBuf;
 
     fn absolute_path_string(path: &str) -> String {
         let path = format!("/{}", path.trim_start_matches('/'));

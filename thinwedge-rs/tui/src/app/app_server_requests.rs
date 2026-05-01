@@ -413,6 +413,11 @@ fn file_change_decision(decision: &ReviewDecision) -> Result<FileChangeApprovalD
 mod tests {
     use super::PendingAppServerRequests;
     use super::ResolvedAppServerRequest;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use std::collections::BTreeMap;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
     use thinwedge_app_server_protocol::AdditionalFileSystemPermissions;
     use thinwedge_app_server_protocol::AdditionalNetworkPermissions;
     use thinwedge_app_server_protocol::CommandExecutionRequestApprovalParams;
@@ -438,11 +443,6 @@ mod tests {
     use thinwedge_protocol::protocol::ReviewDecision;
     use thinwedge_protocol::request_permissions::RequestPermissionProfile;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-    use std::collections::BTreeMap;
-    use std::collections::HashMap;
-    use std::path::PathBuf;
 
     #[test]
     fn resolves_exec_approval_through_app_server_request_id() {

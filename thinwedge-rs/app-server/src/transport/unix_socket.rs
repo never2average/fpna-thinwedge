@@ -4,10 +4,10 @@ use std::path::Path;
 
 use super::TransportEvent;
 use crate::transport::websocket::run_websocket_connection;
+use futures::StreamExt;
 use thinwedge_uds::UnixListener;
 use thinwedge_uds::UnixStream;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use futures::StreamExt;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;

@@ -67,9 +67,9 @@ pub(super) async fn list_threads(
 mod tests {
     use std::path::PathBuf;
 
-    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-    use thinwedge_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::protocol::SessionSource;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use tonic::Request;
     use tonic::Response;
     use tonic::Status;

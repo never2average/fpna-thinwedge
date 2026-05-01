@@ -1,10 +1,10 @@
 use base64::Engine;
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::auth::PlanType;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
+use thinwedge_protocol::auth::PlanType;
 use thiserror::Error;
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Default)]

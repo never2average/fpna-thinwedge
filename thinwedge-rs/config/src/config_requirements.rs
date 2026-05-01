@@ -1,9 +1,3 @@
-use thinwedge_protocol::config_types::ApprovalsReviewer;
-use thinwedge_protocol::config_types::SandboxMode;
-use thinwedge_protocol::config_types::WebSearchMode;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use serde::Deserialize;
 use serde::Serialize;
 use serde::de::Error as _;
@@ -11,6 +5,12 @@ use serde::de::value::Error as ValueDeserializerError;
 use serde::de::value::StrDeserializer;
 use std::collections::BTreeMap;
 use std::fmt;
+use thinwedge_protocol::config_types::ApprovalsReviewer;
+use thinwedge_protocol::config_types::SandboxMode;
+use thinwedge_protocol::config_types::WebSearchMode;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use wildmatch::WildMatchPattern;
 
 use super::requirements_exec_policy::RequirementsExecPolicy;
@@ -1170,6 +1170,7 @@ mod tests {
     use super::*;
     use crate::HookEventsToml;
     use anyhow::Result;
+    use pretty_assertions::assert_eq;
     use thinwedge_execpolicy::Decision;
     use thinwedge_execpolicy::Evaluation;
     use thinwedge_execpolicy::RuleMatch;
@@ -1177,7 +1178,6 @@ mod tests {
     use thinwedge_protocol::protocol::SandboxPolicy;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use thinwedge_utils_absolute_path::AbsolutePathBufGuard;
-    use pretty_assertions::assert_eq;
     use toml::from_str;
 
     fn tokens(cmd: &[&str]) -> Vec<String> {

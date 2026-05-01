@@ -6,6 +6,8 @@ use crate::exec_policy::load_exec_policy;
 use anyhow::Context;
 use anyhow::Result;
 use async_trait::async_trait;
+use serde::Deserialize;
+use std::sync::Arc;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::CloudRequirementsLoader;
@@ -27,8 +29,6 @@ use thinwedge_network_proxy::build_config_state;
 use thinwedge_network_proxy::normalize_host;
 use thinwedge_network_proxy::validate_policy_against_constraints;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use serde::Deserialize;
-use std::sync::Arc;
 use tokio::sync::RwLock;
 
 pub async fn build_network_proxy_state() -> Result<NetworkProxyState> {
@@ -91,9 +91,9 @@ fn collect_layer_mtimes(stack: &ConfigLayerStack) -> Vec<LayerMtime> {
             let path = match &layer.name {
                 ConfigLayerSource::System { file } => Some(file.clone()),
                 ConfigLayerSource::User { file } => Some(file.clone()),
-                ConfigLayerSource::Project { dot_thinwedge_folder } => {
-                    Some(dot_thinwedge_folder.join(CONFIG_TOML_FILE))
-                }
+                ConfigLayerSource::Project {
+                    dot_thinwedge_folder,
+                } => Some(dot_thinwedge_folder.join(CONFIG_TOML_FILE)),
                 ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => Some(file.clone()),
                 _ => None,
             };

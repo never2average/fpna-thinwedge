@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
+use pretty_assertions::assert_eq;
+use tempfile::tempdir;
 use thinwedge_execpolicy::Decision;
 use thinwedge_execpolicy::Error;
 use thinwedge_execpolicy::Evaluation;
@@ -19,8 +21,6 @@ use thinwedge_execpolicy::RuleMatch;
 use thinwedge_execpolicy::RuleRef;
 use thinwedge_execpolicy::blocking_append_allow_prefix_rule;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use tempfile::tempdir;
 
 fn tokens(cmd: &[&str]) -> Vec<String> {
     cmd.iter().map(std::string::ToString::to_string).collect()

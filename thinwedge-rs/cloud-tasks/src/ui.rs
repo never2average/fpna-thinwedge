@@ -785,7 +785,10 @@ fn style_diff_line(raw: &str) -> Line<'static> {
     Line::from(vec![Span::raw(raw.to_string())])
 }
 
-fn render_task_item(_app: &App, t: &thinwedge_cloud_tasks_client::TaskSummary) -> ListItem<'static> {
+fn render_task_item(
+    _app: &App,
+    t: &thinwedge_cloud_tasks_client::TaskSummary,
+) -> ListItem<'static> {
     let status = match t.status {
         TaskStatus::Ready => "READY".green(),
         TaskStatus::Pending => "PENDING".magenta(),

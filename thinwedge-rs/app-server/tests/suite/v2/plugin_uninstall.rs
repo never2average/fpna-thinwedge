@@ -8,14 +8,14 @@ use app_test_support::McpProcess;
 use app_test_support::start_analytics_events_server;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use pretty_assertions::assert_eq;
+use serde_json::json;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::PluginUninstallParams;
 use thinwedge_app_server_protocol::PluginUninstallResponse;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_config::types::AuthCredentialsStoreMode;
-use pretty_assertions::assert_eq;
-use serde_json::json;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -122,7 +122,8 @@ async fn plugin_uninstall_tracks_analytics_event() -> Result<()> {
                 continue;
             };
             if let Some(request) = requests.iter().find(|request| {
-                request.method == "POST" && request.url.path() == "/thinwedge/analytics-events/events"
+                request.method == "POST"
+                    && request.url.path() == "/thinwedge/analytics-events/events"
             }) {
                 break request.body.clone();
             }

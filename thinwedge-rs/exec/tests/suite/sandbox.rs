@@ -1,12 +1,12 @@
 #![cfg(unix)]
-use thinwedge_core::spawn::StdioPolicy;
-use thinwedge_protocol::protocol::SandboxPolicy;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_absolute_path::test_support::PathBufExt;
 use std::collections::HashMap;
 use std::future::Future;
 use std::io;
 use std::process::ExitStatus;
+use thinwedge_core::spawn::StdioPolicy;
+use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_absolute_path::test_support::PathBufExt;
 use tokio::fs::create_dir_all;
 use tokio::process::Child;
 
@@ -19,13 +19,13 @@ async fn spawn_command_under_sandbox(
     stdio_policy: StdioPolicy,
     env: HashMap<String, String>,
 ) -> std::io::Result<Child> {
+    use std::process::Stdio;
     use thinwedge_core::exec::ExecCapturePolicy;
     use thinwedge_core::exec::ExecParams;
     use thinwedge_core::exec::build_exec_request;
     use thinwedge_core::sandboxing::SandboxPermissions;
     use thinwedge_protocol::config_types::WindowsSandboxLevel;
     use thinwedge_protocol::models::PermissionProfile;
-    use std::process::Stdio;
 
     let thinwedge_linux_sandbox_exe = None;
     let exec_request = build_exec_request(
@@ -398,7 +398,10 @@ async fn sandbox_blocks_first_time_dot_thinwedge_creation() {
     .await
     .expect("should spawn command creating .thinwedge");
 
-    let status = child.wait().await.expect("should wait for .thinwedge command");
+    let status = child
+        .wait()
+        .await
+        .expect("should wait for .thinwedge command");
     assert!(
         !status.success(),
         "sandbox unexpectedly allowed first-time .thinwedge creation: {status:?}"

@@ -1,5 +1,5 @@
-use thinwedge_core::config::Config;
 use serde::Deserialize;
+use thinwedge_core::config::Config;
 
 use crate::chatgpt_client::chatgpt_get_request;
 

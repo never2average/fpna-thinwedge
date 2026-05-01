@@ -3,14 +3,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use thinwedge_core::ThinWedgeThread;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::UndoCompletedEvent;
 use core_test_support::test_thinwedge::TestThinWedgeHarness;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
+use thinwedge_core::ThinWedgeThread;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::UndoCompletedEvent;
 
 async fn undo_harness() -> Result<TestThinWedgeHarness> {
     TestThinWedgeHarness::with_builder(test_thinwedge().with_model("gpt-5.4")).await

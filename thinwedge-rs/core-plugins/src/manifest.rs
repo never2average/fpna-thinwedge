@@ -1,11 +1,11 @@
-use thinwedge_config::HooksFile;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_plugins::find_plugin_manifest_path;
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 use std::fs;
 use std::path::Component;
 use std::path::Path;
+use thinwedge_config::HooksFile;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_plugins::find_plugin_manifest_path;
 const MAX_DEFAULT_PROMPT_COUNT: usize = 3;
 const MAX_DEFAULT_PROMPT_LEN: usize = 128;
 

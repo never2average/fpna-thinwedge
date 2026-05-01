@@ -11,16 +11,16 @@ use crate::requests::headers::insert_header;
 use crate::requests::headers::subagent_header;
 use crate::sse::spawn_response_stream;
 use crate::telemetry::SseTelemetry;
-use thinwedge_client::HttpTransport;
-use thinwedge_client::RequestCompression;
-use thinwedge_client::RequestTelemetry;
-use thinwedge_protocol::protocol::SessionSource;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::Method;
 use serde_json::Value;
 use std::sync::Arc;
 use std::sync::OnceLock;
+use thinwedge_client::HttpTransport;
+use thinwedge_client::RequestCompression;
+use thinwedge_client::RequestTelemetry;
+use thinwedge_protocol::protocol::SessionSource;
 use tracing::instrument;
 
 pub struct ResponsesClient<T: HttpTransport> {

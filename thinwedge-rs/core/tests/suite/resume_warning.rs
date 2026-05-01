@@ -1,5 +1,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use core::time::Duration;
+use core_test_support::load_default_config_for_test;
+use core_test_support::wait_for_event;
+use tempfile::TempDir;
 use thinwedge_core::NewThread;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_protocol::ThreadId;
@@ -14,10 +18,6 @@ use thinwedge_protocol::protocol::TurnContextItem;
 use thinwedge_protocol::protocol::TurnStartedEvent;
 use thinwedge_protocol::protocol::UserMessageEvent;
 use thinwedge_protocol::protocol::WarningEvent;
-use core::time::Duration;
-use core_test_support::load_default_config_for_test;
-use core_test_support::wait_for_event;
-use tempfile::TempDir;
 
 fn resume_history(
     config: &thinwedge_core::config::Config,

@@ -2,13 +2,13 @@
 
 mod common;
 
+use common::exec_server::exec_server;
+use pretty_assertions::assert_eq;
 use thinwedge_app_server_protocol::JSONRPCError;
 use thinwedge_app_server_protocol::JSONRPCMessage;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_exec_server::InitializeParams;
 use thinwedge_exec_server::InitializeResponse;
-use common::exec_server::exec_server;
-use pretty_assertions::assert_eq;
 use uuid::Uuid;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

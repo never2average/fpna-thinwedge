@@ -1,12 +1,5 @@
 use super::emit_turn_memory_metric;
 use super::emit_turn_network_proxy_metric;
-use thinwedge_otel::MetricsClient;
-use thinwedge_otel::MetricsConfig;
-use thinwedge_otel::SessionTelemetry;
-use thinwedge_otel::TURN_MEMORY_METRIC;
-use thinwedge_otel::TURN_NETWORK_PROXY_METRIC;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::protocol::SessionSource;
 use opentelemetry::KeyValue;
 use opentelemetry_sdk::metrics::InMemoryMetricExporter;
 use opentelemetry_sdk::metrics::data::AggregatedMetrics;
@@ -15,12 +8,24 @@ use opentelemetry_sdk::metrics::data::MetricData;
 use opentelemetry_sdk::metrics::data::ResourceMetrics;
 use pretty_assertions::assert_eq;
 use std::collections::BTreeMap;
+use thinwedge_otel::MetricsClient;
+use thinwedge_otel::MetricsConfig;
+use thinwedge_otel::SessionTelemetry;
+use thinwedge_otel::TURN_MEMORY_METRIC;
+use thinwedge_otel::TURN_NETWORK_PROXY_METRIC;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::SessionSource;
 
 fn test_session_telemetry() -> SessionTelemetry {
     let exporter = InMemoryMetricExporter::default();
     let metrics = MetricsClient::new(
-        MetricsConfig::in_memory("test", "thinwedge-core", env!("CARGO_PKG_VERSION"), exporter)
-            .with_runtime_reader(),
+        MetricsConfig::in_memory(
+            "test",
+            "thinwedge-core",
+            env!("CARGO_PKG_VERSION"),
+            exporter,
+        )
+        .with_runtime_reader(),
     )
     .expect("in-memory metrics client");
     SessionTelemetry::new(

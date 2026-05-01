@@ -22,6 +22,7 @@ use crate::engine::command_runner::CommandRunResult;
 use crate::engine::dispatcher;
 use crate::engine::output_parser;
 use crate::schema::PermissionRequestCommandInput;
+use serde_json::Value;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::HookCompletedEvent;
 use thinwedge_protocol::protocol::HookEventName;
@@ -29,7 +30,6 @@ use thinwedge_protocol::protocol::HookOutputEntry;
 use thinwedge_protocol::protocol::HookOutputEntryKind;
 use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::HookRunSummary;
-use serde_json::Value;
 
 #[derive(Debug, Clone)]
 pub struct PermissionRequestRequest {

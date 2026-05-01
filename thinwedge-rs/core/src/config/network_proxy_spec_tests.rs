@@ -1,4 +1,5 @@
 use super::*;
+use pretty_assertions::assert_eq;
 use thinwedge_config::NetworkDomainPermissionToml;
 use thinwedge_config::NetworkDomainPermissionsToml;
 use thinwedge_network_proxy::NetworkDomainPermission;
@@ -6,7 +7,6 @@ use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::SandboxPolicy;
-use pretty_assertions::assert_eq;
 
 fn permission_profile_for_sandbox_policy(sandbox_policy: &SandboxPolicy) -> PermissionProfile {
     PermissionProfile::from_legacy_sandbox_policy(sandbox_policy)

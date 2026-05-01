@@ -19,11 +19,11 @@ use anyhow::Context;
 use anyhow::Result;
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
-use thinwedge_keyring_store::KeyringStore;
 use rand::TryRngCore;
 use rand::rngs::OsRng;
 use serde::Deserialize;
 use serde::Serialize;
+use thinwedge_keyring_store::KeyringStore;
 use tracing::warn;
 
 use super::SecretListEntry;
@@ -332,9 +332,9 @@ fn parse_canonical_key(canonical_key: &str) -> Option<SecretListEntry> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_keyring_store::tests::MockKeyringStore;
     use keyring::Error as KeyringError;
     use pretty_assertions::assert_eq;
+    use thinwedge_keyring_store::tests::MockKeyringStore;
 
     #[test]
     fn load_file_rejects_newer_schema_versions() -> Result<()> {

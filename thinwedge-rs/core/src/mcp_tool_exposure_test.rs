@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use pretty_assertions::assert_eq;
+use rmcp::model::JsonObject;
+use rmcp::model::Tool;
 use thinwedge_connectors::metadata::sanitize_name;
 use thinwedge_features::Feature;
 use thinwedge_features::Features;
@@ -13,9 +16,6 @@ use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_tools::ToolsConfig;
 use thinwedge_tools::ToolsConfigParams;
-use pretty_assertions::assert_eq;
-use rmcp::model::JsonObject;
-use rmcp::model::Tool;
 
 use super::*;
 use crate::config::test_config;

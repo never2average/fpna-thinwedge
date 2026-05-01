@@ -25,6 +25,9 @@ use anyhow::bail;
 use clap::ArgAction;
 use clap::Parser;
 use clap::Subcommand;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use serde_json::Value;
 use thinwedge_app_server_protocol::AccountLoginCompletedNotification;
 use thinwedge_app_server_protocol::AskForApproval;
 use thinwedge_app_server_protocol::ClientInfo;
@@ -70,12 +73,9 @@ use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_core::config::Config;
 use thinwedge_otel::OtelProvider;
 use thinwedge_otel::current_span_w3c_trace_context;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::W3cTraceContext;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_cli::CliConfigOverrides;
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-use serde_json::Value;
 use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -397,12 +397,14 @@ pub async fn run() -> Result<()> {
         }
         CliCommand::ThreadIncrementElicitation { thread_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "thread-increment-elicitation")?;
-            let url = resolve_shared_websocket_url(thinwedge_bin, url, "thread-increment-elicitation")?;
+            let url =
+                resolve_shared_websocket_url(thinwedge_bin, url, "thread-increment-elicitation")?;
             thread_increment_elicitation(&url, thread_id)
         }
         CliCommand::ThreadDecrementElicitation { thread_id } => {
             ensure_dynamic_tools_unused(&dynamic_tools, "thread-decrement-elicitation")?;
-            let url = resolve_shared_websocket_url(thinwedge_bin, url, "thread-decrement-elicitation")?;
+            let url =
+                resolve_shared_websocket_url(thinwedge_bin, url, "thread-decrement-elicitation")?;
             thread_decrement_elicitation(&url, thread_id)
         }
         CliCommand::LiveElicitationTimeoutPause {
@@ -508,7 +510,12 @@ impl Drop for BackgroundAppServer {
     }
 }
 
-fn serve(thinwedge_bin: &Path, config_overrides: &[String], listen: &str, kill: bool) -> Result<()> {
+fn serve(
+    thinwedge_bin: &Path,
+    config_overrides: &[String],
+    listen: &str,
+    kill: bool,
+) -> Result<()> {
     let runtime_dir = PathBuf::from("/tmp/thinwedge-app-server-test-client");
     fs::create_dir_all(&runtime_dir)
         .with_context(|| format!("failed to create runtime dir {}", runtime_dir.display()))?;
@@ -874,15 +881,20 @@ async fn trigger_cmd_approval(
     let default_prompt =
         "Run `touch /tmp/should-trigger-approval` so I can confirm the file exists.";
     let message = user_message.unwrap_or_else(|| default_prompt.to_string());
-    send_message_v2_with_policies(endpoint, config_overrides, message, SendMessagePolicies {
-        command_name: "trigger-cmd-approval",
-        experimental_api: true,
-        approval_policy: Some(AskForApproval::OnRequest),
-        sandbox_policy: Some(SandboxPolicy::ReadOnly {
-            network_access: false,
-        }),
-        dynamic_tools,
-    })
+    send_message_v2_with_policies(
+        endpoint,
+        config_overrides,
+        message,
+        SendMessagePolicies {
+            command_name: "trigger-cmd-approval",
+            experimental_api: true,
+            approval_policy: Some(AskForApproval::OnRequest),
+            sandbox_policy: Some(SandboxPolicy::ReadOnly {
+                network_access: false,
+            }),
+            dynamic_tools,
+        },
+    )
     .await
 }
 
@@ -895,15 +907,20 @@ async fn trigger_patch_approval(
     let default_prompt =
         "Create a file named APPROVAL_DEMO.txt containing a short hello message using apply_patch.";
     let message = user_message.unwrap_or_else(|| default_prompt.to_string());
-    send_message_v2_with_policies(endpoint, config_overrides, message, SendMessagePolicies {
-        command_name: "trigger-patch-approval",
-        experimental_api: true,
-        approval_policy: Some(AskForApproval::OnRequest),
-        sandbox_policy: Some(SandboxPolicy::ReadOnly {
-            network_access: false,
-        }),
-        dynamic_tools,
-    })
+    send_message_v2_with_policies(
+        endpoint,
+        config_overrides,
+        message,
+        SendMessagePolicies {
+            command_name: "trigger-patch-approval",
+            experimental_api: true,
+            approval_policy: Some(AskForApproval::OnRequest),
+            sandbox_policy: Some(SandboxPolicy::ReadOnly {
+                network_access: false,
+            }),
+            dynamic_tools,
+        },
+    )
     .await
 }
 
@@ -1401,7 +1418,9 @@ fn item_started_before_helper_done_is_unexpected(
 impl ThinWedgeClient {
     fn connect(endpoint: &Endpoint, config_overrides: &[String]) -> Result<Self> {
         match endpoint {
-            Endpoint::SpawnThinWedge(thinwedge_bin) => Self::spawn_stdio(thinwedge_bin, config_overrides),
+            Endpoint::SpawnThinWedge(thinwedge_bin) => {
+                Self::spawn_stdio(thinwedge_bin, config_overrides)
+            }
             Endpoint::ConnectWs(url) => Self::connect_websocket(url),
         }
     }

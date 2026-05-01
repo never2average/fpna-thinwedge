@@ -77,7 +77,8 @@ fn filter_thinwedge_apps_mcp_tools(
             let Some(connector_id) = tool.connector_id.as_deref() else {
                 return false;
             };
-            allowed.contains(connector_id) && connectors::thinwedge_app_tool_is_enabled(config, tool)
+            allowed.contains(connector_id)
+                && connectors::thinwedge_app_tool_is_enabled(config, tool)
         })
         .map(|(name, tool)| (name.clone(), tool.clone()))
         .collect()

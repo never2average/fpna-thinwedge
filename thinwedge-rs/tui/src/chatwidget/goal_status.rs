@@ -1,8 +1,8 @@
 //! Helpers for mapping thread-goal state into the compact status-line indicator.
 
+use std::time::Instant;
 use thinwedge_app_server_protocol::ThreadGoal as AppThreadGoal;
 use thinwedge_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
-use std::time::Instant;
 
 use crate::bottom_pane::GoalStatusIndicator;
 use crate::goal_display::format_goal_elapsed_seconds;
@@ -108,10 +108,10 @@ mod tests {
     use super::completed_goal_usage;
     use super::stopped_goal_budget_usage;
     use crate::bottom_pane::GoalStatusIndicator;
-    use thinwedge_app_server_protocol::ThreadGoal as AppThreadGoal;
-    use thinwedge_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
     use std::time::Duration;
     use std::time::Instant;
+    use thinwedge_app_server_protocol::ThreadGoal as AppThreadGoal;
+    use thinwedge_app_server_protocol::ThreadGoalStatus as AppThreadGoalStatus;
 
     #[test]
     fn active_goal_usage_prefers_token_budget() {

@@ -1,7 +1,7 @@
 use super::*;
 use crate::manifest::load_plugin_manifest;
-use thinwedge_plugin::PluginId;
 use pretty_assertions::assert_eq;
+use thinwedge_plugin::PluginId;
 
 #[test]
 fn plugin_mcp_file_supports_mcp_servers_object_format() {

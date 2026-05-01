@@ -1,9 +1,4 @@
 use super::*;
-use crate::thinwedge_apps::THINWEDGE_APPS_TOOLS_CACHE_SCHEMA_VERSION;
-use crate::thinwedge_apps::ThinWedgeAppsToolsCacheContext;
-use crate::thinwedge_apps::load_startup_cached_thinwedge_apps_tools_snapshot;
-use crate::thinwedge_apps::read_cached_thinwedge_apps_tools;
-use crate::thinwedge_apps::write_cached_thinwedge_apps_tools;
 use crate::declared_thinwedge_file_input_param_names;
 use crate::elicitation::ElicitationRequestManager;
 use crate::elicitation::elicitation_is_rejected_by_policy;
@@ -11,16 +6,16 @@ use crate::rmcp_client::AsyncManagedClient;
 use crate::rmcp_client::ManagedClient;
 use crate::rmcp_client::StartupOutcomeError;
 use crate::rmcp_client::elicitation_capability_for_server;
+use crate::thinwedge_apps::THINWEDGE_APPS_TOOLS_CACHE_SCHEMA_VERSION;
+use crate::thinwedge_apps::ThinWedgeAppsToolsCacheContext;
+use crate::thinwedge_apps::load_startup_cached_thinwedge_apps_tools_snapshot;
+use crate::thinwedge_apps::read_cached_thinwedge_apps_tools;
+use crate::thinwedge_apps::write_cached_thinwedge_apps_tools;
 use crate::tools::ToolFilter;
 use crate::tools::ToolInfo;
 use crate::tools::filter_tools;
 use crate::tools::qualify_tools;
 use crate::tools::tool_with_model_visible_input_schema;
-use thinwedge_config::Constrained;
-use thinwedge_protocol::ToolName;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::GranularApprovalConfig;
-use thinwedge_protocol::protocol::McpAuthStatus;
 use futures::FutureExt;
 use pretty_assertions::assert_eq;
 use rmcp::model::CreateElicitationRequestParams;
@@ -34,6 +29,11 @@ use rmcp::model::Tool;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tempfile::tempdir;
+use thinwedge_config::Constrained;
+use thinwedge_protocol::ToolName;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::GranularApprovalConfig;
+use thinwedge_protocol::protocol::McpAuthStatus;
 
 fn create_test_tool(server_name: &str, tool_name: &str) -> ToolInfo {
     let tool_namespace = format!("mcp__{server_name}__");
@@ -504,13 +504,13 @@ fn thinwedge_apps_tools_cache_is_overwritten_by_last_write() {
     let tools_gateway_2 = vec![create_test_tool(THINWEDGE_APPS_MCP_SERVER_NAME, "two")];
 
     write_cached_thinwedge_apps_tools(&cache_context, &tools_gateway_1);
-    let cached_gateway_1 =
-        read_cached_thinwedge_apps_tools(&cache_context).expect("cache entry exists for first write");
+    let cached_gateway_1 = read_cached_thinwedge_apps_tools(&cache_context)
+        .expect("cache entry exists for first write");
     assert_eq!(cached_gateway_1[0].callable_name, "one");
 
     write_cached_thinwedge_apps_tools(&cache_context, &tools_gateway_2);
-    let cached_gateway_2 =
-        read_cached_thinwedge_apps_tools(&cache_context).expect("cache entry exists for second write");
+    let cached_gateway_2 = read_cached_thinwedge_apps_tools(&cache_context)
+        .expect("cache entry exists for second write");
     assert_eq!(cached_gateway_2[0].callable_name, "two");
 }
 
@@ -571,7 +571,8 @@ fn thinwedge_apps_tools_cache_filters_disallowed_connectors() {
     ];
 
     write_cached_thinwedge_apps_tools(&cache_context, &tools);
-    let cached = read_cached_thinwedge_apps_tools(&cache_context).expect("cache entry exists for user");
+    let cached =
+        read_cached_thinwedge_apps_tools(&cache_context).expect("cache entry exists for user");
 
     assert_eq!(cached.len(), 1);
     assert_eq!(cached[0].callable_name, "allowed_tool");

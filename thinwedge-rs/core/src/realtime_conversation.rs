@@ -9,6 +9,13 @@ use async_channel::Sender;
 use async_channel::TrySendError;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use http::HeaderMap;
+use http::HeaderValue;
+use http::header::AUTHORIZATION;
+use serde_json::json;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use thinwedge_api::ApiError;
 use thinwedge_api::Provider as ApiProvider;
 use thinwedge_api::RealtimeAudioFrame;
@@ -27,9 +34,8 @@ use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::default_client::default_headers;
 use thinwedge_login::read_thinwedge_api_key_from_env;
 use thinwedge_model_provider_info::ModelProviderInfo;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::protocol::ConversationAudioParams;
 use thinwedge_protocol::protocol::ConversationStartParams;
 use thinwedge_protocol::protocol::ConversationStartTransport;
@@ -45,13 +51,7 @@ use thinwedge_protocol::protocol::RealtimeHandoffRequested;
 use thinwedge_protocol::protocol::RealtimeOutputModality;
 use thinwedge_protocol::protocol::RealtimeVoice;
 use thinwedge_protocol::protocol::RealtimeVoicesList;
-use http::HeaderMap;
-use http::HeaderValue;
-use http::header::AUTHORIZATION;
-use serde_json::json;
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::debug;
@@ -728,7 +728,10 @@ pub(crate) fn prefix_realtime_v2_text(text: String, prefix: &str) -> String {
     prefix_realtime_text(text, prefix, RealtimeSessionKind::V2)
 }
 
-fn validate_realtime_voice(version: RealtimeWsVersion, voice: RealtimeVoice) -> ThinWedgeResult<()> {
+fn validate_realtime_voice(
+    version: RealtimeWsVersion,
+    voice: RealtimeVoice,
+) -> ThinWedgeResult<()> {
     let voices = RealtimeVoicesList::builtin();
     let allowed = match version {
         RealtimeWsVersion::V1 => &voices.v1,
@@ -882,8 +885,13 @@ pub(crate) async fn handle_audio(
         if sess.conversation.running_state().await.is_some() {
             warn!("realtime audio input failed while the session was already ending");
         } else {
-            send_conversation_error(sess, sub_id, err.to_string(), ThinWedgeErrorInfo::BadRequest)
-                .await;
+            send_conversation_error(
+                sess,
+                sub_id,
+                err.to_string(),
+                ThinWedgeErrorInfo::BadRequest,
+            )
+            .await;
         }
     }
 }
@@ -931,7 +939,10 @@ fn escape_xml_text(input: &str) -> String {
         .replace('>', "&gt;")
 }
 
-fn realtime_api_key(auth: Option<&ThinWedgeAuth>, provider: &ModelProviderInfo) -> ThinWedgeResult<String> {
+fn realtime_api_key(
+    auth: Option<&ThinWedgeAuth>,
+    provider: &ModelProviderInfo,
+) -> ThinWedgeResult<String> {
     if let Some(api_key) = provider.api_key()? {
         return Ok(api_key);
     }
@@ -990,8 +1001,13 @@ pub(crate) async fn handle_text(
         if sess.conversation.running_state().await.is_some() {
             warn!("realtime text input failed while the session was already ending");
         } else {
-            send_conversation_error(sess, sub_id, err.to_string(), ThinWedgeErrorInfo::BadRequest)
-                .await;
+            send_conversation_error(
+                sess,
+                sub_id,
+                err.to_string(),
+                ThinWedgeErrorInfo::BadRequest,
+            )
+            .await;
         }
     }
 }

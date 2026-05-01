@@ -2,12 +2,6 @@
 
 use super::compact::COMPACT_WARNING_MESSAGE;
 use anyhow::Result;
-use thinwedge_core::ThinWedgeThread;
-use thinwedge_core::compact::SUMMARIZATION_PROMPT;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::WarningEvent;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -19,6 +13,12 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use std::sync::Arc;
+use thinwedge_core::ThinWedgeThread;
+use thinwedge_core::compact::SUMMARIZATION_PROMPT;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::WarningEvent;
+use thinwedge_protocol::user_input::UserInput;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork() -> Result<()> {
@@ -113,24 +113,34 @@ async fn submit_user_turn(thinwedge: &Arc<ThinWedgeThread>, text: &str) -> Resul
             responsesapi_client_metadata: None,
         })
         .await?;
-    wait_for_event(thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     Ok(())
 }
 
 async fn submit_compact_turn(thinwedge: &Arc<ThinWedgeThread>) -> Result<()> {
     thinwedge.submit(Op::Compact).await?;
-    let warning_event = wait_for_event(thinwedge, |event| matches!(event, EventMsg::Warning(_))).await;
+    let warning_event =
+        wait_for_event(thinwedge, |event| matches!(event, EventMsg::Warning(_))).await;
     let EventMsg::Warning(WarningEvent { message }) = warning_event else {
         panic!("expected warning event after compact");
     };
     assert_eq!(message, COMPACT_WARNING_MESSAGE);
-    wait_for_event(thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
     Ok(())
 }
 
 async fn shutdown_thread(thinwedge: &Arc<ThinWedgeThread>) -> Result<()> {
     thinwedge.submit(Op::Shutdown).await?;
-    wait_for_event(thinwedge, |event| matches!(event, EventMsg::ShutdownComplete)).await;
+    wait_for_event(thinwedge, |event| {
+        matches!(event, EventMsg::ShutdownComplete)
+    })
+    .await;
     Ok(())
 }
 

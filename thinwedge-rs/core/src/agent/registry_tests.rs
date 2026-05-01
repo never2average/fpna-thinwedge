@@ -1,7 +1,7 @@
 use super::*;
-use thinwedge_protocol::AgentPath;
 use pretty_assertions::assert_eq;
 use std::collections::HashSet;
+use thinwedge_protocol::AgentPath;
 
 fn agent_path(path: &str) -> AgentPath {
     AgentPath::try_from(path).expect("valid agent path")

@@ -4,6 +4,9 @@ use crate::error_code::INVALID_REQUEST_ERROR_CODE;
 use crate::error_code::internal_error;
 use crate::error_code::invalid_request;
 use async_trait::async_trait;
+use serde_json::json;
+use std::path::PathBuf;
+use std::sync::Arc;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_app_server_protocol::ConfigBatchWriteParams;
 use thinwedge_app_server_protocol::ConfigReadParams;
@@ -39,9 +42,6 @@ use thinwedge_features::canonical_feature_for_key;
 use thinwedge_features::feature_for_key;
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::protocol::Op;
-use serde_json::json;
-use std::path::PathBuf;
-use std::sync::Arc;
 use tracing::warn;
 
 const SUPPORTED_EXPERIMENTAL_FEATURE_ENABLEMENT: &[&str] = &[
@@ -242,9 +242,11 @@ impl ConfigApi {
             let Ok(plugin_id) = PluginId::parse(&plugin_id) else {
                 continue;
             };
-            let metadata =
-                installed_plugin_telemetry_metadata(self.config_manager.thinwedge_home(), &plugin_id)
-                    .await;
+            let metadata = installed_plugin_telemetry_metadata(
+                self.config_manager.thinwedge_home(),
+                &plugin_id,
+            )
+            .await;
             if enabled {
                 self.analytics_events_client.track_plugin_enabled(metadata);
             } else {
@@ -440,8 +442,12 @@ fn map_network_unix_socket_permission_to_api(
     permission: thinwedge_config::NetworkUnixSocketPermissionToml,
 ) -> NetworkUnixSocketPermission {
     match permission {
-        thinwedge_config::NetworkUnixSocketPermissionToml::Allow => NetworkUnixSocketPermission::Allow,
-        thinwedge_config::NetworkUnixSocketPermissionToml::None => NetworkUnixSocketPermission::None,
+        thinwedge_config::NetworkUnixSocketPermissionToml::Allow => {
+            NetworkUnixSocketPermission::Allow
+        }
+        thinwedge_config::NetworkUnixSocketPermissionToml::None => {
+            NetworkUnixSocketPermission::None
+        }
     }
 }
 
@@ -467,6 +473,12 @@ fn config_write_error(code: ConfigWriteErrorCode, message: impl Into<String>) ->
 mod tests {
     use super::*;
     use crate::config_manager::apply_runtime_feature_enablement;
+    use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use std::collections::BTreeMap;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::atomic::Ordering;
+    use tempfile::TempDir;
     use thinwedge_analytics::AnalyticsEventsClient;
     use thinwedge_arg0::Arg0DispatchPaths;
     use thinwedge_config::CloudRequirementsLoader;
@@ -481,12 +493,6 @@ mod tests {
     use thinwedge_login::ThinWedgeAuth;
     use thinwedge_protocol::config_types::ApprovalsReviewer as CoreApprovalsReviewer;
     use thinwedge_protocol::protocol::AskForApproval as CoreAskForApproval;
-    use pretty_assertions::assert_eq;
-    use serde_json::json;
-    use std::collections::BTreeMap;
-    use std::sync::atomic::AtomicUsize;
-    use std::sync::atomic::Ordering;
-    use tempfile::TempDir;
     use toml::Value as TomlValue;
 
     #[derive(Default)]
@@ -517,7 +523,9 @@ mod tests {
                 CoreSandboxModeRequirement::ExternalSandbox,
             ]),
             remote_sandbox_config: None,
-            allowed_web_search_modes: Some(vec![thinwedge_config::WebSearchModeRequirement::Cached]),
+            allowed_web_search_modes: Some(vec![
+                thinwedge_config::WebSearchModeRequirement::Cached,
+            ]),
             guardian_policy_config: None,
             feature_requirements: Some(thinwedge_config::FeatureRequirementsToml {
                 entries: std::collections::BTreeMap::from([
@@ -642,7 +650,10 @@ mod tests {
                 dangerously_allow_non_loopback_proxy: Some(false),
                 dangerously_allow_all_unix_sockets: Some(true),
                 domains: Some(std::collections::BTreeMap::from([
-                    ("api.thinwedge.com".to_string(), NetworkDomainPermission::Allow,),
+                    (
+                        "api.thinwedge.com".to_string(),
+                        NetworkDomainPermission::Allow,
+                    ),
                     ("example.com".to_string(), NetworkDomainPermission::Deny),
                 ])),
                 managed_allowed_domains_only: Some(false),

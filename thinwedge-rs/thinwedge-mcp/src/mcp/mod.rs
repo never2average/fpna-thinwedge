@@ -17,6 +17,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use async_channel::unbounded;
+use rmcp::model::ReadResourceRequestParams;
+use rmcp::model::ReadResourceResult;
+use serde_json::Value;
 use thinwedge_config::Constrained;
 use thinwedge_config::McpServerConfig;
 use thinwedge_config::McpServerTransportConfig;
@@ -30,13 +33,10 @@ use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::McpAuthStatus;
 use thinwedge_protocol::protocol::McpListToolsResponseEvent;
-use rmcp::model::ReadResourceRequestParams;
-use rmcp::model::ReadResourceResult;
-use serde_json::Value;
 
-use crate::thinwedge_apps::thinwedge_apps_tools_cache_key;
 use crate::connection_manager::McpConnectionManager;
 use crate::runtime::McpRuntimeEnvironment;
+use crate::thinwedge_apps::thinwedge_apps_tools_cache_key;
 
 pub const THINWEDGE_APPS_MCP_SERVER_NAME: &str = "thinwedge_apps";
 const MCP_TOOL_NAME_PREFIX: &str = "mcp";
@@ -358,7 +358,9 @@ pub(crate) fn sanitize_responses_api_tool_name(name: &str) -> String {
 
 fn thinwedge_apps_mcp_bearer_token_env_var() -> Option<String> {
     match env::var(THINWEDGE_CONNECTORS_TOKEN_ENV_VAR) {
-        Ok(value) if !value.trim().is_empty() => Some(THINWEDGE_CONNECTORS_TOKEN_ENV_VAR.to_string()),
+        Ok(value) if !value.trim().is_empty() => {
+            Some(THINWEDGE_CONNECTORS_TOKEN_ENV_VAR.to_string())
+        }
         Ok(_) => None,
         Err(env::VarError::NotPresent) => None,
         Err(env::VarError::NotUnicode(_)) => Some(THINWEDGE_CONNECTORS_TOKEN_ENV_VAR.to_string()),

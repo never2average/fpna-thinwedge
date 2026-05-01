@@ -1,4 +1,6 @@
 use super::*;
+use pretty_assertions::assert_eq;
+use std::path::PathBuf;
 use thinwedge_execpolicy::Decision;
 use thinwedge_protocol::permissions::FileSystemAccessMode;
 use thinwedge_protocol::permissions::FileSystemPath;
@@ -6,8 +8,6 @@ use thinwedge_protocol::permissions::FileSystemSandboxEntry;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::path::PathBuf;
 
 #[test]
 fn renders_sandbox_mode_text() {

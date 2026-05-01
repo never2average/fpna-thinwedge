@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use http::HeaderMap;
 use thinwedge_api::AuthError;
 use thinwedge_api::AuthProvider;
 use thinwedge_api::SharedAuthProvider;
@@ -10,9 +11,8 @@ use thinwedge_client::Request;
 use thinwedge_client::RequestBody;
 use thinwedge_client::RequestCompression;
 use thinwedge_model_provider_info::ModelProviderAwsAuthInfo;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
-use http::HeaderMap;
+use thinwedge_protocol::error::ThinWedgeErr;
 
 use crate::BearerAuthProvider;
 
@@ -139,9 +139,9 @@ impl AuthProvider for BedrockMantleSigV4AuthProvider {
 
 #[cfg(test)]
 mod tests {
-    use thinwedge_api::AuthProvider;
     use http::HeaderValue;
     use pretty_assertions::assert_eq;
+    use thinwedge_api::AuthProvider;
 
     use super::*;
 

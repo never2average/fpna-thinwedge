@@ -1,5 +1,4 @@
 use crate::config::OtelTlsConfig;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use http::Uri;
 use opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT;
 use opentelemetry_otlp::OTEL_EXPORTER_OTLP_TIMEOUT_DEFAULT;
@@ -18,6 +17,7 @@ use std::io;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 pub(crate) fn build_header_map(headers: &std::collections::HashMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();

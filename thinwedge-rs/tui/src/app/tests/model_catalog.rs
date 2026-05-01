@@ -1,8 +1,8 @@
 use super::*;
 use assert_matches::assert_matches;
+use pretty_assertions::assert_eq;
 use thinwedge_config::types::ModelAvailabilityNuxConfig;
 use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux;
-use pretty_assertions::assert_eq;
 use tokio::sync::mpsc::unbounded_channel;
 
 fn all_model_presets() -> Vec<ModelPreset> {

@@ -3,6 +3,10 @@ use clap::CommandFactory;
 use clap::Parser;
 use clap_complete::Shell;
 use clap_complete::generate;
+use owo_colors::OwoColorize;
+use std::io::IsTerminal;
+use std::path::PathBuf;
+use supports_color::Stream;
 use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_arg0::arg0_dispatch_or_else;
 use thinwedge_chatgpt::apply_command::ApplyCommand;
@@ -34,10 +38,6 @@ use thinwedge_tui::ExitReason;
 use thinwedge_tui::UpdateAction;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_cli::CliConfigOverrides;
-use owo_colors::OwoColorize;
-use std::io::IsTerminal;
-use std::path::PathBuf;
-use supports_color::Stream;
 
 mod marketplace_cmd;
 mod mcp_cmd;
@@ -638,8 +638,13 @@ async fn run_debug_app_server_command(cmd: DebugAppServerCommand) -> anyhow::Res
     match cmd.subcommand {
         DebugAppServerSubcommand::SendMessageV2(cmd) => {
             let thinwedge_bin = std::env::current_exe()?;
-            thinwedge_app_server_test_client::send_message_v2(&thinwedge_bin, &[], cmd.user_message, &None)
-                .await
+            thinwedge_app_server_test_client::send_message_v2(
+                &thinwedge_bin,
+                &[],
+                cmd.user_message,
+                &None,
+            )
+            .await
         }
     }
 }
@@ -1022,8 +1027,11 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 &mut cloud_cli.config_overrides,
                 root_config_overrides.clone(),
             );
-            thinwedge_cloud_tasks::run_main(cloud_cli, arg0_paths.thinwedge_linux_sandbox_exe.clone())
-                .await?;
+            thinwedge_cloud_tasks::run_main(
+                cloud_cli,
+                arg0_paths.thinwedge_linux_sandbox_exe.clone(),
+            )
+            .await?;
         }
         Some(Subcommand::Sandbox(sandbox_args)) => match sandbox_args.cmd {
             SandboxCommand::Macos(mut seatbelt_cli) => {
@@ -1673,9 +1681,9 @@ fn print_completion(cmd: CompletionCommand) {
 mod tests {
     use super::*;
     use assert_matches::assert_matches;
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::protocol::TokenUsage;
-    use pretty_assertions::assert_eq;
 
     fn finalize_resume_from_args(args: &[&str]) -> TuiCli {
         let cli = MultitoolCli::try_parse_from(args).expect("parse");
@@ -1736,9 +1744,15 @@ mod tests {
 
     #[test]
     fn exec_resume_last_accepts_prompt_positional() {
-        let cli =
-            MultitoolCli::try_parse_from(["thinwedge", "exec", "--json", "resume", "--last", "2+2"])
-                .expect("parse should succeed");
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "exec",
+            "--json",
+            "resume",
+            "--last",
+            "2+2",
+        ])
+        .expect("parse should succeed");
 
         let Some(Subcommand::Exec(exec)) = cli.subcommand else {
             panic!("expected exec subcommand");
@@ -1835,8 +1849,8 @@ mod tests {
 
     #[test]
     fn debug_models_parses_bundled_flag() {
-        let cli =
-            MultitoolCli::try_parse_from(["thinwedge", "debug", "models", "--bundled"]).expect("parse");
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "debug", "models", "--bundled"])
+            .expect("parse");
 
         let Some(Subcommand::Debug(DebugCommand {
             subcommand: DebugSubcommand::Models(cmd),
@@ -1877,25 +1891,36 @@ mod tests {
             ("upgrade", "Usage: thinwedge plugin marketplace upgrade"),
             ("remove", "Usage: thinwedge plugin marketplace remove"),
         ] {
-            let help = help_from_args(&["thinwedge", "plugin", "marketplace", subcommand, "--help"]);
+            let help =
+                help_from_args(&["thinwedge", "plugin", "marketplace", subcommand, "--help"]);
             assert!(help.contains(usage), "{help}");
         }
     }
 
     #[test]
     fn plugin_marketplace_add_parses_under_plugin() {
-        let cli =
-            MultitoolCli::try_parse_from(["thinwedge", "plugin", "marketplace", "add", "owner/repo"])
-                .expect("parse");
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "plugin",
+            "marketplace",
+            "add",
+            "owner/repo",
+        ])
+        .expect("parse");
 
         assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
     }
 
     #[test]
     fn plugin_marketplace_upgrade_parses_under_plugin() {
-        let cli =
-            MultitoolCli::try_parse_from(["thinwedge", "plugin", "marketplace", "upgrade", "debug"])
-                .expect("parse");
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "plugin",
+            "marketplace",
+            "upgrade",
+            "debug",
+        ])
+        .expect("parse");
 
         assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
     }
@@ -2113,8 +2138,9 @@ mod tests {
 
     #[test]
     fn resume_include_non_interactive_flag_sets_source_filter_override() {
-        let interactive =
-            finalize_resume_from_args(["thinwedge", "resume", "--include-non-interactive"].as_ref());
+        let interactive = finalize_resume_from_args(
+            ["thinwedge", "resume", "--include-non-interactive"].as_ref(),
+        );
 
         assert!(interactive.resume_picker);
         assert!(interactive.resume_include_non_interactive);
@@ -2237,8 +2263,9 @@ mod tests {
 
     #[test]
     fn app_server_analytics_default_enabled_with_flag() {
-        let app_server =
-            app_server_from_args(["thinwedge", "app-server", "--analytics-default-enabled"].as_ref());
+        let app_server = app_server_from_args(
+            ["thinwedge", "app-server", "--analytics-default-enabled"].as_ref(),
+        );
         assert!(app_server.analytics_default_enabled);
     }
 
@@ -2267,9 +2294,13 @@ mod tests {
 
     #[test]
     fn remote_flag_parses_for_resume_subcommand() {
-        let cli =
-            MultitoolCli::try_parse_from(["thinwedge", "resume", "--remote", "ws://127.0.0.1:4500"])
-                .expect("parse");
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "resume",
+            "--remote",
+            "ws://127.0.0.1:4500",
+        ])
+        .expect("parse");
         let Subcommand::Resume(ResumeCommand { remote, .. }) =
             cli.subcommand.expect("resume present")
         else {
@@ -2387,7 +2418,13 @@ mod tests {
     #[test]
     fn app_server_listen_unix_socket_path_parses() {
         let app_server = app_server_from_args(
-            ["thinwedge", "app-server", "--listen", "unix:///tmp/thinwedge.sock"].as_ref(),
+            [
+                "thinwedge",
+                "app-server",
+                "--listen",
+                "unix:///tmp/thinwedge.sock",
+            ]
+            .as_ref(),
         );
         assert_eq!(
             app_server.listen,
@@ -2400,8 +2437,12 @@ mod tests {
 
     #[test]
     fn app_server_listen_off_parses() {
-        let app_server = app_server_from_args(["thinwedge", "app-server", "--listen", "off"].as_ref());
-        assert_eq!(app_server.listen, thinwedge_app_server::AppServerTransport::Off);
+        let app_server =
+            app_server_from_args(["thinwedge", "app-server", "--listen", "off"].as_ref());
+        assert_eq!(
+            app_server.listen,
+            thinwedge_app_server::AppServerTransport::Off
+        );
     }
 
     #[test]
@@ -2424,8 +2465,16 @@ mod tests {
 
     #[test]
     fn app_server_proxy_sock_path_parses() {
-        let app_server =
-            app_server_from_args(["thinwedge", "app-server", "proxy", "--sock", "thinwedge.sock"].as_ref());
+        let app_server = app_server_from_args(
+            [
+                "thinwedge",
+                "app-server",
+                "proxy",
+                "--sock",
+                "thinwedge.sock",
+            ]
+            .as_ref(),
+        );
         let Some(AppServerSubcommand::Proxy(proxy)) = app_server.subcommand else {
             panic!("expected proxy subcommand");
         };

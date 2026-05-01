@@ -11,6 +11,7 @@
 //! variants a compile-time prompt to decide whether the trace should capture
 //! them.
 
+use serde::Serialize;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::ExecCommandBeginEvent;
 use thinwedge_protocol::protocol::ExecCommandEndEvent;
@@ -22,12 +23,11 @@ use thinwedge_protocol::protocol::PatchApplyBeginEvent;
 use thinwedge_protocol::protocol::PatchApplyEndEvent;
 use thinwedge_protocol::protocol::PatchApplyStatus;
 use thinwedge_protocol::protocol::TurnAbortReason;
-use serde::Serialize;
 
 use crate::AgentThreadId;
-use crate::ThinWedgeTurnId;
 use crate::ExecutionStatus;
 use crate::RawTraceEventPayload;
+use crate::ThinWedgeTurnId;
 
 pub(crate) struct ThinWedgeTurnTraceEvent {
     pub context_turn_id: ThinWedgeTurnId,

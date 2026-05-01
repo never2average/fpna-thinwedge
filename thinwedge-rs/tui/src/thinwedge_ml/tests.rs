@@ -20,14 +20,14 @@ use super::types::TrainingEnvironmentMetadata;
 use super::types::TrainingEnvironmentRecord;
 use super::types::TrainingEnvironmentTools;
 use super::types::TrainingEnvironmentsRegistry;
-use thinwedge_app_server_protocol::DynamicToolCallOutputContentItem;
-use thinwedge_app_server_protocol::DynamicToolCallParams;
 use pretty_assertions::assert_eq;
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use tempfile::TempDir;
+use thinwedge_app_server_protocol::DynamicToolCallOutputContentItem;
+use thinwedge_app_server_protocol::DynamicToolCallParams;
 
 async fn seed_models(home: &TempDir) {
     write_json_pretty(

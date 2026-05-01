@@ -11,18 +11,6 @@ use super::compact::COMPACT_WARNING_MESSAGE;
 use super::compact::FIRST_REPLY;
 use super::compact::SUMMARY_TEXT;
 use anyhow::Result;
-use thinwedge_core::ThinWedgeThread;
-use thinwedge_core::ThreadManager;
-use thinwedge_core::compact::SUMMARIZATION_PROMPT;
-use thinwedge_core::config::Config;
-use thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
-use thinwedge_protocol::config_types::CollaborationMode;
-use thinwedge_protocol::config_types::ModeKind;
-use thinwedge_protocol::config_types::Settings;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::WarningEvent;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::context_snapshot;
 use core_test_support::context_snapshot::ContextSnapshotOptions;
 use core_test_support::context_snapshot::ContextSnapshotRenderMode;
@@ -40,6 +28,18 @@ use serde_json::Value;
 use serde_json::json;
 use std::sync::Arc;
 use tempfile::TempDir;
+use thinwedge_core::ThinWedgeThread;
+use thinwedge_core::ThreadManager;
+use thinwedge_core::compact::SUMMARIZATION_PROMPT;
+use thinwedge_core::config::Config;
+use thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR;
+use thinwedge_protocol::config_types::CollaborationMode;
+use thinwedge_protocol::config_types::ModeKind;
+use thinwedge_protocol::config_types::Settings;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::WarningEvent;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::MockServer;
 
 const AFTER_SECOND_RESUME: &str = "AFTER_SECOND_RESUME";
@@ -759,7 +759,12 @@ async fn mount_second_compact_sequence(server: &MockServer) -> ResponseMock {
 async fn start_test_conversation(
     server: &MockServer,
     model: Option<&str>,
-) -> (Arc<TempDir>, Config, Arc<ThreadManager>, Arc<ThinWedgeThread>) {
+) -> (
+    Arc<TempDir>,
+    Config,
+    Arc<ThreadManager>,
+    Arc<ThinWedgeThread>,
+) {
     let base_url = format!("{}/v1", server.uri());
     let model = model.map(str::to_string);
     let mut builder = test_thinwedge().with_config(move |config| {

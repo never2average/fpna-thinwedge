@@ -1,6 +1,4 @@
 use anyhow::Result;
-use thinwedge_features::Feature;
-use thinwedge_protocol::config_types::ServiceTier;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -13,6 +11,8 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use std::time::Duration;
+use thinwedge_features::Feature;
+use thinwedge_protocol::config_types::ServiceTier;
 
 const WS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
 
@@ -174,12 +174,14 @@ async fn websocket_v2_test_thinwedge_shell_chain() -> Result<()> {
     ]])
     .await;
 
-    let mut builder = test_thinwedge().with_windows_cmd_shell().with_config(|config| {
-        config
-            .features
-            .enable(Feature::ResponsesWebsocketsV2)
-            .expect("test config should allow feature update");
-    });
+    let mut builder = test_thinwedge()
+        .with_windows_cmd_shell()
+        .with_config(|config| {
+            config
+                .features
+                .enable(Feature::ResponsesWebsocketsV2)
+                .expect("test config should allow feature update");
+        });
 
     let test = builder.build_with_websocket_server(&server).await?;
     test.submit_turn_with_policy("run the echo command", test.config.legacy_sandbox_policy())

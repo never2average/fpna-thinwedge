@@ -1,24 +1,26 @@
-use crate::thinwedge_message_processor::ApiVersion;
-use crate::thinwedge_message_processor::read_rollout_items_from_rollout;
-use crate::thinwedge_message_processor::read_summary_from_rollout;
-use crate::thinwedge_message_processor::summary_to_thread;
 use crate::error_code::internal_error;
 use crate::error_code::invalid_request;
 use crate::outgoing_message::ClientRequestResult;
 use crate::outgoing_message::ThreadScopedOutgoingMessageSender;
 use crate::server_request_error::is_turn_transition_server_request_error;
+use crate::thinwedge_message_processor::ApiVersion;
+use crate::thinwedge_message_processor::read_rollout_items_from_rollout;
+use crate::thinwedge_message_processor::read_summary_from_rollout;
+use crate::thinwedge_message_processor::summary_to_thread;
 use crate::thread_state::ThreadState;
 use crate::thread_state::TurnSummary;
 use crate::thread_state::resolve_server_request_on_thread_listener;
 use crate::thread_status::ThreadWatchActiveGuard;
 use crate::thread_status::ThreadWatchManager;
+use std::collections::HashMap;
+use std::path::Path;
+use std::sync::Arc;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_app_server_protocol::AccountRateLimitsUpdatedNotification;
 use thinwedge_app_server_protocol::AdditionalPermissionProfile as V2AdditionalPermissionProfile;
 use thinwedge_app_server_protocol::AgentMessageDeltaNotification;
 use thinwedge_app_server_protocol::ApplyPatchApprovalParams;
 use thinwedge_app_server_protocol::ApplyPatchApprovalResponse;
-use thinwedge_app_server_protocol::ThinWedgeErrorInfo as V2ThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::CollabAgentState as V2CollabAgentStatus;
 use thinwedge_app_server_protocol::CollabAgentTool;
 use thinwedge_app_server_protocol::CollabAgentToolCallStatus as V2CollabToolCallStatus;
@@ -77,6 +79,7 @@ use thinwedge_app_server_protocol::ServerNotification;
 use thinwedge_app_server_protocol::ServerRequestPayload;
 use thinwedge_app_server_protocol::SkillsChangedNotification;
 use thinwedge_app_server_protocol::TerminalInteractionNotification;
+use thinwedge_app_server_protocol::ThinWedgeErrorInfo as V2ThinWedgeErrorInfo;
 use thinwedge_app_server_protocol::ThreadGoalUpdatedNotification;
 use thinwedge_app_server_protocol::ThreadItem;
 use thinwedge_app_server_protocol::ThreadNameUpdatedNotification;
@@ -124,7 +127,6 @@ use thinwedge_protocol::dynamic_tools::DynamicToolResponse as CoreDynamicToolRes
 use thinwedge_protocol::items::parse_hook_prompt_message;
 use thinwedge_protocol::models::AdditionalPermissionProfile as CoreAdditionalPermissionProfile;
 use thinwedge_protocol::plan_tool::UpdatePlanArgs;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo as CoreThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::Event;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
@@ -134,6 +136,7 @@ use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::RealtimeEvent;
 use thinwedge_protocol::protocol::ReviewDecision;
 use thinwedge_protocol::protocol::ReviewOutputEvent;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo as CoreThinWedgeErrorInfo;
 use thinwedge_protocol::protocol::TokenCountEvent;
 use thinwedge_protocol::protocol::TurnAbortedEvent;
 use thinwedge_protocol::protocol::TurnCompleteEvent;
@@ -146,9 +149,6 @@ use thinwedge_protocol::request_user_input::RequestUserInputResponse as CoreRequ
 use thinwedge_sandboxing::policy_transforms::intersect_permission_profiles;
 use thinwedge_shell_command::parse_command::shlex_join;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::oneshot;
 use tracing::error;
@@ -1136,7 +1136,9 @@ pub(crate) async fn apply_bespoke_event_handling(
             let has_receiver = end_event.new_thread_id.is_some();
             let status = match &end_event.status {
                 thinwedge_protocol::protocol::AgentStatus::Errored(_)
-                | thinwedge_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+                | thinwedge_protocol::protocol::AgentStatus::NotFound => {
+                    V2CollabToolCallStatus::Failed
+                }
                 _ if has_receiver => V2CollabToolCallStatus::Completed,
                 _ => V2CollabToolCallStatus::Failed,
             };
@@ -1196,7 +1198,9 @@ pub(crate) async fn apply_bespoke_event_handling(
         EventMsg::CollabAgentInteractionEnd(end_event) => {
             let status = match &end_event.status {
                 thinwedge_protocol::protocol::AgentStatus::Errored(_)
-                | thinwedge_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+                | thinwedge_protocol::protocol::AgentStatus::NotFound => {
+                    V2CollabToolCallStatus::Failed
+                }
                 _ => V2CollabToolCallStatus::Completed,
             };
             let receiver_id = end_event.receiver_thread_id.to_string();
@@ -1318,7 +1322,9 @@ pub(crate) async fn apply_bespoke_event_handling(
             }
             let status = match &end_event.status {
                 thinwedge_protocol::protocol::AgentStatus::Errored(_)
-                | thinwedge_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
+                | thinwedge_protocol::protocol::AgentStatus::NotFound => {
+                    V2CollabToolCallStatus::Failed
+                }
                 _ => V2CollabToolCallStatus::Completed,
             };
             let receiver_id = end_event.receiver_thread_id.to_string();
@@ -1371,8 +1377,9 @@ pub(crate) async fn apply_bespoke_event_handling(
                 .await;
         }
         EventMsg::AgentMessageContentDelta(event) => {
-            let thinwedge_protocol::protocol::AgentMessageContentDeltaEvent { item_id, delta, .. } =
-                event;
+            let thinwedge_protocol::protocol::AgentMessageContentDeltaEvent {
+                item_id, delta, ..
+            } = event;
             let notification = AgentMessageDeltaNotification {
                 thread_id: conversation_id.to_string(),
                 turn_id: event_turn_id.clone(),
@@ -1913,7 +1920,8 @@ pub(crate) async fn apply_bespoke_event_handling(
                                 thread.status = thread_watch_manager
                                     .loaded_status_for_thread(&thread.id)
                                     .await;
-                                match find_thread_name_by_id(thinwedge_home, &conversation_id).await {
+                                match find_thread_name_by_id(thinwedge_home, &conversation_id).await
+                                {
                                     Ok(name) => {
                                         thread.name = name;
                                     }
@@ -3016,7 +3024,9 @@ fn collab_resume_begin_item(
     }
 }
 
-fn collab_resume_end_item(end_event: thinwedge_protocol::protocol::CollabResumeEndEvent) -> ThreadItem {
+fn collab_resume_end_item(
+    end_event: thinwedge_protocol::protocol::CollabResumeEndEvent,
+) -> ThreadItem {
     let status = match &end_event.status {
         thinwedge_protocol::protocol::AgentStatus::Errored(_)
         | thinwedge_protocol::protocol::AgentStatus::NotFound => V2CollabToolCallStatus::Failed,
@@ -3125,6 +3135,14 @@ mod tests {
     use anyhow::Result;
     use anyhow::anyhow;
     use anyhow::bail;
+    use core_test_support::load_default_config_for_test;
+    use pretty_assertions::assert_eq;
+    use rmcp::model::Content;
+    use serde_json::Value as JsonValue;
+    use serde_json::json;
+    use std::path::PathBuf;
+    use std::time::Duration;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::AutoReviewDecisionSource;
     use thinwedge_app_server_protocol::GuardianApprovalReviewStatus;
     use thinwedge_app_server_protocol::JSONRPCErrorError;
@@ -3155,14 +3173,6 @@ mod tests {
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use core_test_support::load_default_config_for_test;
-    use pretty_assertions::assert_eq;
-    use rmcp::model::Content;
-    use serde_json::Value as JsonValue;
-    use serde_json::json;
-    use std::path::PathBuf;
-    use std::time::Duration;
-    use tempfile::TempDir;
     use tokio::sync::Mutex;
     use tokio::sync::mpsc;
 
@@ -3355,7 +3365,9 @@ mod tests {
                 turn_id: "turn-from-assessment".to_string(),
                 status: thinwedge_protocol::protocol::GuardianAssessmentStatus::Denied,
                 risk_level: Some(thinwedge_protocol::protocol::GuardianRiskLevel::High),
-                user_authorization: Some(thinwedge_protocol::protocol::GuardianUserAuthorization::Low),
+                user_authorization: Some(
+                    thinwedge_protocol::protocol::GuardianUserAuthorization::Low,
+                ),
                 rationale: Some("too risky".to_string()),
                 decision_source: Some(
                     thinwedge_protocol::protocol::GuardianAssessmentDecisionSource::Agent,

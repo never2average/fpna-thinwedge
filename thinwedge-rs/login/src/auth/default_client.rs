@@ -4,18 +4,18 @@
 //! Use [`crate::default_client`] or [`thinwedge_login::default_client`] from other crates in this
 //! workspace.
 
-use thinwedge_client::BuildCustomCaTransportError;
-use thinwedge_client::ThinWedgeHttpClient;
-pub use thinwedge_client::ThinWedgeRequestBuilder;
-use thinwedge_client::build_reqwest_client_with_custom_ca;
-use thinwedge_client::with_chatgpt_cloudflare_cookie_store;
-use thinwedge_terminal_detection::user_agent;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderValue;
 use reqwest::header::USER_AGENT;
 use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::sync::RwLock;
+use thinwedge_client::BuildCustomCaTransportError;
+use thinwedge_client::ThinWedgeHttpClient;
+pub use thinwedge_client::ThinWedgeRequestBuilder;
+use thinwedge_client::build_reqwest_client_with_custom_ca;
+use thinwedge_client::with_chatgpt_cloudflare_cookie_store;
+use thinwedge_terminal_detection::user_agent;
 
 /// Set this to add a suffix to the User-Agent string.
 ///
@@ -34,7 +34,8 @@ use std::sync::RwLock;
 /// Parenthesis will be added by ThinWedge. This should only specify what goes inside of the parenthesis.
 pub static USER_AGENT_SUFFIX: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 pub const DEFAULT_ORIGINATOR: &str = "thinwedge_cli_rs";
-pub const THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str = "THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE";
+pub const THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str =
+    "THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE";
 pub const RESIDENCY_HEADER_NAME: &str = "x-thinwedge-internal-thinwedge-residency";
 
 pub use thinwedge_config::ResidencyRequirement;

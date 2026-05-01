@@ -1,15 +1,15 @@
 use std::path::Path;
 
 use anyhow::Result;
-use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_core::config::edit::ConfigEditsBuilder;
-use thinwedge_core::config::load_global_mcp_servers;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use pretty_assertions::assert_eq;
 use serde_json::Value as JsonValue;
 use serde_json::json;
 use tempfile::TempDir;
+use thinwedge_config::types::McpServerTransportConfig;
+use thinwedge_core::config::edit::ConfigEditsBuilder;
+use thinwedge_core::config::load_global_mcp_servers;
 
 fn thinwedge_command(thinwedge_home: &Path) -> Result<assert_cmd::Command> {
     let mut cmd = assert_cmd::Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge")?);

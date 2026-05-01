@@ -6,8 +6,13 @@ use crate::shell::ShellType;
 use crate::shell_snapshot::ShellSnapshot;
 use crate::tools::sandboxing::SandboxAttempt;
 use crate::tools::sandboxing::managed_network_for_sandbox_permissions;
-#[cfg(target_os = "macos")]
-use thinwedge_network_proxy::THINWEDGE_PROXY_GIT_SSH_COMMAND_MARKER;
+use core_test_support::PathBufExt;
+use core_test_support::PathExt;
+use pretty_assertions::assert_eq;
+use std::path::PathBuf;
+use std::process::Command;
+use std::sync::Arc;
+use tempfile::tempdir;
 use thinwedge_network_proxy::ConfigReloader;
 use thinwedge_network_proxy::ConfigState;
 use thinwedge_network_proxy::NetworkProxy;
@@ -18,18 +23,13 @@ use thinwedge_network_proxy::PROXY_ACTIVE_ENV_KEY;
 use thinwedge_network_proxy::PROXY_ENV_KEYS;
 #[cfg(target_os = "macos")]
 use thinwedge_network_proxy::PROXY_GIT_SSH_COMMAND_ENV_KEY;
+#[cfg(target_os = "macos")]
+use thinwedge_network_proxy::THINWEDGE_PROXY_GIT_SSH_COMMAND_MARKER;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_sandboxing::SandboxManager;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use core_test_support::PathBufExt;
-use core_test_support::PathExt;
-use pretty_assertions::assert_eq;
-use std::path::PathBuf;
-use std::process::Command;
-use std::sync::Arc;
-use tempfile::tempdir;
 use tokio::sync::watch;
 
 struct StaticReloader;
@@ -446,7 +446,10 @@ fn maybe_wrap_shell_lc_with_snapshot_restores_thinwedge_thread_id_from_env() {
         &session_shell,
         &dir.path().abs(),
         &HashMap::new(),
-        &HashMap::from([("THINWEDGE_THREAD_ID".to_string(), "nested-thread".to_string())]),
+        &HashMap::from([(
+            "THINWEDGE_THREAD_ID".to_string(),
+            "nested-thread".to_string(),
+        )]),
     );
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])

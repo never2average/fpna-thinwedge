@@ -3,8 +3,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use thinwedge_protocol::mcp::CallToolResult;
-use thinwedge_protocol::models::function_call_output_content_items_to_text;
 use rmcp::model::ListResourceTemplatesResult;
 use rmcp::model::ListResourcesResult;
 use rmcp::model::PaginatedRequestParams;
@@ -16,6 +14,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use thinwedge_protocol::mcp::CallToolResult;
+use thinwedge_protocol::models::function_call_output_content_items_to_text;
 
 use crate::function_tool::FunctionCallError;
 use crate::session::session::Session;

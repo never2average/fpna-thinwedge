@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::Path;
 
+use serde::Deserialize;
+use std::collections::HashMap;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerSource;
@@ -14,8 +16,6 @@ use thinwedge_config::MatcherGroup;
 use thinwedge_config::RequirementSource;
 use thinwedge_plugin::PluginHookSource;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use serde::Deserialize;
-use std::collections::HashMap;
 
 use super::ConfiguredHandler;
 use crate::events::common::matcher_pattern_for_event;
@@ -305,7 +305,9 @@ fn config_toml_source_path(layer: &ConfigLayerEntry) -> AbsolutePathBuf {
         ConfigLayerSource::System { file }
         | ConfigLayerSource::User { file }
         | ConfigLayerSource::LegacyManagedConfigTomlFromFile { file } => file.clone(),
-        ConfigLayerSource::Project { dot_thinwedge_folder } => dot_thinwedge_folder.join(CONFIG_TOML_FILE),
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        } => dot_thinwedge_folder.join(CONFIG_TOML_FILE),
         ConfigLayerSource::Mdm { domain, key } => {
             synthetic_layer_path(&format!("<mdm:{domain}:{key}>/{CONFIG_TOML_FILE}"))
         }
@@ -471,13 +473,13 @@ fn hook_source_for_requirement_source(source: Option<&RequirementSource>) -> Hoo
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_config::ConfigLayerSource;
     use thinwedge_protocol::protocol::HookEventName;
     use thinwedge_protocol::protocol::HookSource;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     use super::ConfiguredHandler;
     use super::append_matcher_groups;

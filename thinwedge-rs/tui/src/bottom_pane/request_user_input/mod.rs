@@ -1311,12 +1311,12 @@ mod tests {
     use crate::app_event::AppEvent;
     use crate::bottom_pane::selection_popup_common::menu_surface_inset;
     use crate::render::renderable::Renderable;
-    use thinwedge_protocol::request_user_input::RequestUserInputQuestion;
-    use thinwedge_protocol::request_user_input::RequestUserInputQuestionOption;
     use pretty_assertions::assert_eq;
     use ratatui::buffer::Buffer;
     use ratatui::layout::Rect;
     use std::collections::HashMap;
+    use thinwedge_protocol::request_user_input::RequestUserInputQuestion;
+    use thinwedge_protocol::request_user_input::RequestUserInputQuestionOption;
     use tokio::sync::mpsc::unbounded_channel;
     use unicode_width::UnicodeWidthStr;
 

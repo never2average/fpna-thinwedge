@@ -1,6 +1,14 @@
 use super::*;
 use crate::config::CONFIG_TOML_FILE;
 use crate::config::ConfigBuilder;
+use pretty_assertions::assert_eq;
+use rmcp::model::JsonObject;
+use rmcp::model::Tool;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::sync::Arc;
+use tempfile::tempdir;
 use thinwedge_config::AppRequirementToml;
 use thinwedge_config::AppsRequirementsToml;
 use thinwedge_config::CloudRequirementsLoader;
@@ -22,14 +30,6 @@ use thinwedge_features::Feature;
 use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_mcp::ToolInfo;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use rmcp::model::JsonObject;
-use rmcp::model::Tool;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::sync::Arc;
-use tempfile::tempdir;
 
 fn annotations(destructive_hint: Option<bool>, open_world_hint: Option<bool>) -> ToolAnnotations {
     ToolAnnotations {

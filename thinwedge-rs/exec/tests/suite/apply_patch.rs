@@ -2,7 +2,6 @@
 
 use anyhow::Context;
 use assert_cmd::prelude::*;
-use thinwedge_apply_patch::THINWEDGE_CORE_APPLY_PATCH_ARG1;
 use core_test_support::responses::ev_apply_patch_custom_tool_call;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_completed;
@@ -12,6 +11,7 @@ use core_test_support::responses::start_mock_server;
 use std::fs;
 use std::process::Command;
 use tempfile::tempdir;
+use thinwedge_apply_patch::THINWEDGE_CORE_APPLY_PATCH_ARG1;
 
 /// While we may add an `apply-patch` subcommand to the `thinwedge` CLI multitool
 /// at some point, we must ensure that the smaller `thinwedge-exec` CLI can still

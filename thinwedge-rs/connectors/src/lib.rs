@@ -5,10 +5,10 @@ use std::sync::Mutex as StdMutex;
 use std::time::Duration;
 use std::time::Instant;
 
+use serde::Deserialize;
 use thinwedge_app_server_protocol::AppBranding;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_app_server_protocol::AppMetadata;
-use serde::Deserialize;
 
 pub mod accessible;
 pub mod filter;

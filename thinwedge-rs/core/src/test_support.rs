@@ -7,6 +7,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use once_cell::sync::Lazy;
 use thinwedge_exec_server::EnvironmentManager;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
@@ -20,7 +21,6 @@ use thinwedge_models_manager::test_support::get_model_offline_for_tests;
 use thinwedge_protocol::config_types::CollaborationModeMask;
 use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::thinwedge_models::ModelPreset;
-use once_cell::sync::Lazy;
 
 use crate::ThreadManager;
 use crate::config::Config;
@@ -48,7 +48,10 @@ pub fn auth_manager_from_auth(auth: ThinWedgeAuth) -> Arc<AuthManager> {
     AuthManager::from_auth_for_testing(auth)
 }
 
-pub fn auth_manager_from_auth_with_home(auth: ThinWedgeAuth, thinwedge_home: PathBuf) -> Arc<AuthManager> {
+pub fn auth_manager_from_auth_with_home(
+    auth: ThinWedgeAuth,
+    thinwedge_home: PathBuf,
+) -> Arc<AuthManager> {
     AuthManager::from_auth_for_testing_with_home(auth, thinwedge_home)
 }
 

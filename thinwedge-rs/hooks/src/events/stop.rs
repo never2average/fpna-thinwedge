@@ -311,13 +311,13 @@ fn serialization_failure_outcome(hook_events: Vec<HookCompletedEvent>) -> StopOu
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::protocol::HookEventName;
     use thinwedge_protocol::protocol::HookOutputEntry;
     use thinwedge_protocol::protocol::HookOutputEntryKind;
     use thinwedge_protocol::protocol::HookRunStatus;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     use thinwedge_protocol::items::HookPromptFragment;
 

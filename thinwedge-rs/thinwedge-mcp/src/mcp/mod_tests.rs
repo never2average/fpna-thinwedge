@@ -1,4 +1,7 @@
 use super::*;
+use pretty_assertions::assert_eq;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use thinwedge_config::Constrained;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_plugin::AppConnectorId;
@@ -7,9 +10,6 @@ use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
-use pretty_assertions::assert_eq;
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 fn test_mcp_config(thinwedge_home: PathBuf) -> McpConfig {
     McpConfig {

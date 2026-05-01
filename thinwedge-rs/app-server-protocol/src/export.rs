@@ -17,7 +17,6 @@ use crate::protocol::common::EXPERIMENTAL_CLIENT_METHODS;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
-use thinwedge_protocol::protocol::RolloutLine;
 use schemars::JsonSchema;
 use schemars::schema_for;
 use serde::Serialize;
@@ -34,6 +33,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::thread;
+use thinwedge_protocol::protocol::RolloutLine;
 use ts_rs::TS;
 
 pub(crate) const GENERATED_TS_HEADER: &str = "// GENERATED CODE! DO NOT MODIFY BY HAND!\n\n";
@@ -2321,8 +2321,9 @@ mod tests {
     }
 
     fn schema_root() -> Result<PathBuf> {
-        let typescript_index = thinwedge_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
-            .context("resolve TypeScript schema index.ts")?;
+        let typescript_index =
+            thinwedge_utils_cargo_bin::find_resource!("schema/typescript/index.ts")
+                .context("resolve TypeScript schema index.ts")?;
         let schema_root = typescript_index
             .parent()
             .and_then(|parent| parent.parent())
@@ -2651,7 +2652,8 @@ mod tests {
 
     #[test]
     fn experimental_type_fields_ts_filter_handles_interface_shape() -> Result<()> {
-        let output_dir = std::env::temp_dir().join(format!("thinwedge_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("thinwedge_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);
@@ -2690,7 +2692,8 @@ mod tests {
     #[test]
     fn experimental_type_fields_ts_filter_keeps_imports_used_in_intersection_suffix() -> Result<()>
     {
-        let output_dir = std::env::temp_dir().join(format!("thinwedge_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("thinwedge_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);
@@ -2733,7 +2736,8 @@ export type Config = { stableField: Keep, unstableField: string | null } & ({ [k
 
     #[test]
     fn experimental_type_fields_ts_filter_handles_generated_command_params_shape() -> Result<()> {
-        let output_dir = std::env::temp_dir().join(format!("thinwedge_ts_filter_{}", Uuid::now_v7()));
+        let output_dir =
+            std::env::temp_dir().join(format!("thinwedge_ts_filter_{}", Uuid::now_v7()));
         fs::create_dir_all(&output_dir)?;
 
         struct TempDirGuard(PathBuf);

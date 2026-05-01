@@ -1,6 +1,6 @@
 use super::*;
-use thinwedge_models_manager::model_info::model_info_from_slug;
 use tempfile::tempdir;
+use thinwedge_models_manager::model_info::model_info_from_slug;
 
 #[test]
 fn build_stage_one_input_message_truncates_rollout_using_model_context_window() {

@@ -3,15 +3,15 @@
 //! This crate defines the feature registry plus the logic used to resolve an
 //! effective feature set from config-like inputs.
 
-use thinwedge_otel::SessionTelemetry;
-use thinwedge_protocol::protocol::Event;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::WarningEvent;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use thinwedge_otel::SessionTelemetry;
+use thinwedge_protocol::protocol::Event;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::WarningEvent;
 use toml::Table;
 
 mod feature_configs;

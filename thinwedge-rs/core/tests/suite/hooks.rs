@@ -3,19 +3,6 @@ use std::path::Path;
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_core::config::Constrained;
-use thinwedge_features::Feature;
-use thinwedge_protocol::items::parse_hook_prompt_fragment;
-use thinwedge_protocol::models::ContentItem;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::permissions::NetworkSandboxPolicy;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::protocol::RolloutItem;
-use thinwedge_protocol::protocol::RolloutLine;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::managed_network_requirements_loader;
 use core_test_support::responses::ev_apply_patch_function_call;
 use core_test_support::responses::ev_assistant_message;
@@ -39,6 +26,19 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
+use thinwedge_core::config::Constrained;
+use thinwedge_features::Feature;
+use thinwedge_protocol::items::parse_hook_prompt_fragment;
+use thinwedge_protocol::models::ContentItem;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::permissions::NetworkSandboxPolicy;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::RolloutItem;
+use thinwedge_protocol::protocol::RolloutLine;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::sync::oneshot;
 use tokio::time::sleep;
 use tokio::time::timeout;
@@ -2555,7 +2555,9 @@ async fn pre_tool_use_does_not_fire_for_plan_tool() -> Result<()> {
         "non-shell tool output should not be blocked by PreToolUse",
     );
 
-    let hook_log_path = test.thinwedge_home_path().join("pre_tool_use_hook_log.jsonl");
+    let hook_log_path = test
+        .thinwedge_home_path()
+        .join("pre_tool_use_hook_log.jsonl");
     assert!(
         !hook_log_path.exists(),
         "plan tool should not trigger pre tool use hooks",
@@ -3283,7 +3285,9 @@ async fn post_tool_use_does_not_fire_for_plan_tool() -> Result<()> {
         "non-shell tool output should not be affected by PostToolUse",
     );
 
-    let hook_log_path = test.thinwedge_home_path().join("post_tool_use_hook_log.jsonl");
+    let hook_log_path = test
+        .thinwedge_home_path()
+        .join("post_tool_use_hook_log.jsonl");
     assert!(
         !hook_log_path.exists(),
         "plan tool should not trigger post tool use hooks",

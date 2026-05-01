@@ -1,3 +1,7 @@
+use pretty_assertions::assert_eq;
+use std::io;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_core::ARCHIVED_SESSIONS_SUBDIR;
 use thinwedge_core::SESSIONS_SUBDIR;
@@ -13,10 +17,6 @@ use thinwedge_protocol::protocol::SessionMeta;
 use thinwedge_protocol::protocol::SessionMetaLine;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::UserMessageEvent;
-use pretty_assertions::assert_eq;
-use std::io;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::io::AsyncWriteExt;
 
 const TEST_TIMESTAMP: &str = "2025-01-01T00-00-00";

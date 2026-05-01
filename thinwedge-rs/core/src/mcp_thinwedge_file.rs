@@ -12,9 +12,9 @@
 
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
+use serde_json::Value as JsonValue;
 use thinwedge_api::upload_local_file;
 use thinwedge_login::ThinWedgeAuth;
-use serde_json::Value as JsonValue;
 
 pub(crate) async fn rewrite_mcp_tool_arguments_for_thinwedge_files(
     sess: &Session,
@@ -39,9 +39,13 @@ pub(crate) async fn rewrite_mcp_tool_arguments_for_thinwedge_files(
         let Some(value) = arguments.get(field_name) else {
             continue;
         };
-        let Some(uploaded_value) =
-            rewrite_argument_value_for_thinwedge_files(turn_context, auth.as_ref(), field_name, value)
-                .await?
+        let Some(uploaded_value) = rewrite_argument_value_for_thinwedge_files(
+            turn_context,
+            auth.as_ref(),
+            field_name,
+            value,
+        )
+        .await?
         else {
             continue;
         };
@@ -140,10 +144,10 @@ async fn build_uploaded_local_argument_value(
 mod tests {
     use super::*;
     use crate::session::tests::make_session_and_context;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::sync::Arc;
     use tempfile::tempdir;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
     #[tokio::test]
     async fn thinwedge_file_argument_rewrite_requires_declared_file_params() {

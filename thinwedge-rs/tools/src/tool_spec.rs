@@ -3,6 +3,8 @@ use crate::JsonSchema;
 use crate::LoadableToolSpec;
 use crate::ResponsesApiNamespace;
 use crate::ResponsesApiTool;
+use serde::Serialize;
+use serde_json::Value;
 use thinwedge_protocol::config_types::WebSearchConfig;
 use thinwedge_protocol::config_types::WebSearchContextSize;
 use thinwedge_protocol::config_types::WebSearchFilters as ConfigWebSearchFilters;
@@ -10,8 +12,6 @@ use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WebSearchUserLocation as ConfigWebSearchUserLocation;
 use thinwedge_protocol::config_types::WebSearchUserLocationType;
 use thinwedge_protocol::thinwedge_models::WebSearchToolType;
-use serde::Serialize;
-use serde_json::Value;
 
 const WEB_SEARCH_TEXT_AND_IMAGE_CONTENT_TYPES: [&str; 2] = ["text", "image"];
 

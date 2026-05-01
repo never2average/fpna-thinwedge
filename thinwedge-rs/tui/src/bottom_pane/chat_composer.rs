@@ -216,14 +216,6 @@ use crate::history_cell;
 use crate::skills_helpers::skill_display_name;
 use crate::tui::FrameRequester;
 use crate::ui_consts::LIVE_PREFIX_COLS;
-use thinwedge_app_server_protocol::AppInfo;
-#[cfg(test)]
-use thinwedge_core_skills::model::SkillInterface;
-use thinwedge_core_skills::model::SkillMetadata;
-use thinwedge_file_search::FileMatch;
-#[cfg(test)]
-use thinwedge_plugin::AppConnectorId;
-use thinwedge_plugin::PluginCapabilitySummary;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -232,6 +224,14 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_app_server_protocol::AppInfo;
+#[cfg(test)]
+use thinwedge_core_skills::model::SkillInterface;
+use thinwedge_core_skills::model::SkillMetadata;
+use thinwedge_file_search::FileMatch;
+#[cfg(test)]
+use thinwedge_plugin::AppConnectorId;
+use thinwedge_plugin::PluginCapabilitySummary;
 
 #[cfg(test)]
 use ratatui::style::Color;
@@ -3807,7 +3807,8 @@ impl ChatComposer {
                 if !connector.is_accessible || !connector.is_enabled {
                     continue;
                 }
-                let display_name = thinwedge_connectors::metadata::connector_display_label(connector);
+                let display_name =
+                    thinwedge_connectors::metadata::connector_display_label(connector);
                 let description = Some(Self::connector_brief_description(connector));
                 let slug = thinwedge_connectors::metadata::connector_mention_slug(connector);
                 let search_terms = vec![display_name.clone(), connector.id.clone(), slug.clone()];

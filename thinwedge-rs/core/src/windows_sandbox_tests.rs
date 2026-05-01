@@ -1,9 +1,9 @@
 use super::*;
+use pretty_assertions::assert_eq;
+use std::collections::BTreeMap;
 use thinwedge_config::types::WindowsToml;
 use thinwedge_features::Features;
 use thinwedge_features::FeaturesToml;
-use pretty_assertions::assert_eq;
-use std::collections::BTreeMap;
 
 #[test]
 fn elevated_flag_works_by_itself() {

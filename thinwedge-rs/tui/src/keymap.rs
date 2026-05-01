@@ -20,11 +20,11 @@
 
 use crate::key_hint;
 use crate::key_hint::KeyBinding;
-use thinwedge_config::types::KeybindingsSpec;
-use thinwedge_config::types::TuiKeymap;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyModifiers;
 use std::collections::HashMap;
+use thinwedge_config::types::KeybindingsSpec;
+use thinwedge_config::types::TuiKeymap;
 
 /// Runtime keymap used by TUI input handlers.
 ///

@@ -1,8 +1,8 @@
 use super::grant_read_root_non_elevated;
-use thinwedge_protocol::protocol::SandboxPolicy;
 use std::collections::HashMap;
 use std::path::Path;
 use tempfile::TempDir;
+use thinwedge_protocol::protocol::SandboxPolicy;
 
 fn policy() -> SandboxPolicy {
     SandboxPolicy::new_workspace_write_policy()

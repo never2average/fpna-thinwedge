@@ -1,9 +1,9 @@
 //! Skill-related configuration types shared across crates.
 
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 const fn default_enabled() -> bool {
     true

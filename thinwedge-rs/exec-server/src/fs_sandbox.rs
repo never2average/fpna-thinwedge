@@ -20,10 +20,10 @@ use tokio::process::Command;
 
 use crate::ExecServerRuntimePaths;
 use crate::FileSystemSandboxContext;
-use crate::fs_helper::THINWEDGE_FS_HELPER_ARG1;
 use crate::fs_helper::FsHelperPayload;
 use crate::fs_helper::FsHelperRequest;
 use crate::fs_helper::FsHelperResponse;
+use crate::fs_helper::THINWEDGE_FS_HELPER_ARG1;
 use crate::local_file_system::current_sandbox_cwd;
 use crate::rpc::internal_error;
 use crate::rpc::invalid_request;
@@ -100,7 +100,10 @@ impl FileSystemSandboxRunner {
                 enforce_managed_network: false,
                 network: None,
                 sandbox_policy_cwd: cwd.as_path(),
-                thinwedge_linux_sandbox_exe: self.runtime_paths.thinwedge_linux_sandbox_exe.as_deref(),
+                thinwedge_linux_sandbox_exe: self
+                    .runtime_paths
+                    .thinwedge_linux_sandbox_exe
+                    .as_deref(),
                 use_legacy_landlock: sandbox_context.use_legacy_landlock,
                 windows_sandbox_level: sandbox_context.windows_sandbox_level,
                 windows_sandbox_private_desktop: sandbox_context.windows_sandbox_private_desktop,
@@ -127,9 +130,12 @@ fn sandbox_cwd(sandbox: &FileSystemSandboxContext) -> Result<AbsolutePathBuf, JS
 
 fn helper_read_roots(runtime_paths: &ExecServerRuntimePaths) -> Vec<AbsolutePathBuf> {
     let mut roots = Vec::new();
-    for path in std::iter::once(runtime_paths.thinwedge_self_exe.as_path())
-        .chain(runtime_paths.thinwedge_linux_sandbox_exe.as_deref().into_iter())
-    {
+    for path in std::iter::once(runtime_paths.thinwedge_self_exe.as_path()).chain(
+        runtime_paths
+            .thinwedge_linux_sandbox_exe
+            .as_deref()
+            .into_iter(),
+    ) {
         if let Some(parent) = path.parent()
             && let Ok(root) = AbsolutePathBuf::from_absolute_path(parent)
             && !roots.contains(&root)
@@ -295,6 +301,7 @@ mod tests {
     use std::collections::HashMap;
     use std::ffi::OsString;
 
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::permissions::FileSystemAccessMode;
     use thinwedge_protocol::permissions::FileSystemPath;
@@ -303,7 +310,6 @@ mod tests {
     use thinwedge_protocol::permissions::FileSystemSpecialPath;
     use thinwedge_protocol::permissions::NetworkSandboxPolicy;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use pretty_assertions::assert_eq;
 
     use crate::ExecServerRuntimePaths;
 
@@ -343,9 +349,11 @@ mod tests {
     #[test]
     fn helper_permissions_preserve_existing_writes() {
         let thinwedge_self_exe = std::env::current_exe().expect("current exe");
-        let runtime_paths =
-            ExecServerRuntimePaths::new(thinwedge_self_exe, /*thinwedge_linux_sandbox_exe*/ None)
-                .expect("runtime paths");
+        let runtime_paths = ExecServerRuntimePaths::new(
+            thinwedge_self_exe,
+            /*thinwedge_linux_sandbox_exe*/ None,
+        )
+        .expect("runtime paths");
         let cwd = AbsolutePathBuf::from_absolute_path(std::env::temp_dir().as_path())
             .expect("absolute cwd");
         let writable = cwd.join("writable");
@@ -496,9 +504,11 @@ mod tests {
     #[test]
     fn helper_permissions_include_helper_read_root_without_additional_permissions() {
         let thinwedge_self_exe = std::env::current_exe().expect("current exe");
-        let runtime_paths =
-            ExecServerRuntimePaths::new(thinwedge_self_exe, /*thinwedge_linux_sandbox_exe*/ None)
-                .expect("runtime paths");
+        let runtime_paths = ExecServerRuntimePaths::new(
+            thinwedge_self_exe,
+            /*thinwedge_linux_sandbox_exe*/ None,
+        )
+        .expect("runtime paths");
         let cwd = AbsolutePathBuf::from_absolute_path(std::env::temp_dir().as_path())
             .expect("absolute cwd");
         let mut policy = restricted_policy(Vec::new());
@@ -523,7 +533,8 @@ mod tests {
     fn helper_permissions_include_linux_sandbox_alias_parent() {
         let root = tempfile::tempdir().expect("temp dir");
         let thinwedge_self_exe = root.path().join("bin").join("thinwedge");
-        let thinwedge_linux_sandbox_exe = root.path().join("aliases").join("thinwedge-linux-sandbox");
+        let thinwedge_linux_sandbox_exe =
+            root.path().join("aliases").join("thinwedge-linux-sandbox");
         let runtime_paths =
             ExecServerRuntimePaths::new(thinwedge_self_exe, Some(thinwedge_linux_sandbox_exe))
                 .expect("runtime paths");

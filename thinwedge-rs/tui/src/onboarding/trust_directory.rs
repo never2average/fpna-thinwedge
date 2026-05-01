@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::legacy_core::config::set_project_trust_level;
-use thinwedge_protocol::config_types::TrustLevel;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
 use ratatui::buffer::Buffer;
@@ -11,6 +10,7 @@ use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
+use thinwedge_protocol::config_types::TrustLevel;
 
 use crate::key_hint::KeyBindingListExt;
 use crate::onboarding::keys;
@@ -167,7 +167,8 @@ impl StepStateProvider for TrustDirectoryWidget {
 impl TrustDirectoryWidget {
     fn handle_trust(&mut self) {
         let target = self.trust_target.clone();
-        if let Err(e) = set_project_trust_level(&self.thinwedge_home, &target, TrustLevel::Trusted) {
+        if let Err(e) = set_project_trust_level(&self.thinwedge_home, &target, TrustLevel::Trusted)
+        {
             tracing::error!("Failed to set project trusted: {e:?}");
             self.error = Some(format!("Failed to set trust for {}: {e}", target.display()));
         }

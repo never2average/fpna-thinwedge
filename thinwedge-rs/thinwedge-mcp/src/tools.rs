@@ -9,8 +9,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use thinwedge_config::McpServerConfig;
-use thinwedge_protocol::ToolName;
 use rmcp::model::Tool;
 use serde::Deserialize;
 use serde::Serialize;
@@ -18,6 +16,8 @@ use serde_json::Map;
 use serde_json::Value as JsonValue;
 use sha1::Digest;
 use sha1::Sha1;
+use thinwedge_config::McpServerConfig;
+use thinwedge_protocol::ToolName;
 use tracing::warn;
 
 use crate::mcp::sanitize_responses_api_tool_name;

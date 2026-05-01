@@ -2,15 +2,15 @@ use super::MarketplaceAddError;
 use super::source::MarketplaceSource;
 use crate::installed_marketplaces::resolve_configured_marketplace_root;
 use crate::marketplace::validate_marketplace_root;
-use thinwedge_config::CONFIG_TOML_FILE;
-use thinwedge_config::MarketplaceConfigUpdate;
-use thinwedge_config::record_user_marketplace;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
+use thinwedge_config::CONFIG_TOML_FILE;
+use thinwedge_config::MarketplaceConfigUpdate;
+use thinwedge_config::record_user_marketplace;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct MarketplaceInstallMetadata {

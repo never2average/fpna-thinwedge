@@ -1,7 +1,7 @@
+use std::collections::HashSet;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::memory_citation::MemoryCitation;
 use thinwedge_protocol::memory_citation::MemoryCitationEntry;
-use std::collections::HashSet;
 
 pub fn parse_memory_citation(citations: Vec<String>) -> Option<MemoryCitation> {
     let mut entries = Vec::new();

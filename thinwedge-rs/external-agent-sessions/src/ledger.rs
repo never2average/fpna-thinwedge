@@ -1,5 +1,4 @@
 use crate::now_unix_seconds;
-use thinwedge_protocol::ThreadId;
 use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest;
@@ -8,6 +7,7 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_protocol::ThreadId;
 
 const SESSION_IMPORT_LEDGER_FILE: &str = "external_agent_session_imports.json";
 

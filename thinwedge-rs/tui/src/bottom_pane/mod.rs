@@ -31,12 +31,6 @@ use crate::render::renderable::RenderableItem;
 use crate::tui::FrameRequester;
 pub(crate) use bottom_pane_view::BottomPaneView;
 use bottom_pane_view::ViewCompletion;
-use thinwedge_core_skills::model::SkillMetadata;
-use thinwedge_features::Features;
-use thinwedge_file_search::FileMatch;
-use thinwedge_plugin::PluginCapabilitySummary;
-use thinwedge_protocol::request_user_input::RequestUserInputEvent;
-use thinwedge_protocol::user_input::TextElement;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -45,6 +39,12 @@ use ratatui::layout::Rect;
 use ratatui::text::Line;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_core_skills::model::SkillMetadata;
+use thinwedge_features::Features;
+use thinwedge_file_search::FileMatch;
+use thinwedge_plugin::PluginCapabilitySummary;
+use thinwedge_protocol::request_user_input::RequestUserInputEvent;
+use thinwedge_protocol::user_input::TextElement;
 
 mod action_required_title;
 mod app_link_view;
@@ -1572,9 +1572,6 @@ mod tests {
     use crate::status_indicator_widget::StatusDetailsCapitalization;
     use crate::test_support::PathBufExt;
     use crate::test_support::test_path_buf;
-    use thinwedge_protocol::protocol::Op;
-    use thinwedge_protocol::protocol::ReviewDecision;
-    use thinwedge_protocol::protocol::SkillScope;
     use crossterm::event::KeyCode;
     use crossterm::event::KeyEvent;
     use crossterm::event::KeyEventKind;
@@ -1586,6 +1583,9 @@ mod tests {
     use std::cell::Cell;
     use std::rc::Rc;
     use std::time::Instant;
+    use thinwedge_protocol::protocol::Op;
+    use thinwedge_protocol::protocol::ReviewDecision;
+    use thinwedge_protocol::protocol::SkillScope;
     use tokio::sync::mpsc::unbounded_channel;
 
     fn snapshot_buffer(buf: &Buffer) -> String {

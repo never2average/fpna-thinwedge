@@ -1,7 +1,5 @@
 use crate::config_toml::ConfigToml;
 use crate::types::RawMcpServerConfig;
-use thinwedge_features::FEATURES;
-use thinwedge_features::legacy_feature_keys;
 use schemars::r#gen::SchemaGenerator;
 use schemars::r#gen::SchemaSettings;
 use schemars::schema::InstanceType;
@@ -12,6 +10,8 @@ use schemars::schema::SchemaObject;
 use serde_json::Map;
 use serde_json::Value;
 use std::path::Path;
+use thinwedge_features::FEATURES;
+use thinwedge_features::legacy_feature_keys;
 
 /// Schema for the `[features]` map with known + legacy keys only.
 pub fn features_schema(schema_gen: &mut SchemaGenerator) -> Schema {

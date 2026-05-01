@@ -1,12 +1,5 @@
 use crate::store::PLUGINS_CACHE_DIR;
 use crate::store::PluginStore;
-use thinwedge_app_server_protocol::PluginAuthPolicy;
-use thinwedge_app_server_protocol::PluginInstallPolicy;
-use thinwedge_app_server_protocol::PluginInterface;
-use thinwedge_app_server_protocol::SkillInterface;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_login::default_client::build_reqwest_client;
-use thinwedge_plugin::PluginId;
 use reqwest::RequestBuilder;
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -16,6 +9,13 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
+use thinwedge_app_server_protocol::PluginAuthPolicy;
+use thinwedge_app_server_protocol::PluginInstallPolicy;
+use thinwedge_app_server_protocol::PluginInterface;
+use thinwedge_app_server_protocol::SkillInterface;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_login::default_client::build_reqwest_client;
+use thinwedge_plugin::PluginId;
 use tracing::warn;
 
 pub const REMOTE_GLOBAL_MARKETPLACE_NAME: &str = "chatgpt-global";
@@ -846,7 +846,9 @@ async fn fetch_plugin_detail(
     send_and_decode(request, &url).await
 }
 
-fn ensure_chatgpt_auth(auth: Option<&ThinWedgeAuth>) -> Result<&ThinWedgeAuth, RemotePluginCatalogError> {
+fn ensure_chatgpt_auth(
+    auth: Option<&ThinWedgeAuth>,
+) -> Result<&ThinWedgeAuth, RemotePluginCatalogError> {
     let Some(auth) = auth else {
         return Err(RemotePluginCatalogError::AuthRequired);
     };

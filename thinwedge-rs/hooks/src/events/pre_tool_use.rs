@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use serde_json::Value;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::HookCompletedEvent;
 use thinwedge_protocol::protocol::HookEventName;
@@ -8,7 +9,6 @@ use thinwedge_protocol::protocol::HookOutputEntryKind;
 use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::HookRunSummary;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use serde_json::Value;
 
 use super::common;
 use crate::engine::CommandShell;
@@ -252,6 +252,7 @@ fn serialization_failure_outcome(hook_events: Vec<HookCompletedEvent>) -> PreToo
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
     use thinwedge_protocol::ThreadId;
     use thinwedge_protocol::protocol::HookEventName;
     use thinwedge_protocol::protocol::HookOutputEntry;
@@ -259,7 +260,6 @@ mod tests {
     use thinwedge_protocol::protocol::HookRunStatus;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
 
     use super::PreToolUseHandlerData;
     use super::command_input_json;

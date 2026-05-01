@@ -3,14 +3,14 @@ use crate::outgoing_message::OutgoingEnvelope;
 #[cfg(test)]
 use crate::outgoing_message::OutgoingMessage;
 use crate::outgoing_message::OutgoingMessageSender;
+use std::collections::HashMap;
+use std::sync::Arc;
 use thinwedge_app_server_protocol::ServerNotification;
 use thinwedge_app_server_protocol::Thread;
 use thinwedge_app_server_protocol::ThreadActiveFlag;
 use thinwedge_app_server_protocol::ThreadStatus;
 use thinwedge_app_server_protocol::ThreadStatusChangedNotification;
 use thinwedge_protocol::ThreadId;
-use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::Mutex;
 #[cfg(test)]
 use tokio::sync::mpsc;
@@ -453,9 +453,9 @@ fn loaded_thread_status(runtime: &RuntimeFacts) -> ThreadStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
-    use pretty_assertions::assert_eq;
     use tokio::time::Duration;
     use tokio::time::timeout;
 
@@ -884,7 +884,10 @@ mod tests {
         notification
     }
 
-    fn test_thread(thread_id: &str, source: thinwedge_app_server_protocol::SessionSource) -> Thread {
+    fn test_thread(
+        thread_id: &str,
+        source: thinwedge_app_server_protocol::SessionSource,
+    ) -> Thread {
         Thread {
             id: thread_id.to_string(),
             forked_from_id: None,

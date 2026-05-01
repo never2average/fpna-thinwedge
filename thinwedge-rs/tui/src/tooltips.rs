@@ -1,7 +1,7 @@
-use thinwedge_features::FEATURES;
-use thinwedge_protocol::account::PlanType;
 use lazy_static::lazy_static;
 use rand::Rng;
+use thinwedge_features::FEATURES;
+use thinwedge_protocol::account::PlanType;
 
 const ANNOUNCEMENT_TIP_URL: &str =
     "https://raw.githubusercontent.com/never2average/fpna-thinwedge/main/announcement_tip.toml";
@@ -126,12 +126,12 @@ pub(crate) mod announcement {
     use crate::version::THINWEDGE_CLI_VERSION;
     use chrono::NaiveDate;
     use chrono::Utc;
-    use thinwedge_protocol::account::PlanType;
     use regex_lite::Regex;
     use serde::Deserialize;
     use std::sync::OnceLock;
     use std::thread;
     use std::time::Duration;
+    use thinwedge_protocol::account::PlanType;
 
     static ANNOUNCEMENT_TIP: OnceLock<Option<String>> = OnceLock::new();
     const CURRENT_OS: TargetOs = TargetOs::current();

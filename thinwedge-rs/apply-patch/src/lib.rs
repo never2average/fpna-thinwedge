@@ -10,11 +10,6 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
-use thinwedge_exec_server::CreateDirectoryOptions;
-use thinwedge_exec_server::ExecutorFileSystem;
-use thinwedge_exec_server::FileSystemSandboxContext;
-use thinwedge_exec_server::RemoveOptions;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 pub use parser::Hunk;
 pub use parser::ParseError;
 use parser::ParseError::*;
@@ -22,6 +17,11 @@ pub use parser::UpdateFileChunk;
 pub use parser::parse_patch;
 pub use parser::parse_patch_streaming;
 use similar::TextDiff;
+use thinwedge_exec_server::CreateDirectoryOptions;
+use thinwedge_exec_server::ExecutorFileSystem;
+use thinwedge_exec_server::FileSystemSandboxContext;
+use thinwedge_exec_server::RemoveOptions;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thiserror::Error;
 
 pub use invocation::maybe_parse_apply_patch_verified;
@@ -613,12 +613,12 @@ pub fn print_summary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_exec_server::LOCAL_FS;
-    use thinwedge_utils_absolute_path::test_support::PathExt;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::string::ToString;
     use tempfile::tempdir;
+    use thinwedge_exec_server::LOCAL_FS;
+    use thinwedge_utils_absolute_path::test_support::PathExt;
 
     /// Helper to construct a patch with the given body.
     fn wrap_patch(body: &str) -> String {

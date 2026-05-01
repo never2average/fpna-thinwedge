@@ -1,12 +1,5 @@
 //! Configuration object accepted by the `thinwedge` MCP tool-call.
 
-use thinwedge_arg0::Arg0DispatchPaths;
-use thinwedge_core::config::Config;
-use thinwedge_core::config::ConfigOverrides;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::config_types::SandboxMode;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_utils_json_to_toml::json_to_toml;
 use rmcp::model::JsonObject;
 use rmcp::model::Tool;
 use schemars::JsonSchema;
@@ -16,6 +9,13 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thinwedge_arg0::Arg0DispatchPaths;
+use thinwedge_core::config::Config;
+use thinwedge_core::config::ConfigOverrides;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::config_types::SandboxMode;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_utils_json_to_toml::json_to_toml;
 
 /// Client-supplied configuration for a `thinwedge` tool-call.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
@@ -241,7 +241,8 @@ pub(crate) fn create_tool_for_thinwedge_tool_call_reply_param() -> Tool {
         .into_generator()
         .into_root_schema_for::<ThinWedgeToolCallReplyParam>();
 
-    let input_schema = create_tool_input_schema(schema, "ThinWedge reply tool schema should serialize");
+    let input_schema =
+        create_tool_input_schema(schema, "ThinWedge reply tool schema should serialize");
 
     Tool {
         name: "thinwedge-reply".into(),

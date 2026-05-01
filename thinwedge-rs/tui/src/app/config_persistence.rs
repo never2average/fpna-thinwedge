@@ -518,8 +518,10 @@ impl App {
 
     pub(super) fn restore_runtime_theme_from_config(&self) {
         if let Some(name) = self.config.tui_theme.as_deref()
-            && let Some(theme) =
-                crate::render::highlight::resolve_theme_by_name(name, Some(&self.config.thinwedge_home))
+            && let Some(theme) = crate::render::highlight::resolve_theme_by_name(
+                name,
+                Some(&self.config.thinwedge_home),
+            )
         {
             crate::render::highlight::set_syntax_theme(theme);
             return;
@@ -549,12 +551,12 @@ mod tests {
     use crate::app::test_support::app_enabled_in_effective_config;
     use crate::app::test_support::make_test_app;
     use crate::test_support::PathBufExt;
+    use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::protocol::Event;
     use thinwedge_protocol::protocol::EventMsg;
     use thinwedge_protocol::protocol::SessionConfiguredEvent;
-    use pretty_assertions::assert_eq;
-    use tempfile::tempdir;
 
     #[tokio::test]
     async fn update_reasoning_effort_updates_collaboration_mode() {

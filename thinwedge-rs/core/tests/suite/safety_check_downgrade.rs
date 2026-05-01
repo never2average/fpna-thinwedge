@@ -1,14 +1,4 @@
 use anyhow::Result;
-use thinwedge_protocol::models::ContentItem;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ModelRerouteReason;
-use thinwedge_protocol::protocol::ModelVerification;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_model_verification_metadata;
@@ -25,6 +15,16 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
+use thinwedge_protocol::models::ContentItem;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ModelRerouteReason;
+use thinwedge_protocol::protocol::ModelVerification;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
+use thinwedge_protocol::user_input::UserInput;
 use wiremock::ResponseTemplate;
 
 const SERVER_MODEL: &str = "gpt-5.2";
@@ -85,7 +85,10 @@ async fn thinwedge_model_header_mismatch_emits_warning_event_and_warning_item() 
     assert_eq!(reroute.to_model, SERVER_MODEL);
     assert_eq!(reroute.reason, ModelRerouteReason::HighRiskCyberActivity);
 
-    let warning = wait_for_event(&test.thinwedge, |event| matches!(event, EventMsg::Warning(_))).await;
+    let warning = wait_for_event(&test.thinwedge, |event| {
+        matches!(event, EventMsg::Warning(_))
+    })
+    .await;
     let EventMsg::Warning(warning) = warning else {
         panic!("expected warning event");
     };
@@ -157,7 +160,10 @@ async fn cyber_policy_response_emits_typed_error_without_retry() -> Result<()> {
         panic!("expected error event");
     };
     assert_eq!(error.message, CYBER_POLICY_MESSAGE);
-    assert_eq!(error.thinwedge_error_info, Some(ThinWedgeErrorInfo::CyberPolicy));
+    assert_eq!(
+        error.thinwedge_error_info,
+        Some(ThinWedgeErrorInfo::CyberPolicy)
+    );
 
     mock.single_request();
 

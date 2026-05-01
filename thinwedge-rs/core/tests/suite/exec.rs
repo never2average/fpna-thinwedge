@@ -1,5 +1,8 @@
 #![cfg(target_os = "macos")]
 
+use core_test_support::PathExt;
+use std::collections::HashMap;
+use tempfile::TempDir;
 use thinwedge_core::exec::ExecCapturePolicy;
 use thinwedge_core::exec::ExecParams;
 use thinwedge_core::exec::process_exec_tool_call;
@@ -11,9 +14,6 @@ use thinwedge_protocol::exec_output::ExecToolCallOutput;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::get_platform_sandbox;
-use core_test_support::PathExt;
-use std::collections::HashMap;
-use tempfile::TempDir;
 
 fn skip_test() -> bool {
     if std::env::var(THINWEDGE_SANDBOX_ENV_VAR) == Ok("seatbelt".to_string()) {

@@ -11,11 +11,14 @@ use crate::test_support::test_path_buf;
 use chrono::Duration as ChronoDuration;
 use chrono::TimeZone;
 use chrono::Utc;
+use insta::assert_snapshot;
+use pretty_assertions::assert_eq;
+use ratatui::prelude::*;
+use tempfile::TempDir;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::CreditsSnapshot;
 use thinwedge_protocol::protocol::NetworkSandboxPolicy;
@@ -23,10 +26,7 @@ use thinwedge_protocol::protocol::RateLimitSnapshot;
 use thinwedge_protocol::protocol::RateLimitWindow;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
-use insta::assert_snapshot;
-use pretty_assertions::assert_eq;
-use ratatui::prelude::*;
-use tempfile::TempDir;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 async fn test_config(temp_home: &TempDir) -> Config {
     let mut config = ConfigBuilder::default()

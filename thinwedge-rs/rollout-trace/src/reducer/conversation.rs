@@ -146,7 +146,12 @@ impl TraceReducer {
             .rollout
             .inference_calls
             .get(inference_call_id)
-            .map(|inference| (inference.thread_id.clone(), inference.thinwedge_turn_id.clone()))
+            .map(|inference| {
+                (
+                    inference.thread_id.clone(),
+                    inference.thinwedge_turn_id.clone(),
+                )
+            })
         else {
             bail!("inference response referenced unknown call {inference_call_id}");
         };

@@ -8,7 +8,6 @@ use thinwedge_protocol::AgentPath;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_protocol::models::BaseInstructions;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::GitInfo;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -16,6 +15,7 @@ use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
 use thinwedge_protocol::protocol::ThreadMemoryMode;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 use super::proto;
 use crate::GitInfoPatch;

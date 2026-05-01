@@ -2,6 +2,12 @@ use super::*;
 use crate::SkillMetadata;
 use crate::config_rules::resolve_disabled_skill_paths;
 use crate::config_rules::skill_config_rules_from_stack;
+use pretty_assertions::assert_eq;
+use std::collections::HashSet;
+use std::fs;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::ConfigLayerEntry;
@@ -12,12 +18,6 @@ use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_absolute_path::test_support::PathBufExt;
 use thinwedge_utils_absolute_path::test_support::PathExt;
 use thinwedge_utils_absolute_path::test_support::test_path_buf;
-use pretty_assertions::assert_eq;
-use std::collections::HashSet;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tempfile::TempDir;
 
 fn write_user_skill(thinwedge_home: &TempDir, dir: &str, name: &str, description: &str) {
     let skill_dir = thinwedge_home.path().join("skills").join(dir);
@@ -321,7 +321,12 @@ async fn skills_for_cwd_loads_repo_user_and_extra_roots_with_local_fs() {
     let repo_dot_thinwedge = cwd.path().join(".thinwedge");
     fs::create_dir_all(&repo_dot_thinwedge).expect("create repo config dir");
 
-    write_user_skill(&thinwedge_home, "user", "user-skill", "from local user root");
+    write_user_skill(
+        &thinwedge_home,
+        "user",
+        "user-skill",
+        "from local user root",
+    );
     write_user_skill(&extra_root, "extra", "extra-skill", "from extra root");
     let repo_skill_dir = repo_dot_thinwedge.join("skills/repo");
     fs::create_dir_all(&repo_skill_dir).expect("create repo skill dir");
@@ -388,7 +393,12 @@ async fn skills_for_cwd_without_fs_skips_repo_and_extra_roots() {
     let repo_dot_thinwedge = cwd.path().join(".thinwedge");
     fs::create_dir_all(&repo_dot_thinwedge).expect("create repo config dir");
 
-    write_user_skill(&thinwedge_home, "user", "user-skill", "from local user root");
+    write_user_skill(
+        &thinwedge_home,
+        "user",
+        "user-skill",
+        "from local user root",
+    );
     write_user_skill(&extra_root, "extra", "extra-skill", "from extra root");
     let repo_skill_dir = repo_dot_thinwedge.join("skills/repo");
     fs::create_dir_all(&repo_skill_dir).expect("create repo skill dir");
@@ -733,8 +743,11 @@ async fn skills_for_config_ignores_cwd_cache_when_session_flags_reenable_skill()
     let disabled_skill_config = path_toggle_config(&skill_path, /*enabled*/ false);
     let enabled_skill_config = path_toggle_config(&skill_path, /*enabled*/ true);
     let parent_stack = config_stack(&thinwedge_home, &disabled_skill_config);
-    let child_stack =
-        config_stack_with_session_flags(&thinwedge_home, &disabled_skill_config, &enabled_skill_config);
+    let child_stack = config_stack_with_session_flags(
+        &thinwedge_home,
+        &disabled_skill_config,
+        &enabled_skill_config,
+    );
     let skills_manager = SkillsManager::new(
         thinwedge_home.path().abs(),
         /*bundled_skills_enabled*/ true,

@@ -1,7 +1,5 @@
 //! Migration helpers for importing external-agent configuration into ThinWedge.
 
-use thinwedge_hooks::HOOK_EVENT_NAMES;
-use thinwedge_hooks::HOOK_EVENT_NAMES_WITH_MATCHERS;
 use serde_json::Value as JsonValue;
 use serde_yaml::Value as YamlValue;
 use std::collections::BTreeMap;
@@ -10,6 +8,8 @@ use std::fs;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_hooks::HOOK_EVENT_NAMES;
+use thinwedge_hooks::HOOK_EVENT_NAMES_WITH_MATCHERS;
 use toml::Value as TomlValue;
 
 const SOURCE_EXTERNAL_AGENT_NAME: &str = "claude";
@@ -1719,7 +1719,11 @@ Review carefully."""
             }
         });
         let mut migration = serde_json::Map::new();
-        append_convertible_hook_groups(&settings, &mut migration, Some(Path::new("/repo/.thinwedge")));
+        append_convertible_hook_groups(
+            &settings,
+            &mut migration,
+            Some(Path::new("/repo/.thinwedge")),
+        );
 
         assert_eq!(
             migration,

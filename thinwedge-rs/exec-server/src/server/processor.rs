@@ -185,13 +185,13 @@ mod tests {
     use std::sync::Arc;
     use std::time::Duration;
 
+    use serde::Serialize;
+    use serde::de::DeserializeOwned;
     use thinwedge_app_server_protocol::JSONRPCMessage;
     use thinwedge_app_server_protocol::JSONRPCNotification;
     use thinwedge_app_server_protocol::JSONRPCRequest;
     use thinwedge_app_server_protocol::JSONRPCResponse;
     use thinwedge_app_server_protocol::RequestId;
-    use serde::Serialize;
-    use serde::de::DeserializeOwned;
     use tokio::io::AsyncBufReadExt;
     use tokio::io::AsyncWriteExt;
     use tokio::io::BufReader;

@@ -1,11 +1,11 @@
-use thinwedge_protocol::account::PlanType;
-use thinwedge_protocol::protocol::CreditsSnapshot;
-use thinwedge_protocol::protocol::RateLimitSnapshot;
-use thinwedge_protocol::protocol::RateLimitWindow;
 use http::HeaderMap;
 use serde::Deserialize;
 use std::collections::BTreeSet;
 use std::fmt::Display;
+use thinwedge_protocol::account::PlanType;
+use thinwedge_protocol::protocol::CreditsSnapshot;
+use thinwedge_protocol::protocol::RateLimitSnapshot;
+use thinwedge_protocol::protocol::RateLimitWindow;
 
 #[derive(Debug)]
 pub struct RateLimitError {
@@ -330,7 +330,10 @@ mod tests {
         let snapshot =
             parse_rate_limit_for_limit(&headers, Some("thinwedge_bengalfox")).expect("snapshot");
         assert_eq!(snapshot.limit_id.as_deref(), Some("thinwedge_bengalfox"));
-        assert_eq!(snapshot.limit_name.as_deref(), Some("gpt-5.2-thinwedge-sonic"));
+        assert_eq!(
+            snapshot.limit_name.as_deref(),
+            Some("gpt-5.2-thinwedge-sonic")
+        );
     }
 
     #[test]

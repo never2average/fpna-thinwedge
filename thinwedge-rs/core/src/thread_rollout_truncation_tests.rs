@@ -1,11 +1,11 @@
 use super::*;
 use crate::session::tests::make_session_and_context;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::AgentPath;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 use thinwedge_protocol::protocol::InterAgentCommunication;
 use thinwedge_protocol::protocol::ThreadRolledBackEvent;
-use pretty_assertions::assert_eq;
 
 fn user_msg(text: &str) -> ResponseItem {
     ResponseItem::Message {

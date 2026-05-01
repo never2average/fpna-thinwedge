@@ -1,3 +1,12 @@
+use serde_json::Value as JsonValue;
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::ffi::OsString;
+use std::fs;
+use std::io;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_config::types::PluginConfig;
 use thinwedge_core::config::Config;
 use thinwedge_core::config::ConfigBuilder;
@@ -21,15 +30,6 @@ use thinwedge_external_agent_migration::missing_subagent_names;
 use thinwedge_external_agent_sessions::ExternalAgentSessionMigration;
 use thinwedge_external_agent_sessions::detect_recent_sessions;
 use thinwedge_protocol::protocol::Product;
-use serde_json::Value as JsonValue;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::ffi::OsString;
-use std::fs;
-use std::io;
-use std::path::Path;
-use std::path::PathBuf;
 use toml::Value as TomlValue;
 
 const EXTERNAL_AGENT_CONFIG_DETECT_METRIC: &str = "thinwedge.external_agent_config.detect";
@@ -710,7 +710,8 @@ impl ExternalAgentConfigService {
                 ref_name: import_source.ref_name,
                 sparse_paths: Vec::new(),
             };
-            let add_marketplace_outcome = add_marketplace(self.thinwedge_home.clone(), request).await;
+            let add_marketplace_outcome =
+                add_marketplace(self.thinwedge_home.clone(), request).await;
             let marketplace_path = match add_marketplace_outcome {
                 Ok(add_marketplace_outcome) => {
                     let Some(marketplace_path) = find_marketplace_manifest_path(
@@ -1102,21 +1103,20 @@ fn configured_marketplace_plugins(
         })?;
     let mut marketplace_plugins = BTreeMap::new();
     for marketplace in marketplaces.marketplaces {
-        let plugins = marketplace
-            .plugins
-            .into_iter()
-            .filter(|plugin| {
-                plugin.policy.installation != MarketplacePluginInstallPolicy::NotAvailable
-            })
-            .filter(|plugin| {
-                plugin
-                    .policy
-                    .products
-                    .as_deref()
-                    .is_none_or(|products| Product::ThinWedge.matches_product_restriction(products))
-            })
-            .map(|plugin| plugin.name)
-            .collect::<HashSet<_>>();
+        let plugins =
+            marketplace
+                .plugins
+                .into_iter()
+                .filter(|plugin| {
+                    plugin.policy.installation != MarketplacePluginInstallPolicy::NotAvailable
+                })
+                .filter(|plugin| {
+                    plugin.policy.products.as_deref().is_none_or(|products| {
+                        Product::ThinWedge.matches_product_restriction(products)
+                    })
+                })
+                .map(|plugin| plugin.name)
+                .collect::<HashSet<_>>();
         marketplace_plugins.insert(marketplace.name, plugins);
     }
     Ok(marketplace_plugins)

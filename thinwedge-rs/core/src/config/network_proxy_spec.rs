@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+use std::collections::HashSet;
+use std::sync::Arc;
 use thinwedge_config::NetworkConstraints;
 use thinwedge_execpolicy::Policy;
 use thinwedge_network_proxy::BlockedRequestObserver;
@@ -17,8 +19,6 @@ use thinwedge_network_proxy::host_and_port_from_network_addr;
 use thinwedge_network_proxy::normalize_host;
 use thinwedge_network_proxy::validate_policy_against_constraints;
 use thinwedge_protocol::models::PermissionProfile;
-use std::collections::HashSet;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NetworkProxySpec {

@@ -6,6 +6,17 @@ use app_test_support::create_mock_responses_server_sequence_unchecked;
 use app_test_support::to_response;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use futures::SinkExt;
+use futures::StreamExt;
+use hmac::Hmac;
+use hmac::Mac;
+use reqwest::StatusCode;
+use serde_json::json;
+use sha2::Sha256;
+use std::net::SocketAddr;
+use std::path::Path;
+use std::process::Stdio;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::ClientInfo;
 use thinwedge_app_server_protocol::InitializeParams;
 use thinwedge_app_server_protocol::JSONRPCError;
@@ -18,17 +29,6 @@ use thinwedge_app_server_protocol::ThreadLoadedListParams;
 use thinwedge_app_server_protocol::ThreadLoadedListResponse;
 use thinwedge_app_server_protocol::ThreadStartParams;
 use thinwedge_app_server_protocol::ThreadStartResponse;
-use futures::SinkExt;
-use futures::StreamExt;
-use hmac::Hmac;
-use hmac::Mac;
-use reqwest::StatusCode;
-use serde_json::json;
-use sha2::Sha256;
-use std::net::SocketAddr;
-use std::path::Path;
-use std::process::Stdio;
-use tempfile::TempDir;
 use time::OffsetDateTime;
 use tokio::io::AsyncBufReadExt;
 use tokio::io::BufReader;
@@ -175,7 +175,8 @@ async fn websocket_transport_rejects_missing_and_invalid_capability_tokens() -> 
     ];
 
     let (mut process, bind_addr) =
-        spawn_websocket_server_with_args(thinwedge_home.path(), "ws://127.0.0.1:0", &auth_args).await?;
+        spawn_websocket_server_with_args(thinwedge_home.path(), "ws://127.0.0.1:0", &auth_args)
+            .await?;
 
     assert_websocket_connect_rejected(bind_addr, /*bearer_token*/ None).await?;
     assert_websocket_connect_rejected(bind_addr, Some("wrong-token")).await?;
@@ -214,7 +215,8 @@ async fn websocket_transport_verifies_signed_short_lived_bearer_tokens() -> Resu
     ];
 
     let (mut process, bind_addr) =
-        spawn_websocket_server_with_args(thinwedge_home.path(), "ws://127.0.0.1:0", &auth_args).await?;
+        spawn_websocket_server_with_args(thinwedge_home.path(), "ws://127.0.0.1:0", &auth_args)
+            .await?;
     let expired_token = signed_bearer_token(
         shared_secret.as_bytes(),
         json!({

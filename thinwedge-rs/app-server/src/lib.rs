@@ -1,5 +1,12 @@
 #![deny(clippy::print_stdout, clippy::print_stderr)]
 
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::io::ErrorKind;
+use std::io::Result as IoResult;
+use std::sync::Arc;
+use std::sync::RwLock;
+use std::sync::atomic::AtomicBool;
 use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_config::ConfigLayerStackOrdering;
 use thinwedge_config::LoaderOverrides;
@@ -11,13 +18,6 @@ use thinwedge_exec_server::EnvironmentManagerArgs;
 use thinwedge_features::Feature;
 use thinwedge_login::AuthManager;
 use thinwedge_utils_cli::CliConfigOverrides;
-use std::collections::HashMap;
-use std::collections::HashSet;
-use std::io::ErrorKind;
-use std::io::Result as IoResult;
-use std::sync::Arc;
-use std::sync::RwLock;
-use std::sync::atomic::AtomicBool;
 
 use crate::config_manager::ConfigManager;
 use crate::message_processor::MessageProcessor;
@@ -71,7 +71,6 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 mod app_server_tracing;
 mod bespoke_event_handling;
-mod thinwedge_message_processor;
 mod command_exec;
 mod config;
 mod config_api;
@@ -92,6 +91,7 @@ mod models;
 mod outgoing_message;
 mod request_serialization;
 mod server_request_error;
+mod thinwedge_message_processor;
 mod thread_state;
 mod thread_status;
 mod transport;
@@ -299,7 +299,10 @@ fn project_config_warning(config: &Config) -> Option<ConfigWarningNotification> 
         ConfigLayerStackOrdering::LowestPrecedenceFirst,
         /*include_disabled*/ true,
     ) {
-        let ConfigLayerSource::Project { dot_thinwedge_folder } = &layer.name else {
+        let ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        } = &layer.name
+        else {
             continue;
         };
         let Some(disabled_reason) = &layer.disabled_reason else {
@@ -458,11 +461,12 @@ pub async fn run_main_with_transport_options(
             let effective_toml = config.config_layer_stack.effective_config();
             match effective_toml.try_into() {
                 Ok(config_toml) => {
-                    if let Err(err) = thinwedge_core::personality_migration::maybe_migrate_personality(
-                        &config.thinwedge_home,
-                        &config_toml,
-                    )
-                    .await
+                    if let Err(err) =
+                        thinwedge_core::personality_migration::maybe_migrate_personality(
+                            &config.thinwedge_home,
+                            &config_toml,
+                        )
+                        .await
                     {
                         warn!(error = %err, "Failed to run personality migration");
                     }
@@ -475,8 +479,10 @@ pub async fn run_main_with_transport_options(
             let discovered_thread_config_loader = configured_thread_config_loader(&config);
             config_manager
                 .replace_thread_config_loader(Arc::clone(&discovered_thread_config_loader));
-            let auth_manager =
-                AuthManager::shared_from_config(&config, /*enable_thinwedge_api_key_env*/ false).await;
+            let auth_manager = AuthManager::shared_from_config(
+                &config, /*enable_thinwedge_api_key_env*/ false,
+            )
+            .await;
             config_manager.replace_cloud_requirements_loader(auth_manager, config.chatgpt_base_url);
         }
         Err(err) => {

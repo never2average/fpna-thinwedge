@@ -13,13 +13,13 @@ use crate::mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use crate::runtime::emit_duration;
 use crate::tools::MCP_TOOLS_CACHE_WRITE_DURATION_METRIC;
 use crate::tools::ToolInfo;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_utils_plugins::mcp_connector::is_connector_id_allowed;
-use thinwedge_utils_plugins::mcp_connector::sanitize_name;
 use serde::Deserialize;
 use serde::Serialize;
 use sha1::Digest;
 use sha1::Sha1;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_utils_plugins::mcp_connector::is_connector_id_allowed;
+use thinwedge_utils_plugins::mcp_connector::sanitize_name;
 
 pub(crate) const THINWEDGE_APPS_TOOLS_CACHE_SCHEMA_VERSION: u8 = 2;
 

@@ -1,9 +1,9 @@
 use std::path::Path;
 
+use tempfile::TempDir;
 use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_arg0::Arg0PathEntryGuard;
 use thinwedge_arg0::arg0_dispatch;
-use tempfile::TempDir;
 
 pub struct TestBinaryDispatchGuard {
     _thinwedge_home: TempDir,
@@ -44,7 +44,10 @@ where
         }
         TestBinaryDispatchMode::Skip => None,
         TestBinaryDispatchMode::InstallAliases => {
-            let thinwedge_home = match tempfile::Builder::new().prefix(thinwedge_home_prefix).tempdir() {
+            let thinwedge_home = match tempfile::Builder::new()
+                .prefix(thinwedge_home_prefix)
+                .tempdir()
+            {
                 Ok(thinwedge_home) => thinwedge_home,
                 Err(error) => panic!("failed to create test THINWEDGE_HOME: {error}"),
             };

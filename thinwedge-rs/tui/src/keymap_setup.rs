@@ -10,9 +10,6 @@ pub(crate) use picker::KEYMAP_PICKER_VIEW_ID;
 pub(crate) use picker::build_keymap_picker_params;
 pub(crate) use picker::build_keymap_picker_params_for_selected_action;
 
-use thinwedge_config::types::KeybindingSpec;
-use thinwedge_config::types::KeybindingsSpec;
-use thinwedge_config::types::TuiKeymap;
 use crossterm::event::KeyCode;
 use crossterm::event::KeyEvent;
 use crossterm::event::KeyEventKind;
@@ -23,6 +20,9 @@ use ratatui::style::Stylize;
 use ratatui::text::Line;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Widget;
+use thinwedge_config::types::KeybindingSpec;
+use thinwedge_config::types::KeybindingsSpec;
+use thinwedge_config::types::TuiKeymap;
 
 use crate::app_event::AppEvent;
 use crate::app_event::KeymapEditIntent;

@@ -1,6 +1,12 @@
 use std::process::Command;
 use std::sync::Arc;
 
+use core_test_support::load_default_config_for_test;
+use core_test_support::responses;
+use core_test_support::test_thinwedge::test_thinwedge;
+use futures::StreamExt;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_core::ModelClient;
 use thinwedge_core::Prompt;
 use thinwedge_core::ResponseEvent;
@@ -15,12 +21,6 @@ use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
-use core_test_support::load_default_config_for_test;
-use core_test_support::responses;
-use core_test_support::test_thinwedge::test_thinwedge;
-use futures::StreamExt;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use wiremock::matchers::header;
 
 fn normalize_git_remote_url(url: &str) -> String {
@@ -318,10 +318,11 @@ async fn responses_respects_model_info_overrides_from_config() {
     let config = Arc::new(config);
 
     let conversation_id = ThreadId::new();
-    let auth_mode =
-        thinwedge_core::test_support::auth_manager_from_auth(ThinWedgeAuth::from_api_key("Test API Key"))
-            .auth_mode()
-            .map(TelemetryAuthMode::from);
+    let auth_mode = thinwedge_core::test_support::auth_manager_from_auth(
+        ThinWedgeAuth::from_api_key("Test API Key"),
+    )
+    .auth_mode()
+    .map(TelemetryAuthMode::from);
     let session_source =
         SessionSource::SubAgent(SubAgentSource::Other("override-check".to_string()));
     let model_info =
@@ -412,7 +413,10 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         responses::ev_completed("resp-1"),
     ]);
 
-    let test = test_thinwedge().build(&server).await.expect("build test thinwedge");
+    let test = test_thinwedge()
+        .build(&server)
+        .await
+        .expect("build test thinwedge");
     let cwd = test.cwd_path();
 
     let first_request = responses::mount_sse_once(&server, response_body.clone()).await;
@@ -423,8 +427,8 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         .single_request()
         .header("x-thinwedge-turn-metadata")
         .expect("x-thinwedge-turn-metadata header should be present");
-    let initial_parsed: serde_json::Value =
-        serde_json::from_str(&initial_header).expect("x-thinwedge-turn-metadata should be valid JSON");
+    let initial_parsed: serde_json::Value = serde_json::from_str(&initial_header)
+        .expect("x-thinwedge-turn-metadata should be valid JSON");
     let initial_turn_id = initial_parsed
         .get("turn_id")
         .and_then(serde_json::Value::as_str)

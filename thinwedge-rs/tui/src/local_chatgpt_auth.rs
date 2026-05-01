@@ -59,15 +59,15 @@ mod tests {
 
     use base64::Engine;
     use chrono::Utc;
+    use pretty_assertions::assert_eq;
+    use serde::Serialize;
+    use serde_json::json;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::AuthMode;
     use thinwedge_login::AuthDotJson;
     use thinwedge_login::auth::login_with_chatgpt_auth_tokens;
     use thinwedge_login::save_auth;
     use thinwedge_login::token_data::TokenData;
-    use pretty_assertions::assert_eq;
-    use serde::Serialize;
-    use serde_json::json;
-    use tempfile::TempDir;
 
     fn fake_jwt(email: &str, account_id: &str, plan_type: &str) -> String {
         #[derive(Serialize)]

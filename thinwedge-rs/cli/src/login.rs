@@ -7,12 +7,16 @@
 //! into a one-shot CLI command while still producing a durable `thinwedge-login.log` artifact that
 //! support can request from users.
 
+use std::fs::OpenOptions;
+use std::io::IsTerminal;
+use std::io::Read;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_core::config::Config;
 use thinwedge_login::CLIENT_ID;
-use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::ServerOptions;
+use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::login_with_agent_identity;
 use thinwedge_login::login_with_api_key;
 use thinwedge_login::logout_with_revoke;
@@ -20,10 +24,6 @@ use thinwedge_login::run_device_code_login;
 use thinwedge_login::run_login_server;
 use thinwedge_protocol::config_types::ForcedLoginMethod;
 use thinwedge_utils_cli::CliConfigOverrides;
-use std::fs::OpenOptions;
-use std::io::IsTerminal;
-use std::io::Read;
-use std::path::PathBuf;
 use tracing_appender::non_blocking;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::EnvFilter;
@@ -85,8 +85,9 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
     };
 
     let (non_blocking, guard) = non_blocking(log_file);
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("thinwedge_cli=info,thinwedge_core=info,thinwedge_login=info"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        EnvFilter::new("thinwedge_cli=info,thinwedge_core=info,thinwedge_login=info")
+    });
     let file_layer = tracing_subscriber::fmt::layer()
         .with_writer(non_blocking)
         .with_target(true)
@@ -406,7 +407,12 @@ pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
 pub async fn run_logout(cli_config_overrides: CliConfigOverrides) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
 
-    match logout_with_revoke(&config.thinwedge_home, config.cli_auth_credentials_store_mode).await {
+    match logout_with_revoke(
+        &config.thinwedge_home,
+        config.cli_auth_credentials_store_mode,
+    )
+    .await
+    {
         Ok(true) => {
             eprintln!("Successfully logged out");
             std::process::exit(0);

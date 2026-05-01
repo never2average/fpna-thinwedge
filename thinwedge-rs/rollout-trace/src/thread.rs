@@ -5,20 +5,19 @@
 //! thread-local event methods here avoids repeatedly plumbing `thread_id`
 //! through session code.
 
-use thinwedge_protocol::protocol::AgentStatus;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::SessionSource;
 use serde::Serialize;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thinwedge_protocol::protocol::AgentStatus;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::SessionSource;
 use tracing::debug;
 use tracing::warn;
 use uuid::Uuid;
 
 use crate::AgentThreadId;
 use crate::CodeCellTraceContext;
-use crate::ThinWedgeTurnId;
 use crate::CompactionId;
 use crate::CompactionTraceContext;
 use crate::InferenceTraceContext;
@@ -27,6 +26,7 @@ use crate::RawPayloadRef;
 use crate::RawTraceEventContext;
 use crate::RawTraceEventPayload;
 use crate::RolloutStatus;
+use crate::ThinWedgeTurnId;
 use crate::ToolDispatchInvocation;
 use crate::ToolDispatchTraceContext;
 use crate::TraceWriter;
@@ -232,7 +232,11 @@ impl ThreadTraceContext {
     /// These events are runtime observations on an already-dispatched tool. The
     /// dispatch trace records the caller-facing boundary; these payloads explain
     /// what ThinWedge did while executing that boundary.
-    pub fn record_tool_call_event(&self, thinwedge_turn_id: impl Into<ThinWedgeTurnId>, event: &EventMsg) {
+    pub fn record_tool_call_event(
+        &self,
+        thinwedge_turn_id: impl Into<ThinWedgeTurnId>,
+        event: &EventMsg,
+    ) {
         let ThreadTraceContextState::Enabled(context) = &self.state else {
             return;
         };

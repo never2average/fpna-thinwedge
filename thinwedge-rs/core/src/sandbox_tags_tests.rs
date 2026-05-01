@@ -1,6 +1,8 @@
 use super::permission_profile_policy_tag;
 use super::permission_profile_sandbox_tag;
 use super::sandbox_tag;
+use pretty_assertions::assert_eq;
+use std::path::Path;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
@@ -15,8 +17,6 @@ use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::get_platform_sandbox;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use std::path::Path;
 
 #[test]
 fn danger_full_access_is_untagged_even_when_linux_sandbox_defaults_apply() {
@@ -136,7 +136,8 @@ fn managed_network_enforcement_tags_unrestricted_profiles_as_sandboxed() {
 
 #[test]
 fn profile_policy_tag_reports_closest_legacy_mode() {
-    let cwd = AbsolutePathBuf::from_absolute_path(Path::new("/tmp/thinwedge")).expect("absolute cwd");
+    let cwd =
+        AbsolutePathBuf::from_absolute_path(Path::new("/tmp/thinwedge")).expect("absolute cwd");
     let writable_root = AbsolutePathBuf::from_absolute_path(Path::new("/tmp/thinwedge/work"))
         .expect("absolute writable root");
     let profile = PermissionProfile::from_runtime_permissions(

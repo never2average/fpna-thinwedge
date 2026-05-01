@@ -2,22 +2,6 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use anyhow::Result;
-use thinwedge_config::types::McpServerConfig;
-use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_core::config::Config;
-use thinwedge_features::Feature;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_models_manager::bundled_models_response;
-use thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
-use thinwedge_protocol::dynamic_tools::DynamicToolResponse;
-use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
-use thinwedge_protocol::models::FunctionCallOutputPayload;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::McpInvocation;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::apps_test_server::CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI;
 use core_test_support::apps_test_server::CALENDAR_CREATE_EVENT_RESOURCE_URI;
@@ -41,6 +25,22 @@ use serde_json::Value;
 use serde_json::json;
 use std::collections::HashMap;
 use std::time::Duration;
+use thinwedge_config::types::McpServerConfig;
+use thinwedge_config::types::McpServerTransportConfig;
+use thinwedge_core::config::Config;
+use thinwedge_features::Feature;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_models_manager::bundled_models_response;
+use thinwedge_protocol::dynamic_tools::DynamicToolCallOutputContentItem;
+use thinwedge_protocol::dynamic_tools::DynamicToolResponse;
+use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
+use thinwedge_protocol::models::FunctionCallOutputPayload;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::McpInvocation;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::user_input::UserInput;
 
 const SEARCH_TOOL_DESCRIPTION_SNIPPETS: [&str; 2] = [
     "You have access to tools from the following sources",

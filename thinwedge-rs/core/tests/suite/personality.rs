@@ -1,23 +1,3 @@
-use thinwedge_config::types::Personality;
-use thinwedge_features::Feature;
-use thinwedge_models_manager::manager::RefreshStrategy;
-use thinwedge_models_manager::manager::SharedModelsManager;
-use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelInstructionsVariables;
-use thinwedge_protocol::thinwedge_models::ModelMessages;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::mount_models_once;
 use core_test_support::responses::mount_sse_once;
@@ -31,6 +11,26 @@ use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
+use thinwedge_config::types::Personality;
+use thinwedge_features::Feature;
+use thinwedge_models_manager::manager::RefreshStrategy;
+use thinwedge_models_manager::manager::SharedModelsManager;
+use thinwedge_protocol::config_types::ReasoningSummary;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelInstructionsVariables;
+use thinwedge_protocol::thinwedge_models::ModelMessages;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::time::Duration;
 use tokio::time::Instant;
 use tokio::time::sleep;
@@ -144,7 +144,10 @@ async fn user_turn_personality_none_does_not_add_update_message() -> anyhow::Res
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = resp_mock.single_request();
     let developer_texts = request.message_input_texts("developer");
@@ -184,7 +187,10 @@ async fn config_personality_some_sets_instructions_template() -> anyhow::Result<
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -231,7 +237,10 @@ async fn config_personality_none_sends_no_personality() -> anyhow::Result<()> {
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -284,7 +293,10 @@ async fn default_personality_is_pragmatic_without_config_toml() -> anyhow::Resul
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -325,7 +337,10 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -353,7 +368,10 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");
@@ -409,7 +427,10 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -437,7 +458,10 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");
@@ -506,7 +530,10 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -534,7 +561,10 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");
@@ -643,7 +673,10 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = resp_mock.single_request();
     let instructions_text = request.instructions_text();
@@ -753,7 +786,10 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     test.thinwedge
         .submit(Op::OverrideTurnContext {
@@ -781,7 +817,10 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         ))
         .await?;
 
-    wait_for_event(&test.thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&test.thinwedge, |ev| {
+        matches!(ev, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let requests = resp_mock.requests();
     assert_eq!(requests.len(), 2, "expected two requests");

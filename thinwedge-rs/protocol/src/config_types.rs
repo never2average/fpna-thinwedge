@@ -1,4 +1,3 @@
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use schemars::JsonSchema;
 use schemars::r#gen::SchemaGenerator;
 use schemars::schema::InstanceType;
@@ -13,6 +12,7 @@ use std::num::NonZeroU64;
 use std::time::Duration;
 use strum_macros::Display;
 use strum_macros::EnumIter;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use ts_rs::TS;
 use wildmatch::WildMatchPattern;
 

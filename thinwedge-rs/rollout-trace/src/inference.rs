@@ -10,14 +10,14 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
-use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::protocol::TokenUsage;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
+use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::protocol::TokenUsage;
 
 use crate::model::AgentThreadId;
-use crate::model::ThinWedgeTurnId;
 use crate::model::InferenceCallId;
+use crate::model::ThinWedgeTurnId;
 use crate::payload::RawPayloadKind;
 use crate::raw_event::RawTraceEventContext;
 use crate::raw_event::RawTraceEventPayload;
@@ -362,11 +362,11 @@ fn append_with_context_best_effort(
 mod tests {
     use std::sync::Arc;
 
-    use thinwedge_protocol::models::ReasoningItemContent;
-    use thinwedge_protocol::models::ReasoningItemReasoningSummary;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use tempfile::TempDir;
+    use thinwedge_protocol::models::ReasoningItemContent;
+    use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 
     use super::*;
     use crate::model::ExecutionStatus;

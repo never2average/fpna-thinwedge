@@ -8,14 +8,14 @@ use thinwedge_protocol::auth::KnownPlan as InternalKnownPlan;
 use thinwedge_protocol::auth::PlanType as InternalPlanType;
 
 use base64::Engine;
-use thinwedge_protocol::config_types::ForcedLoginMethod;
-use thinwedge_protocol::config_types::ModelProviderAuthInfo;
 use pretty_assertions::assert_eq;
 use serde::Serialize;
 use serde_json::json;
 use std::sync::Arc;
 use tempfile::TempDir;
 use tempfile::tempdir;
+use thinwedge_protocol::config_types::ForcedLoginMethod;
+use thinwedge_protocol::config_types::ModelProviderAuthInfo;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
@@ -118,7 +118,10 @@ async fn login_with_agent_identity_writes_only_token() {
         Some(agent_identity.as_str())
     );
     assert!(auth.tokens.is_none(), "tokens should be cleared");
-    assert!(auth.thinwedge_api_key.is_none(), "API key should be cleared");
+    assert!(
+        auth.thinwedge_api_key.is_none(),
+        "API key should be cleared"
+    );
     server.verify().await;
 }
 
@@ -730,8 +733,10 @@ async fn load_auth_reads_agent_identity_from_env() {
     let _agent_guard = EnvVarGuard::set(THINWEDGE_AGENT_IDENTITY_ENV_VAR, &agent_identity);
 
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
-    let _authapi_guard =
-        EnvVarGuard::set("THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL", &chatgpt_base_url);
+    let _authapi_guard = EnvVarGuard::set(
+        "THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL",
+        &chatgpt_base_url,
+    );
     let auth = super::load_auth(
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
@@ -781,8 +786,12 @@ async fn load_auth_keeps_thinwedge_api_key_env_precedence() {
 async fn enforce_login_restrictions_logs_out_for_method_mismatch() {
     let thinwedge_home = tempdir().unwrap();
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
-    login_with_api_key(thinwedge_home.path(), "sk-test", AuthCredentialsStoreMode::File)
-        .expect("seed api key");
+    login_with_api_key(
+        thinwedge_home.path(),
+        "sk-test",
+        AuthCredentialsStoreMode::File,
+    )
+    .expect("seed api key");
 
     let config = build_config(
         thinwedge_home.path(),
@@ -870,8 +879,12 @@ async fn enforce_login_restrictions_allows_api_key_if_login_method_not_set_but_f
  {
     let thinwedge_home = tempdir().unwrap();
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
-    login_with_api_key(thinwedge_home.path(), "sk-test", AuthCredentialsStoreMode::File)
-        .expect("seed api key");
+    login_with_api_key(
+        thinwedge_home.path(),
+        "sk-test",
+        AuthCredentialsStoreMode::File,
+    )
+    .expect("seed api key");
 
     let config = build_config(
         thinwedge_home.path(),
@@ -913,8 +926,8 @@ async fn enforce_login_restrictions_blocks_env_api_key_when_chatgpt_required() {
 }
 
 fn agent_identity_record(account_id: &str) -> AgentIdentityAuthRecord {
-    let key_material =
-        thinwedge_agent_identity::generate_agent_key_material().expect("generate agent key material");
+    let key_material = thinwedge_agent_identity::generate_agent_key_material()
+        .expect("generate agent key material");
     AgentIdentityAuthRecord {
         agent_runtime_id: "agent-runtime-id".to_string(),
         agent_private_key: key_material.private_key_pkcs8_base64,
@@ -1028,8 +1041,10 @@ async fn assert_agent_identity_plan_alias(
         .mount(&server)
         .await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
-    let _authapi_guard =
-        EnvVarGuard::set("THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL", &chatgpt_base_url);
+    let _authapi_guard = EnvVarGuard::set(
+        "THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL",
+        &chatgpt_base_url,
+    );
     let auth = ThinWedgeAuth::from_agent_identity_jwt(&jwt, Some(&chatgpt_base_url))
         .await
         .expect("agent identity auth");

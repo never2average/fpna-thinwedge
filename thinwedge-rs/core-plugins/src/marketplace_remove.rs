@@ -1,11 +1,11 @@
 use crate::installed_marketplaces::marketplace_install_root;
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_config::RemoveMarketplaceConfigOutcome;
 use thinwedge_config::remove_user_marketplace_config;
 use thinwedge_plugin::validate_plugin_segment;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MarketplaceRemoveRequest {
@@ -46,8 +46,8 @@ fn remove_marketplace_sync(
         .map_err(MarketplaceRemoveError::InvalidRequest)?;
 
     let destination = marketplace_install_root(thinwedge_home).join(&marketplace_name);
-    let config_outcome =
-        remove_user_marketplace_config(thinwedge_home, &marketplace_name).map_err(|err| {
+    let config_outcome = remove_user_marketplace_config(thinwedge_home, &marketplace_name)
+        .map_err(|err| {
             MarketplaceRemoveError::Internal(format!(
                 "failed to remove marketplace '{marketplace_name}' from user config.toml: {err}"
             ))
@@ -107,10 +107,10 @@ fn remove_marketplace_root(root: &Path) -> Result<Option<AbsolutePathBuf>, Marke
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_config::MarketplaceConfigUpdate;
-    use thinwedge_config::record_user_marketplace;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
+    use thinwedge_config::MarketplaceConfigUpdate;
+    use thinwedge_config::record_user_marketplace;
 
     #[test]
     fn remove_marketplace_sync_removes_config_and_installed_root() {
@@ -149,8 +149,12 @@ mod tests {
             outcome.removed_installed_root,
             Some(AbsolutePathBuf::try_from(installed_root.clone()).unwrap())
         );
-        let config =
-            fs::read_to_string(thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(!config.contains("[marketplaces.debug]"));
         assert!(!installed_root.exists());
     }
@@ -205,8 +209,12 @@ mod tests {
             "marketplace `Debug` does not match configured marketplace `debug` exactly"
         );
         assert!(installed_root.exists());
-        let config =
-            fs::read_to_string(thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(config.contains("[marketplaces.debug]"));
     }
 
@@ -214,7 +222,9 @@ mod tests {
     fn remove_marketplace_sync_keeps_installed_root_when_config_removal_fails() {
         let thinwedge_home = TempDir::new().unwrap();
         fs::write(
-            thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE),
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
             "[marketplaces.debug\n",
         )
         .unwrap();
@@ -274,8 +284,12 @@ mod tests {
             }
         );
         assert!(!installed_root.exists());
-        let config =
-            fs::read_to_string(thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(!config.contains("[marketplaces.debug]"));
     }
 
@@ -283,7 +297,9 @@ mod tests {
     fn remove_marketplace_sync_removes_inline_config_entry() {
         let thinwedge_home = TempDir::new().unwrap();
         fs::write(
-            thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE),
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
             r#"
 marketplaces = { debug = { source_type = "git", source = "https://github.com/owner/repo.git" } }
 "#,
@@ -306,8 +322,12 @@ marketplaces = { debug = { source_type = "git", source = "https://github.com/own
             Some(AbsolutePathBuf::try_from(installed_root.clone()).unwrap())
         );
         assert!(!installed_root.exists());
-        let config =
-            fs::read_to_string(thinwedge_home.path().join(thinwedge_config::CONFIG_TOML_FILE)).unwrap();
+        let config = fs::read_to_string(
+            thinwedge_home
+                .path()
+                .join(thinwedge_config::CONFIG_TOML_FILE),
+        )
+        .unwrap();
         assert!(!config.contains("debug"));
     }
 }

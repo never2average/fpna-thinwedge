@@ -27,8 +27,8 @@ use crate::tools::sandboxing::ToolRuntime;
 use crate::tools::sandboxing::default_exec_approval_requirement;
 use thinwedge_hooks::PermissionRequestDecision;
 use thinwedge_otel::ToolDecisionSource;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::SandboxErr;
+use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::exec_output::ExecToolCallOutput;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::NetworkPolicyRuleAction;
@@ -249,16 +249,20 @@ impl ToolOrchestrator {
                     None
                 };
                 if network_policy_decision.is_some() && network_approval_context.is_none() {
-                    return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
-                        output,
-                        network_policy_decision,
-                    })));
+                    return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(
+                        SandboxErr::Denied {
+                            output,
+                            network_policy_decision,
+                        },
+                    )));
                 }
                 if !tool.escalate_on_failure() {
-                    return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
-                        output,
-                        network_policy_decision,
-                    })));
+                    return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(
+                        SandboxErr::Denied {
+                            output,
+                            network_policy_decision,
+                        },
+                    )));
                 }
                 // Under `Never` or `OnRequest`, do not retry without sandbox;
                 // surface a concise sandbox denial that preserves the
@@ -275,10 +279,12 @@ impl ToolOrchestrator {
                                 ExecApprovalRequirement::NeedsApproval { .. }
                             );
                     if !allow_on_request_network_prompt {
-                        return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(SandboxErr::Denied {
-                            output,
-                            network_policy_decision,
-                        })));
+                        return Err(ToolError::ThinWedge(ThinWedgeErr::Sandbox(
+                            SandboxErr::Denied {
+                                output,
+                                network_policy_decision,
+                            },
+                        )));
                     }
                 }
                 let retry_reason =

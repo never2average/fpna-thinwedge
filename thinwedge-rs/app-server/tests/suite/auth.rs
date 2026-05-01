@@ -5,6 +5,9 @@ use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use chrono::Duration;
 use chrono::Utc;
+use pretty_assertions::assert_eq;
+use std::path::Path;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_app_server_protocol::GetAuthStatusParams;
 use thinwedge_app_server_protocol::GetAuthStatusResponse;
@@ -14,9 +17,6 @@ use thinwedge_app_server_protocol::LoginAccountResponse;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
-use pretty_assertions::assert_eq;
-use std::path::Path;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -76,7 +76,10 @@ shell_snapshot = false
     )
 }
 
-fn create_config_toml_forced_login(thinwedge_home: &Path, forced_method: &str) -> std::io::Result<()> {
+fn create_config_toml_forced_login(
+    thinwedge_home: &Path,
+    forced_method: &str,
+) -> std::io::Result<()> {
     let config_toml = thinwedge_home.join("config.toml");
     let contents = format!(
         r#"
@@ -110,7 +113,8 @@ async fn get_auth_status_no_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path())?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+    let mut mcp =
+        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -162,7 +166,10 @@ async fn get_auth_status_with_api_key() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    create_config_toml_custom_provider(thinwedge_home.path(), /*requires_thinwedge_auth*/ false)?;
+    create_config_toml_custom_provider(
+        thinwedge_home.path(),
+        /*requires_thinwedge_auth*/ false,
+    )?;
 
     let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;

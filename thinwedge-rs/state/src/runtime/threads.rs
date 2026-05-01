@@ -1,7 +1,7 @@
 use super::*;
 use crate::SortDirection;
-use thinwedge_protocol::protocol::SessionSource;
 use std::sync::atomic::Ordering;
+use thinwedge_protocol::protocol::SessionSource;
 
 impl StateRuntime {
     pub async fn get_thread(&self, id: ThreadId) -> anyhow::Result<Option<crate::ThreadMetadata>> {
@@ -991,10 +991,11 @@ fn thread_spawn_parent_thread_id_from_source_str(source: &str) -> Option<ThreadI
     let parsed_source = serde_json::from_str(source)
         .or_else(|_| serde_json::from_value::<SessionSource>(Value::String(source.to_string())));
     match parsed_source.ok() {
-        Some(SessionSource::SubAgent(thinwedge_protocol::protocol::SubAgentSource::ThreadSpawn {
-            parent_thread_id,
-            ..
-        })) => Some(parent_thread_id),
+        Some(SessionSource::SubAgent(
+            thinwedge_protocol::protocol::SubAgentSource::ThreadSpawn {
+                parent_thread_id, ..
+            },
+        )) => Some(parent_thread_id),
         _ => None,
     }
 }
@@ -1118,13 +1119,13 @@ mod tests {
     use crate::DirectionalThreadSpawnEdgeStatus;
     use crate::runtime::test_support::test_thread_metadata;
     use crate::runtime::test_support::unique_temp_dir;
+    use pretty_assertions::assert_eq;
+    use std::path::PathBuf;
     use thinwedge_protocol::protocol::EventMsg;
     use thinwedge_protocol::protocol::GitInfo;
     use thinwedge_protocol::protocol::SessionMeta;
     use thinwedge_protocol::protocol::SessionMetaLine;
     use thinwedge_protocol::protocol::SessionSource;
-    use pretty_assertions::assert_eq;
-    use std::path::PathBuf;
 
     #[tokio::test]
     async fn upsert_thread_keeps_creation_memory_mode_for_existing_rows() {
@@ -1186,7 +1187,8 @@ mod tests {
             (newer_id, newer_updated_at),
             (middle_id, newer_updated_at),
         ] {
-            let mut metadata = test_thread_metadata(&thinwedge_home, thread_id, thinwedge_home.clone());
+            let mut metadata =
+                test_thread_metadata(&thinwedge_home, thread_id, thinwedge_home.clone());
             metadata.updated_at = updated_at;
             metadata.first_user_message = Some("hello".to_string());
             runtime

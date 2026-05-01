@@ -14,24 +14,6 @@ use axum::http::StatusCode;
 use axum::http::Uri;
 use axum::http::header::AUTHORIZATION;
 use axum::routing::get;
-use thinwedge_app_server_protocol::JSONRPCMessage;
-use thinwedge_app_server_protocol::JSONRPCResponse;
-use thinwedge_app_server_protocol::McpElicitationSchema;
-use thinwedge_app_server_protocol::McpServerElicitationAction;
-use thinwedge_app_server_protocol::McpServerElicitationRequest;
-use thinwedge_app_server_protocol::McpServerElicitationRequestParams;
-use thinwedge_app_server_protocol::McpServerElicitationRequestResponse;
-use thinwedge_app_server_protocol::RequestId;
-use thinwedge_app_server_protocol::ServerRequest;
-use thinwedge_app_server_protocol::ServerRequestResolvedNotification;
-use thinwedge_app_server_protocol::ThreadStartParams;
-use thinwedge_app_server_protocol::ThreadStartResponse;
-use thinwedge_app_server_protocol::TurnCompletedNotification;
-use thinwedge_app_server_protocol::TurnStartParams;
-use thinwedge_app_server_protocol::TurnStartResponse;
-use thinwedge_app_server_protocol::TurnStatus;
-use thinwedge_app_server_protocol::UserInput as V2UserInput;
-use thinwedge_config::types::AuthCredentialsStoreMode;
 use core_test_support::assert_regex_match;
 use core_test_support::responses;
 use pretty_assertions::assert_eq;
@@ -59,6 +41,24 @@ use rmcp::transport::streamable_http_server::session::local::LocalSessionManager
 use serde_json::Value;
 use serde_json::json;
 use tempfile::TempDir;
+use thinwedge_app_server_protocol::JSONRPCMessage;
+use thinwedge_app_server_protocol::JSONRPCResponse;
+use thinwedge_app_server_protocol::McpElicitationSchema;
+use thinwedge_app_server_protocol::McpServerElicitationAction;
+use thinwedge_app_server_protocol::McpServerElicitationRequest;
+use thinwedge_app_server_protocol::McpServerElicitationRequestParams;
+use thinwedge_app_server_protocol::McpServerElicitationRequestResponse;
+use thinwedge_app_server_protocol::RequestId;
+use thinwedge_app_server_protocol::ServerRequest;
+use thinwedge_app_server_protocol::ServerRequestResolvedNotification;
+use thinwedge_app_server_protocol::ThreadStartParams;
+use thinwedge_app_server_protocol::ThreadStartResponse;
+use thinwedge_app_server_protocol::TurnCompletedNotification;
+use thinwedge_app_server_protocol::TurnStartParams;
+use thinwedge_app_server_protocol::TurnStartResponse;
+use thinwedge_app_server_protocol::TurnStatus;
+use thinwedge_app_server_protocol::UserInput as V2UserInput;
+use thinwedge_config::types::AuthCredentialsStoreMode;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
@@ -106,7 +106,11 @@ async fn mcp_server_elicitation_round_trip() -> Result<()> {
     let (apps_server_url, apps_server_handle) = start_apps_server().await?;
 
     let thinwedge_home = TempDir::new()?;
-    write_config_toml(thinwedge_home.path(), &responses_server.uri(), &apps_server_url)?;
+    write_config_toml(
+        thinwedge_home.path(),
+        &responses_server.uri(),
+        &apps_server_url,
+    )?;
     write_chatgpt_auth(
         thinwedge_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")

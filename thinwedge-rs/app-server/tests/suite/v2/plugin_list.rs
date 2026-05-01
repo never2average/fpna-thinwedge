@@ -6,6 +6,8 @@ use app_test_support::ChatGptAuthFixture;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::PluginAuthPolicy;
 use thinwedge_app_server_protocol::PluginInstallPolicy;
@@ -19,8 +21,6 @@ use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_core::config::set_project_trust_level;
 use thinwedge_protocol::config_types::TrustLevel;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
@@ -568,7 +568,9 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
     std::fs::create_dir_all(thinwedge_home.path().join(".agents/plugins"))?;
     write_plugins_enabled_config(thinwedge_home.path())?;
     std::fs::write(
-        thinwedge_home.path().join(".agents/plugins/marketplace.json"),
+        thinwedge_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
   "name": "thinwedge-curated",
   "plugins": [
@@ -698,7 +700,10 @@ enabled = false
         Some("ChatGPT Official")
     );
     assert_eq!(marketplace.plugins.len(), 3);
-    assert_eq!(marketplace.plugins[0].id, "enabled-plugin@thinwedge-curated");
+    assert_eq!(
+        marketplace.plugins[0].id,
+        "enabled-plugin@thinwedge-curated"
+    );
     assert_eq!(marketplace.plugins[0].name, "enabled-plugin");
     assert_eq!(marketplace.plugins[0].installed, true);
     assert_eq!(marketplace.plugins[0].enabled, true);
@@ -710,7 +715,10 @@ enabled = false
         marketplace.plugins[0].auth_policy,
         PluginAuthPolicy::OnInstall
     );
-    assert_eq!(marketplace.plugins[1].id, "disabled-plugin@thinwedge-curated");
+    assert_eq!(
+        marketplace.plugins[1].id,
+        "disabled-plugin@thinwedge-curated"
+    );
     assert_eq!(marketplace.plugins[1].name, "disabled-plugin");
     assert_eq!(marketplace.plugins[1].installed, true);
     assert_eq!(marketplace.plugins[1].enabled, false);
@@ -746,7 +754,9 @@ async fn plugin_list_uses_home_config_for_enabled_state() -> Result<()> {
     std::fs::create_dir_all(thinwedge_home.path().join(".agents/plugins"))?;
     write_installed_plugin(&thinwedge_home, "thinwedge-curated", "shared-plugin")?;
     std::fs::write(
-        thinwedge_home.path().join(".agents/plugins/marketplace.json"),
+        thinwedge_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
   "name": "thinwedge-curated",
   "plugins": [
@@ -1046,7 +1056,10 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(thinwedge_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_plugin_sync_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
     write_chatgpt_auth(
         thinwedge_home.path(),
         ChatGptAuthFixture::new("chatgpt-token")
@@ -1311,7 +1324,9 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
         .join(".agents/plugins/plugins/local-linear/.thinwedge-plugin");
     std::fs::create_dir_all(&local_plugin_root)?;
     std::fs::write(
-        thinwedge_home.path().join(".agents/plugins/marketplace.json"),
+        thinwedge_home
+            .path()
+            .join(".agents/plugins/marketplace.json"),
         r#"{
   "name": "chatgpt-global",
   "plugins": [
@@ -1463,7 +1478,10 @@ remote_plugin = true
 async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(thinwedge_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_plugin_sync_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
     write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
@@ -1498,7 +1516,10 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
 async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(thinwedge_home.path(), &format!("{}/backend-api/", server.uri()))?;
+    write_plugin_sync_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
     write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
@@ -1609,7 +1630,10 @@ fn write_installed_plugin(
     Ok(())
 }
 
-fn write_plugin_sync_config(thinwedge_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_plugin_sync_config(
+    thinwedge_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     std::fs::write(
         thinwedge_home.join("config.toml"),
         format!(

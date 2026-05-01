@@ -368,7 +368,8 @@ mod tests {
             env: Option<&str>,
             limit: Option<i64>,
             cursor: Option<&str>,
-        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::TaskListPage> {
+        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::TaskListPage>
+        {
             let key = env.map(str::to_string);
             let titles = self
                 .by_env
@@ -449,7 +450,8 @@ mod tests {
             &self,
             _task: TaskId,
             _turn_id: String,
-        ) -> thinwedge_cloud_tasks_client::Result<Vec<thinwedge_cloud_tasks_client::TurnAttempt>> {
+        ) -> thinwedge_cloud_tasks_client::Result<Vec<thinwedge_cloud_tasks_client::TurnAttempt>>
+        {
             Ok(Vec::new())
         }
 
@@ -457,7 +459,8 @@ mod tests {
             &self,
             _id: TaskId,
             _diff_override: Option<String>,
-        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::ApplyOutcome> {
+        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::ApplyOutcome>
+        {
             Err(thinwedge_cloud_tasks_client::CloudTaskError::Unimplemented(
                 "not used in test",
             ))
@@ -467,7 +470,8 @@ mod tests {
             &self,
             _id: TaskId,
             _diff_override: Option<String>,
-        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::ApplyOutcome> {
+        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::ApplyOutcome>
+        {
             Err(thinwedge_cloud_tasks_client::CloudTaskError::Unimplemented(
                 "not used in test",
             ))
@@ -480,7 +484,8 @@ mod tests {
             _git_ref: &str,
             _qa_mode: bool,
             _best_of_n: usize,
-        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::CreatedTask> {
+        ) -> thinwedge_cloud_tasks_client::Result<thinwedge_cloud_tasks_client::CreatedTask>
+        {
             Err(thinwedge_cloud_tasks_client::CloudTaskError::Unimplemented(
                 "not used in test",
             ))

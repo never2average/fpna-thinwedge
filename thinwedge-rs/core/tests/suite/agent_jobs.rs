@@ -1,5 +1,4 @@
 use anyhow::Result;
-use thinwedge_features::Feature;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_function_call;
 use core_test_support::responses::ev_response_created;
@@ -15,6 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+use thinwedge_features::Feature;
 use wiremock::Mock;
 use wiremock::Respond;
 use wiremock::ResponseTemplate;

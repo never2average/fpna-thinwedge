@@ -4,13 +4,13 @@ use crate::plugins::test_support::load_plugins_config;
 use crate::plugins::test_support::write_curated_plugin;
 use crate::plugins::test_support::write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
-use crate::plugins::test_support::write_thinwedge_curated_marketplace;
 use crate::plugins::test_support::write_plugins_feature_config;
+use crate::plugins::test_support::write_thinwedge_curated_marketplace;
+use pretty_assertions::assert_eq;
+use tempfile::tempdir;
 use thinwedge_core_plugins::startup_sync::curated_plugins_repo_path;
 use thinwedge_tools::DiscoverablePluginInfo;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use pretty_assertions::assert_eq;
-use tempfile::tempdir;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_test::internal::MockWriter;
@@ -303,7 +303,9 @@ async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_
     let too_long_prompt = "x".repeat(129);
     for plugin_name in ["build-ios-apps", "life-science-research"] {
         write_file(
-            &curated_root.join(format!("plugins/{plugin_name}/.thinwedge-plugin/plugin.json")),
+            &curated_root.join(format!(
+                "plugins/{plugin_name}/.thinwedge-plugin/plugin.json"
+            )),
             &format!(
                 r#"{{
   "name": "{plugin_name}",

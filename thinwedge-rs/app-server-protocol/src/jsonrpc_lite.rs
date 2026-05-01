@@ -1,11 +1,11 @@
 //! We do not do true JSON-RPC 2.0, as we neither send nor expect the
 //! "jsonrpc": "2.0" field.
 
-use thinwedge_protocol::protocol::W3cTraceContext;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fmt;
+use thinwedge_protocol::protocol::W3cTraceContext;
 use ts_rs::TS;
 
 pub const JSONRPC_VERSION: &str = "2.0";

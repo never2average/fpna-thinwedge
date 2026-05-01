@@ -1,12 +1,12 @@
 use crate::endpoint::realtime_websocket::protocol_v1::parse_realtime_event_v1;
 use crate::endpoint::realtime_websocket::protocol_v2::parse_realtime_event_v2;
+use serde::Serialize;
+use serde_json::Value;
 pub use thinwedge_protocol::protocol::RealtimeAudioFrame;
 pub use thinwedge_protocol::protocol::RealtimeEvent;
 pub use thinwedge_protocol::protocol::RealtimeOutputModality;
 pub use thinwedge_protocol::protocol::RealtimeTranscriptEntry;
 pub use thinwedge_protocol::protocol::RealtimeVoice;
-use serde::Serialize;
-use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RealtimeEventParser {

@@ -1,9 +1,9 @@
 use super::*;
 use crate::JsonSchema;
-use thinwedge_app_server_protocol::AppInfo;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::BTreeMap;
+use thinwedge_app_server_protocol::AppInfo;
 
 #[test]
 fn create_tool_search_tool_deduplicates_and_renders_enabled_sources() {
@@ -159,7 +159,10 @@ fn filter_tool_suggest_discoverable_tools_for_thinwedge_tui_omits_plugins() {
     ];
 
     assert_eq!(
-        filter_tool_suggest_discoverable_tools_for_client(discoverable_tools, Some("thinwedge-tui"),),
+        filter_tool_suggest_discoverable_tools_for_client(
+            discoverable_tools,
+            Some("thinwedge-tui"),
+        ),
         vec![DiscoverableTool::Connector(Box::new(AppInfo {
             id: "connector_google_calendar".to_string(),
             name: "Google Calendar".to_string(),

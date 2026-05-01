@@ -1,7 +1,7 @@
 use super::*;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use tempfile::tempdir;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tokio::fs as tokio_fs;
 
 #[tokio::test]

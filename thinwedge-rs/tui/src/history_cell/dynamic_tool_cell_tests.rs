@@ -1,8 +1,8 @@
 use super::HistoryCell;
 use super::new_dynamic_tool_call;
 use crate::render::line_utils::line_to_static;
-use thinwedge_app_server_protocol::DynamicToolCallOutputContentItem;
 use serde_json::json;
+use thinwedge_app_server_protocol::DynamicToolCallOutputContentItem;
 
 fn render(cell: impl HistoryCell) -> String {
     cell.display_lines(80)

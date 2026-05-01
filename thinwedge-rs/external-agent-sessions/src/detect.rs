@@ -91,10 +91,10 @@ fn is_recent_enough(now: i64, latest_timestamp: i64) -> bool {
 mod tests {
     use super::*;
     use crate::ledger::record_imported_session;
-    use thinwedge_protocol::ThreadId;
     use serde_json::Value as JsonValue;
     use std::path::Path;
     use tempfile::TempDir;
+    use thinwedge_protocol::ThreadId;
 
     #[test]
     fn detects_recent_sessions_with_existing_roots() {

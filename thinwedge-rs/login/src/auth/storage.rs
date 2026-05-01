@@ -19,6 +19,7 @@ use std::sync::Mutex;
 use tracing::warn;
 
 use crate::token_data::TokenData;
+use once_cell::sync::Lazy;
 use thinwedge_agent_identity::AgentIdentityJwtClaims;
 use thinwedge_agent_identity::decode_agent_identity_jwt;
 use thinwedge_app_server_protocol::AuthMode;
@@ -26,7 +27,6 @@ use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_keyring_store::DefaultKeyringStore;
 use thinwedge_keyring_store::KeyringStore;
 use thinwedge_protocol::account::PlanType as AccountPlanType;
-use once_cell::sync::Lazy;
 
 /// Expected structure for $THINWEDGE_HOME/auth.json.
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
@@ -256,7 +256,10 @@ struct AutoAuthStorage {
 impl AutoAuthStorage {
     fn new(thinwedge_home: PathBuf, keyring_store: Arc<dyn KeyringStore>) -> Self {
         Self {
-            keyring_storage: Arc::new(KeyringAuthStorage::new(thinwedge_home.clone(), keyring_store)),
+            keyring_storage: Arc::new(KeyringAuthStorage::new(
+                thinwedge_home.clone(),
+                keyring_store,
+            )),
             file_storage: Arc::new(FileAuthStorage::new(thinwedge_home)),
         }
     }
@@ -351,7 +354,9 @@ fn create_auth_storage_with_keyring_store(
         AuthCredentialsStoreMode::Keyring => {
             Arc::new(KeyringAuthStorage::new(thinwedge_home, keyring_store))
         }
-        AuthCredentialsStoreMode::Auto => Arc::new(AutoAuthStorage::new(thinwedge_home, keyring_store)),
+        AuthCredentialsStoreMode::Auto => {
+            Arc::new(AutoAuthStorage::new(thinwedge_home, keyring_store))
+        }
         AuthCredentialsStoreMode::Ephemeral => Arc::new(EphemeralAuthStorage::new(thinwedge_home)),
     }
 }

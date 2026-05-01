@@ -1,6 +1,5 @@
 #![cfg(target_os = "windows")]
 
-use thinwedge_windows_sandbox::log_note;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -8,6 +7,7 @@ use std::os::windows::fs::MetadataExt as _;
 use std::os::windows::process::CommandExt as _;
 use std::path::Path;
 use std::path::PathBuf;
+use thinwedge_windows_sandbox::log_note;
 use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_REPARSE_POINT;
 
 fn junction_name_for_path(path: &Path) -> String {

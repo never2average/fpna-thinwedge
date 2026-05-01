@@ -4,9 +4,9 @@ use super::realtime_delegation_from_handoff;
 use super::realtime_text_from_handoff_request;
 use super::wrap_realtime_delegation_input;
 use async_channel::bounded;
+use pretty_assertions::assert_eq;
 use thinwedge_protocol::protocol::RealtimeHandoffRequested;
 use thinwedge_protocol::protocol::RealtimeTranscriptEntry;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn prefers_handoff_input_transcript_over_active_transcript() {

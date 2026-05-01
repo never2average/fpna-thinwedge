@@ -1,7 +1,7 @@
+use tempfile::TempDir;
 use thinwedge_chatgpt::apply_command::apply_diff_from_task;
 use thinwedge_chatgpt::get_task::GetTaskResponse;
 use thinwedge_utils_cargo_bin::find_resource;
-use tempfile::TempDir;
 use tokio::process::Command;
 
 /// Creates a temporary git repository with initial commit

@@ -511,8 +511,9 @@ exit 1
         ),
     );
 
-    let err = sync_thinwedge_plugins_repo_via_git(tmp.path(), git_path.to_str().expect("utf8 path"))
-        .expect_err("git sync should fail");
+    let err =
+        sync_thinwedge_plugins_repo_via_git(tmp.path(), git_path.to_str().expect("utf8 path"))
+            .expect_err("git sync should fail");
 
     assert!(err.contains("fatal: early EOF"));
     assert!(!has_plugins_clone_dirs(tmp.path()));
@@ -759,7 +760,10 @@ fn curated_repo_backup_archive_zip_bytes(sha: &str) -> Vec<u8> {
         )
         .expect("write marketplace");
     writer
-        .start_file("plugins/plugins/gmail/.thinwedge-plugin/plugin.json", options)
+        .start_file(
+            "plugins/plugins/gmail/.thinwedge-plugin/plugin.json",
+            options,
+        )
         .expect("start plugin manifest entry");
     writer
         .write_all(br#"{"name":"gmail"}"#)

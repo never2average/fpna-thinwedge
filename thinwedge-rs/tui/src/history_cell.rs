@@ -43,35 +43,6 @@ use crate::wrapping::RtOptions;
 use crate::wrapping::adaptive_wrap_line;
 use crate::wrapping::adaptive_wrap_lines;
 use base64::Engine;
-use thinwedge_app_server_protocol::McpServerStatus;
-use thinwedge_app_server_protocol::McpServerStatusDetail;
-use thinwedge_config::types::McpServerTransportConfig;
-#[cfg(test)]
-use thinwedge_mcp::qualified_mcp_tool_name_prefix;
-use thinwedge_otel::RuntimeMetricsSummary;
-use thinwedge_protocol::account::PlanType;
-#[cfg(test)]
-use thinwedge_protocol::mcp::Resource;
-#[cfg(test)]
-use thinwedge_protocol::mcp::ResourceTemplate;
-use thinwedge_protocol::models::ManagedFileSystemPermissions;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::models::WebSearchAction;
-use thinwedge_protocol::models::local_image_label_text;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
-use thinwedge_protocol::plan_tool::PlanItemArg;
-use thinwedge_protocol::plan_tool::StepStatus;
-use thinwedge_protocol::plan_tool::UpdatePlanArgs;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::FileChange;
-use thinwedge_protocol::protocol::McpAuthStatus;
-use thinwedge_protocol::protocol::McpInvocation;
-use thinwedge_protocol::protocol::SessionConfiguredEvent;
-use thinwedge_protocol::request_user_input::RequestUserInputAnswer;
-use thinwedge_protocol::request_user_input::RequestUserInputQuestion;
-use thinwedge_protocol::user_input::TextElement;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use thinwedge_utils_cli::format_env_display;
 use image::DynamicImage;
 use image::ImageReader;
 use ratatui::prelude::*;
@@ -90,6 +61,35 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_app_server_protocol::McpServerStatus;
+use thinwedge_app_server_protocol::McpServerStatusDetail;
+use thinwedge_config::types::McpServerTransportConfig;
+#[cfg(test)]
+use thinwedge_mcp::qualified_mcp_tool_name_prefix;
+use thinwedge_otel::RuntimeMetricsSummary;
+use thinwedge_protocol::account::PlanType;
+#[cfg(test)]
+use thinwedge_protocol::mcp::Resource;
+#[cfg(test)]
+use thinwedge_protocol::mcp::ResourceTemplate;
+use thinwedge_protocol::models::ManagedFileSystemPermissions;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::models::WebSearchAction;
+use thinwedge_protocol::models::local_image_label_text;
+use thinwedge_protocol::plan_tool::PlanItemArg;
+use thinwedge_protocol::plan_tool::StepStatus;
+use thinwedge_protocol::plan_tool::UpdatePlanArgs;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::FileChange;
+use thinwedge_protocol::protocol::McpAuthStatus;
+use thinwedge_protocol::protocol::McpInvocation;
+use thinwedge_protocol::protocol::SessionConfiguredEvent;
+use thinwedge_protocol::request_user_input::RequestUserInputAnswer;
+use thinwedge_protocol::request_user_input::RequestUserInputQuestion;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::user_input::TextElement;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_cli::format_env_display;
 use tracing::error;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -2217,9 +2217,15 @@ pub(crate) fn new_mcp_tools_output_from_statuses(
         }
         let auth_status = status
             .map(|status| match status.auth_status {
-                thinwedge_app_server_protocol::McpAuthStatus::Unsupported => McpAuthStatus::Unsupported,
-                thinwedge_app_server_protocol::McpAuthStatus::NotLoggedIn => McpAuthStatus::NotLoggedIn,
-                thinwedge_app_server_protocol::McpAuthStatus::BearerToken => McpAuthStatus::BearerToken,
+                thinwedge_app_server_protocol::McpAuthStatus::Unsupported => {
+                    McpAuthStatus::Unsupported
+                }
+                thinwedge_app_server_protocol::McpAuthStatus::NotLoggedIn => {
+                    McpAuthStatus::NotLoggedIn
+                }
+                thinwedge_app_server_protocol::McpAuthStatus::BearerToken => {
+                    McpAuthStatus::BearerToken
+                }
                 thinwedge_app_server_protocol::McpAuthStatus::OAuth => McpAuthStatus::OAuth,
             })
             .unwrap_or(McpAuthStatus::Unsupported);
@@ -2997,6 +3003,13 @@ mod tests {
     use crate::legacy_core::config::Config;
     use crate::legacy_core::config::ConfigBuilder;
     use crate::wrapping::word_wrap_lines;
+    use dirs::home_dir;
+    use pretty_assertions::assert_eq;
+    use ratatui::buffer::Buffer;
+    use ratatui::layout::Rect;
+    use serde_json::json;
+    use std::collections::HashMap;
+    use std::path::PathBuf;
     use thinwedge_config::types::McpServerConfig;
     use thinwedge_config::types::McpServerDisabledReason;
     use thinwedge_otel::RuntimeMetricTotals;
@@ -3008,18 +3021,11 @@ mod tests {
     use thinwedge_protocol::protocol::AskForApproval;
     use thinwedge_protocol::protocol::McpAuthStatus;
     use thinwedge_protocol::protocol::SessionConfiguredEvent;
-    use dirs::home_dir;
-    use pretty_assertions::assert_eq;
-    use ratatui::buffer::Buffer;
-    use ratatui::layout::Rect;
-    use serde_json::json;
-    use std::collections::HashMap;
-    use std::path::PathBuf;
 
+    use rmcp::model::Content;
     use thinwedge_protocol::mcp::CallToolResult;
     use thinwedge_protocol::mcp::Tool;
     use thinwedge_protocol::protocol::ExecCommandSource;
-    use rmcp::model::Content;
 
     const SMALL_PNG_BASE64: &str = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
     async fn test_config() -> Config {

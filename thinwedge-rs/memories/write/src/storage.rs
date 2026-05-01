@@ -1,7 +1,7 @@
-use thinwedge_state::Stage1Output;
 use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::path::Path;
+use thinwedge_state::Stage1Output;
 use tracing::warn;
 use uuid::Uuid;
 

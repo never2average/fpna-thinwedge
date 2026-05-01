@@ -5,6 +5,15 @@ use crate::types::RateLimitReachedKind as BackendRateLimitReachedKind;
 use crate::types::RateLimitStatusPayload;
 use crate::types::TurnAttemptsSiblingTurnsResponse;
 use anyhow::Result;
+use reqwest::StatusCode;
+use reqwest::header::CONTENT_TYPE;
+use reqwest::header::HeaderMap;
+use reqwest::header::HeaderName;
+use reqwest::header::HeaderValue;
+use reqwest::header::USER_AGENT;
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+use std::fmt;
 use thinwedge_api::SharedAuthProvider;
 use thinwedge_client::build_reqwest_client_with_custom_ca;
 use thinwedge_client::with_chatgpt_cloudflare_cookie_store;
@@ -15,15 +24,6 @@ use thinwedge_protocol::protocol::CreditsSnapshot;
 use thinwedge_protocol::protocol::RateLimitReachedType;
 use thinwedge_protocol::protocol::RateLimitSnapshot;
 use thinwedge_protocol::protocol::RateLimitWindow;
-use reqwest::StatusCode;
-use reqwest::header::CONTENT_TYPE;
-use reqwest::header::HeaderMap;
-use reqwest::header::HeaderName;
-use reqwest::header::HeaderValue;
-use reqwest::header::USER_AGENT;
-use serde::Serialize;
-use serde::de::DeserializeOwned;
-use std::fmt;
 
 #[derive(Debug)]
 pub enum RequestError {
@@ -399,7 +399,9 @@ impl Client {
         &self,
     ) -> std::result::Result<ConfigFileResponse, RequestError> {
         let url = match self.path_style {
-            PathStyle::ThinWedgeApi => format!("{}/api/thinwedge/config/requirements", self.base_url),
+            PathStyle::ThinWedgeApi => {
+                format!("{}/api/thinwedge/config/requirements", self.base_url)
+            }
             PathStyle::ChatGptApi => format!("{}/wham/config/requirements", self.base_url),
         };
         let req = self.http.get(&url).headers(self.headers());
@@ -602,10 +604,10 @@ impl Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pretty_assertions::assert_eq;
     use thinwedge_backend_openapi_models::models::AdditionalRateLimitDetails;
     use thinwedge_backend_openapi_models::models::RateLimitReachedKind;
     use thinwedge_backend_openapi_models::models::RateLimitReachedType as BackendRateLimitReachedType;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn map_plan_type_supports_usage_based_business_variants() {

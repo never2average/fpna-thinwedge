@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use http::HeaderMap;
+use http::HeaderValue;
 use thinwedge_agent_identity::AgentIdentityKey;
 use thinwedge_agent_identity::AgentTaskAuthorizationTarget;
 use thinwedge_agent_identity::authorization_header_for_agent_task;
@@ -8,8 +10,6 @@ use thinwedge_api::SharedAuthProvider;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_model_provider_info::ModelProviderInfo;
-use http::HeaderMap;
-use http::HeaderValue;
 
 use crate::bearer_auth_provider::BearerAuthProvider;
 
@@ -110,13 +110,13 @@ pub fn auth_provider_from_auth(auth: &ThinWedgeAuth) -> SharedAuthProvider {
         ThinWedgeAuth::AgentIdentity(auth) => {
             Arc::new(AgentIdentityAuthProvider { auth: auth.clone() })
         }
-        ThinWedgeAuth::ApiKey(_) | ThinWedgeAuth::Chatgpt(_) | ThinWedgeAuth::ChatgptAuthTokens(_) => {
-            Arc::new(BearerAuthProvider {
-                token: auth.get_token().ok(),
-                account_id: auth.get_account_id(),
-                is_fedramp_account: auth.is_fedramp_account(),
-            })
-        }
+        ThinWedgeAuth::ApiKey(_)
+        | ThinWedgeAuth::Chatgpt(_)
+        | ThinWedgeAuth::ChatgptAuthTokens(_) => Arc::new(BearerAuthProvider {
+            token: auth.get_token().ok(),
+            account_id: auth.get_account_id(),
+            is_fedramp_account: auth.is_fedramp_account(),
+        }),
     }
 }
 

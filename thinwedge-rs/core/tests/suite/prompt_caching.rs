@@ -1,22 +1,5 @@
 #![allow(clippy::unwrap_used)]
 
-use thinwedge_apply_patch::APPLY_PATCH_TOOL_INSTRUCTIONS;
-use thinwedge_core::shell::Shell;
-use thinwedge_core::shell::default_user_shell;
-use thinwedge_features::Feature;
-use thinwedge_protocol::config_types::CollaborationMode;
-use thinwedge_protocol::config_types::ModeKind;
-use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::config_types::Settings;
-use thinwedge_protocol::config_types::WebSearchMode;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::permissions::NetworkSandboxPolicy;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::TempDirExt;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -30,6 +13,23 @@ use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
+use thinwedge_apply_patch::APPLY_PATCH_TOOL_INSTRUCTIONS;
+use thinwedge_core::shell::Shell;
+use thinwedge_core::shell::default_user_shell;
+use thinwedge_features::Feature;
+use thinwedge_protocol::config_types::CollaborationMode;
+use thinwedge_protocol::config_types::ModeKind;
+use thinwedge_protocol::config_types::ReasoningSummary;
+use thinwedge_protocol::config_types::Settings;
+use thinwedge_protocol::config_types::WebSearchMode;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::permissions::NetworkSandboxPolicy;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::user_input::UserInput;
 
 fn text_user_input(text: String) -> serde_json::Value {
     text_user_input_parts(vec![text])
@@ -312,7 +312,9 @@ async fn prefixes_context_and_instructions_once_and_consistently_across_requests
     )
     .await;
 
-    let TestThinWedge { thinwedge, config, .. } = test_thinwedge()
+    let TestThinWedge {
+        thinwedge, config, ..
+    } = test_thinwedge()
         .with_config(|config| {
             config.user_instructions = Some("be consistent and helpful".to_string());
             config
@@ -407,7 +409,9 @@ async fn overrides_turn_context_but_keeps_cached_prefix_and_key_constant() -> an
     )
     .await;
 
-    let TestThinWedge { thinwedge, config, .. } = test_thinwedge()
+    let TestThinWedge {
+        thinwedge, config, ..
+    } = test_thinwedge()
         .with_config(|config| {
             config.user_instructions = Some("be consistent and helpful".to_string());
             config

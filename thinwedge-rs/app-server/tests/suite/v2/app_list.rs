@@ -19,6 +19,20 @@ use axum::http::StatusCode;
 use axum::http::Uri;
 use axum::http::header::AUTHORIZATION;
 use axum::routing::get;
+use pretty_assertions::assert_eq;
+use rmcp::handler::server::ServerHandler;
+use rmcp::model::JsonObject;
+use rmcp::model::ListToolsResult;
+use rmcp::model::Meta;
+use rmcp::model::ServerCapabilities;
+use rmcp::model::ServerInfo;
+use rmcp::model::Tool;
+use rmcp::model::ToolAnnotations;
+use rmcp::transport::StreamableHttpServerConfig;
+use rmcp::transport::StreamableHttpService;
+use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
+use serde_json::json;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::AppBranding;
 use thinwedge_app_server_protocol::AppInfo;
 use thinwedge_app_server_protocol::AppListUpdatedNotification;
@@ -38,20 +52,6 @@ use thinwedge_app_server_protocol::ThreadStartResponse;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_login::AuthDotJson;
 use thinwedge_login::save_auth;
-use pretty_assertions::assert_eq;
-use rmcp::handler::server::ServerHandler;
-use rmcp::model::JsonObject;
-use rmcp::model::ListToolsResult;
-use rmcp::model::Meta;
-use rmcp::model::ServerCapabilities;
-use rmcp::model::ServerInfo;
-use rmcp::model::Tool;
-use rmcp::model::ToolAnnotations;
-use rmcp::transport::StreamableHttpServerConfig;
-use rmcp::transport::StreamableHttpService;
-use rmcp::transport::streamable_http_server::session::local::LocalSessionManager;
-use serde_json::json;
-use tempfile::TempDir;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 use tokio::time::timeout;
@@ -1644,7 +1644,10 @@ fn connector_tool(connector_id: &str, connector_name: &str) -> Result<Tool> {
     Ok(tool)
 }
 
-fn write_connectors_config(thinwedge_home: &std::path::Path, base_url: &str) -> std::io::Result<()> {
+fn write_connectors_config(
+    thinwedge_home: &std::path::Path,
+    base_url: &str,
+) -> std::io::Result<()> {
     let config_toml = thinwedge_home.join("config.toml");
     std::fs::write(
         config_toml,

@@ -949,13 +949,13 @@ mod tests {
     use super::proxy_ports_from_env;
     use crate::helper_materialization::helper_bin_dir;
     use crate::policy::SandboxPolicy;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use pretty_assertions::assert_eq;
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::fs;
     use std::path::PathBuf;
     use tempfile::TempDir;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
     fn canonical_windows_platform_default_roots() -> Vec<PathBuf> {
         WINDOWS_PLATFORM_DEFAULT_READ_ROOTS

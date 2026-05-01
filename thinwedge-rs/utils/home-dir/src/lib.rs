@@ -1,6 +1,6 @@
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use dirs::home_dir;
 use std::path::PathBuf;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 /// Returns the path to the ThinWedge configuration directory, which can be
 /// specified by the `THINWEDGE_HOME` environment variable. If not set, defaults to
@@ -17,7 +17,9 @@ pub fn find_thinwedge_home() -> std::io::Result<AbsolutePathBuf> {
     find_thinwedge_home_from_env(thinwedge_home_env.as_deref())
 }
 
-fn find_thinwedge_home_from_env(thinwedge_home_env: Option<&str>) -> std::io::Result<AbsolutePathBuf> {
+fn find_thinwedge_home_from_env(
+    thinwedge_home_env: Option<&str>,
+) -> std::io::Result<AbsolutePathBuf> {
     // Honor the `THINWEDGE_HOME` environment variable when it is set to allow users
     // (and tests) to override the default location.
     match thinwedge_home_env {
@@ -65,12 +67,12 @@ fn find_thinwedge_home_from_env(thinwedge_home_env: Option<&str>) -> std::io::Re
 #[cfg(test)]
 mod tests {
     use super::find_thinwedge_home_from_env;
-    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use dirs::home_dir;
     use pretty_assertions::assert_eq;
     use std::fs;
     use std::io::ErrorKind;
     use tempfile::TempDir;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
     #[test]
     fn find_thinwedge_home_env_missing_path_is_fatal() {
@@ -80,7 +82,8 @@ mod tests {
             .to_str()
             .expect("missing thinwedge home path should be valid utf-8");
 
-        let err = find_thinwedge_home_from_env(Some(missing_str)).expect_err("missing THINWEDGE_HOME");
+        let err =
+            find_thinwedge_home_from_env(Some(missing_str)).expect_err("missing THINWEDGE_HOME");
         assert_eq!(err.kind(), ErrorKind::NotFound);
         assert!(
             err.to_string().contains("THINWEDGE_HOME"),
@@ -124,8 +127,8 @@ mod tests {
 
     #[test]
     fn find_thinwedge_home_without_env_uses_default_home_dir() {
-        let resolved =
-            find_thinwedge_home_from_env(/*thinwedge_home_env*/ None).expect("default THINWEDGE_HOME");
+        let resolved = find_thinwedge_home_from_env(/*thinwedge_home_env*/ None)
+            .expect("default THINWEDGE_HOME");
         let mut expected = home_dir().expect("home dir");
         expected.push(".thinwedge");
         let expected = AbsolutePathBuf::from_absolute_path(expected).expect("absolute home");

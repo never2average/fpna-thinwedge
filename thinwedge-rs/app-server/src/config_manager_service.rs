@@ -1,4 +1,8 @@
 use crate::config_manager::ConfigManager;
+use serde_json::Value as JsonValue;
+use std::borrow::Cow;
+use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::Config as ApiConfig;
 use thinwedge_app_server_protocol::ConfigBatchWriteParams;
 use thinwedge_app_server_protocol::ConfigLayerMetadata;
@@ -27,10 +31,6 @@ use thinwedge_core::path_utils::SymlinkWritePaths;
 use thinwedge_core::path_utils::resolve_symlink_write_paths;
 use thinwedge_core::path_utils::write_atomically;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
-use serde_json::Value as JsonValue;
-use std::borrow::Cow;
-use std::path::Path;
-use std::path::PathBuf;
 use thiserror::Error;
 use tokio::task;
 use toml::Value as TomlValue;
@@ -571,7 +571,9 @@ fn override_message(layer: &ConfigLayerSource) -> String {
         ConfigLayerSource::System { file } => {
             format!("Overridden by managed config (system): {}", file.display())
         }
-        ConfigLayerSource::Project { dot_thinwedge_folder } => format!(
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        } => format!(
             "Overridden by project config: {}/{CONFIG_TOML_FILE}",
             dot_thinwedge_folder.display(),
         ),

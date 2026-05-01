@@ -9,6 +9,23 @@ use crate::transport::ConnectionOrigin;
 use anyhow::Result;
 use app_test_support::create_mock_responses_server_repeating_assistant;
 use app_test_support::write_mock_responses_config_toml;
+use opentelemetry::global;
+use opentelemetry::trace::SpanId;
+use opentelemetry::trace::SpanKind;
+use opentelemetry::trace::TraceId;
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::trace::InMemorySpanExporter;
+use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::SpanData;
+use pretty_assertions::assert_eq;
+use serial_test::serial;
+use std::collections::BTreeMap;
+use std::future::Future;
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::OnceLock;
+use tempfile::TempDir;
 use thinwedge_analytics::AppServerRpcTransport;
 use thinwedge_app_server_protocol::ClientInfo;
 use thinwedge_app_server_protocol::ClientRequest;
@@ -36,23 +53,6 @@ use thinwedge_feedback::ThinWedgeFeedback;
 use thinwedge_login::AuthManager;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::W3cTraceContext;
-use opentelemetry::global;
-use opentelemetry::trace::SpanId;
-use opentelemetry::trace::SpanKind;
-use opentelemetry::trace::TraceId;
-use opentelemetry::trace::TracerProvider as _;
-use opentelemetry_sdk::propagation::TraceContextPropagator;
-use opentelemetry_sdk::trace::InMemorySpanExporter;
-use opentelemetry_sdk::trace::SdkTracerProvider;
-use opentelemetry_sdk::trace::SpanData;
-use pretty_assertions::assert_eq;
-use serial_test::serial;
-use std::collections::BTreeMap;
-use std::future::Future;
-use std::path::Path;
-use std::sync::Arc;
-use std::sync::OnceLock;
-use tempfile::TempDir;
 use tokio::sync::mpsc;
 use tracing_subscriber::layer::SubscriberExt;
 use wiremock::MockServer;
@@ -265,8 +265,11 @@ async fn build_test_processor(
 ) {
     let (outgoing_tx, outgoing_rx) = mpsc::channel(16);
     let outgoing = Arc::new(OutgoingMessageSender::new(outgoing_tx));
-    let auth_manager =
-        AuthManager::shared_from_config(config.as_ref(), /*enable_thinwedge_api_key_env*/ false).await;
+    let auth_manager = AuthManager::shared_from_config(
+        config.as_ref(),
+        /*enable_thinwedge_api_key_env*/ false,
+    )
+    .await;
     let config_manager = ConfigManager::new(
         config.thinwedge_home.to_path_buf(),
         Vec::new(),

@@ -4,6 +4,8 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use chrono::Utc;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_core::EventPersistenceMode;
 use thinwedge_core::RolloutRecorder;
 use thinwedge_core::RolloutRecorderParams;
@@ -16,13 +18,15 @@ use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_state::StateRuntime;
 use thinwedge_state::ThreadMetadataBuilder;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use uuid::Uuid;
 
 /// Create <subdir>/YYYY/MM/DD and write a minimal rollout file containing the
 /// provided conversation id in the SessionMeta line. Returns the absolute path.
-fn write_minimal_rollout_with_id_in_subdir(thinwedge_home: &Path, subdir: &str, id: Uuid) -> PathBuf {
+fn write_minimal_rollout_with_id_in_subdir(
+    thinwedge_home: &Path,
+    subdir: &str,
+    id: Uuid,
+) -> PathBuf {
     let sessions = thinwedge_home.join(subdir).join("2024/01/01");
     std::fs::create_dir_all(&sessions).unwrap();
 

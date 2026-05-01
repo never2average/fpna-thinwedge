@@ -14,17 +14,17 @@ use super::HistoryCell;
 use crate::exec_cell::spinner;
 use crate::render::renderable::Renderable;
 use crate::shimmer::shimmer_spans;
-use thinwedge_protocol::protocol::HookEventName;
-use thinwedge_protocol::protocol::HookOutputEntry;
-use thinwedge_protocol::protocol::HookOutputEntryKind;
-use thinwedge_protocol::protocol::HookRunStatus;
-use thinwedge_protocol::protocol::HookRunSummary;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::Wrap;
 use std::time::Duration;
 use std::time::Instant;
+use thinwedge_protocol::protocol::HookEventName;
+use thinwedge_protocol::protocol::HookOutputEntry;
+use thinwedge_protocol::protocol::HookOutputEntryKind;
+use thinwedge_protocol::protocol::HookRunStatus;
+use thinwedge_protocol::protocol::HookRunSummary;
 
 #[derive(Debug)]
 pub(crate) struct HookCell {

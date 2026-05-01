@@ -1,28 +1,6 @@
 #![cfg(not(target_os = "windows"))]
 #![allow(clippy::expect_used)]
 use anyhow::Result;
-use thinwedge_login::ThinWedgeAuth;
-use thinwedge_model_provider_info::ModelProviderInfo;
-use thinwedge_model_provider_info::built_in_model_providers;
-use thinwedge_models_manager::bundled_models_response;
-use thinwedge_models_manager::manager::RefreshStrategy;
-use thinwedge_models_manager::manager::SharedModelsManager;
-use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelPreset;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
-use thinwedge_protocol::protocol::AskForApproval;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::ExecCommandSource;
-use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::user_input::UserInput;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -43,6 +21,28 @@ use core_test_support::wait_for_event_match;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use tempfile::TempDir;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_model_provider_info::ModelProviderInfo;
+use thinwedge_model_provider_info::built_in_model_providers;
+use thinwedge_models_manager::bundled_models_response;
+use thinwedge_models_manager::manager::RefreshStrategy;
+use thinwedge_models_manager::manager::SharedModelsManager;
+use thinwedge_protocol::config_types::ReasoningSummary;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::protocol::AskForApproval;
+use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::ExecCommandSource;
+use thinwedge_protocol::protocol::Op;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
+use thinwedge_protocol::user_input::UserInput;
 use tokio::time::Duration;
 use tokio::time::Instant;
 use tokio::time::sleep;
@@ -143,7 +143,10 @@ async fn remote_models_config_context_window_override_clamps_to_max_context_wind
     .await;
 
     let TestThinWedge {
-        thinwedge, cwd, config, ..
+        thinwedge,
+        cwd,
+        config,
+        ..
     } = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
@@ -221,7 +224,10 @@ async fn remote_models_config_override_above_max_uses_max_context_window() -> Re
     .await;
 
     let TestThinWedge {
-        thinwedge, cwd, config, ..
+        thinwedge,
+        cwd,
+        config,
+        ..
     } = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
@@ -299,7 +305,10 @@ async fn remote_models_use_context_window_when_config_override_is_absent() -> Re
     .await;
 
     let TestThinWedge {
-        thinwedge, cwd, config, ..
+        thinwedge,
+        cwd,
+        config,
+        ..
     } = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
@@ -389,7 +398,10 @@ async fn remote_models_long_model_slug_is_sent_with_high_reasoning() -> Result<(
     .await;
 
     let TestThinWedge {
-        thinwedge, cwd, config, ..
+        thinwedge,
+        cwd,
+        config,
+        ..
     } = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_config(|config| {
@@ -420,7 +432,10 @@ async fn remote_models_long_model_slug_is_sent_with_high_reasoning() -> Result<(
         })
         .await?;
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let request = response_mock.single_request();
     let body = request.body_json();
@@ -453,7 +468,10 @@ async fn namespaced_model_slug_uses_catalog_metadata_without_fallback_warning() 
     .await;
 
     let TestThinWedge {
-        thinwedge, cwd, config, ..
+        thinwedge,
+        cwd,
+        config,
+        ..
     } = test_thinwedge()
         .with_model(requested_model)
         .build(&server)
@@ -661,7 +679,10 @@ async fn remote_models_remote_model_uses_unified_exec() -> Result<()> {
 
     assert_eq!(begin_event.source, ExecCommandSource::UnifiedExecStartup);
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     Ok(())
 }
@@ -884,7 +905,10 @@ async fn remote_models_apply_remote_base_instructions() -> Result<()> {
         })
         .await?;
 
-    wait_for_event(&thinwedge, |event| matches!(event, EventMsg::TurnComplete(_))).await;
+    wait_for_event(&thinwedge, |event| {
+        matches!(event, EventMsg::TurnComplete(_))
+    })
+    .await;
 
     let base_model_info = models_manager
         .get_model_info("gpt-5.2", &config.to_models_manager_config())

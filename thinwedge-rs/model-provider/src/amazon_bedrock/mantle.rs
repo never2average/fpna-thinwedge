@@ -1,7 +1,7 @@
 use thinwedge_aws_auth::AwsAuthConfig;
 use thinwedge_model_provider_info::ModelProviderAwsAuthInfo;
-use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
+use thinwedge_protocol::error::ThinWedgeErr;
 
 const BEDROCK_MANTLE_SERVICE_NAME: &str = "bedrock-mantle";
 const BEDROCK_MANTLE_SUPPORTED_REGIONS: [&str; 12] = [
@@ -37,7 +37,9 @@ pub(super) fn region_from_config(aws: &ModelProviderAwsAuthInfo) -> Option<Strin
 
 pub(super) fn base_url(region: &str) -> Result<String> {
     if BEDROCK_MANTLE_SUPPORTED_REGIONS.contains(&region) {
-        Ok(format!("https://bedrock-mantle.{region}.api.aws/thinwedge/v1"))
+        Ok(format!(
+            "https://bedrock-mantle.{region}.api.aws/thinwedge/v1"
+        ))
     } else {
         Err(ThinWedgeErr::Fatal(format!(
             "Amazon Bedrock Mantle does not support region `{region}`"

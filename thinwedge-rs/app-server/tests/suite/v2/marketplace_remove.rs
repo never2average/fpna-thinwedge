@@ -4,6 +4,8 @@ use anyhow::Context;
 use anyhow::Result;
 use app_test_support::McpProcess;
 use app_test_support::to_response;
+use pretty_assertions::assert_eq;
+use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::MarketplaceRemoveParams;
 use thinwedge_app_server_protocol::MarketplaceRemoveResponse;
@@ -11,8 +13,6 @@ use thinwedge_app_server_protocol::RequestId;
 use thinwedge_config::MarketplaceConfigUpdate;
 use thinwedge_config::record_user_marketplace;
 use thinwedge_core_plugins::installed_marketplaces::marketplace_install_root;
-use pretty_assertions::assert_eq;
-use tempfile::TempDir;
 use tokio::time::timeout;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -28,7 +28,10 @@ fn configured_marketplace_update() -> MarketplaceConfigUpdate<'static> {
     }
 }
 
-fn write_installed_marketplace(thinwedge_home: &std::path::Path, marketplace_name: &str) -> Result<()> {
+fn write_installed_marketplace(
+    thinwedge_home: &std::path::Path,
+    marketplace_name: &str,
+) -> Result<()> {
     let root = marketplace_install_root(thinwedge_home).join(marketplace_name);
     std::fs::create_dir_all(root.join(".agents/plugins"))?;
     std::fs::write(root.join(".agents/plugins/marketplace.json"), "{}")?;
@@ -49,7 +52,11 @@ fn canonicalize_path_with_existing_parent(path: &std::path::Path) -> Result<std:
 #[tokio::test]
 async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    record_user_marketplace(thinwedge_home.path(), "debug", &configured_marketplace_update())?;
+    record_user_marketplace(
+        thinwedge_home.path(),
+        "debug",
+        &configured_marketplace_update(),
+    )?;
     write_installed_marketplace(thinwedge_home.path(), "debug")?;
     let installed_root = marketplace_install_root(thinwedge_home.path()).join("debug");
 

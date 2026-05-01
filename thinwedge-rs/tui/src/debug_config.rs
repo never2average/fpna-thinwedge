@@ -1,5 +1,7 @@
 use crate::history_cell::PlainHistoryCell;
 use crate::legacy_core::config::Config;
+use ratatui::style::Stylize;
+use ratatui::text::Line;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerStack;
@@ -13,8 +15,6 @@ use thinwedge_config::ResidencyRequirement;
 use thinwedge_config::SandboxModeRequirement;
 use thinwedge_config::WebSearchModeRequirement;
 use thinwedge_protocol::protocol::SessionNetworkProxyRuntime;
-use ratatui::style::Stylize;
-use ratatui::text::Line;
 use toml::Value as TomlValue;
 
 pub(crate) fn new_debug_config_output(
@@ -377,7 +377,9 @@ fn format_config_layer_source(source: &ConfigLayerSource) -> String {
         ConfigLayerSource::User { file } => {
             format!("user ({})", file.as_path().display())
         }
-        ConfigLayerSource::Project { dot_thinwedge_folder } => {
+        ConfigLayerSource::Project {
+            dot_thinwedge_folder,
+        } => {
             format!(
                 "project ({}/config.toml)",
                 dot_thinwedge_folder.as_path().display()
@@ -505,6 +507,8 @@ mod tests {
     use super::render_debug_config_lines;
     use super::session_all_proxy_url;
     use crate::legacy_core::config::Constrained;
+    use ratatui::text::Line;
+    use std::collections::BTreeMap;
     use thinwedge_app_server_protocol::ConfigLayerSource;
     use thinwedge_config::ConfigLayerEntry;
     use thinwedge_config::ConfigLayerStack;
@@ -534,8 +538,6 @@ mod tests {
     use thinwedge_protocol::models::PermissionProfile;
     use thinwedge_protocol::protocol::AskForApproval;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
-    use ratatui::text::Line;
-    use std::collections::BTreeMap;
     use toml::Value as TomlValue;
 
     fn empty_toml_table() -> TomlValue {

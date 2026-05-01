@@ -84,8 +84,8 @@ pub(crate) fn source_kind_matches(source: &CoreSessionSource, filter: &[ThreadSo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use thinwedge_protocol::ThreadId;
     use pretty_assertions::assert_eq;
+    use thinwedge_protocol::ThreadId;
     use uuid::Uuid;
 
     #[test]

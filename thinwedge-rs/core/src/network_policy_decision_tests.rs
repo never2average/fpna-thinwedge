@@ -1,9 +1,9 @@
 use super::*;
+use pretty_assertions::assert_eq;
 use thinwedge_network_proxy::BlockedRequest;
 use thinwedge_network_proxy::NetworkDecisionSource;
 use thinwedge_protocol::approvals::NetworkPolicyAmendment;
 use thinwedge_protocol::approvals::NetworkPolicyRuleAction;
-use pretty_assertions::assert_eq;
 
 #[test]
 fn network_approval_context_requires_ask_from_decider() {

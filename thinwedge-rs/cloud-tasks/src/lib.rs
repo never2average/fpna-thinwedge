@@ -9,10 +9,6 @@ pub use cli::Cli;
 
 use anyhow::anyhow;
 use chrono::Utc;
-use thinwedge_cloud_tasks_client::TaskStatus;
-use thinwedge_git_utils::current_branch_name;
-use thinwedge_git_utils::default_branch_name;
-use thinwedge_login::default_client::get_thinwedge_user_agent;
 use owo_colors::OwoColorize;
 use owo_colors::Stream;
 use std::cmp::Ordering;
@@ -23,6 +19,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use supports_color::Stream as SupportStream;
+use thinwedge_cloud_tasks_client::TaskStatus;
+use thinwedge_git_utils::current_branch_name;
+use thinwedge_git_utils::default_branch_name;
+use thinwedge_login::default_client::get_thinwedge_user_agent;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -60,7 +60,8 @@ async fn init_backend(user_agent_suffix: &str) -> anyhow::Result<BackendContext>
     }
 
     let ua = get_thinwedge_user_agent();
-    let mut http = thinwedge_cloud_tasks_client::HttpClient::new(base_url.clone())?.with_user_agent(ua);
+    let mut http =
+        thinwedge_cloud_tasks_client::HttpClient::new(base_url.clone())?.with_user_agent(ua);
     let style = if base_url.contains("/backend-api") {
         "wham"
     } else {
@@ -494,7 +495,8 @@ async fn run_status_command(args: crate::cli::StatusCommand) -> anyhow::Result<(
     let ctx = init_backend("thinwedge_cloud_tasks_status").await?;
     let task_id = parse_task_id(&args.task_id)?;
     let summary =
-        thinwedge_cloud_tasks_client::CloudBackend::get_task_summary(&*ctx.backend, task_id).await?;
+        thinwedge_cloud_tasks_client::CloudBackend::get_task_summary(&*ctx.backend, task_id)
+            .await?;
     let now = Utc::now();
     let colorize = supports_color::on(SupportStream::Stdout).is_some();
     for line in format_task_status_lines(&summary, now, colorize) {
@@ -728,7 +730,10 @@ fn spawn_apply(
 // (no standalone patch summarizer needed – UI displays raw diffs)
 
 /// Entry point for the `thinwedge cloud` subcommand.
-pub async fn run_main(cli: Cli, _thinwedge_linux_sandbox_exe: Option<PathBuf>) -> anyhow::Result<()> {
+pub async fn run_main(
+    cli: Cli,
+    _thinwedge_linux_sandbox_exe: Option<PathBuf>,
+) -> anyhow::Result<()> {
     if let Some(command) = cli.command {
         return match command {
             crate::cli::Command::Exec(args) => run_exec_command(args).await,
@@ -2128,6 +2133,12 @@ fn pretty_lines_from_error(raw: &str) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::resolve_git_ref_with_git_info;
+    use crossterm::event::KeyCode;
+    use crossterm::event::KeyEvent;
+    use crossterm::event::KeyModifiers;
+    use pretty_assertions::assert_eq;
+    use ratatui::buffer::Buffer;
+    use ratatui::layout::Rect;
     use thinwedge_cloud_tasks_client::DiffSummary;
     use thinwedge_cloud_tasks_client::TaskId;
     use thinwedge_cloud_tasks_client::TaskStatus;
@@ -2135,12 +2146,6 @@ mod tests {
     use thinwedge_cloud_tasks_mock_client::MockClient;
     use thinwedge_tui::ComposerAction;
     use thinwedge_tui::ComposerInput;
-    use crossterm::event::KeyCode;
-    use crossterm::event::KeyEvent;
-    use crossterm::event::KeyModifiers;
-    use pretty_assertions::assert_eq;
-    use ratatui::buffer::Buffer;
-    use ratatui::layout::Rect;
 
     struct StubGitInfo {
         default_branch: Option<String>,
@@ -2362,8 +2367,8 @@ mod tests {
     fn parse_task_id_from_url_and_raw() {
         let raw = parse_task_id("task_i_abc123").expect("raw id");
         assert_eq!(raw.0, "task_i_abc123");
-        let url =
-            parse_task_id("https://chatgpt.com/thinwedge/tasks/task_i_123456?foo=bar").expect("url id");
+        let url = parse_task_id("https://chatgpt.com/thinwedge/tasks/task_i_123456?foo=bar")
+            .expect("url id");
         assert_eq!(url.0, "task_i_123456");
         assert!(parse_task_id("   ").is_err());
     }

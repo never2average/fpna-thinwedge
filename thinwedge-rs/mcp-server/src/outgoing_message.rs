@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicI64;
 use std::sync::atomic::Ordering;
 
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::protocol::Event;
 use rmcp::model::CustomNotification;
 use rmcp::model::CustomRequest;
 use rmcp::model::ErrorData;
@@ -16,6 +14,8 @@ use rmcp::model::JsonRpcVersion2_0;
 use rmcp::model::RequestId;
 use serde::Serialize;
 use serde_json::Value;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::Event;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
@@ -230,17 +230,17 @@ pub(crate) struct OutgoingError {
 mod tests {
 
     use anyhow::Result;
-    use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::models::PermissionProfile;
-    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-    use thinwedge_protocol::protocol::AskForApproval;
-    use thinwedge_protocol::protocol::EventMsg;
-    use thinwedge_protocol::protocol::SessionConfiguredEvent;
-    use thinwedge_utils_absolute_path::test_support::PathBufExt;
-    use thinwedge_utils_absolute_path::test_support::test_path_buf;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use tempfile::NamedTempFile;
+    use thinwedge_protocol::ThreadId;
+    use thinwedge_protocol::models::PermissionProfile;
+    use thinwedge_protocol::protocol::AskForApproval;
+    use thinwedge_protocol::protocol::EventMsg;
+    use thinwedge_protocol::protocol::SessionConfiguredEvent;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+    use thinwedge_utils_absolute_path::test_support::PathBufExt;
+    use thinwedge_utils_absolute_path::test_support::test_path_buf;
 
     use super::*;
 

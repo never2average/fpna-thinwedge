@@ -47,13 +47,13 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use thinwedge_utils_rustls_provider::ensure_rustls_crypto_provider;
 use rustls::ClientConfig;
 use rustls::RootCertStore;
 use rustls_pki_types::CertificateDer;
 use rustls_pki_types::pem::PemObject;
 use rustls_pki_types::pem::SectionKind;
 use rustls_pki_types::pem::{self};
+use thinwedge_utils_rustls_provider::ensure_rustls_crypto_provider;
 use thiserror::Error;
 use tracing::info;
 use tracing::warn;
@@ -689,9 +689,9 @@ mod tests {
     use tempfile::TempDir;
 
     use super::BuildCustomCaTransportError;
-    use super::THINWEDGE_CA_CERT_ENV;
     use super::EnvSource;
     use super::SSL_CERT_FILE_ENV;
+    use super::THINWEDGE_CA_CERT_ENV;
     use super::maybe_build_rustls_client_config_with_env;
 
     const TEST_CERT: &str = include_str!("../tests/fixtures/test-ca.pem");

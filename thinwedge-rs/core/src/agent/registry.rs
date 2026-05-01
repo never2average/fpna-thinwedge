@@ -1,9 +1,3 @@
-use thinwedge_protocol::AgentPath;
-use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::error::ThinWedgeErr;
-use thinwedge_protocol::error::Result;
-use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::protocol::SubAgentSource;
 use rand::prelude::IndexedRandom;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -12,6 +6,12 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
+use thinwedge_protocol::AgentPath;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::error::Result;
+use thinwedge_protocol::error::ThinWedgeErr;
+use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_protocol::protocol::SubAgentSource;
 
 /// This structure is used to add some limits on the multi-agent capabilities for ThinWedge. In
 /// the current implementation, it limits:
