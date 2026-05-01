@@ -737,7 +737,6 @@ impl Session {
             .goal_runtime_apply(GoalRuntimeEvent::TurnFinished {
                 turn_context: turn_context.as_ref(),
                 turn_completed: should_clear_active_turn,
-                tool_calls: turn_tool_calls,
             })
             .await
         {

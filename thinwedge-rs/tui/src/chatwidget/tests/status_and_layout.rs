@@ -1731,16 +1731,18 @@ async fn status_line_goal_complete_elapsed_footer_snapshot() {
     chat.show_welcome_banner = false;
     chat.config.tui_status_line = Some(vec!["model-name".to_string()]);
     chat.refresh_status_line();
+    let mut goal = test_thread_goal(
+        thinwedge_app_server_protocol::ThreadGoalStatus::Complete,
+        /*token_budget*/ None,
+        /*tokens_used*/ 40_000,
+    );
+    goal.time_used_seconds = 2 * 24 * 60 * 60 + 23 * 60 * 60 + 42 * 60;
     chat.handle_server_notification(
         ServerNotification::ThreadGoalUpdated(
             thinwedge_app_server_protocol::ThreadGoalUpdatedNotification {
                 thread_id: "thread-1".to_string(),
                 turn_id: None,
-                goal: test_thread_goal(
-                    thinwedge_app_server_protocol::ThreadGoalStatus::Complete,
-                    /*token_budget*/ None,
-                    /*tokens_used*/ 40_000,
-                ),
+                goal,
             },
         ),
         /*replay_kind*/ None,
@@ -1907,10 +1909,7 @@ fn goal_status_indicator_line_formats_goal_text() {
             },
             "Goal unmet (4K / 5K tokens)",
         ),
-        (
-            GoalStatusIndicator::Paused,
-            "Goal paused (/goal to unpause)",
-        ),
+        (GoalStatusIndicator::Paused, "Goal paused (/goal resume)"),
         (
             GoalStatusIndicator::BudgetLimited { usage: None },
             "Goal abandoned",
