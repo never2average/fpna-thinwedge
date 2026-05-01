@@ -1,5 +1,5 @@
-use super::card_inner_width;
-use super::with_border_with_inner_width;
+use crate::history_cell::card_inner_width;
+use crate::history_cell::with_border_with_inner_width;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
 use textwrap::wrap;
@@ -111,7 +111,7 @@ fn terminal_panel_header(
     subtitle: Option<&str>,
     inner_width: usize,
 ) -> Vec<Line<'static>> {
-    let mut lines = vec![Line::from(title.bold())];
+    let mut lines = vec![Line::from(Span::from(title.to_string()).bold())];
     if let Some(subtitle) = subtitle
         && !subtitle.is_empty()
     {
