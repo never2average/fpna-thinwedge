@@ -179,6 +179,7 @@ command = (
 print(command)
 PY
 )
+remote_command=$(thinwedge_runpod_prepend_python_dependency_bootstrap "$runpod_config_json" "$remote_command")
 
 if [[ "$transport_mode" == "http" ]]; then
   thinwedge_runpod_wait_for_control_server "$http_endpoint" "$control_token" 120

@@ -140,6 +140,8 @@ Recommended v1 shape:
   "supportPublicIp": true,
   "stopMode": "stop",
   "startupTimeoutSec": 900,
+  "autoInstallPythonPackages": true,
+  "pythonPackages": ["pandas", "numpy", "matplotlib", "wandb"],
   "env": {
     "THINWEDGE_MODEL_REPOSITORY_ROOT": "/workspace/thinwedge/model-repo",
     "THINWEDGE_ENV_REPOSITORY_ROOT": "/workspace/thinwedge/env-repo",
@@ -147,6 +149,8 @@ Recommended v1 shape:
   }
 }
 ```
+
+By default, ThinWedge prepends a Pod-side dependency bootstrap before statistical-model training and batch inference commands. The default package list is `pandas`, `numpy`, `matplotlib`, and `wandb`. Set `autoInstallPythonPackages` to `false` to disable this behavior, or override `pythonPackages` to pin a different package set.
 
 Recommended environment variable conventions:
 

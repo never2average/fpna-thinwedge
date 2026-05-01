@@ -394,6 +394,13 @@ import json
 import os
 
 config = json.loads(os.environ["THINWEDGE_RUNPOD_CONFIG_JSON"])
+python_packages = config.get("pythonPackages")
+if python_packages is None:
+    python_packages = ["pandas", "numpy", "matplotlib", "wandb"]
+if not isinstance(python_packages, list) or not all(
+    isinstance(package, str) and package.strip() for package in python_packages
+):
+    raise SystemExit("ThinWedge Runpod config `pythonPackages` must be a list of package names")
 required = [
     "gpuCount",
     "volumeMountPath",
@@ -420,6 +427,8 @@ normalized = {
     "gpuTypeId": config.get("gpuTypeId"),
     "dockerEntrypoint": config.get("dockerEntrypoint") or [],
     "dockerStartCmd": config.get("dockerStartCmd") or [],
+    "autoInstallPythonPackages": bool(config.get("autoInstallPythonPackages", True)),
+    "pythonPackages": python_packages,
     "globalNetworking": bool(config.get("globalNetworking", False)),
     "containerDiskInGb": config.get("containerDiskInGb"),
     "volumeInGb": config.get("volumeInGb"),
@@ -433,6 +442,62 @@ normalized = {
     "startupTimeoutSec": config.get("startupTimeoutSec", 900),
 }
 print(json.dumps(normalized))
+PY
+}
+
+thinwedge_runpod_prepend_python_dependency_bootstrap() {
+  local runpod_json=$1
+  local remote_command=$2
+  THINWEDGE_RUNPOD_CONFIG_JSON="$runpod_json" THINWEDGE_RUNPOD_REMOTE_COMMAND="$remote_command" python3 - <<'PY'
+import hashlib
+import json
+import os
+import shlex
+
+config = json.loads(os.environ["THINWEDGE_RUNPOD_CONFIG_JSON"])
+command = os.environ["THINWEDGE_RUNPOD_REMOTE_COMMAND"]
+packages = config.get("pythonPackages") or []
+auto_install = bool(config.get("autoInstallPythonPackages", True))
+if not auto_install or not packages:
+    print(command)
+    raise SystemExit(0)
+
+for package in packages:
+    if not isinstance(package, str) or not package.strip():
+        raise SystemExit("ThinWedge Runpod config `pythonPackages` must contain only package names")
+
+package_key = "\n".join(packages).encode("utf-8")
+marker_hash = hashlib.sha256(package_key).hexdigest()[:16]
+marker_path = f"/opt/thinwedge-sandbox-deps/python-{marker_hash}.stamp"
+pip_packages = " ".join(shlex.quote(package) for package in packages)
+package_summary = ", ".join(packages)
+bootstrap = f"""set -e
+THINWEDGE_SANDBOX_DEPS_MARKER={shlex.quote(marker_path)}
+if [ ! -f "$THINWEDGE_SANDBOX_DEPS_MARKER" ]; then
+  export DEBIAN_FRONTEND=noninteractive
+  if ! command -v python3 >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update
+      apt-get install -y --no-install-recommends python3 python3-pip python3-venv
+    else
+      printf '%s\n' 'ThinWedge sandbox dependency bootstrap requires python3 or apt-get' >&2
+      exit 127
+    fi
+  fi
+  if ! python3 -m pip --version >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update
+      apt-get install -y --no-install-recommends python3-pip python3-venv
+    else
+      printf '%s\n' 'ThinWedge sandbox dependency bootstrap requires python3-pip or apt-get' >&2
+      exit 127
+    fi
+  fi
+  python3 -m pip install --upgrade --break-system-packages {pip_packages} || python3 -m pip install --upgrade {pip_packages}
+  mkdir -p "$(dirname "$THINWEDGE_SANDBOX_DEPS_MARKER")"
+  printf '%s\n' {shlex.quote(package_summary)} > "$THINWEDGE_SANDBOX_DEPS_MARKER"
+fi"""
+print(f"({bootstrap}) && {command}")
 PY
 }
 
