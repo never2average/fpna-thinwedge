@@ -355,8 +355,8 @@ impl ModelProviderInfo {
         ModelProviderInfo {
             name: OPENROUTER_PROVIDER_NAME.into(),
             base_url: Some(OPENROUTER_DEFAULT_BASE_URL.into()),
-            env_key: None,
-            env_key_instructions: None,
+            env_key: Some("OPENROUTER_API_KEY".into()),
+            env_key_instructions: Some("Set OPENROUTER_API_KEY to an OpenRouter API key.".into()),
             experimental_bearer_token: None,
             auth: None,
             aws: None,
@@ -372,7 +372,7 @@ impl ModelProviderInfo {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: true,
+            requires_openai_auth: false,
             supports_websockets: false,
         }
     }

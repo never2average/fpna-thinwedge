@@ -368,6 +368,25 @@ mod tests {
     }
 
     #[test]
+    fn create_model_provider_does_not_use_openai_auth_manager_for_openrouter_provider() {
+        let provider = create_model_provider(
+            ModelProviderInfo::create_openrouter_provider(),
+            Some(AuthManager::from_auth_for_testing(CodexAuth::from_api_key(
+                "openai-api-key",
+            ))),
+        );
+
+        assert!(provider.auth_manager().is_none());
+        assert_eq!(
+            provider.account_state(),
+            Ok(ProviderAccountState {
+                account: None,
+                requires_openai_auth: false,
+            })
+        );
+    }
+
+    #[test]
     fn openai_provider_returns_unauthenticated_openai_account_state() {
         let provider = create_model_provider(
             ModelProviderInfo::create_openai_provider(/*base_url*/ None),

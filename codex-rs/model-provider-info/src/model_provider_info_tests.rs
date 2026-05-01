@@ -269,6 +269,38 @@ fn test_create_amazon_bedrock_provider() {
 }
 
 #[test]
+fn test_create_openrouter_provider_uses_openrouter_api_key() {
+    assert_eq!(
+        ModelProviderInfo::create_openrouter_provider(),
+        ModelProviderInfo {
+            name: "OpenRouter".to_string(),
+            base_url: Some("https://openrouter.ai/api/v1".to_string()),
+            env_key: Some("OPENROUTER_API_KEY".to_string()),
+            env_key_instructions: Some(
+                "Set OPENROUTER_API_KEY to an OpenRouter API key.".to_string(),
+            ),
+            experimental_bearer_token: None,
+            auth: None,
+            aws: None,
+            wire_api: WireApi::Responses,
+            query_params: None,
+            http_headers: Some(
+                [("version".to_string(), env!("CARGO_PKG_VERSION").to_string())]
+                    .into_iter()
+                    .collect(),
+            ),
+            env_http_headers: None,
+            request_max_retries: None,
+            stream_max_retries: None,
+            stream_idle_timeout_ms: None,
+            websocket_connect_timeout_ms: None,
+            requires_openai_auth: false,
+            supports_websockets: false,
+        }
+    );
+}
+
+#[test]
 fn test_built_in_model_providers_include_amazon_bedrock() {
     let providers = built_in_model_providers(/*openai_base_url*/ None);
 
