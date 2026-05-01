@@ -235,7 +235,7 @@ mod tests {
                 .expect("window id header"),
             Header::from_bytes(&b"x-thinwedge-parent-thread-id"[..], &b"parent-thread-1"[..])
                 .expect("parent thread id header"),
-            Header::from_bytes(&b"x-openai-subagent"[..], &b"collab_spawn"[..])
+            Header::from_bytes(&b"x-thinwedge-subagent"[..], &b"collab_spawn"[..])
                 .expect("subagent header"),
         ];
 
@@ -278,7 +278,7 @@ mod tests {
                         "value": "parent-thread-1"
                     },
                     {
-                        "name": "x-openai-subagent",
+                        "name": "x-thinwedge-subagent",
                         "value": "collab_spawn"
                     }
                 ],

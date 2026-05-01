@@ -34,7 +34,7 @@ use thinwedge_api::ResponseEvent;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::ReviewDecision;
 use thinwedge_protocol::protocol::SandboxPolicy;
@@ -65,7 +65,6 @@ const RESPONSES_API_ENGINE_SERVICE_TBT_FIELD: &str = "engine_service_tbt_across_
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthEnvTelemetryMetadata {
-    pub openai_api_key_env_present: bool,
     pub thinwedge_api_key_env_present: bool,
     pub thinwedge_api_key_env_enabled: bool,
     pub provider_env_key_name: Option<String>,
@@ -347,7 +346,6 @@ impl SessionTelemetry {
             common: {
                 event.name = "thinwedge.conversation_starts",
                 provider_name = %provider_name,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
                 auth.env_thinwedge_api_key_present = self.metadata.auth_env.thinwedge_api_key_env_present,
                 auth.env_thinwedge_api_key_enabled = self.metadata.auth_env.thinwedge_api_key_env_enabled,
                 auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),
@@ -451,7 +449,6 @@ impl SessionTelemetry {
                 auth.recovery_mode = recovery_mode,
                 auth.recovery_phase = recovery_phase,
                 endpoint = endpoint,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
                 auth.env_thinwedge_api_key_present = self.metadata.auth_env.thinwedge_api_key_env_present,
                 auth.env_thinwedge_api_key_enabled = self.metadata.auth_env.thinwedge_api_key_env_enabled,
                 auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),
@@ -504,7 +501,6 @@ impl SessionTelemetry {
                 auth.recovery_mode = recovery_mode,
                 auth.recovery_phase = recovery_phase,
                 endpoint = endpoint,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
                 auth.env_thinwedge_api_key_present = self.metadata.auth_env.thinwedge_api_key_env_present,
                 auth.env_thinwedge_api_key_enabled = self.metadata.auth_env.thinwedge_api_key_env_enabled,
                 auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),
@@ -545,7 +541,6 @@ impl SessionTelemetry {
                 duration_ms = %duration.as_millis(),
                 success = success_str,
                 error.message = error,
-                auth.env_openai_api_key_present = self.metadata.auth_env.openai_api_key_env_present,
                 auth.env_thinwedge_api_key_present = self.metadata.auth_env.thinwedge_api_key_env_present,
                 auth.env_thinwedge_api_key_enabled = self.metadata.auth_env.thinwedge_api_key_env_enabled,
                 auth.env_provider_key_name = self.metadata.auth_env.provider_env_key_name.as_deref(),

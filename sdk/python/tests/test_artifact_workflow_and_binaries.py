@@ -172,12 +172,12 @@ def test_runtime_distribution_name_is_consistent() -> None:
     from thinwedge_app_server import client as client_module
     from thinwedge_app_server import _version
 
-    assert script.SDK_DISTRIBUTION_NAME == "openai-thinwedge-app-server-sdk"
-    assert runtime_setup.SDK_PACKAGE_NAME == "openai-thinwedge-app-server-sdk"
-    assert _version.DISTRIBUTION_NAME == "openai-thinwedge-app-server-sdk"
-    assert script.RUNTIME_DISTRIBUTION_NAME == "openai-thinwedge-cli-bin"
-    assert runtime_setup.PACKAGE_NAME == "openai-thinwedge-cli-bin"
-    assert client_module.RUNTIME_PKG_NAME == "openai-thinwedge-cli-bin"
+    assert script.SDK_DISTRIBUTION_NAME == "thinwedge-thinwedge-app-server-sdk"
+    assert runtime_setup.SDK_PACKAGE_NAME == "thinwedge-thinwedge-app-server-sdk"
+    assert _version.DISTRIBUTION_NAME == "thinwedge-thinwedge-app-server-sdk"
+    assert script.RUNTIME_DISTRIBUTION_NAME == "thinwedge-thinwedge-cli-bin"
+    assert runtime_setup.PACKAGE_NAME == "thinwedge-thinwedge-cli-bin"
+    assert client_module.RUNTIME_PKG_NAME == "thinwedge-thinwedge-cli-bin"
     assert (
         "importlib.metadata.version('thinwedge-cli-bin')"
         not in (ROOT / "_runtime_setup.py").read_text()
@@ -214,7 +214,7 @@ def test_runtime_setup_uses_pep440_package_version_and_thinwedge_release_tags() 
     runtime_setup = _load_runtime_setup_module()
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
 
-    assert runtime_setup.PACKAGE_NAME == "openai-thinwedge-cli-bin"
+    assert runtime_setup.PACKAGE_NAME == "thinwedge-thinwedge-cli-bin"
     assert runtime_setup.pinned_runtime_version() == pyproject["project"]["version"]
     assert (
         runtime_setup._normalized_package_version("rust-v0.116.0-alpha.1")
@@ -270,7 +270,7 @@ def test_runtime_package_is_wheel_only_and_builds_platform_specific_wheels() -> 
         elif isinstance(node.value, ast.JoinedStr):
             build_data_assignments[node.targets[0].slice.value] = "joined-string"
 
-    assert pyproject["project"]["name"] == "openai-thinwedge-cli-bin"
+    assert pyproject["project"]["name"] == "thinwedge-thinwedge-cli-bin"
     assert pyproject["tool"]["hatch"]["build"]["targets"]["wheel"] == {
         "packages": ["src/thinwedge_cli_bin"],
         "include": ["src/thinwedge_cli_bin/bin/**"],
@@ -300,7 +300,7 @@ def test_stage_runtime_release_copies_binary_and_sets_version(tmp_path: Path) ->
 
     assert staged == tmp_path / "runtime-stage"
     assert script.staged_runtime_bin_path(staged).read_text() == "fake thinwedge\n"
-    assert 'name = "openai-thinwedge-cli-bin"' in (staged / "pyproject.toml").read_text()
+    assert 'name = "thinwedge-thinwedge-cli-bin"' in (staged / "pyproject.toml").read_text()
     assert 'version = "1.2.3"' in (staged / "pyproject.toml").read_text()
 
 
@@ -358,9 +358,9 @@ def test_stage_sdk_release_injects_exact_runtime_pin(tmp_path: Path) -> None:
     )
 
     pyproject = (staged / "pyproject.toml").read_text()
-    assert 'name = "openai-thinwedge-app-server-sdk"' in pyproject
+    assert 'name = "thinwedge-thinwedge-app-server-sdk"' in pyproject
     assert 'version = "0.116.0a1"' in pyproject
-    assert '"openai-thinwedge-cli-bin==0.116.0a1"' in pyproject
+    assert '"thinwedge-thinwedge-cli-bin==0.116.0a1"' in pyproject
     assert (
         '__version__ = "0.116.0a1"'
         not in (staged / "src" / "thinwedge_app_server" / "__init__.py").read_text()
@@ -408,7 +408,7 @@ def test_staged_sdk_and_runtime_versions_match(tmp_path: Path) -> None:
     )
     assert sdk_pyproject["project"]["dependencies"] == [
         "pydantic>=2.12",
-        "openai-thinwedge-cli-bin==0.116.0a1",
+        "thinwedge-thinwedge-cli-bin==0.116.0a1",
     ]
 
 

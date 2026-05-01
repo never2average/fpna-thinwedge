@@ -265,7 +265,7 @@ const MULTI_AGENT_ENABLE_YES: &str = "Yes, enable";
 const MULTI_AGENT_ENABLE_NO: &str = "Not now";
 const MULTI_AGENT_ENABLE_NOTICE: &str = "Subagents will be enabled in the next session.";
 const TRUSTED_ACCESS_FOR_CYBER_VERIFICATION_WARNING: &str = "Your conversations have multiple flags for possible cybersecurity risk. Responses may take longer because extra safety checks are on. To get authorized for security work, join the Trusted Access for Cyber program: https://chatgpt.com/cyber";
-const MEMORIES_DOC_URL: &str = "https://developers.openai.com/thinwedge/memories";
+const MEMORIES_DOC_URL: &str = "https://developers.thinwedge.com/thinwedge/memories";
 const MEMORIES_ENABLE_TITLE: &str = "Enable memories?";
 const MEMORIES_ENABLE_YES: &str = "Yes, enable";
 const MEMORIES_ENABLE_NO: &str = "Not now";
@@ -423,9 +423,9 @@ use crate::streaming::controller::StreamController;
 use chrono::Local;
 use thinwedge_file_search::FileMatch;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::InputModality;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::plan_tool::StepStatus;
 use thinwedge_protocol::plan_tool::UpdatePlanArgs;
 use thinwedge_protocol::protocol::AskForApproval;
@@ -436,7 +436,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 const USER_SHELL_COMMAND_HELP_TITLE: &str = "Prefix a command with ! to run it locally";
 const USER_SHELL_COMMAND_HELP_HINT: &str = "Example: !ls";
-const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
+const DEFAULT_THINWEDGE_BASE_URL: &str = "https://api.thinwedge.com/v1";
 const DEFAULT_STATUS_LINE_ITEMS: [&str; 2] = ["model-with-reasoning", "current-dir"];
 // Track information about an in-flight exec command.
 struct RunningCommand {
@@ -8535,7 +8535,7 @@ impl ChatWidget {
 
     #[cfg_attr(not(test), allow(dead_code))]
     fn should_prefetch_rate_limits(&self) -> bool {
-        self.config.model_provider.requires_openai_auth && self.has_chatgpt_account
+        self.config.model_provider.requires_thinwedge_auth && self.has_chatgpt_account
     }
 
     fn lower_cost_preset(&self) -> Option<ModelPreset> {
@@ -9015,15 +9015,15 @@ impl ChatWidget {
     }
 
     fn model_menu_warning_line(&self) -> Option<Line<'static>> {
-        let base_url = self.custom_openai_base_url()?;
+        let base_url = self.custom_thinwedge_base_url()?;
         let warning = format!(
-            "Warning: OpenAI base URL is overridden to {base_url}. Selecting models may not be supported or work properly."
+            "Warning: ThinWedge base URL is overridden to {base_url}. Selecting models may not be supported or work properly."
         );
         Some(Line::from(warning.red()))
     }
 
-    fn custom_openai_base_url(&self) -> Option<String> {
-        if !self.config.model_provider.is_openai() {
+    fn custom_thinwedge_base_url(&self) -> Option<String> {
+        if !self.config.model_provider.is_thinwedge() {
             return None;
         }
 
@@ -9034,7 +9034,7 @@ impl ChatWidget {
         }
 
         let normalized = trimmed.trim_end_matches('/');
-        if normalized == DEFAULT_OPENAI_BASE_URL {
+        if normalized == DEFAULT_THINWEDGE_BASE_URL {
             return None;
         }
 
@@ -10199,7 +10199,7 @@ impl ChatWidget {
             header.push(*Box::new(
                 Paragraph::new(vec![
                     line!["Agent mode on Windows uses an experimental sandbox to limit network and filesystem access.".bold()],
-                    line!["Learn more: https://developers.openai.com/thinwedge/windows"],
+                    line!["Learn more: https://developers.thinwedge.com/thinwedge/windows"],
                 ])
                 .wrap(Wrap { trim: false }),
             ));
@@ -10248,7 +10248,7 @@ impl ChatWidget {
         let mut header = ColumnRenderable::new();
         header.push(*Box::new(
             Paragraph::new(vec![
-                line!["Set up the ThinWedge agent sandbox to protect your files and control network access. Learn more <https://developers.openai.com/thinwedge/windows>"],
+                line!["Set up the ThinWedge agent sandbox to protect your files and control network access. Learn more <https://developers.thinwedge.com/thinwedge/windows>"],
             ])
             .wrap(Wrap { trim: false }),
         ));
@@ -10331,7 +10331,7 @@ impl ChatWidget {
             "You can still use ThinWedge in a non-admin sandbox. It carries greater risk if prompt injected."
         ]);
         lines.push(line![
-            "Learn more <https://developers.openai.com/thinwedge/windows>"
+            "Learn more <https://developers.thinwedge.com/thinwedge/windows>"
         ]);
 
         let mut header = ColumnRenderable::new();

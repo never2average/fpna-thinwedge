@@ -7,8 +7,8 @@ use thinwedge_api::RawMemoryMetadata as ApiRawMemoryMetadata;
 use thinwedge_otel::SessionTelemetry;
 use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use serde_json::Map;
 use serde_json::Value;
 

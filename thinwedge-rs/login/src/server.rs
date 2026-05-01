@@ -48,7 +48,7 @@ use tracing::error;
 use tracing::info;
 use tracing::warn;
 
-const DEFAULT_ISSUER: &str = "https://auth.openai.com";
+const DEFAULT_ISSUER: &str = "https://auth.thinwedge.com";
 const DEFAULT_PORT: u16 = 1455;
 static LOGIN_ERROR_PAGE_TEMPLATE: LazyLock<Template> = LazyLock::new(|| {
     Template::parse(include_str!("assets/error.html"))
@@ -778,7 +778,7 @@ pub(crate) async fn persist_tokens_async(
         }
         let auth = AuthDotJson {
             auth_mode: Some(AuthMode::Chatgpt),
-            openai_api_key: api_key,
+            thinwedge_api_key: api_key,
             tokens: Some(tokens),
             last_refresh: Some(Utc::now()),
             agent_identity: None,
@@ -816,9 +816,9 @@ fn compose_success_url(port: u16, issuer: &str, id_token: &str, access_token: &s
         .unwrap_or("");
 
     let platform_url = if issuer == DEFAULT_ISSUER {
-        "https://platform.openai.com"
+        "https://platform.thinwedge.com"
     } else {
-        "https://platform.api.openai.org"
+        "https://platform.api.thinwedge.org"
     };
 
     let mut params = vec![
@@ -850,12 +850,12 @@ fn jwt_auth_claims(jwt: &str) -> serde_json::Map<String, serde_json::Value> {
         Ok(bytes) => match serde_json::from_slice::<serde_json::Value>(&bytes) {
             Ok(mut v) => {
                 if let Some(obj) = v
-                    .get_mut("https://api.openai.com/auth")
+                    .get_mut("https://api.thinwedge.com/auth")
                     .and_then(|x| x.as_object_mut())
                 {
                     return obj.clone();
                 }
-                eprintln!("JWT payload missing expected 'https://api.openai.com/auth' object");
+                eprintln!("JWT payload missing expected 'https://api.thinwedge.com/auth' object");
             }
             Err(e) => {
                 eprintln!("Failed to parse JWT JSON payload: {e}");
@@ -1075,7 +1075,7 @@ pub(crate) async fn obtain_api_key(
             "grant_type={}&client_id={}&requested_token={}&subject_token={}&subject_token_type={}",
             urlencoding::encode("urn:ietf:params:oauth:grant-type:token-exchange"),
             urlencoding::encode(client_id),
-            urlencoding::encode("openai-api-key"),
+            urlencoding::encode("thinwedge-api-key"),
             urlencoding::encode(id_token),
             urlencoding::encode("urn:ietf:params:oauth:token-type:id_token")
         ))
@@ -1179,7 +1179,7 @@ mod tests {
     #[test]
     fn redact_sensitive_url_parts_preserves_safe_url_shape() {
         let mut url = url::Url::parse(
-            "https://user:pass@auth.openai.com/oauth/token?code=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback#frag",
+            "https://user:pass@auth.thinwedge.com/oauth/token?code=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback#frag",
         )
         .expect("valid url");
 
@@ -1187,7 +1187,7 @@ mod tests {
 
         assert_eq!(
             url.as_str(),
-            "https://auth.openai.com/oauth/token?code=%3Credacted%3E&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
+            "https://auth.thinwedge.com/oauth/token?code=%3Credacted%3E&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
         );
     }
 

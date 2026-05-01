@@ -5,7 +5,7 @@ use chrono::Utc;
 #[cfg(test)]
 use thinwedge_protocol::ThreadId;
 #[cfg(test)]
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 #[cfg(test)]
 use thinwedge_protocol::protocol::AskForApproval;
 #[cfg(test)]

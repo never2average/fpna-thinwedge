@@ -53,7 +53,7 @@ async fn responses_mode_stream_cli() {
         .arg(&repo_root)
         .arg("hello?");
     cmd.env("THINWEDGE_HOME", home.path())
-        .env("OPENAI_API_KEY", "dummy");
+        .env("THINWEDGE_API_KEY", "dummy");
 
     let output = cmd.output().unwrap();
     println!("Status: {}", output.status);
@@ -89,9 +89,9 @@ async fn responses_mode_stream_cli() {
     // assert!(page.items[0].created_at.is_some(), "missing created_at");
 }
 
-/// Ensures `openai_base_url` config override routes built-in openai provider requests.
+/// Ensures `thinwedge_base_url` config override routes built-in thinwedge provider requests.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
+async fn responses_mode_stream_cli_supports_thinwedge_base_url_config_override() {
     skip_if_no_network!();
 
     let server = MockServer::start().await;
@@ -110,12 +110,12 @@ async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg(format!("openai_base_url=\"{}/v1\"", server.uri()))
+        .arg(format!("thinwedge_base_url=\"{}/v1\"", server.uri()))
         .arg("-C")
         .arg(&repo_root)
         .arg("hello?");
     cmd.env("THINWEDGE_HOME", home.path())
-        .env("OPENAI_API_KEY", "dummy");
+        .env("THINWEDGE_API_KEY", "dummy");
 
     let output = cmd.output().unwrap();
     assert!(output.status.success());
@@ -126,7 +126,7 @@ async fn responses_mode_stream_cli_supports_openai_base_url_config_override() {
 
 /// Verify that passing `-c model_instructions_file=...` to the CLI
 /// overrides the built-in base instructions by inspecting the request body
-/// received by a mock OpenAI Responses endpoint.
+/// received by a mock ThinWedge Responses endpoint.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn exec_cli_applies_model_instructions_file() {
     skip_if_no_network!();
@@ -171,7 +171,7 @@ async fn exec_cli_applies_model_instructions_file() {
         .arg(&repo_root)
         .arg("hello?\n");
     cmd.env("THINWEDGE_HOME", home.path())
-        .env("OPENAI_API_KEY", "dummy");
+        .env("THINWEDGE_API_KEY", "dummy");
 
     let output = cmd.output().unwrap();
     println!("Status: {}", output.status);
@@ -241,7 +241,7 @@ async fn exec_cli_profile_applies_model_instructions_file() {
         .arg(&repo_root)
         .arg("hello?\n");
     cmd.env("THINWEDGE_HOME", home.path())
-        .env("OPENAI_API_KEY", "dummy");
+        .env("THINWEDGE_API_KEY", "dummy");
 
     let output = cmd.output().unwrap();
     println!("Status: {}", output.status);
@@ -281,12 +281,12 @@ async fn responses_api_stream_cli() {
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg("openai_base_url=\"http://unused.local\"")
+        .arg("thinwedge_base_url=\"http://unused.local\"")
         .arg("-C")
         .arg(&repo_root)
         .arg("hello?");
     cmd.env("THINWEDGE_HOME", home.path())
-        .env("OPENAI_API_KEY", "dummy")
+        .env("THINWEDGE_API_KEY", "dummy")
         .env("THINWEDGE_RS_SSE_FIXTURE", fixture);
 
     let output = cmd.output().unwrap();
@@ -318,7 +318,7 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     cmd.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg("openai_base_url=\"http://unused.local\"")
+        .arg("thinwedge_base_url=\"http://unused.local\"")
         .arg("-C")
         .arg(&repo_root)
         .arg(&prompt);
@@ -439,14 +439,14 @@ async fn integration_creates_and_checks_session_file() -> anyhow::Result<()> {
     cmd2.arg("exec")
         .arg("--skip-git-repo-check")
         .arg("-c")
-        .arg("openai_base_url=\"http://unused.local\"")
+        .arg("thinwedge_base_url=\"http://unused.local\"")
         .arg("-C")
         .arg(&repo_root)
         .arg(&prompt2)
         .arg("resume")
         .arg("--last");
     cmd2.env("THINWEDGE_HOME", home.path())
-        .env("OPENAI_API_KEY", "dummy")
+        .env("THINWEDGE_API_KEY", "dummy")
         .env("THINWEDGE_RS_SSE_FIXTURE", &fixture);
 
     let output2 = cmd2.output().unwrap();

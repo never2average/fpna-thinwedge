@@ -18,8 +18,8 @@ use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_models_manager::test_support::construct_model_info_offline_for_tests;
 use thinwedge_models_manager::test_support::get_model_offline_for_tests;
 use thinwedge_protocol::config_types::CollaborationModeMask;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
 use once_cell::sync::Lazy;
 
 use crate::ThreadManager;

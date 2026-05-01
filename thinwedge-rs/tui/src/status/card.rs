@@ -11,7 +11,7 @@ use thinwedge_model_provider_info::WireApi;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::account::PlanType;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
@@ -685,10 +685,10 @@ fn format_model_provider(config: &Config) -> Option<String> {
         name
     };
     let base_url = provider.base_url.as_deref().and_then(sanitize_base_url);
-    let is_default_openai = provider.is_openai() && base_url.is_none();
+    let is_default_thinwedge = provider.is_thinwedge() && base_url.is_none();
     let is_default_openrouter =
         provider.is_openrouter() && base_url == Some(OPENROUTER_DEFAULT_BASE_URL.to_string());
-    if is_default_openai || is_default_openrouter {
+    if is_default_thinwedge || is_default_openrouter {
         return None;
     }
 

@@ -821,7 +821,7 @@ fn maybe_wrap_shell_lc_with_snapshot_does_not_embed_override_values_in_argv() {
     let snapshot_path = dir.path().join("snapshot.sh");
     std::fs::write(
         &snapshot_path,
-        "# Snapshot file\nexport OPENAI_API_KEY='snapshot-value'\n",
+        "# Snapshot file\nexport THINWEDGE_API_KEY='snapshot-value'\n",
     )
     .expect("write snapshot");
     let session_shell = shell_with_snapshot(
@@ -833,10 +833,10 @@ fn maybe_wrap_shell_lc_with_snapshot_does_not_embed_override_values_in_argv() {
     let command = vec![
         "/bin/bash".to_string(),
         "-lc".to_string(),
-        "printf '%s' \"$OPENAI_API_KEY\"".to_string(),
+        "printf '%s' \"$THINWEDGE_API_KEY\"".to_string(),
     ];
     let explicit_env_overrides = HashMap::from([(
-        "OPENAI_API_KEY".to_string(),
+        "THINWEDGE_API_KEY".to_string(),
         "super-secret-value".to_string(),
     )]);
     let rewritten = maybe_wrap_shell_lc_with_snapshot(
@@ -845,7 +845,7 @@ fn maybe_wrap_shell_lc_with_snapshot_does_not_embed_override_values_in_argv() {
         &dir.path().abs(),
         &explicit_env_overrides,
         &HashMap::from([(
-            "OPENAI_API_KEY".to_string(),
+            "THINWEDGE_API_KEY".to_string(),
             "super-secret-value".to_string(),
         )]),
     );
@@ -853,7 +853,7 @@ fn maybe_wrap_shell_lc_with_snapshot_does_not_embed_override_values_in_argv() {
     assert!(!rewritten[2].contains("super-secret-value"));
     let output = Command::new(&rewritten[0])
         .args(&rewritten[1..])
-        .env("OPENAI_API_KEY", "super-secret-value")
+        .env("THINWEDGE_API_KEY", "super-secret-value")
         .output()
         .expect("run rewritten command");
     assert!(output.status.success(), "command failed: {output:?}");

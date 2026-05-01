@@ -28,7 +28,7 @@ use thinwedge_app_server_protocol::PluginMarketplaceEntry;
 use thinwedge_app_server_protocol::PluginReadResponse;
 use thinwedge_app_server_protocol::PluginSummary;
 use thinwedge_app_server_protocol::PluginUninstallResponse;
-use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use thinwedge_features::Feature;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use ratatui::buffer::Buffer;
@@ -45,7 +45,7 @@ const PLUGINS_SELECTION_VIEW_ID: &str = "plugins-selection";
 const ALL_PLUGINS_TAB_ID: &str = "all-plugins";
 const INSTALLED_PLUGINS_TAB_ID: &str = "installed-plugins";
 const MARKETPLACE_TAB_ID_PREFIX: &str = "marketplace:";
-const OPENAI_CURATED_TAB_ID: &str = "marketplace:openai-curated";
+const THINWEDGE_CURATED_TAB_ID: &str = "marketplace:thinwedge-curated";
 const ADD_MARKETPLACE_TAB_ID: &str = "add-marketplace";
 const PLUGIN_ROW_PREFIX_WIDTH: usize = 6;
 const LOADING_ANIMATION_DELAY: Duration = Duration::from_secs(1);
@@ -111,7 +111,7 @@ impl Renderable for DelayedLoadingHeader {
     }
 }
 
-const APPS_HELP_ARTICLE_URL: &str = "https://help.openai.com/en/articles/11487775-apps-in-chatgpt";
+const APPS_HELP_ARTICLE_URL: &str = "https://help.thinwedge.com/en/articles/11487775-apps-in-chatgpt";
 
 struct PluginDisclosureLine {
     line: Line<'static>,
@@ -1018,7 +1018,7 @@ impl ChatWidget {
 
         let curated_marketplace = marketplaces
             .iter()
-            .find(|marketplace| marketplace.name == OPENAI_CURATED_MARKETPLACE_NAME)
+            .find(|marketplace| marketplace.name == THINWEDGE_CURATED_MARKETPLACE_NAME)
             .copied();
         let curated_entries = curated_marketplace
             .map(|marketplace| plugin_entries_for_marketplaces([marketplace]))
@@ -1029,24 +1029,24 @@ impl ChatWidget {
             .filter(|(_, plugin, _)| plugin.installed)
             .count();
         tabs.push(SelectionTab {
-            id: OPENAI_CURATED_TAB_ID.to_string(),
-            label: "OpenAI Curated".to_string(),
+            id: THINWEDGE_CURATED_TAB_ID.to_string(),
+            label: "ThinWedge Curated".to_string(),
             header: plugins_header(
-                "OpenAI Curated marketplace.".to_string(),
-                format!("Installed {curated_installed} of {curated_total} OpenAI Curated plugins."),
+                "ThinWedge Curated marketplace.".to_string(),
+                format!("Installed {curated_installed} of {curated_total} ThinWedge Curated plugins."),
             ),
             items: self.plugin_selection_items(
                 curated_entries,
                 /*include_marketplace_names*/ false,
-                "No OpenAI Curated plugins available",
-                "No OpenAI Curated plugins available.",
+                "No ThinWedge Curated plugins available",
+                "No ThinWedge Curated plugins available.",
             ),
         });
 
         let mut additional_marketplaces: Vec<&PluginMarketplaceEntry> = marketplaces
             .iter()
             .copied()
-            .filter(|marketplace| marketplace.name != OPENAI_CURATED_MARKETPLACE_NAME)
+            .filter(|marketplace| marketplace.name != THINWEDGE_CURATED_MARKETPLACE_NAME)
             .collect();
         additional_marketplaces.sort_by(|left, right| {
             marketplace_display_name(left)

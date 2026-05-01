@@ -5,5 +5,5 @@ fn describe(prefix: &str, suffix: &str) {
 }
 
 fn main() {
-    describe("openai", r"https://api.openai.com/v1");
+    describe("thinwedge", r"https://api.thinwedge.com/v1");
 }

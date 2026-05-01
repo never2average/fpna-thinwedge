@@ -25,8 +25,8 @@ fn sample_model(
         slug: id.to_string(),
         model_creator: ArtificialAnalysisCreator {
             id: "creator-1".to_string(),
-            name: "OpenAI".to_string(),
-            slug: Some("openai".to_string()),
+            name: "ThinWedge".to_string(),
+            slug: Some("thinwedge".to_string()),
         },
         pricing: Some(ArtificialAnalysisPricing {
             price_1m_blended_3_to_1: Some(price),

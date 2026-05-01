@@ -1,9 +1,9 @@
 use super::*;
 use crate::JsonSchemaPrimitiveType;
 use crate::JsonSchemaType;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ReasoningEffort;
-use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 

@@ -2,7 +2,7 @@ use super::*;
 use thinwedge_config::types::AppToolApproval;
 use thinwedge_config::types::McpServerToolConfig;
 use thinwedge_config::types::McpServerTransportConfig;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use pretty_assertions::assert_eq;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;

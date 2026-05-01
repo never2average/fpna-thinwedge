@@ -41,7 +41,7 @@
     "THINWEDGE_UNSAFE_ALLOW_NO_SANDBOX": "1",
     "THINWEDGE_ENABLE_FIREWALL": "1",
     "THINWEDGE_INCLUDE_GITHUB_META_RANGES": "1",
-    "OPENAI_ALLOWED_DOMAINS": "api.openai.com auth.openai.com github.com api.github.com codeload.github.com raw.githubusercontent.com objects.githubusercontent.com crates.io index.crates.io static.crates.io static.rust-lang.org registry.npmjs.org pypi.org files.pythonhosted.org",
+    "THINWEDGE_ALLOWED_DOMAINS": "api.thinwedge.com auth.thinwedge.com github.com api.github.com codeload.github.com raw.githubusercontent.com objects.githubusercontent.com crates.io index.crates.io static.crates.io static.rust-lang.org registry.npmjs.org pypi.org files.pythonhosted.org",
     "CARGO_TARGET_DIR": "/workspace/.cache/cargo-target",
     "GIT_CONFIG_GLOBAL": "/home/vscode/.gitconfig.local",
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",
@@ -49,7 +49,7 @@
     "PIP_DISABLE_PIP_VERSION_CHECK": "1"
   },
   "remoteEnv": {
-    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}"
+    "THINWEDGE_API_KEY": "${localEnv:THINWEDGE_API_KEY}"
   },
   "postCreateCommand": "python3 /opt/post_install.py",
   "postStartCommand": "bash /opt/post_start.sh",
@@ -72,7 +72,7 @@
         "files.trimFinalNewlines": true
       },
       "extensions": [
-        "openai.chatgpt",
+        "thinwedge.chatgpt",
         "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml",
         "vadimcn.vscode-lldb",

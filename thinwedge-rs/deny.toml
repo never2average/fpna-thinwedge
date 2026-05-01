@@ -278,8 +278,8 @@ allow-git = [
     "https://github.com/juberti-oai/rust-sdks.git",
     "https://github.com/nornagon/crossterm",
     "https://github.com/nornagon/ratatui",
-    "https://github.com/openai-oss-forks/tokio-tungstenite",
-    "https://github.com/openai-oss-forks/tungstenite-rs",
+    "https://github.com/thinwedge-oss-forks/tokio-tungstenite",
+    "https://github.com/thinwedge-oss-forks/tungstenite-rs",
 ]
 
 [sources.allow-org]

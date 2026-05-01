@@ -11,16 +11,16 @@ use tokio::fs::File;
 use tokio::time::Instant;
 use tokio_util::io::ReaderStream;
 
-pub const OPENAI_FILE_URI_PREFIX: &str = "sediment://";
-pub const OPENAI_FILE_UPLOAD_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
+pub const THINWEDGE_FILE_URI_PREFIX: &str = "sediment://";
+pub const THINWEDGE_FILE_UPLOAD_LIMIT_BYTES: u64 = 512 * 1024 * 1024;
 
-const OPENAI_FILE_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
-const OPENAI_FILE_FINALIZE_TIMEOUT: Duration = Duration::from_secs(30);
-const OPENAI_FILE_FINALIZE_RETRY_DELAY: Duration = Duration::from_millis(250);
-const OPENAI_FILE_USE_CASE: &str = "thinwedge";
+const THINWEDGE_FILE_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const THINWEDGE_FILE_FINALIZE_TIMEOUT: Duration = Duration::from_secs(30);
+const THINWEDGE_FILE_FINALIZE_RETRY_DELAY: Duration = Duration::from_millis(250);
+const THINWEDGE_FILE_USE_CASE: &str = "thinwedge";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UploadedOpenAiFile {
+pub struct UploadedThinWedgeFile {
     pub file_id: String,
     pub uri: String,
     pub download_url: String,
@@ -31,7 +31,7 @@ pub struct UploadedOpenAiFile {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum OpenAiFileError {
+pub enum ThinWedgeFileError {
     #[error("path `{path}` does not exist")]
     MissingPath { path: PathBuf },
     #[error("path `{path}` is not a file")]
@@ -50,27 +50,27 @@ pub enum OpenAiFileError {
         size_bytes: u64,
         limit_bytes: u64,
     },
-    #[error("failed to send OpenAI file request to {url}: {source}")]
+    #[error("failed to send ThinWedge file request to {url}: {source}")]
     Request {
         url: String,
         #[source]
         source: reqwest::Error,
     },
-    #[error("OpenAI file request to {url} failed with status {status}: {body}")]
+    #[error("ThinWedge file request to {url} failed with status {status}: {body}")]
     UnexpectedStatus {
         url: String,
         status: StatusCode,
         body: String,
     },
-    #[error("failed to parse OpenAI file response from {url}: {source}")]
+    #[error("failed to parse ThinWedge file response from {url}: {source}")]
     Decode {
         url: String,
         #[source]
         source: serde_json::Error,
     },
-    #[error("OpenAI file upload for `{file_id}` is not ready yet")]
+    #[error("ThinWedge file upload for `{file_id}` is not ready yet")]
     UploadNotReady { file_id: String },
-    #[error("OpenAI file upload for `{file_id}` failed: {message}")]
+    #[error("ThinWedge file upload for `{file_id}` failed: {message}")]
     UploadFailed { file_id: String, message: String },
 }
 
@@ -90,36 +90,36 @@ struct DownloadLinkResponse {
     error_message: Option<String>,
 }
 
-pub fn openai_file_uri(file_id: &str) -> String {
-    format!("{OPENAI_FILE_URI_PREFIX}{file_id}")
+pub fn thinwedge_file_uri(file_id: &str) -> String {
+    format!("{THINWEDGE_FILE_URI_PREFIX}{file_id}")
 }
 
 pub async fn upload_local_file(
     base_url: &str,
     auth: &dyn AuthProvider,
     path: &Path,
-) -> Result<UploadedOpenAiFile, OpenAiFileError> {
+) -> Result<UploadedThinWedgeFile, ThinWedgeFileError> {
     let metadata = tokio::fs::metadata(path)
         .await
         .map_err(|source| match source.kind() {
-            std::io::ErrorKind::NotFound => OpenAiFileError::MissingPath {
+            std::io::ErrorKind::NotFound => ThinWedgeFileError::MissingPath {
                 path: path.to_path_buf(),
             },
-            _ => OpenAiFileError::ReadFile {
+            _ => ThinWedgeFileError::ReadFile {
                 path: path.to_path_buf(),
                 source,
             },
         })?;
     if !metadata.is_file() {
-        return Err(OpenAiFileError::NotAFile {
+        return Err(ThinWedgeFileError::NotAFile {
             path: path.to_path_buf(),
         });
     }
-    if metadata.len() > OPENAI_FILE_UPLOAD_LIMIT_BYTES {
-        return Err(OpenAiFileError::FileTooLarge {
+    if metadata.len() > THINWEDGE_FILE_UPLOAD_LIMIT_BYTES {
+        return Err(ThinWedgeFileError::FileTooLarge {
             path: path.to_path_buf(),
             size_bytes: metadata.len(),
-            limit_bytes: OPENAI_FILE_UPLOAD_LIMIT_BYTES,
+            limit_bytes: THINWEDGE_FILE_UPLOAD_LIMIT_BYTES,
         });
     }
 
@@ -133,51 +133,51 @@ pub async fn upload_local_file(
         .json(&serde_json::json!({
             "file_name": file_name,
             "file_size": metadata.len(),
-            "use_case": OPENAI_FILE_USE_CASE,
+            "use_case": THINWEDGE_FILE_USE_CASE,
         }))
         .send()
         .await
-        .map_err(|source| OpenAiFileError::Request {
+        .map_err(|source| ThinWedgeFileError::Request {
             url: create_url.clone(),
             source,
         })?;
     let create_status = create_response.status();
     let create_body = create_response.text().await.unwrap_or_default();
     if !create_status.is_success() {
-        return Err(OpenAiFileError::UnexpectedStatus {
+        return Err(ThinWedgeFileError::UnexpectedStatus {
             url: create_url,
             status: create_status,
             body: create_body,
         });
     }
     let create_payload: CreateFileResponse =
-        serde_json::from_str(&create_body).map_err(|source| OpenAiFileError::Decode {
+        serde_json::from_str(&create_body).map_err(|source| ThinWedgeFileError::Decode {
             url: create_url.clone(),
             source,
         })?;
 
     let upload_file = File::open(path)
         .await
-        .map_err(|source| OpenAiFileError::ReadFile {
+        .map_err(|source| ThinWedgeFileError::ReadFile {
             path: path.to_path_buf(),
             source,
         })?;
     let upload_response = build_reqwest_client()
         .put(&create_payload.upload_url)
-        .timeout(OPENAI_FILE_REQUEST_TIMEOUT)
+        .timeout(THINWEDGE_FILE_REQUEST_TIMEOUT)
         .header("x-ms-blob-type", "BlockBlob")
         .header(CONTENT_LENGTH, metadata.len())
         .body(reqwest::Body::wrap_stream(ReaderStream::new(upload_file)))
         .send()
         .await
-        .map_err(|source| OpenAiFileError::Request {
+        .map_err(|source| ThinWedgeFileError::Request {
             url: create_payload.upload_url.clone(),
             source,
         })?;
     let upload_status = upload_response.status();
     let upload_body = upload_response.text().await.unwrap_or_default();
     if !upload_status.is_success() {
-        return Err(OpenAiFileError::UnexpectedStatus {
+        return Err(ThinWedgeFileError::UnexpectedStatus {
             url: create_payload.upload_url.clone(),
             status: upload_status,
             body: upload_body,
@@ -195,32 +195,32 @@ pub async fn upload_local_file(
             .json(&serde_json::json!({}))
             .send()
             .await
-            .map_err(|source| OpenAiFileError::Request {
+            .map_err(|source| ThinWedgeFileError::Request {
                 url: finalize_url.clone(),
                 source,
             })?;
         let finalize_status = finalize_response.status();
         let finalize_body = finalize_response.text().await.unwrap_or_default();
         if !finalize_status.is_success() {
-            return Err(OpenAiFileError::UnexpectedStatus {
+            return Err(ThinWedgeFileError::UnexpectedStatus {
                 url: finalize_url.clone(),
                 status: finalize_status,
                 body: finalize_body,
             });
         }
         let finalize_payload: DownloadLinkResponse =
-            serde_json::from_str(&finalize_body).map_err(|source| OpenAiFileError::Decode {
+            serde_json::from_str(&finalize_body).map_err(|source| ThinWedgeFileError::Decode {
                 url: finalize_url.clone(),
                 source,
             })?;
 
         match finalize_payload.status.as_str() {
             "success" => {
-                return Ok(UploadedOpenAiFile {
+                return Ok(UploadedThinWedgeFile {
                     file_id: create_payload.file_id.clone(),
-                    uri: openai_file_uri(&create_payload.file_id),
+                    uri: thinwedge_file_uri(&create_payload.file_id),
                     download_url: finalize_payload.download_url.ok_or_else(|| {
-                        OpenAiFileError::UploadFailed {
+                        ThinWedgeFileError::UploadFailed {
                             file_id: create_payload.file_id.clone(),
                             message: "missing download_url".to_string(),
                         }
@@ -232,15 +232,15 @@ pub async fn upload_local_file(
                 });
             }
             "retry" => {
-                if finalize_started_at.elapsed() >= OPENAI_FILE_FINALIZE_TIMEOUT {
-                    return Err(OpenAiFileError::UploadNotReady {
+                if finalize_started_at.elapsed() >= THINWEDGE_FILE_FINALIZE_TIMEOUT {
+                    return Err(ThinWedgeFileError::UploadNotReady {
                         file_id: create_payload.file_id,
                     });
                 }
-                tokio::time::sleep(OPENAI_FILE_FINALIZE_RETRY_DELAY).await;
+                tokio::time::sleep(THINWEDGE_FILE_FINALIZE_RETRY_DELAY).await;
             }
             _ => {
-                return Err(OpenAiFileError::UploadFailed {
+                return Err(ThinWedgeFileError::UploadFailed {
                     file_id: create_payload.file_id,
                     message: finalize_payload
                         .error_message
@@ -262,13 +262,13 @@ fn authorized_request(
     let client = build_reqwest_client();
     client
         .request(method, url)
-        .timeout(OPENAI_FILE_REQUEST_TIMEOUT)
+        .timeout(THINWEDGE_FILE_REQUEST_TIMEOUT)
         .headers(headers)
 }
 
 fn build_reqwest_client() -> reqwest::Client {
     build_reqwest_client_with_custom_ca(reqwest::Client::builder()).unwrap_or_else(|error| {
-        tracing::warn!(error = %error, "failed to build OpenAI file upload client");
+        tracing::warn!(error = %error, "failed to build ThinWedge file upload client");
         reqwest::Client::new()
     })
 }

@@ -2039,7 +2039,7 @@ mod tests {
                     "tool_type": "plugin",
                     "suggest_type": "install",
                     "suggest_reason": "Install the Slack plugin to search messages",
-                    "tool_id": "slack@openai-curated",
+                    "tool_id": "slack@thinwedge-curated",
                     "tool_name": "Slack",
                 })),
             ),
@@ -2052,7 +2052,7 @@ mod tests {
                 tool_type: ToolSuggestionToolType::Plugin,
                 suggest_type: ToolSuggestionType::Install,
                 suggest_reason: "Install the Slack plugin to search messages".to_string(),
-                tool_id: "slack@openai-curated".to_string(),
+                tool_id: "slack@thinwedge-curated".to_string(),
                 tool_name: "Slack".to_string(),
                 install_url: None,
             })

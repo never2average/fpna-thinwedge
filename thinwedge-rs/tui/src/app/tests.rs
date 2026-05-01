@@ -4823,7 +4823,7 @@ async fn thread_rollback_response_discards_queued_active_thread_events() {
                 forked_from_id: None,
                 preview: String::new(),
                 ephemeral: false,
-                model_provider: "openai".to_string(),
+                model_provider: "thinwedge".to_string(),
                 created_at: 0,
                 updated_at: 0,
                 status: thinwedge_app_server_protocol::ThreadStatus::Idle,

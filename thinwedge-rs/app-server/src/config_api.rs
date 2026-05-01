@@ -555,7 +555,7 @@ mod tests {
                 domains: Some(CoreNetworkDomainPermissionsToml {
                     entries: std::collections::BTreeMap::from([
                         (
-                            "api.openai.com".to_string(),
+                            "api.thinwedge.com".to_string(),
                             CoreNetworkDomainPermissionToml::Allow,
                         ),
                         (
@@ -642,11 +642,11 @@ mod tests {
                 dangerously_allow_non_loopback_proxy: Some(false),
                 dangerously_allow_all_unix_sockets: Some(true),
                 domains: Some(std::collections::BTreeMap::from([
-                    ("api.openai.com".to_string(), NetworkDomainPermission::Allow,),
+                    ("api.thinwedge.com".to_string(), NetworkDomainPermission::Allow,),
                     ("example.com".to_string(), NetworkDomainPermission::Deny),
                 ])),
                 managed_allowed_domains_only: Some(false),
-                allowed_domains: Some(vec!["api.openai.com".to_string()]),
+                allowed_domains: Some(vec!["api.thinwedge.com".to_string()]),
                 denied_domains: Some(vec!["example.com".to_string()]),
                 unix_sockets: Some(std::collections::BTreeMap::from([(
                     "/tmp/proxy.sock".to_string(),

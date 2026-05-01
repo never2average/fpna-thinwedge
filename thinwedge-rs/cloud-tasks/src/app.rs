@@ -7,7 +7,7 @@ pub struct EnvironmentRow {
     pub id: String,
     pub label: Option<String>,
     pub is_pinned: bool,
-    pub repo_hints: Option<String>, // e.g., "openai/thinwedge"
+    pub repo_hints: Option<String>, // e.g., "thinwedge/thinwedge"
 }
 
 #[derive(Clone, Debug, Default)]

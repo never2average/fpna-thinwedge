@@ -58,7 +58,7 @@ use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::WebSearchAction;
 use thinwedge_protocol::models::local_image_label_text;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::plan_tool::PlanItemArg;
 use thinwedge_protocol::plan_tool::StepStatus;
 use thinwedge_protocol::plan_tool::UpdatePlanArgs;
@@ -1984,7 +1984,7 @@ pub(crate) fn empty_mcp_output() -> PlainHistoryCell {
         "  • No MCP servers configured.".italic().into(),
         Line::from(vec![
             "    See the ".into(),
-            "\u{1b}]8;;https://developers.openai.com/thinwedge/mcp\u{7}MCP docs\u{1b}]8;;\u{7}"
+            "\u{1b}]8;;https://developers.thinwedge.com/thinwedge/mcp\u{7}MCP docs\u{1b}]8;;\u{7}"
                 .underlined(),
             " to configure them.".into(),
         ])

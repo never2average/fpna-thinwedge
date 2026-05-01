@@ -77,7 +77,7 @@ async fn auto_compaction_local_emits_started_and_completed_items() -> Result<()>
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*requires_thinwedge_auth*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;
@@ -162,7 +162,7 @@ async fn auto_compaction_remote_emits_started_and_completed_items() -> Result<()
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_id = start_thread(&mut mcp).await?;
@@ -211,7 +211,7 @@ async fn thread_compact_start_triggers_compaction_and_returns_empty_response() -
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*requires_thinwedge_auth*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;
@@ -261,7 +261,7 @@ async fn thread_compact_start_rejects_invalid_thread_id() -> Result<()> {
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*requires_thinwedge_auth*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;
@@ -297,7 +297,7 @@ async fn thread_compact_start_rejects_unknown_thread_id() -> Result<()> {
         &server.uri(),
         &BTreeMap::default(),
         AUTO_COMPACT_LIMIT,
-        /*requires_openai_auth*/ None,
+        /*requires_thinwedge_auth*/ None,
         "mock_provider",
         COMPACT_PROMPT,
     )?;

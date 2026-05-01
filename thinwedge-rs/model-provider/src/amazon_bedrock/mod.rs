@@ -16,7 +16,7 @@ use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_models_manager::manager::StaticModelsManager;
 use thinwedge_protocol::account::ProviderAccount;
 use thinwedge_protocol::error::Result;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 
 use crate::provider::ModelProvider;
 use crate::provider::ProviderAccountResult;
@@ -27,7 +27,7 @@ use auth::resolve_region;
 pub(crate) use catalog::static_model_catalog;
 use mantle::base_url;
 
-/// Runtime provider for Amazon Bedrock's OpenAI-compatible Mantle endpoint.
+/// Runtime provider for Amazon Bedrock's ThinWedge-compatible Mantle endpoint.
 #[derive(Clone, Debug)]
 pub(crate) struct AmazonBedrockModelProvider {
     pub(crate) info: ModelProviderInfo,
@@ -75,7 +75,7 @@ impl ModelProvider for AmazonBedrockModelProvider {
     fn account_state(&self) -> ProviderAccountResult {
         Ok(ProviderAccountState {
             account: Some(ProviderAccount::AmazonBedrock),
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
         })
     }
 
@@ -122,7 +122,7 @@ mod tests {
 
         assert_eq!(
             api_provider.base_url,
-            "https://bedrock-mantle.eu-central-1.api.aws/openai/v1"
+            "https://bedrock-mantle.eu-central-1.api.aws/thinwedge/v1"
         );
     }
 

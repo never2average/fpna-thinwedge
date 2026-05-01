@@ -111,7 +111,7 @@ async fn restricted_read_implicitly_allows_helper_executables() -> std::io::Resu
 fn network_toml_ignores_legacy_network_list_keys() {
     let parsed = toml::from_str::<NetworkToml>(
         r#"
-allowed_domains = ["openai.com"]
+allowed_domains = ["thinwedge.com"]
 "#,
     )
     .expect("legacy network list keys should be ignored");
@@ -124,7 +124,7 @@ fn network_permission_containers_project_allowed_and_denied_entries() {
     let domains = NetworkDomainPermissionsToml {
         entries: BTreeMap::from([
             (
-                "*.openai.com".to_string(),
+                "*.thinwedge.com".to_string(),
                 NetworkDomainPermissionToml::Allow,
             ),
             (
@@ -153,7 +153,7 @@ fn network_permission_containers_project_allowed_and_denied_entries() {
     assert_eq!(
         domains.allowed_domains(),
         Some(vec![
-            "*.openai.com".to_string(),
+            "*.thinwedge.com".to_string(),
             "api.example.com".to_string()
         ])
     );
@@ -254,7 +254,7 @@ fn profile_network_proxy_config_enables_proxy_for_proxy_policy() {
         enable_socks5: Some(false),
         domains: Some(NetworkDomainPermissionsToml {
             entries: BTreeMap::from([(
-                "openai.com".to_string(),
+                "thinwedge.com".to_string(),
                 NetworkDomainPermissionToml::Allow,
             )]),
         }),
@@ -268,7 +268,7 @@ fn profile_network_proxy_config_enables_proxy_for_proxy_policy() {
         config.network.domains,
         Some(thinwedge_network_proxy::NetworkDomainPermissions {
             entries: vec![thinwedge_network_proxy::NetworkDomainPermissionEntry {
-                pattern: "openai.com".to_string(),
+                pattern: "thinwedge.com".to_string(),
                 permission: thinwedge_network_proxy::NetworkDomainPermission::Allow,
             }],
         })

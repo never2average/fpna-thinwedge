@@ -58,7 +58,7 @@ async fn first_layer_config_error_from_entries(layers: &[ConfigLayerEntry]) -> O
 /// - cloud:    managed cloud requirements
 /// - admin:    managed preferences (*)
 /// - system    `/etc/thinwedge/requirements.toml` (Unix) or
-///   `%ProgramData%\OpenAI\ThinWedge\requirements.toml` (Windows)
+///   `%ProgramData%\ThinWedge\ThinWedge\requirements.toml` (Windows)
 ///
 /// For backwards compatibility, we also load from
 /// `managed_config.toml` and map it to `requirements.toml`.
@@ -67,7 +67,7 @@ async fn first_layer_config_error_from_entries(layers: &[ConfigLayerEntry]) -> O
 ///
 /// - admin:    managed preferences (*)
 /// - system    `/etc/thinwedge/config.toml` (Unix) or
-///   `%ProgramData%\OpenAI\ThinWedge\config.toml` (Windows)
+///   `%ProgramData%\ThinWedge\ThinWedge\config.toml` (Windows)
 /// - user      `${THINWEDGE_HOME}/config.toml`
 /// - cwd       `${PWD}/config.toml` (loaded but disabled when the directory is untrusted)
 /// - tree      parent directories up to root looking for `./.thinwedge/config.toml` (loaded but disabled when untrusted)
@@ -76,7 +76,7 @@ async fn first_layer_config_error_from_entries(layers: &[ConfigLayerEntry]) -> O
 ///
 /// (*) Only available on macOS via managed device profiles.
 ///
-/// See https://developers.openai.com/thinwedge/security for details.
+/// See https://developers.thinwedge.com/thinwedge/security for details.
 ///
 /// When loading the config stack for a thread, there should be a `cwd`
 /// associated with it such that `cwd` should be `Some(...)`. Only for
@@ -480,7 +480,7 @@ fn windows_thinwedge_system_dir() -> PathBuf {
         );
         PathBuf::from(DEFAULT_PROGRAM_DATA_DIR_WINDOWS)
     });
-    program_data.join("OpenAI").join("ThinWedge")
+    program_data.join("ThinWedge").join("ThinWedge")
 }
 
 #[cfg(windows)]
@@ -1140,7 +1140,7 @@ foo = "xyzzy"
     fn windows_system_requirements_toml_file_uses_expected_suffix() {
         let expected = windows_program_data_dir_from_known_folder()
             .unwrap_or_else(|_| PathBuf::from(DEFAULT_PROGRAM_DATA_DIR_WINDOWS))
-            .join("OpenAI")
+            .join("ThinWedge")
             .join("ThinWedge")
             .join("requirements.toml");
         assert_eq!(
@@ -1153,7 +1153,7 @@ foo = "xyzzy"
             windows_system_requirements_toml_file()
                 .expect("requirements.toml path")
                 .as_path()
-                .ends_with(Path::new("OpenAI").join("ThinWedge").join("requirements.toml"))
+                .ends_with(Path::new("ThinWedge").join("ThinWedge").join("requirements.toml"))
         );
     }
 
@@ -1162,7 +1162,7 @@ foo = "xyzzy"
     fn windows_system_config_toml_file_uses_expected_suffix() {
         let expected = windows_program_data_dir_from_known_folder()
             .unwrap_or_else(|_| PathBuf::from(DEFAULT_PROGRAM_DATA_DIR_WINDOWS))
-            .join("OpenAI")
+            .join("ThinWedge")
             .join("ThinWedge")
             .join("config.toml");
         assert_eq!(
@@ -1175,7 +1175,7 @@ foo = "xyzzy"
             windows_system_config_toml_file()
                 .expect("config.toml path")
                 .as_path()
-                .ends_with(Path::new("OpenAI").join("ThinWedge").join("config.toml"))
+                .ends_with(Path::new("ThinWedge").join("ThinWedge").join("config.toml"))
         );
     }
 }

@@ -1349,7 +1349,7 @@ mod tests {
                     id: request.id,
                     result: serde_json::to_value(GetAccountResponse {
                         account: None,
-                        requires_openai_auth: false,
+                        requires_thinwedge_auth: false,
                     })
                     .expect("response should serialize"),
                 }),
@@ -1392,7 +1392,7 @@ mod tests {
                     id: request.id,
                     result: serde_json::json!({
                         "account": null,
-                        "requiresOpenaiAuth": false,
+                        "requiresThinwedgeAuth": false,
                         "padding": padding,
                     }),
                 }),
@@ -1418,7 +1418,7 @@ mod tests {
             response,
             GetAccountResponse {
                 account: None,
-                requires_openai_auth: false,
+                requires_thinwedge_auth: false,
             }
         );
 
@@ -1506,7 +1506,7 @@ mod tests {
                     id: request.id,
                     result: serde_json::to_value(GetAccountResponse {
                         account: None,
-                        requires_openai_auth: false,
+                        requires_thinwedge_auth: false,
                     })
                     .expect("response should serialize"),
                 }),
@@ -1559,7 +1559,7 @@ mod tests {
             first_response,
             GetAccountResponse {
                 account: None,
-                requires_openai_auth: false,
+                requires_thinwedge_auth: false,
             }
         );
 

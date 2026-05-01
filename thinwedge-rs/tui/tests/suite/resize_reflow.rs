@@ -56,7 +56,7 @@ fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -> Resu
             .arg("--")
             .arg("env")
             .arg(format!("THINWEDGE_HOME={}", thinwedge_home.path().display()))
-            .arg("OPENAI_API_KEY=dummy")
+            .arg("THINWEDGE_API_KEY=dummy")
             .arg(format!("THINWEDGE_RS_SSE_FIXTURE={}", fixture.display()))
             .arg(thinwedge)
             .arg("-c")
@@ -225,7 +225,7 @@ fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()> {
             .arg("--")
             .arg("env")
             .arg(format!("THINWEDGE_HOME={}", thinwedge_home.path().display()))
-            .arg("OPENAI_API_KEY=dummy")
+            .arg("THINWEDGE_API_KEY=dummy")
             .arg(format!("THINWEDGE_RS_SSE_FIXTURE={}", fixture.display()))
             .arg(thinwedge)
             .arg("-c")
@@ -353,7 +353,7 @@ fn run_repeated_resize_smoke(terminal_resize_reflow_enabled: bool) -> Result<()>
             .arg("--")
             .arg("env")
             .arg(format!("THINWEDGE_HOME={}", thinwedge_home.path().display()))
-            .arg("OPENAI_API_KEY=dummy")
+            .arg("THINWEDGE_API_KEY=dummy")
             .arg(format!("THINWEDGE_RS_SSE_FIXTURE={}", fixture.display()))
             .arg(thinwedge)
             .arg("-c")
@@ -488,7 +488,7 @@ fn write_config(
     let repo_root_display = repo_root.display();
     let config = format!(
         r#"model = "gpt-5.4"
-model_provider = "openai"
+model_provider = "thinwedge"
 suppress_unstable_features_warning = true
 
 [features]
@@ -505,7 +505,7 @@ trust_level = "trusted"
 fn write_auth(thinwedge_home: &Path) -> Result<()> {
     std::fs::write(
         thinwedge_home.join("auth.json"),
-        r#"{"OPENAI_API_KEY":"dummy","tokens":null,"last_refresh":null}"#,
+        r#"{"THINWEDGE_API_KEY":"dummy","tokens":null,"last_refresh":null}"#,
     )?;
     Ok(())
 }

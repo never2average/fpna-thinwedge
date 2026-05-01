@@ -92,13 +92,13 @@ fn aws_auth_error_to_auth_error(error: AwsAuthError) -> AuthError {
 }
 
 fn remove_headers_not_preserved_by_bedrock_mantle(headers: &mut HeaderMap) {
-    // The Bedrock Mantle front door does not preserve this legacy OpenAI header
+    // The Bedrock Mantle front door does not preserve this legacy ThinWedge header
     // for SigV4 verification. Signing it makes the richer ThinWedge agent request
     // fail even though raw Responses requests work.
     headers.remove(LEGACY_SESSION_ID_HEADER);
 }
 
-/// AWS SigV4 auth provider for Bedrock Mantle OpenAI-compatible requests.
+/// AWS SigV4 auth provider for Bedrock Mantle ThinWedge-compatible requests.
 #[derive(Debug)]
 struct BedrockMantleSigV4AuthProvider {
     context: AwsAuthContext,

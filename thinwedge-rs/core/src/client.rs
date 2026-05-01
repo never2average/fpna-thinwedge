@@ -75,8 +75,8 @@ use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::Verbosity as VerbosityConfig;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::InternalSessionSource;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
@@ -127,14 +127,14 @@ use thinwedge_response_debug_context::extract_response_debug_context_from_api_er
 use thinwedge_response_debug_context::telemetry_api_error_message;
 use thinwedge_response_debug_context::telemetry_transport_error_message;
 
-pub const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
+pub const THINWEDGE_BETA_HEADER: &str = "ThinWedge-Beta";
 pub const X_THINWEDGE_INSTALLATION_ID_HEADER: &str = "x-thinwedge-installation-id";
 pub const X_THINWEDGE_TURN_STATE_HEADER: &str = "x-thinwedge-turn-state";
 pub const X_THINWEDGE_TURN_METADATA_HEADER: &str = "x-thinwedge-turn-metadata";
 pub const X_THINWEDGE_PARENT_THREAD_ID_HEADER: &str = "x-thinwedge-parent-thread-id";
 pub const X_THINWEDGE_WINDOW_ID_HEADER: &str = "x-thinwedge-window-id";
-pub const X_OPENAI_MEMGEN_REQUEST_HEADER: &str = "x-openai-memgen-request";
-pub const X_OPENAI_SUBAGENT_HEADER: &str = "x-openai-subagent";
+pub const X_THINWEDGE_MEMGEN_REQUEST_HEADER: &str = "x-thinwedge-memgen-request";
+pub const X_THINWEDGE_SUBAGENT_HEADER: &str = "x-thinwedge-subagent";
 pub const X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER: &str =
     "x-responsesapi-include-timing-metrics";
 const RESPONSES_WEBSOCKETS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
@@ -281,7 +281,7 @@ pub(crate) struct RealtimeWebrtcCallStart {
 ///
 /// API-key sessions send that API bearer. ChatGPT-auth sessions send their bearer plus account id;
 /// transceiver is responsible for accepting that same call-create identity on the direct
-/// `api.openai.com` sideband path.
+/// `api.thinwedge.com` sideband path.
 fn sideband_websocket_auth_headers(api_auth: &dyn AuthProvider) -> ApiHeaderMap {
     let mut headers = ApiHeaderMap::new();
     api_auth.add_auth_headers(&mut headers);
@@ -563,14 +563,14 @@ impl ModelClient {
         if let Some(subagent) = subagent_header_value(&self.state.session_source)
             && let Ok(val) = HeaderValue::from_str(&subagent)
         {
-            extra_headers.insert(X_OPENAI_SUBAGENT_HEADER, val);
+            extra_headers.insert(X_THINWEDGE_SUBAGENT_HEADER, val);
         }
         if matches!(
             self.state.session_source,
             SessionSource::Internal(InternalSessionSource::MemoryConsolidation)
         ) {
             extra_headers.insert(
-                X_OPENAI_MEMGEN_REQUEST_HEADER,
+                X_THINWEDGE_MEMGEN_REQUEST_HEADER,
                 HeaderValue::from_static("true"),
             );
         }
@@ -604,7 +604,7 @@ impl ModelClient {
             self.current_window_id(),
         );
         if let Some(subagent) = subagent_header_value(&self.state.session_source) {
-            client_metadata.insert(X_OPENAI_SUBAGENT_HEADER.to_string(), subagent);
+            client_metadata.insert(X_THINWEDGE_SUBAGENT_HEADER.to_string(), subagent);
         }
         if let Some(parent_thread_id) = parent_thread_id_header_value(&self.state.session_source) {
             client_metadata.insert(
@@ -798,7 +798,7 @@ impl ModelClient {
         headers.extend(build_conversation_headers(Some(conversation_id)));
         headers.extend(self.build_responses_identity_headers());
         headers.insert(
-            OPENAI_BETA_HEADER,
+            THINWEDGE_BETA_HEADER,
             HeaderValue::from_static(RESPONSES_WEBSOCKETS_V2_BETA_HEADER_VALUE),
         );
         if self.state.include_timing_metrics {
@@ -1130,7 +1130,7 @@ impl ModelClientSession {
     fn responses_request_compression(&self, auth: Option<&ThinWedgeAuth>) -> Compression {
         if self.client.state.enable_request_compression
             && auth.is_some_and(ThinWedgeAuth::uses_thinwedge_backend)
-            && self.client.state.provider.info().is_openai()
+            && self.client.state.provider.info().is_thinwedge()
         {
             Compression::Zstd
         } else {
@@ -1138,7 +1138,7 @@ impl ModelClientSession {
         }
     }
 
-    /// Streams a turn via the OpenAI Responses API.
+    /// Streams a turn via the ThinWedge Responses API.
     ///
     /// Handles SSE fixtures, reasoning summaries, verbosity, and the
     /// `text` controls used for output schemas.

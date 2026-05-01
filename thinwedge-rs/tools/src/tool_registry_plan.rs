@@ -65,8 +65,8 @@ use crate::mcp_tool_to_responses_api_tool;
 use crate::request_permissions_tool_description;
 use crate::request_user_input_tool_description;
 use crate::tool_registry_plan_types::agent_type_description;
-use thinwedge_protocol::openai_models::ApplyPatchToolType;
-use thinwedge_protocol::openai_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ApplyPatchToolType;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
 use std::collections::BTreeMap;
 
 pub fn build_tool_registry_plan(
@@ -549,7 +549,7 @@ pub fn build_tool_registry_plan(
                     Err(error) => {
                         let tool_name = &tool.name;
                         tracing::error!(
-                            "Failed to convert `{tool_name}` MCP tool to OpenAI tool: {error:?}"
+                            "Failed to convert `{tool_name}` MCP tool to ThinWedge tool: {error:?}"
                         );
                     }
                 }
@@ -579,7 +579,7 @@ pub fn build_tool_registry_plan(
             }
             Err(error) => {
                 tracing::error!(
-                    "Failed to convert dynamic tool {:?} to OpenAI tool: {error:?}",
+                    "Failed to convert dynamic tool {:?} to ThinWedge tool: {error:?}",
                     tool.name
                 );
             }

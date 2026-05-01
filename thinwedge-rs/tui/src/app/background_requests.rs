@@ -515,7 +515,7 @@ pub(super) async fn fetch_plugins_list(
     Ok(response)
 }
 
-const CLI_HIDDEN_PLUGIN_MARKETPLACES: &[&str] = &["openai-bundled"];
+const CLI_HIDDEN_PLUGIN_MARKETPLACES: &[&str] = &["thinwedge-bundled"];
 
 pub(super) fn hide_cli_only_plugin_marketplaces(response: &mut PluginListResponse) {
     response
@@ -749,18 +749,18 @@ mod tests {
     }
 
     #[test]
-    fn hide_cli_only_plugin_marketplaces_removes_openai_bundled() {
+    fn hide_cli_only_plugin_marketplaces_removes_thinwedge_bundled() {
         let mut response = PluginListResponse {
             marketplaces: vec![
                 PluginMarketplaceEntry {
-                    name: "openai-bundled".to_string(),
-                    path: Some(test_absolute_path("/marketplaces/openai-bundled")),
+                    name: "thinwedge-bundled".to_string(),
+                    path: Some(test_absolute_path("/marketplaces/thinwedge-bundled")),
                     interface: None,
                     plugins: Vec::new(),
                 },
                 PluginMarketplaceEntry {
-                    name: "openai-curated".to_string(),
-                    path: Some(test_absolute_path("/marketplaces/openai-curated")),
+                    name: "thinwedge-curated".to_string(),
+                    path: Some(test_absolute_path("/marketplaces/thinwedge-curated")),
                     interface: None,
                     plugins: Vec::new(),
                 },
@@ -774,8 +774,8 @@ mod tests {
         assert_eq!(
             response.marketplaces,
             vec![PluginMarketplaceEntry {
-                name: "openai-curated".to_string(),
-                path: Some(test_absolute_path("/marketplaces/openai-curated")),
+                name: "thinwedge-curated".to_string(),
+                path: Some(test_absolute_path("/marketplaces/thinwedge-curated")),
                 interface: None,
                 plugins: Vec::new(),
             }]

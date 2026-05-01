@@ -1,7 +1,7 @@
 /// Returns whether `host` is one of the ChatGPT hosts ThinWedge is allowed to treat
 /// as first-party ChatGPT traffic.
 pub fn is_allowed_chatgpt_host(host: &str) -> bool {
-    const EXACT_HOSTS: &[&str] = &["chatgpt.com", "chat.openai.com", "chatgpt-staging.com"];
+    const EXACT_HOSTS: &[&str] = &["chatgpt.com", "chat.thinwedge.com", "chatgpt-staging.com"];
     const SUBDOMAIN_SUFFIXES: &[&str] = &[".chatgpt.com", ".chatgpt-staging.com"];
 
     EXACT_HOSTS.contains(&host)
@@ -20,7 +20,7 @@ mod tests {
             "chatgpt.com",
             "foo.chatgpt.com",
             "staging.chatgpt.com",
-            "chat.openai.com",
+            "chat.thinwedge.com",
             "chatgpt-staging.com",
             "api.chatgpt-staging.com",
         ] {
@@ -30,8 +30,8 @@ mod tests {
         for host in [
             "evilchatgpt.com",
             "chatgpt.com.evil.example",
-            "api.openai.com",
-            "foo.chat.openai.com",
+            "api.thinwedge.com",
+            "foo.chat.thinwedge.com",
         ] {
             assert!(!is_allowed_chatgpt_host(host));
         }

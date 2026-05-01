@@ -96,10 +96,10 @@ use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelAvailabilityNux;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ModelUpgrade;
-use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelUpgrade;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::ConversationAudioParams;
 use thinwedge_protocol::protocol::ConversationStartParams;
@@ -130,10 +130,10 @@ pub(crate) struct AppServerBootstrap {
     pub(crate) auth_mode: Option<TelemetryAuthMode>,
     pub(crate) status_account_display: Option<StatusAccountDisplay>,
     pub(crate) plan_type: Option<thinwedge_protocol::account::PlanType>,
-    /// Whether the configured model provider needs OpenAI-style auth. Combined
+    /// Whether the configured model provider needs ThinWedge-style auth. Combined
     /// with `has_chatgpt_account` to decide if a startup rate-limit prefetch
     /// should be fired.
-    pub(crate) requires_openai_auth: bool,
+    pub(crate) requires_thinwedge_auth: bool,
     pub(crate) default_model: String,
     pub(crate) feedback_audience: FeedbackAudience,
     pub(crate) has_chatgpt_account: bool,
@@ -163,7 +163,7 @@ pub(crate) struct ThreadSessionState {
     pub(crate) permission_profile: PermissionProfile,
     pub(crate) cwd: AbsolutePathBuf,
     pub(crate) instruction_source_paths: Vec<AbsolutePathBuf>,
-    pub(crate) reasoning_effort: Option<thinwedge_protocol::openai_models::ReasoningEffort>,
+    pub(crate) reasoning_effort: Option<thinwedge_protocol::thinwedge_models::ReasoningEffort>,
     pub(crate) history_log_id: u64,
     pub(crate) history_entry_count: u64,
     pub(crate) network_proxy: Option<SessionNetworkProxyRuntime>,
@@ -261,8 +261,8 @@ impl AppServerSession {
                 false,
             ),
             Some(Account::Chatgpt { email, plan_type }) => {
-                let feedback_audience = if email.ends_with("@openai.com") {
-                    FeedbackAudience::OpenAiEmployee
+                let feedback_audience = if email.ends_with("@thinwedge.com") {
+                    FeedbackAudience::ThinWedgeEmployee
                 } else {
                     FeedbackAudience::External
                 };
@@ -288,7 +288,7 @@ impl AppServerSession {
             auth_mode,
             status_account_display,
             plan_type,
-            requires_openai_auth: account.requires_openai_auth,
+            requires_thinwedge_auth: account.requires_thinwedge_auth,
             default_model,
             feedback_audience,
             has_chatgpt_account,
@@ -535,7 +535,7 @@ impl AppServerSession {
         approvals_reviewer: thinwedge_protocol::config_types::ApprovalsReviewer,
         permission_profile: PermissionProfile,
         model: String,
-        effort: Option<thinwedge_protocol::openai_models::ReasoningEffort>,
+        effort: Option<thinwedge_protocol::thinwedge_models::ReasoningEffort>,
         summary: Option<thinwedge_protocol::config_types::ReasoningSummary>,
         service_tier: Option<Option<thinwedge_protocol::config_types::ServiceTier>>,
         collaboration_mode: Option<thinwedge_protocol::config_types::CollaborationMode>,
@@ -1421,7 +1421,7 @@ async fn thread_session_state_from_thread_response(
     permission_profile: PermissionProfile,
     cwd: AbsolutePathBuf,
     instruction_source_paths: Vec<AbsolutePathBuf>,
-    reasoning_effort: Option<thinwedge_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<thinwedge_protocol::thinwedge_models::ReasoningEffort>,
     config: &Config,
 ) -> Result<ThreadSessionState, String> {
     let thread_id = ThreadId::from_string(thread_id)
@@ -1755,7 +1755,7 @@ mod tests {
                 forked_from_id: Some(forked_from_id.to_string()),
                 preview: "hello".to_string(),
                 ephemeral: false,
-                model_provider: "openai".to_string(),
+                model_provider: "thinwedge".to_string(),
                 created_at: 1,
                 updated_at: 2,
                 status: ThreadStatus::Idle,
@@ -1792,7 +1792,7 @@ mod tests {
                 }],
             },
             model: "gpt-5.4".to_string(),
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             service_tier: None,
             cwd: test_path_buf("/tmp/project").abs(),
             instruction_sources: vec![test_path_buf("/tmp/project/AGENTS.md").abs()],
@@ -1845,7 +1845,7 @@ mod tests {
             Some("restore".to_string()),
             /*rollout_path*/ None,
             "gpt-5.4".to_string(),
-            "openai".to_string(),
+            "thinwedge".to_string(),
             /*service_tier*/ None,
             AskForApproval::Never,
             thinwedge_protocol::config_types::ApprovalsReviewer::User,
@@ -1875,7 +1875,7 @@ mod tests {
             Some("restore".to_string()),
             /*rollout_path*/ None,
             "gpt-5.4".to_string(),
-            "openai".to_string(),
+            "thinwedge".to_string(),
             /*service_tier*/ None,
             AskForApproval::Never,
             thinwedge_protocol::config_types::ApprovalsReviewer::User,

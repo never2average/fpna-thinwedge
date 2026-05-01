@@ -149,7 +149,7 @@ impl Client {
             base_url.pop();
         }
         if (base_url.starts_with("https://chatgpt.com")
-            || base_url.starts_with("https://chat.openai.com"))
+            || base_url.starts_with("https://chat.thinwedge.com"))
             && !base_url.contains("/backend-api")
         {
             base_url = format!("{base_url}/backend-api");
@@ -217,7 +217,7 @@ impl Client {
             h.insert(name, hv);
         }
         if self.chatgpt_account_is_fedramp
-            && let Ok(name) = HeaderName::from_bytes(b"X-OpenAI-Fedramp")
+            && let Ok(name) = HeaderName::from_bytes(b"X-ThinWedge-Fedramp")
         {
             h.insert(name, HeaderValue::from_static("true"));
         }

@@ -131,7 +131,7 @@ async fn plugin_install_rejects_multiple_install_sources() -> Result<()> {
             marketplace_path: Some(AbsolutePathBuf::try_from(
                 thinwedge_home.path().join("marketplace.json"),
             )?),
-            remote_marketplace_name: Some("openai-curated".to_string()),
+            remote_marketplace_name: Some("thinwedge-curated".to_string()),
             plugin_name: "sample-plugin".to_string(),
         })
         .await?;

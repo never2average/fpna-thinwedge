@@ -267,7 +267,7 @@ use thinwedge_core::sandboxing::SandboxPermissions;
 use thinwedge_core::windows_sandbox::WindowsSandboxLevelExt;
 use thinwedge_core::windows_sandbox::WindowsSandboxSetupMode as CoreWindowsSandboxSetupMode;
 use thinwedge_core::windows_sandbox::WindowsSandboxSetupRequest;
-use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use thinwedge_core_plugins::loader::load_plugin_apps;
 use thinwedge_core_plugins::loader::load_plugin_mcp_servers;
 use thinwedge_core_plugins::manifest::PluginManifestInterface;
@@ -1389,15 +1389,15 @@ impl ThinWedgeMessageProcessor {
         self.refresh_token_if_requested(do_refresh).await;
 
         // Determine whether auth is required based on the active model provider.
-        // If a custom provider is configured with `requires_openai_auth == false`,
+        // If a custom provider is configured with `requires_thinwedge_auth == false`,
         // then no auth step is required; otherwise, default to requiring auth.
-        let requires_openai_auth = self.config.model_provider.requires_openai_auth;
+        let requires_thinwedge_auth = self.config.model_provider.requires_thinwedge_auth;
 
-        let response = if !requires_openai_auth {
+        let response = if !requires_thinwedge_auth {
             GetAuthStatusResponse {
                 auth_method: None,
                 auth_token: None,
-                requires_openai_auth: Some(false),
+                requires_thinwedge_auth: Some(false),
             }
         } else {
             let auth = if do_refresh {
@@ -1431,13 +1431,13 @@ impl ThinWedgeMessageProcessor {
                     GetAuthStatusResponse {
                         auth_method: reported_auth_method,
                         auth_token: token_opt,
-                        requires_openai_auth: Some(true),
+                        requires_thinwedge_auth: Some(true),
                     }
                 }
                 None => GetAuthStatusResponse {
                     auth_method: None,
                     auth_token: None,
-                    requires_openai_auth: Some(true),
+                    requires_thinwedge_auth: Some(true),
                 },
             }
         };
@@ -1474,7 +1474,7 @@ impl ThinWedgeMessageProcessor {
 
         Ok(GetAccountResponse {
             account,
-            requires_openai_auth: account_state.requires_openai_auth,
+            requires_thinwedge_auth: account_state.requires_thinwedge_auth,
         })
     }
 
@@ -9253,7 +9253,7 @@ mod tests {
     use thinwedge_model_provider_info::ModelProviderInfo;
     use thinwedge_model_provider_info::WireApi;
     use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::openai_models::ReasoningEffort;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use thinwedge_protocol::permissions::FileSystemAccessMode;
     use thinwedge_protocol::permissions::FileSystemPath;
     use thinwedge_protocol::permissions::FileSystemSandboxEntry;
@@ -9427,7 +9427,7 @@ mod tests {
             forked_from_id: None,
             preview: "preview".to_string(),
             name: None,
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             model: None,
             reasoning_effort: None,
             created_at: created_at.with_timezone(&Utc),
@@ -9640,7 +9640,7 @@ mod tests {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
             supports_websockets: true,
         };
         let config_manager = ConfigManager::new(
@@ -9708,7 +9708,7 @@ mod tests {
         };
         let config_snapshot = ThreadConfigSnapshot {
             model: "gpt-5".to_string(),
-            model_provider_id: "openai".to_string(),
+            model_provider_id: "thinwedge".to_string(),
             service_tier: Some(thinwedge_protocol::config_types::ServiceTier::Flex),
             approval_policy: thinwedge_protocol::protocol::AskForApproval::OnRequest,
             approvals_reviewer: thinwedge_protocol::config_types::ApprovalsReviewer::User,

@@ -634,7 +634,7 @@ pub(super) async fn run_guardian_review_session(
         .await;
     let preferred_reasoning_effort = |supports_low: bool, fallback| {
         if supports_low {
-            Some(thinwedge_protocol::openai_models::ReasoningEffort::Low)
+            Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Low)
         } else {
             fallback
         }
@@ -647,7 +647,7 @@ pub(super) async fn run_guardian_review_session(
             preset
                 .supported_reasoning_efforts
                 .iter()
-                .any(|effort| effort.effort == thinwedge_protocol::openai_models::ReasoningEffort::Low),
+                .any(|effort| effort.effort == thinwedge_protocol::thinwedge_models::ReasoningEffort::Low),
             Some(preset.default_reasoning_effort),
         );
         (
@@ -659,7 +659,7 @@ pub(super) async fn run_guardian_review_session(
             turn.model_info
                 .supported_reasoning_levels
                 .iter()
-                .any(|preset| preset.effort == thinwedge_protocol::openai_models::ReasoningEffort::Low),
+                .any(|preset| preset.effort == thinwedge_protocol::thinwedge_models::ReasoningEffort::Low),
             turn.reasoning_effort
                 .or(turn.model_info.default_reasoning_level),
         );

@@ -7,7 +7,7 @@ use crate::plugins::test_support::TEST_CURATED_PLUGIN_CACHE_VERSION;
 use crate::plugins::test_support::TEST_CURATED_PLUGIN_SHA;
 use crate::plugins::test_support::write_curated_plugin_sha_with as write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
-use crate::plugins::test_support::write_openai_curated_marketplace;
+use crate::plugins::test_support::write_thinwedge_curated_marketplace;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
 use thinwedge_config::ConfigLayerStack;
@@ -1030,10 +1030,10 @@ async fn install_plugin_updates_config_with_relative_path_and_plugin_key() {
 }
 
 #[tokio::test]
-async fn install_openai_curated_plugin_uses_short_sha_cache_version() {
+async fn install_thinwedge_curated_plugin_uses_short_sha_cache_version() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
 
     let result = PluginsManager::new(tmp.path().to_path_buf())
@@ -1048,14 +1048,14 @@ async fn install_openai_curated_plugin_uses_short_sha_cache_version() {
         .unwrap();
 
     let installed_path = tmp.path().join(format!(
-        "plugins/cache/openai-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
+        "plugins/cache/thinwedge-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
     ));
     assert_eq!(
         result,
         PluginInstallOutcome {
             plugin_id: PluginId::new(
                 "slack".to_string(),
-                OPENAI_CURATED_MARKETPLACE_NAME.to_string()
+                THINWEDGE_CURATED_MARKETPLACE_NAME.to_string()
             )
             .unwrap(),
             plugin_version: TEST_CURATED_PLUGIN_CACHE_VERSION.to_string(),
@@ -1824,7 +1824,7 @@ plugins = true
     fs::write(
         curated_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "plugins": [
     {
       "name": "linear",
@@ -1851,18 +1851,18 @@ plugins = true
 
     let curated_marketplace = marketplaces
         .into_iter()
-        .find(|marketplace| marketplace.name == "openai-curated")
+        .find(|marketplace| marketplace.name == "thinwedge-curated")
         .expect("curated marketplace should be listed");
 
     assert_eq!(
         curated_marketplace,
         ConfiguredMarketplace {
-            name: "openai-curated".to_string(),
+            name: "thinwedge-curated".to_string(),
             path: AbsolutePathBuf::try_from(curated_root.join(".agents/plugins/marketplace.json"))
                 .unwrap(),
             interface: None,
             plugins: vec![ConfiguredMarketplacePlugin {
-                id: "linear@openai-curated".to_string(),
+                id: "linear@thinwedge-curated".to_string(),
                 name: "linear".to_string(),
                 source: MarketplacePluginSource::Local {
                     path: AbsolutePathBuf::try_from(curated_root.join("plugins/linear")).unwrap(),
@@ -2289,20 +2289,20 @@ enabled = true
 async fn sync_plugins_from_remote_reconciles_cache_and_config() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear", "gmail", "calendar"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["linear", "gmail", "calendar"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "linear/local",
         "linear",
     );
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "gmail/local",
         "gmail",
     );
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "calendar/local",
         "calendar",
     );
@@ -2311,13 +2311,13 @@ async fn sync_plugins_from_remote_reconciles_cache_and_config() {
         r#"[features]
 plugins = true
 
-[plugins."linear@openai-curated"]
+[plugins."linear@thinwedge-curated"]
 enabled = false
 
-[plugins."gmail@openai-curated"]
+[plugins."gmail@thinwedge-curated"]
 enabled = false
 
-[plugins."calendar@openai-curated"]
+[plugins."calendar@thinwedge-curated"]
 enabled = true
 "#,
     );
@@ -2329,8 +2329,8 @@ enabled = true
         .and(header("chatgpt-account-id", "account_id"))
         .respond_with(ResponseTemplate::new(200).set_body_string(
             r#"[
-  {"id":"1","name":"linear","marketplace_name":"openai-curated","version":"1.0.0","enabled":true},
-  {"id":"2","name":"gmail","marketplace_name":"openai-curated","version":"1.0.0","enabled":false}
+  {"id":"1","name":"linear","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true},
+  {"id":"2","name":"gmail","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":false}
 ]"#,
         ))
         .mount(&server)
@@ -2352,36 +2352,36 @@ enabled = true
         result,
         RemotePluginSyncResult {
             installed_plugin_ids: Vec::new(),
-            enabled_plugin_ids: vec!["linear@openai-curated".to_string()],
+            enabled_plugin_ids: vec!["linear@thinwedge-curated".to_string()],
             disabled_plugin_ids: Vec::new(),
             uninstalled_plugin_ids: vec![
-                "gmail@openai-curated".to_string(),
-                "calendar@openai-curated".to_string(),
+                "gmail@thinwedge-curated".to_string(),
+                "calendar@thinwedge-curated".to_string(),
             ],
         }
     );
 
     assert!(
         tmp.path()
-            .join("plugins/cache/openai-curated/linear/local")
+            .join("plugins/cache/thinwedge-curated/linear/local")
             .is_dir()
     );
     assert!(
         !tmp.path()
-            .join("plugins/cache/openai-curated/gmail")
+            .join("plugins/cache/thinwedge-curated/gmail")
             .exists()
     );
     assert!(
         !tmp.path()
-            .join("plugins/cache/openai-curated/calendar")
+            .join("plugins/cache/thinwedge-curated/calendar")
             .exists()
     );
 
     let config = fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).unwrap();
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
+    assert!(config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
     assert!(config.contains("enabled = true"));
-    assert!(!config.contains(r#"[plugins."gmail@openai-curated"]"#));
-    assert!(!config.contains(r#"[plugins."calendar@openai-curated"]"#));
+    assert!(!config.contains(r#"[plugins."gmail@thinwedge-curated"]"#));
+    assert!(!config.contains(r#"[plugins."calendar@thinwedge-curated"]"#));
 
     let synced_config = load_config(tmp.path(), tmp.path()).await;
     let curated_marketplace = manager
@@ -2389,7 +2389,7 @@ enabled = true
         .unwrap()
         .marketplaces
         .into_iter()
-        .find(|marketplace| marketplace.name == OPENAI_CURATED_MARKETPLACE_NAME)
+        .find(|marketplace| marketplace.name == THINWEDGE_CURATED_MARKETPLACE_NAME)
         .unwrap();
     assert_eq!(
         curated_marketplace
@@ -2398,9 +2398,9 @@ enabled = true
             .map(|plugin| (plugin.id, plugin.installed, plugin.enabled))
             .collect::<Vec<_>>(),
         vec![
-            ("linear@openai-curated".to_string(), true, true),
-            ("gmail@openai-curated".to_string(), false, false),
-            ("calendar@openai-curated".to_string(), false, false),
+            ("linear@thinwedge-curated".to_string(), true, true),
+            ("gmail@thinwedge-curated".to_string(), false, false),
+            ("calendar@thinwedge-curated".to_string(), false, false),
         ]
     );
 }
@@ -2409,20 +2409,20 @@ enabled = true
 async fn sync_plugins_from_remote_additive_only_keeps_existing_plugins() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear", "gmail", "calendar"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["linear", "gmail", "calendar"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "linear/local",
         "linear",
     );
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "gmail/local",
         "gmail",
     );
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "calendar/local",
         "calendar",
     );
@@ -2431,13 +2431,13 @@ async fn sync_plugins_from_remote_additive_only_keeps_existing_plugins() {
         r#"[features]
 plugins = true
 
-[plugins."linear@openai-curated"]
+[plugins."linear@thinwedge-curated"]
 enabled = false
 
-[plugins."gmail@openai-curated"]
+[plugins."gmail@thinwedge-curated"]
 enabled = false
 
-[plugins."calendar@openai-curated"]
+[plugins."calendar@thinwedge-curated"]
 enabled = true
 "#,
     );
@@ -2449,8 +2449,8 @@ enabled = true
         .and(header("chatgpt-account-id", "account_id"))
         .respond_with(ResponseTemplate::new(200).set_body_string(
             r#"[
-  {"id":"1","name":"linear","marketplace_name":"openai-curated","version":"1.0.0","enabled":true},
-  {"id":"2","name":"gmail","marketplace_name":"openai-curated","version":"1.0.0","enabled":false}
+  {"id":"1","name":"linear","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true},
+  {"id":"2","name":"gmail","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":false}
 ]"#,
         ))
         .mount(&server)
@@ -2472,7 +2472,7 @@ enabled = true
         result,
         RemotePluginSyncResult {
             installed_plugin_ids: Vec::new(),
-            enabled_plugin_ids: vec!["linear@openai-curated".to_string()],
+            enabled_plugin_ids: vec!["linear@thinwedge-curated".to_string()],
             disabled_plugin_ids: Vec::new(),
             uninstalled_plugin_ids: Vec::new(),
         }
@@ -2480,24 +2480,24 @@ enabled = true
 
     assert!(
         tmp.path()
-            .join("plugins/cache/openai-curated/linear/local")
+            .join("plugins/cache/thinwedge-curated/linear/local")
             .is_dir()
     );
     assert!(
         tmp.path()
-            .join("plugins/cache/openai-curated/gmail/local")
+            .join("plugins/cache/thinwedge-curated/gmail/local")
             .is_dir()
     );
     assert!(
         tmp.path()
-            .join("plugins/cache/openai-curated/calendar/local")
+            .join("plugins/cache/thinwedge-curated/calendar/local")
             .is_dir()
     );
 
     let config = fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).unwrap();
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
-    assert!(config.contains(r#"[plugins."gmail@openai-curated"]"#));
-    assert!(config.contains(r#"[plugins."calendar@openai-curated"]"#));
+    assert!(config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
+    assert!(config.contains(r#"[plugins."gmail@thinwedge-curated"]"#));
+    assert!(config.contains(r#"[plugins."calendar@thinwedge-curated"]"#));
     assert!(config.contains("enabled = true"));
 }
 
@@ -2505,14 +2505,14 @@ enabled = true
 async fn sync_plugins_from_remote_ignores_unknown_remote_plugins() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["linear"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
     write_file(
         &tmp.path().join(CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
-[plugins."linear@openai-curated"]
+[plugins."linear@thinwedge-curated"]
 enabled = false
 "#,
     );
@@ -2522,7 +2522,7 @@ enabled = false
             .and(path("/backend-api/plugins/list"))
             .respond_with(ResponseTemplate::new(200).set_body_string(
                 r#"[
-  {"id":"1","name":"plugin-one","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
+  {"id":"1","name":"plugin-one","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true}
 ]"#,
             ))
             .mount(&server)
@@ -2546,14 +2546,14 @@ enabled = false
             installed_plugin_ids: Vec::new(),
             enabled_plugin_ids: Vec::new(),
             disabled_plugin_ids: Vec::new(),
-            uninstalled_plugin_ids: vec!["linear@openai-curated".to_string()],
+            uninstalled_plugin_ids: vec!["linear@thinwedge-curated".to_string()],
         }
     );
     let config = fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).unwrap();
-    assert!(!config.contains(r#"[plugins."linear@openai-curated"]"#));
+    assert!(!config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
     assert!(
         !tmp.path()
-            .join("plugins/cache/openai-curated/linear")
+            .join("plugins/cache/thinwedge-curated/linear")
             .exists()
     );
 }
@@ -2562,11 +2562,11 @@ enabled = false
 async fn sync_plugins_from_remote_keeps_existing_plugins_when_install_fails() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear", "gmail"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["linear", "gmail"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
     fs::remove_dir_all(curated_root.join("plugins/gmail")).unwrap();
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "linear/local",
         "linear",
     );
@@ -2575,7 +2575,7 @@ async fn sync_plugins_from_remote_keeps_existing_plugins_when_install_fails() {
         r#"[features]
 plugins = true
 
-[plugins."linear@openai-curated"]
+[plugins."linear@thinwedge-curated"]
 enabled = false
 "#,
     );
@@ -2585,7 +2585,7 @@ enabled = false
         .and(path("/backend-api/plugins/list"))
         .respond_with(ResponseTemplate::new(200).set_body_string(
             r#"[
-  {"id":"1","name":"gmail","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
+  {"id":"1","name":"gmail","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true}
 ]"#,
         ))
         .mount(&server)
@@ -2610,18 +2610,18 @@ enabled = false
     ));
     assert!(
         tmp.path()
-            .join("plugins/cache/openai-curated/linear/local")
+            .join("plugins/cache/thinwedge-curated/linear/local")
             .is_dir()
     );
     assert!(
         !tmp.path()
-            .join("plugins/cache/openai-curated/gmail")
+            .join("plugins/cache/thinwedge-curated/gmail")
             .exists()
     );
 
     let config = fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).unwrap();
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
-    assert!(!config.contains(r#"[plugins."gmail@openai-curated"]"#));
+    assert!(config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
+    assert!(!config.contains(r#"[plugins."gmail@thinwedge-curated"]"#));
     assert!(config.contains("enabled = false"));
 }
 
@@ -2634,7 +2634,7 @@ async fn sync_plugins_from_remote_uses_first_duplicate_local_plugin_entry() {
     fs::write(
         curated_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "plugins": [
     {
       "name": "gmail",
@@ -2674,7 +2674,7 @@ plugins = true
         .and(path("/backend-api/plugins/list"))
         .respond_with(ResponseTemplate::new(200).set_body_string(
             r#"[
-  {"id":"1","name":"gmail","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
+  {"id":"1","name":"gmail","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true}
 ]"#,
         ))
         .mount(&server)
@@ -2695,15 +2695,15 @@ plugins = true
     assert_eq!(
         result,
         RemotePluginSyncResult {
-            installed_plugin_ids: vec!["gmail@openai-curated".to_string()],
-            enabled_plugin_ids: vec!["gmail@openai-curated".to_string()],
+            installed_plugin_ids: vec!["gmail@thinwedge-curated".to_string()],
+            enabled_plugin_ids: vec!["gmail@thinwedge-curated".to_string()],
             disabled_plugin_ids: Vec::new(),
             uninstalled_plugin_ids: Vec::new(),
         }
     );
     assert_eq!(
         fs::read_to_string(tmp.path().join(format!(
-            "plugins/cache/openai-curated/gmail/{TEST_CURATED_PLUGIN_CACHE_VERSION}/marker.txt"
+            "plugins/cache/thinwedge-curated/gmail/{TEST_CURATED_PLUGIN_CACHE_VERSION}/marker.txt"
         )))
         .unwrap(),
         "first"
@@ -2785,15 +2785,15 @@ plugins = true
 fn refresh_curated_plugin_cache_replaces_existing_local_version_with_short_sha_version() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
     let plugin_id = PluginId::new(
         "slack".to_string(),
-        OPENAI_CURATED_MARKETPLACE_NAME.to_string(),
+        THINWEDGE_CURATED_MARKETPLACE_NAME.to_string(),
     )
     .unwrap();
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         "slack/local",
         "slack",
     );
@@ -2805,13 +2805,13 @@ fn refresh_curated_plugin_cache_replaces_existing_local_version_with_short_sha_v
 
     assert!(
         !tmp.path()
-            .join("plugins/cache/openai-curated/slack/local")
+            .join("plugins/cache/thinwedge-curated/slack/local")
             .exists()
     );
     assert!(
         tmp.path()
             .join(format!(
-                "plugins/cache/openai-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
+                "plugins/cache/thinwedge-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
             ))
             .is_dir()
     );
@@ -2821,11 +2821,11 @@ fn refresh_curated_plugin_cache_replaces_existing_local_version_with_short_sha_v
 fn refresh_curated_plugin_cache_reinstalls_missing_configured_plugin_with_current_short_version() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_curated_plugin_sha(tmp.path(), TEST_CURATED_PLUGIN_SHA);
     let plugin_id = PluginId::new(
         "slack".to_string(),
-        OPENAI_CURATED_MARKETPLACE_NAME.to_string(),
+        THINWEDGE_CURATED_MARKETPLACE_NAME.to_string(),
     )
     .unwrap();
 
@@ -2837,7 +2837,7 @@ fn refresh_curated_plugin_cache_reinstalls_missing_configured_plugin_with_curren
     assert!(
         tmp.path()
             .join(format!(
-                "plugins/cache/openai-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
+                "plugins/cache/thinwedge-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
             ))
             .is_dir()
     );
@@ -2851,7 +2851,7 @@ fn curated_plugin_ids_from_config_keys_reads_latest_thinwedge_home_user_config()
         r#"[features]
 plugins = true
 
-[plugins."slack@openai-curated"]
+[plugins."slack@thinwedge-curated"]
 enabled = true
 
 [plugins."sample@debug"]
@@ -2864,7 +2864,7 @@ enabled = true
             .into_iter()
             .map(|plugin_id| plugin_id.as_key())
             .collect::<Vec<_>>(),
-        vec!["slack@openai-curated".to_string()]
+        vec!["slack@thinwedge-curated".to_string()]
     );
 
     write_file(
@@ -2884,14 +2884,14 @@ plugins = true
 fn refresh_curated_plugin_cache_returns_false_when_configured_plugins_are_current() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     let plugin_id = PluginId::new(
         "slack".to_string(),
-        OPENAI_CURATED_MARKETPLACE_NAME.to_string(),
+        THINWEDGE_CURATED_MARKETPLACE_NAME.to_string(),
     )
     .unwrap();
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         &format!("slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"),
         "slack",
     );
@@ -2906,14 +2906,14 @@ fn refresh_curated_plugin_cache_returns_false_when_configured_plugins_are_curren
 fn refresh_curated_plugin_cache_migrates_full_sha_cache_version_to_short_version() {
     let tmp = tempfile::tempdir().unwrap();
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     let plugin_id = PluginId::new(
         "slack".to_string(),
-        OPENAI_CURATED_MARKETPLACE_NAME.to_string(),
+        THINWEDGE_CURATED_MARKETPLACE_NAME.to_string(),
     )
     .unwrap();
     write_plugin(
-        &tmp.path().join("plugins/cache/openai-curated"),
+        &tmp.path().join("plugins/cache/thinwedge-curated"),
         &format!("slack/{TEST_CURATED_PLUGIN_SHA}"),
         "slack",
     );
@@ -2925,14 +2925,14 @@ fn refresh_curated_plugin_cache_migrates_full_sha_cache_version_to_short_version
     assert!(
         !tmp.path()
             .join(format!(
-                "plugins/cache/openai-curated/slack/{TEST_CURATED_PLUGIN_SHA}"
+                "plugins/cache/thinwedge-curated/slack/{TEST_CURATED_PLUGIN_SHA}"
             ))
             .exists()
     );
     assert!(
         tmp.path()
             .join(format!(
-                "plugins/cache/openai-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
+                "plugins/cache/thinwedge-curated/slack/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
             ))
             .is_dir()
     );

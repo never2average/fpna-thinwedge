@@ -37,7 +37,7 @@ use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
 #[cfg(test)]
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
 use thinwedge_protocol::protocol::Event;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::InitialHistory;

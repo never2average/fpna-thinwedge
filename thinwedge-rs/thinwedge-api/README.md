@@ -1,6 +1,6 @@
 # thinwedge-api
 
-Typed clients for ThinWedge/OpenAI APIs built on top of the generic transport in `thinwedge-client`.
+Typed clients for ThinWedge/ThinWedge APIs built on top of the generic transport in `thinwedge-client`.
 
 - Hosts the request/response models and request builders for Responses and Compact APIs.
 - Owns provider configuration (base URLs, headers, query params), auth header injection, retry tuning, and stream idle settings.

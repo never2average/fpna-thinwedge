@@ -41,9 +41,7 @@ use tracing::error;
 use tracing::info;
 use tracing::instrument;
 use tracing::trace;
-use tungstenite::extensions::ExtensionsConfig;
-use tungstenite::extensions::compression::deflate::DeflateConfig;
-use tungstenite::protocol::WebSocketConfig;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use url::Url;
 
 struct WsStream {
@@ -154,7 +152,7 @@ impl Drop for WsStream {
 const X_THINWEDGE_TURN_STATE_HEADER: &str = "x-thinwedge-turn-state";
 const X_MODELS_ETAG_HEADER: &str = "x-models-etag";
 const X_REASONING_INCLUDED_HEADER: &str = "x-reasoning-included";
-const OPENAI_MODEL_HEADER: &str = "openai-model";
+const THINWEDGE_MODEL_HEADER: &str = "thinwedge-model";
 const WEBSOCKET_CONNECTION_LIMIT_REACHED_CODE: &str = "websocket_connection_limit_reached";
 const WEBSOCKET_CONNECTION_LIMIT_REACHED_MESSAGE: &str = "Responses websocket connection limit reached (60 minutes). Create a new websocket connection to continue.";
 
@@ -397,7 +395,7 @@ async fn connect_websocket(
         .map(ToString::to_string);
     let server_model = response
         .headers()
-        .get(OPENAI_MODEL_HEADER)
+        .get(THINWEDGE_MODEL_HEADER)
         .and_then(|value| value.to_str().ok())
         .map(ToString::to_string);
     if let Some(turn_state) = turn_state
@@ -417,12 +415,7 @@ async fn connect_websocket(
 }
 
 fn websocket_config() -> WebSocketConfig {
-    let mut extensions = ExtensionsConfig::default();
-    extensions.permessage_deflate = Some(DeflateConfig::default());
-
-    let mut config = WebSocketConfig::default();
-    config.extensions = extensions;
-    config
+    WebSocketConfig::default()
 }
 
 fn map_ws_error(err: WsError, url: &Url) -> ApiError {
@@ -671,12 +664,6 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use serde_json::json;
-
-    #[test]
-    fn websocket_config_enables_permessage_deflate() {
-        let config = websocket_config();
-        assert!(config.extensions.permessage_deflate.is_some());
-    }
 
     #[test]
     fn parse_wrapped_websocket_error_event_maps_to_transport_http() {

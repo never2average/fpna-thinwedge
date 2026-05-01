@@ -125,7 +125,7 @@ async fn turn_start_shell_zsh_fork_executes_command_v2() -> Result<()> {
             approval_policy: Some(thinwedge_app_server_protocol::AskForApproval::Never),
             sandbox_policy: Some(thinwedge_app_server_protocol::SandboxPolicy::DangerFullAccess),
             model: Some("mock-model".to_string()),
-            effort: Some(thinwedge_protocol::openai_models::ReasoningEffort::Medium),
+            effort: Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium),
             summary: Some(thinwedge_protocol::config_types::ReasoningSummary::Auto),
             ..Default::default()
         })
@@ -541,7 +541,7 @@ async fn turn_start_shell_zsh_fork_subcommand_decline_marks_parent_declined_v2()
                 exclude_slash_tmp: false,
             }),
             model: Some("mock-model".to_string()),
-            effort: Some(thinwedge_protocol::openai_models::ReasoningEffort::Medium),
+            effort: Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium),
             summary: Some(thinwedge_protocol::config_types::ReasoningSummary::Auto),
             ..Default::default()
         })

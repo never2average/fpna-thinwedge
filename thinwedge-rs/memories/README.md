@@ -24,7 +24,7 @@ Memory prompt templates live with the crate that uses them:
   - `write/templates/memories/stage_one_input.md`
   - `write/templates/memories/consolidation.md`
 - In `thinwedge`, edit those undated template files in place.
-- The dated snapshot-copy workflow is used in the separate `openai/project/agent_memory/write` harness repo, not here.
+- The dated snapshot-copy workflow is used in the separate `thinwedge/project/agent_memory/write` harness repo, not here.
 
 ## When it runs
 

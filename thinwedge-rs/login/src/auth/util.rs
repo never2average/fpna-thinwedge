@@ -20,7 +20,7 @@ mod tests {
     use super::try_parse_error_message;
 
     #[test]
-    fn try_parse_error_message_extracts_openai_error_message() {
+    fn try_parse_error_message_extracts_thinwedge_error_message() {
         let text = r#"{
   "error": {
     "message": "Your refresh token has already been used to generate a new access token. Please try signing in again.",

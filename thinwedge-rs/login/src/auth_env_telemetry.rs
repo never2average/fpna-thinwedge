@@ -2,12 +2,10 @@ use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_otel::AuthEnvTelemetryMetadata;
 
 use crate::THINWEDGE_API_KEY_ENV_VAR;
-use crate::OPENAI_API_KEY_ENV_VAR;
 use crate::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AuthEnvTelemetry {
-    pub openai_api_key_env_present: bool,
     pub thinwedge_api_key_env_present: bool,
     pub thinwedge_api_key_env_enabled: bool,
     pub provider_env_key_name: Option<String>,
@@ -18,7 +16,6 @@ pub struct AuthEnvTelemetry {
 impl AuthEnvTelemetry {
     pub fn to_otel_metadata(&self) -> AuthEnvTelemetryMetadata {
         AuthEnvTelemetryMetadata {
-            openai_api_key_env_present: self.openai_api_key_env_present,
             thinwedge_api_key_env_present: self.thinwedge_api_key_env_present,
             thinwedge_api_key_env_enabled: self.thinwedge_api_key_env_enabled,
             provider_env_key_name: self.provider_env_key_name.clone(),
@@ -33,7 +30,6 @@ pub fn collect_auth_env_telemetry(
     thinwedge_api_key_env_enabled: bool,
 ) -> AuthEnvTelemetry {
     AuthEnvTelemetry {
-        openai_api_key_env_present: env_var_present(OPENAI_API_KEY_ENV_VAR),
         thinwedge_api_key_env_present: env_var_present(THINWEDGE_API_KEY_ENV_VAR),
         thinwedge_api_key_env_enabled,
         provider_env_key_name: provider.env_key.as_ref().map(|_| "configured".to_string()),
@@ -74,7 +70,7 @@ mod tests {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
             supports_websockets: false,
         };
 

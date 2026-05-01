@@ -37,7 +37,7 @@ use thinwedge_protocol::models::ReasoningItemContent;
 use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::models::WebSearchAction;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -113,7 +113,7 @@ fn message_input_text_contains(request: &ResponsesRequest, role: &str, needle: &
 #[expect(clippy::unwrap_used)]
 fn write_auth_json(
     thinwedge_home: &TempDir,
-    openai_api_key: Option<&str>,
+    thinwedge_api_key: Option<&str>,
     chatgpt_plan_type: &str,
     access_token: &str,
     account_id: Option<&str>,
@@ -123,7 +123,7 @@ fn write_auth_json(
     let header = json!({ "alg": "none", "typ": "JWT" });
     let payload = json!({
         "email": "user@example.com",
-        "https://api.openai.com/auth": {
+        "https://api.thinwedge.com/auth": {
             "chatgpt_plan_type": chatgpt_plan_type,
             "chatgpt_account_id": account_id.unwrap_or("acc-123")
         }
@@ -145,7 +145,7 @@ fn write_auth_json(
     }
 
     let auth_json = json!({
-        "OPENAI_API_KEY": openai_api_key,
+        "THINWEDGE_API_KEY": thinwedge_api_key,
         "tokens": tokens,
         // RFC3339 datetime; value doesn't matter for these tests
         "last_refresh": chrono::Utc::now(),
@@ -850,7 +850,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 
@@ -985,7 +985,7 @@ async fn chatgpt_auth_sends_correct_request() {
     .await;
 
     let mut model_provider =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone();
     model_provider.base_url = Some(format!("{}/api/thinwedge", server.uri()));
     model_provider.supports_websockets = false;
     let mut builder = test_thinwedge()
@@ -1072,7 +1072,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
     let model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         supports_websockets: false,
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
 
     // Init session
@@ -2243,7 +2243,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
 
     let provider = ModelProviderInfo {
         name: "azure".into(),
-        base_url: Some(format!("{}/openai", server.uri())),
+        base_url: Some(format!("{}/thinwedge", server.uri())),
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
@@ -2257,7 +2257,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 
@@ -2385,7 +2385,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     }
 
     let request = resp_mock.single_request();
-    assert_eq!(request.path(), "/openai/responses");
+    assert_eq!(request.path(), "/thinwedge/responses");
     let body = request.body_json();
 
     assert_eq!(body["store"], serde_json::Value::Bool(true));
@@ -2435,7 +2435,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         .await;
 
     let mut provider =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone();
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
 
@@ -2847,9 +2847,9 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
             "text/event-stream",
         );
 
-    // Expect POST to /openai/responses with api-version query param
+    // Expect POST to /thinwedge/responses with api-version query param
     Mock::given(method("POST"))
-        .and(path("/openai/responses"))
+        .and(path("/thinwedge/responses"))
         .and(query_param("api-version", "2025-04-01-preview"))
         .and(header_regex("Custom-Header", "Value"))
         .and(header(
@@ -2867,7 +2867,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
 
     let provider = ModelProviderInfo {
         name: "custom".to_string(),
-        base_url: Some(format!("{}/openai", server.uri())),
+        base_url: Some(format!("{}/thinwedge", server.uri())),
         // Reuse the existing environment variable to avoid using unsafe code
         env_key: Some(EXISTING_ENV_VAR_WITH_NON_EMPTY_VALUE.to_string()),
         experimental_bearer_token: None,
@@ -2888,7 +2888,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 
@@ -2935,9 +2935,9 @@ async fn env_var_overrides_loaded_auth() {
             "text/event-stream",
         );
 
-    // Expect POST to /openai/responses with api-version query param
+    // Expect POST to /thinwedge/responses with api-version query param
     Mock::given(method("POST"))
-        .and(path("/openai/responses"))
+        .and(path("/thinwedge/responses"))
         .and(query_param("api-version", "2025-04-01-preview"))
         .and(header_regex("Custom-Header", "Value"))
         .and(header(
@@ -2955,7 +2955,7 @@ async fn env_var_overrides_loaded_auth() {
 
     let provider = ModelProviderInfo {
         name: "custom".to_string(),
-        base_url: Some(format!("{}/openai", server.uri())),
+        base_url: Some(format!("{}/thinwedge", server.uri())),
         // Reuse the existing environment variable to avoid using unsafe code
         env_key: Some(EXISTING_ENV_VAR_WITH_NON_EMPTY_VALUE.to_string()),
         query_params: Some(std::collections::HashMap::from([(
@@ -2976,7 +2976,7 @@ async fn env_var_overrides_loaded_auth() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 

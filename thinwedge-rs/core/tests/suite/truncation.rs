@@ -469,7 +469,7 @@ async fn mcp_image_output_preserves_image_and_no_text_summary() -> Result<()> {
     let rmcp_test_server_bin = stdio_server_bin()?;
 
     // 1x1 PNG data URL
-    let openai_png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/ee9bQAAAABJRU5ErkJggg==";
+    let thinwedge_png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/ee9bQAAAABJRU5ErkJggg==";
 
     let mut builder = test_thinwedge().with_config(move |config| {
         let mut servers = config.mcp_servers.get().clone();
@@ -481,7 +481,7 @@ async fn mcp_image_output_preserves_image_and_no_text_summary() -> Result<()> {
                     args: Vec::new(),
                     env: Some(HashMap::from([(
                         "MCP_TEST_IMAGE_DATA_URL".to_string(),
-                        openai_png.to_string(),
+                        thinwedge_png.to_string(),
                     )])),
                     env_vars: Vec::new(),
                     cwd: None,
@@ -549,7 +549,7 @@ async fn mcp_image_output_preserves_image_and_no_text_summary() -> Result<()> {
     );
     assert_eq!(
         arr[1],
-        json!({"type": "input_image", "image_url": openai_png, "detail": "high"})
+        json!({"type": "input_image", "image_url": thinwedge_png, "detail": "high"})
     );
 
     Ok(())

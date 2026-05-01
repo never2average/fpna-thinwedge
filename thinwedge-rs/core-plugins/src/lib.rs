@@ -12,5 +12,5 @@ pub mod startup_sync;
 pub mod store;
 pub mod toggles;
 
-pub const OPENAI_CURATED_MARKETPLACE_NAME: &str = "openai-curated";
-pub const OPENAI_BUNDLED_MARKETPLACE_NAME: &str = "openai-bundled";
+pub const THINWEDGE_CURATED_MARKETPLACE_NAME: &str = "thinwedge-curated";
+pub const THINWEDGE_BUNDLED_MARKETPLACE_NAME: &str = "thinwedge-bundled";

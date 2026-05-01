@@ -12,7 +12,7 @@ use thinwedge_app_server_protocol::ModelListResponse;
 use thinwedge_app_server_protocol::ModelUpgradeInfo;
 use thinwedge_app_server_protocol::ReasoningEffortOption;
 use thinwedge_app_server_protocol::RequestId;
-use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use tokio::time::timeout;

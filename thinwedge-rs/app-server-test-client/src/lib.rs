@@ -70,7 +70,7 @@ use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_core::config::Config;
 use thinwedge_otel::OtelProvider;
 use thinwedge_otel::current_span_w3c_trace_context;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::W3cTraceContext;
 use thinwedge_utils_cli::CliConfigOverrides;
 use serde::Serialize;

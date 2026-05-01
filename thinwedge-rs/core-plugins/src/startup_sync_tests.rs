@@ -27,7 +27,7 @@ fn write_curated_plugin(root: &Path, plugin_name: &str) {
     );
 }
 
-fn write_openai_curated_marketplace(root: &Path, plugin_names: &[&str]) {
+fn write_thinwedge_curated_marketplace(root: &Path, plugin_names: &[&str]) {
     let plugins = plugin_names
         .iter()
         .map(|plugin_name| {
@@ -47,7 +47,7 @@ fn write_openai_curated_marketplace(root: &Path, plugin_names: &[&str]) {
         &root.join(".agents/plugins/marketplace.json"),
         &format!(
             r#"{{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "plugins": [
 {plugins}
   ]
@@ -97,12 +97,12 @@ fn write_executable_script(path: &Path, contents: &str) {
 
 async fn mount_github_repo_and_ref(server: &MockServer, sha: &str) {
     Mock::given(method("GET"))
-        .and(path("/repos/openai/plugins"))
+        .and(path("/repos/thinwedge/plugins"))
         .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"default_branch":"main"}"#))
         .mount(server)
         .await;
     Mock::given(method("GET"))
-        .and(path("/repos/openai/plugins/git/ref/heads/main"))
+        .and(path("/repos/thinwedge/plugins/git/ref/heads/main"))
         .respond_with(
             ResponseTemplate::new(200)
                 .set_body_string(format!(r#"{{"object":{{"sha":"{sha}"}}}}"#)),
@@ -113,7 +113,7 @@ async fn mount_github_repo_and_ref(server: &MockServer, sha: &str) {
 
 async fn mount_github_zipball(server: &MockServer, sha: &str, bytes: Vec<u8>) {
     Mock::given(method("GET"))
-        .and(path(format!("/repos/openai/plugins/zipball/{sha}")))
+        .and(path(format!("/repos/thinwedge/plugins/zipball/{sha}")))
         .respond_with(
             ResponseTemplate::new(200)
                 .insert_header("content-type", "application/zip")
@@ -155,7 +155,7 @@ async fn run_sync_with_transport_overrides(
     let api_base_url = api_base_url.into();
     let backup_archive_api_url = backup_archive_api_url.into();
     tokio::task::spawn_blocking(move || {
-        sync_openai_plugins_repo_with_transport_overrides(
+        sync_thinwedge_plugins_repo_with_transport_overrides(
             thinwedge_home.as_path(),
             &git_binary,
             &api_base_url,
@@ -172,7 +172,7 @@ async fn run_http_sync(
 ) -> Result<String, String> {
     let api_base_url = api_base_url.into();
     tokio::task::spawn_blocking(move || {
-        sync_openai_plugins_repo_via_http(thinwedge_home.as_path(), &api_base_url)
+        sync_thinwedge_plugins_repo_via_http(thinwedge_home.as_path(), &api_base_url)
     })
     .await
     .expect("sync task should join")
@@ -253,7 +253,7 @@ fn remove_stale_curated_repo_temp_dirs_removes_only_matching_directories() {
 
 #[cfg(unix)]
 #[test]
-fn sync_openai_plugins_repo_prefers_git_when_available() {
+fn sync_thinwedge_plugins_repo_prefers_git_when_available() {
     let tmp = tempdir().expect("tempdir");
     let bin_dir = tempfile::Builder::new()
         .prefix("fake-git-")
@@ -274,7 +274,7 @@ if [ "$1" = "clone" ]; then
   dest="$5"
   mkdir -p "$dest/.git" "$dest/.agents/plugins" "$dest/plugins/gmail/.thinwedge-plugin"
   cat > "$dest/.agents/plugins/marketplace.json" <<'EOF'
-{{"name":"openai-curated","plugins":[{{"name":"gmail","source":{{"source":"local","path":"./plugins/gmail"}}}}]}}
+{{"name":"thinwedge-curated","plugins":[{{"name":"gmail","source":{{"source":"local","path":"./plugins/gmail"}}}}]}}
 EOF
   printf '%s\n' '{{"name":"gmail"}}' > "$dest/plugins/gmail/.thinwedge-plugin/plugin.json"
   exit 0
@@ -289,7 +289,7 @@ exit 1
         ),
     );
 
-    let synced_sha = sync_openai_plugins_repo_with_transport_overrides(
+    let synced_sha = sync_thinwedge_plugins_repo_with_transport_overrides(
         tmp.path(),
         git_path.to_str().expect("utf8 path"),
         "http://127.0.0.1:9",
@@ -306,20 +306,20 @@ exit 1
 
 #[cfg(unix)]
 #[test]
-fn sync_openai_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
+fn sync_thinwedge_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
     let tmp = tempdir().expect("tempdir");
     let repo_root = tempfile::Builder::new()
         .prefix("curated-repo-success-")
         .tempdir()
         .expect("tempdir");
     let work_repo = repo_root.path().join("work/plugins");
-    let remote_repo = repo_root.path().join("remotes/openai/plugins.git");
+    let remote_repo = repo_root.path().join("remotes/thinwedge/plugins.git");
     std::fs::create_dir_all(work_repo.join(".agents/plugins")).expect("create marketplace dir");
     std::fs::create_dir_all(work_repo.join("plugins/gmail/.thinwedge-plugin"))
         .expect("create plugin dir");
     std::fs::write(
         work_repo.join(".agents/plugins/marketplace.json"),
-        r#"{"name":"openai-curated","plugins":[{"name":"gmail","source":{"source":"local","path":"./plugins/gmail"}}]}"#,
+        r#"{"name":"thinwedge-curated","plugins":[{"name":"gmail","source":{"source":"local","path":"./plugins/gmail"}}]}"#,
     )
     .expect("write marketplace");
     std::fs::write(
@@ -406,7 +406,7 @@ fn sync_openai_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
     );
 
     let synced_sha =
-        sync_openai_plugins_repo_via_git(tmp.path(), git_wrapper.to_str().expect("utf8 path"))
+        sync_thinwedge_plugins_repo_via_git(tmp.path(), git_wrapper.to_str().expect("utf8 path"))
             .expect("git sync should succeed");
 
     assert_eq!(synced_sha, sha);
@@ -419,7 +419,7 @@ fn sync_openai_plugins_repo_via_git_succeeds_with_local_rewritten_remote() {
 }
 
 #[tokio::test]
-async fn sync_openai_plugins_repo_falls_back_to_http_when_git_is_unavailable() {
+async fn sync_thinwedge_plugins_repo_falls_back_to_http_when_git_is_unavailable() {
     let tmp = tempdir().expect("tempdir");
     let server = MockServer::start().await;
     let sha = "0123456789abcdef0123456789abcdef01234567";
@@ -444,7 +444,7 @@ async fn sync_openai_plugins_repo_falls_back_to_http_when_git_is_unavailable() {
 
 #[cfg(unix)]
 #[tokio::test]
-async fn sync_openai_plugins_repo_falls_back_to_http_when_git_sync_fails() {
+async fn sync_thinwedge_plugins_repo_falls_back_to_http_when_git_sync_fails() {
     let tmp = tempdir().expect("tempdir");
     let bin_dir = tempfile::Builder::new()
         .prefix("fake-git-fail-")
@@ -482,7 +482,7 @@ exit 1
 
 #[cfg(unix)]
 #[test]
-fn sync_openai_plugins_repo_via_git_cleans_up_staged_dir_on_clone_failure() {
+fn sync_thinwedge_plugins_repo_via_git_cleans_up_staged_dir_on_clone_failure() {
     let tmp = tempdir().expect("tempdir");
     let bin_dir = tempfile::Builder::new()
         .prefix("fake-git-partial-fail-")
@@ -511,7 +511,7 @@ exit 1
         ),
     );
 
-    let err = sync_openai_plugins_repo_via_git(tmp.path(), git_path.to_str().expect("utf8 path"))
+    let err = sync_thinwedge_plugins_repo_via_git(tmp.path(), git_path.to_str().expect("utf8 path"))
         .expect_err("git sync should fail");
 
     assert!(err.contains("fatal: early EOF"));
@@ -519,7 +519,7 @@ exit 1
 }
 
 #[tokio::test]
-async fn sync_openai_plugins_repo_via_http_cleans_up_staged_dir_on_extract_failure() {
+async fn sync_thinwedge_plugins_repo_via_http_cleans_up_staged_dir_on_extract_failure() {
     let tmp = tempdir().expect("tempdir");
     let server = MockServer::start().await;
     let sha = "0123456789abcdef0123456789abcdef01234567";
@@ -536,13 +536,13 @@ async fn sync_openai_plugins_repo_via_http_cleans_up_staged_dir_on_extract_failu
 }
 
 #[tokio::test]
-async fn sync_openai_plugins_repo_skips_archive_download_when_sha_matches() {
+async fn sync_thinwedge_plugins_repo_skips_archive_download_when_sha_matches() {
     let tmp = tempdir().expect("tempdir");
     let repo_path = curated_plugins_repo_path(tmp.path());
     std::fs::create_dir_all(repo_path.join(".agents/plugins")).expect("create repo");
     std::fs::write(
         repo_path.join(".agents/plugins/marketplace.json"),
-        r#"{"name":"openai-curated","plugins":[]}"#,
+        r#"{"name":"thinwedge-curated","plugins":[]}"#,
     )
     .expect("write marketplace");
     std::fs::create_dir_all(tmp.path().join(".tmp")).expect("create tmp");
@@ -566,13 +566,13 @@ async fn sync_openai_plugins_repo_skips_archive_download_when_sha_matches() {
 }
 
 #[tokio::test]
-async fn sync_openai_plugins_repo_falls_back_to_export_archive_when_no_snapshot_exists() {
+async fn sync_thinwedge_plugins_repo_falls_back_to_export_archive_when_no_snapshot_exists() {
     let tmp = tempdir().expect("tempdir");
     let server = MockServer::start().await;
     let export_sha = "1111111111111111111111111111111111111111";
 
     Mock::given(method("GET"))
-        .and(path("/repos/openai/plugins"))
+        .and(path("/repos/thinwedge/plugins"))
         .respond_with(ResponseTemplate::new(500).set_body_string("github repo lookup failed"))
         .mount(&server)
         .await;
@@ -598,10 +598,10 @@ async fn sync_openai_plugins_repo_falls_back_to_export_archive_when_no_snapshot_
 }
 
 #[tokio::test]
-async fn sync_openai_plugins_repo_skips_export_archive_when_snapshot_exists() {
+async fn sync_thinwedge_plugins_repo_skips_export_archive_when_snapshot_exists() {
     let tmp = tempdir().expect("tempdir");
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["linear"]);
     write_curated_plugin_sha(tmp.path());
 
     let plugin_manifest_path = curated_root.join("plugins/linear/.thinwedge-plugin/plugin.json");
@@ -611,7 +611,7 @@ async fn sync_openai_plugins_repo_skips_export_archive_when_snapshot_exists() {
     let server = MockServer::start().await;
 
     Mock::given(method("GET"))
-        .and(path("/repos/openai/plugins"))
+        .and(path("/repos/thinwedge/plugins"))
         .respond_with(ResponseTemplate::new(500).set_body_string("github repo lookup failed"))
         .mount(&server)
         .await;
@@ -689,14 +689,14 @@ fn curated_repo_zipball_bytes(sha: &str) -> Vec<u8> {
     let cursor = std::io::Cursor::new(Vec::new());
     let mut writer = ZipWriter::new(cursor);
     let options = SimpleFileOptions::default();
-    let root = format!("openai-plugins-{sha}");
+    let root = format!("thinwedge-plugins-{sha}");
     writer
         .start_file(format!("{root}/.agents/plugins/marketplace.json"), options)
         .expect("start marketplace entry");
     writer
         .write_all(
             br#"{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "plugins": [
     {
       "name": "gmail",
@@ -745,7 +745,7 @@ fn curated_repo_backup_archive_zip_bytes(sha: &str) -> Vec<u8> {
     writer
         .write_all(
             br#"{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "plugins": [
     {
       "name": "gmail",

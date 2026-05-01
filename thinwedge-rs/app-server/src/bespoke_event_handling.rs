@@ -3391,8 +3391,8 @@ mod tests {
     fn guardian_assessment_aborted_emits_completed_review_payload() {
         let conversation_id = ThreadId::new();
         let action = thinwedge_protocol::protocol::GuardianAssessmentAction::NetworkAccess {
-            target: "api.openai.com:443".to_string(),
-            host: "api.openai.com".to_string(),
+            target: "api.thinwedge.com:443".to_string(),
+            host: "api.thinwedge.com".to_string(),
             protocol: thinwedge_protocol::protocol::NetworkApprovalProtocol::Https,
             port: 443,
         };

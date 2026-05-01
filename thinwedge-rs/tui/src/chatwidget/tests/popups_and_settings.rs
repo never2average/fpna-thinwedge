@@ -847,7 +847,7 @@ async fn plugins_popup_installed_tab_filters_rows_and_clears_search() {
 }
 
 #[tokio::test]
-async fn plugins_popup_openai_curated_tab_omits_marketplace_in_rows() {
+async fn plugins_popup_thinwedge_curated_tab_omits_marketplace_in_rows() {
     let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.set_feature_enabled(Feature::Plugins, /*enabled*/ true);
 
@@ -880,12 +880,12 @@ async fn plugins_popup_openai_curated_tab_omits_marketplace_in_rows() {
 
     let popup = render_bottom_popup(&chat, /*width*/ 100);
     assert!(
-        popup.contains("OpenAI Curated marketplace."),
-        "expected OpenAI Curated tab header, got:\n{popup}"
+        popup.contains("ThinWedge Curated marketplace."),
+        "expected ThinWedge Curated tab header, got:\n{popup}"
     );
     assert!(
         popup.contains("Calendar") && !popup.contains("Repo Plugin"),
-        "expected OpenAI Curated tab to show only official marketplace plugins, got:\n{popup}"
+        "expected ThinWedge Curated tab to show only official marketplace plugins, got:\n{popup}"
     );
     assert!(
         !popup.contains("ChatGPT Marketplace ·"),
@@ -1429,8 +1429,8 @@ async fn apps_popup_keeps_existing_full_snapshot_while_partial_refresh_loads() {
                     plugin_display_names: Vec::new(),
                 },
                 AppInfo {
-                    id: "connector_openai_hidden".to_string(),
-                    name: "Hidden OpenAI".to_string(),
+                    id: "connector_thinwedge_hidden".to_string(),
+                    name: "Hidden ThinWedge".to_string(),
                     description: Some("Should be filtered".to_string()),
                     logo_url: None,
                     logo_url_dark: None,
@@ -1438,7 +1438,7 @@ async fn apps_popup_keeps_existing_full_snapshot_while_partial_refresh_loads() {
                     branding: None,
                     app_metadata: None,
                     labels: None,
-                    install_url: Some("https://example.test/hidden-openai".to_string()),
+                    install_url: Some("https://example.test/hidden-thinwedge".to_string()),
                     is_accessible: true,
                     is_enabled: true,
                     plugin_display_names: Vec::new(),
@@ -1459,7 +1459,7 @@ async fn apps_popup_keeps_existing_full_snapshot_while_partial_refresh_loads() {
         "expected popup to keep the last full snapshot while partial refresh loads, got:\n{popup}"
     );
     assert!(
-        !popup.contains("Hidden OpenAI"),
+        !popup.contains("Hidden ThinWedge"),
         "expected popup to ignore partial refresh rows until the full list arrives, got:\n{popup}"
     );
 }

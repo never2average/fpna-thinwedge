@@ -54,13 +54,13 @@ This avoids duplicate ways to do the same operation and keeps behavior explicit.
 
 Common causes:
 
-- published runtime package (`openai-thinwedge-cli-bin`) is not installed
+- published runtime package (`thinwedge-thinwedge-cli-bin`) is not installed
 - local `thinwedge_bin` override points to a missing file
 - local auth/session is missing
 - incompatible/old app-server
 
 Maintainers stage releases by building the SDK once and the runtime once per
-platform with the same pinned runtime version. Publish `openai-thinwedge-cli-bin`
+platform with the same pinned runtime version. Publish `thinwedge-thinwedge-cli-bin`
 as platform wheels only; do not publish an sdist:
 
 ```bash
@@ -68,11 +68,11 @@ cd sdk/python
 python scripts/update_sdk_artifacts.py generate-types
 python scripts/update_sdk_artifacts.py \
   stage-sdk \
-  /tmp/thinwedge-python-release/openai-thinwedge-app-server-sdk \
+  /tmp/thinwedge-python-release/thinwedge-thinwedge-app-server-sdk \
   --thinwedge-version <thinwedge-release-tag-or-pep440-version>
 python scripts/update_sdk_artifacts.py \
   stage-runtime \
-  /tmp/thinwedge-python-release/openai-thinwedge-cli-bin \
+  /tmp/thinwedge-python-release/thinwedge-thinwedge-cli-bin \
   /path/to/thinwedge \
   --thinwedge-version <thinwedge-release-tag-or-pep440-version>
 ```

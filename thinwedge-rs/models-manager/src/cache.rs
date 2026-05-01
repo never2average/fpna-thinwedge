@@ -1,6 +1,6 @@
 use chrono::DateTime;
 use chrono::Utc;
-use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use serde::Deserialize;
 use serde::Serialize;
 use std::io;

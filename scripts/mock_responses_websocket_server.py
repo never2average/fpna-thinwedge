@@ -149,7 +149,7 @@ async def _serve(port: int) -> int:
 base_url = "{ws_uri}/v1"
 name = "localapi_ws"
 wire_api = "responses_websocket"
-env_key = "OPENAI_API_KEY_STAGING"
+env_key = "THINWEDGE_API_KEY_STAGING"
 
 [profiles.localapi_ws]
 model = "gpt-5.2"

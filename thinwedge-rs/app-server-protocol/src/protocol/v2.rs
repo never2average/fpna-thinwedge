@@ -45,10 +45,10 @@ use thinwedge_protocol::models::MessagePhase;
 use thinwedge_protocol::models::NetworkPermissions as CoreNetworkPermissions;
 use thinwedge_protocol::models::PermissionProfile as CorePermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::InputModality;
-use thinwedge_protocol::openai_models::ModelAvailabilityNux as CoreModelAvailabilityNux;
-use thinwedge_protocol::openai_models::ReasoningEffort;
-use thinwedge_protocol::openai_models::default_input_modalities;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux as CoreModelAvailabilityNux;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::parse_command::ParsedCommand as CoreParsedCommand;
 use thinwedge_protocol::permissions::FileSystemAccessMode as CoreFileSystemAccessMode;
 use thinwedge_protocol::permissions::FileSystemPath as CoreFileSystemPath;
@@ -2249,7 +2249,7 @@ pub struct GetAccountParams {
 #[ts(export_to = "v2/")]
 pub struct GetAccountResponse {
     pub account: Option<Account>,
-    pub requires_openai_auth: bool,
+    pub requires_thinwedge_auth: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema, TS)]
@@ -4715,7 +4715,7 @@ pub struct Thread {
     pub preview: String,
     /// Whether the thread is ephemeral and should not be materialized on disk.
     pub ephemeral: bool,
-    /// Model provider used for this thread (for example, 'openai').
+    /// Model provider used for this thread (for example, 'thinwedge').
     pub model_provider: String,
     /// Unix timestamp (in seconds) when the thread was created.
     #[ts(type = "number")]
@@ -9749,7 +9749,7 @@ mod tests {
     #[test]
     fn network_requirements_deserializes_legacy_fields() {
         let requirements: NetworkRequirements = serde_json::from_value(json!({
-            "allowedDomains": ["api.openai.com"],
+            "allowedDomains": ["api.thinwedge.com"],
             "deniedDomains": ["blocked.example.com"],
             "allowUnixSockets": ["/tmp/proxy.sock"]
         }))
@@ -9766,7 +9766,7 @@ mod tests {
                 dangerously_allow_all_unix_sockets: None,
                 domains: None,
                 managed_allowed_domains_only: None,
-                allowed_domains: Some(vec!["api.openai.com".to_string()]),
+                allowed_domains: Some(vec!["api.thinwedge.com".to_string()]),
                 denied_domains: Some(vec!["blocked.example.com".to_string()]),
                 unix_sockets: None,
                 allow_unix_sockets: Some(vec!["/tmp/proxy.sock".to_string()]),
@@ -9785,14 +9785,14 @@ mod tests {
             dangerously_allow_non_loopback_proxy: Some(false),
             dangerously_allow_all_unix_sockets: Some(true),
             domains: Some(BTreeMap::from([
-                ("api.openai.com".to_string(), NetworkDomainPermission::Allow),
+                ("api.thinwedge.com".to_string(), NetworkDomainPermission::Allow),
                 (
                     "blocked.example.com".to_string(),
                     NetworkDomainPermission::Deny,
                 ),
             ])),
             managed_allowed_domains_only: Some(true),
-            allowed_domains: Some(vec!["api.openai.com".to_string()]),
+            allowed_domains: Some(vec!["api.thinwedge.com".to_string()]),
             denied_domains: Some(vec!["blocked.example.com".to_string()]),
             unix_sockets: Some(BTreeMap::from([
                 (
@@ -9818,11 +9818,11 @@ mod tests {
                 "dangerouslyAllowNonLoopbackProxy": false,
                 "dangerouslyAllowAllUnixSockets": true,
                 "domains": {
-                    "api.openai.com": "allow",
+                    "api.thinwedge.com": "allow",
                     "blocked.example.com": "deny"
                 },
                 "managedAllowedDomainsOnly": true,
-                "allowedDomains": ["api.openai.com"],
+                "allowedDomains": ["api.thinwedge.com"],
                 "deniedDomains": ["blocked.example.com"],
                 "unixSockets": {
                     "/tmp/ignored.sock": "none",
@@ -10043,7 +10043,7 @@ mod tests {
 
         assert_eq!(
             serde_json::to_value(PluginSource::Git {
-                url: "https://github.com/openai/example.git".to_string(),
+                url: "https://github.com/thinwedge/example.git".to_string(),
                 path: Some("plugins/example".to_string()),
                 ref_name: Some("main".to_string()),
                 sha: Some("abc123".to_string()),
@@ -10051,7 +10051,7 @@ mod tests {
             .unwrap(),
             json!({
                 "type": "git",
-                "url": "https://github.com/openai/example.git",
+                "url": "https://github.com/thinwedge/example.git",
                 "path": "plugins/example",
                 "refName": "main",
                 "sha": "abc123",
@@ -10131,14 +10131,14 @@ mod tests {
     fn plugin_marketplace_entry_serializes_remote_only_path_as_null() {
         assert_eq!(
             serde_json::to_value(PluginMarketplaceEntry {
-                name: "openai-curated".to_string(),
+                name: "thinwedge-curated".to_string(),
                 path: None,
                 interface: None,
                 plugins: Vec::new(),
             })
             .unwrap(),
             json!({
-                "name": "openai-curated",
+                "name": "thinwedge-curated",
                 "path": null,
                 "interface": null,
                 "plugins": [],
@@ -10251,13 +10251,13 @@ mod tests {
 
         assert_eq!(
             serde_json::from_value::<PluginReadParams>(json!({
-                "remoteMarketplaceName": "openai-curated",
+                "remoteMarketplaceName": "thinwedge-curated",
                 "pluginName": "gmail",
             }))
             .unwrap(),
             PluginReadParams {
                 marketplace_path: None,
-                remote_marketplace_name: Some("openai-curated".to_string()),
+                remote_marketplace_name: Some("thinwedge-curated".to_string()),
                 plugin_name: "gmail".to_string(),
             },
         );
@@ -10302,14 +10302,14 @@ mod tests {
 
         assert_eq!(
             serde_json::from_value::<PluginInstallParams>(json!({
-                "remoteMarketplaceName": "openai-curated",
+                "remoteMarketplaceName": "thinwedge-curated",
                 "pluginName": "gmail",
                 "forceRemoteSync": true,
             }))
             .unwrap(),
             PluginInstallParams {
                 marketplace_path: None,
-                remote_marketplace_name: Some("openai-curated".to_string()),
+                remote_marketplace_name: Some("thinwedge-curated".to_string()),
                 plugin_name: "gmail".to_string(),
             },
         );
@@ -10319,22 +10319,22 @@ mod tests {
     fn plugin_uninstall_params_serialization_omits_force_remote_sync() {
         assert_eq!(
             serde_json::to_value(PluginUninstallParams {
-                plugin_id: "gmail@openai-curated".to_string(),
+                plugin_id: "gmail@thinwedge-curated".to_string(),
             })
             .unwrap(),
             json!({
-                "pluginId": "gmail@openai-curated",
+                "pluginId": "gmail@thinwedge-curated",
             }),
         );
 
         assert_eq!(
             serde_json::from_value::<PluginUninstallParams>(json!({
-                "pluginId": "gmail@openai-curated",
+                "pluginId": "gmail@thinwedge-curated",
                 "forceRemoteSync": true,
             }))
             .unwrap(),
             PluginUninstallParams {
-                plugin_id: "gmail@openai-curated".to_string(),
+                plugin_id: "gmail@thinwedge-curated".to_string(),
             },
         );
 
@@ -10597,7 +10597,7 @@ mod tests {
                 "forkedFromId": null,
                 "preview": "",
                 "ephemeral": false,
-                "modelProvider": "openai",
+                "modelProvider": "thinwedge",
                 "createdAt": 1,
                 "updatedAt": 1,
                 "status": { "type": "idle" },
@@ -10612,7 +10612,7 @@ mod tests {
                 "turns": []
             },
             "model": "gpt-5",
-            "modelProvider": "openai",
+            "modelProvider": "thinwedge",
             "serviceTier": null,
             "cwd": absolute_path_string("tmp"),
             "approvalPolicy": "on-failure",

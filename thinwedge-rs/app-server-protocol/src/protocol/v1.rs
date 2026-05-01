@@ -6,7 +6,7 @@ use thinwedge_protocol::config_types::ForcedLoginMethod;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::SandboxMode;
 use thinwedge_protocol::config_types::Verbosity;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::parse_command::ParsedCommand;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::FileChange;
@@ -189,7 +189,7 @@ pub struct ExecOneOffCommandParams {
 pub struct GetAuthStatusResponse {
     pub auth_method: Option<AuthMode>,
     pub auth_token: Option<String>,
-    pub requires_openai_auth: Option<bool>,
+    pub requires_thinwedge_auth: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Serialize, JsonSchema, TS)]

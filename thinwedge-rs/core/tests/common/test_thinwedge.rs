@@ -29,7 +29,7 @@ use thinwedge_models_manager::bundled_models_response;
 use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
@@ -502,7 +502,7 @@ impl TestThinWedgeBuilder {
             // Most core tests use SSE-only mock servers, so keep websocket transport off unless
             // a test explicitly opts into websocket coverage.
             supports_websockets: false,
-            ..built_in_model_providers(/*openai_base_url*/ None)["openai"].clone()
+            ..built_in_model_providers(/*thinwedge_base_url*/ None)["thinwedge"].clone()
         };
         let cwd = Arc::new(TempDir::new()?);
         for hook in self.pre_build_hooks.drain(..) {

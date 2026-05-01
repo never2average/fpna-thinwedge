@@ -880,12 +880,12 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
     "displayName": "Plugin Display Name",
     "shortDescription": "Short description for subtitle",
     "longDescription": "Long description for details page",
-    "developerName": "OpenAI",
+    "developerName": "ThinWedge",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
-    "websiteURL": "https://openai.com/",
-    "privacyPolicyURL": "https://openai.com/policies/row-privacy-policy/",
-    "termsOfServiceURL": "https://openai.com/policies/row-terms-of-use/",
+    "websiteURL": "https://thinwedge.com/",
+    "privacyPolicyURL": "https://thinwedge.com/policies/row-privacy-policy/",
+    "termsOfServiceURL": "https://thinwedge.com/policies/row-terms-of-use/",
     "defaultPrompt": [
       "Starter prompt for trying a plugin",
       "Find my next action"
@@ -937,15 +937,15 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
     assert_eq!(interface.category.as_deref(), Some("Design"));
     assert_eq!(
         interface.website_url.as_deref(),
-        Some("https://openai.com/")
+        Some("https://thinwedge.com/")
     );
     assert_eq!(
         interface.privacy_policy_url.as_deref(),
-        Some("https://openai.com/policies/row-privacy-policy/")
+        Some("https://thinwedge.com/policies/row-privacy-policy/")
     );
     assert_eq!(
         interface.terms_of_service_url.as_deref(),
-        Some("https://openai.com/policies/row-terms-of-use/")
+        Some("https://thinwedge.com/policies/row-terms-of-use/")
     );
     assert_eq!(
         interface.default_prompt,
@@ -1055,7 +1055,7 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
             .chatgpt_account_id("account-123"),
         AuthCredentialsStoreMode::File,
     )?;
-    write_openai_curated_marketplace(thinwedge_home.path(), &["linear"])?;
+    write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/list"))
@@ -1063,7 +1063,7 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
         .and(header("chatgpt-account-id", "account-123"))
         .respond_with(ResponseTemplate::new(200).set_body_string(
             r#"[
-  {"id":"1","name":"linear","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
+  {"id":"1","name":"linear","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true}
 ]"#,
         ))
         .mount(&server)
@@ -1073,7 +1073,7 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
         .and(query_param("platform", "thinwedge"))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@thinwedge-curated"]"#))
         .mount(&server)
         .await;
 
@@ -1100,22 +1100,22 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
         let curated_marketplace = response
             .marketplaces
             .into_iter()
-            .find(|marketplace| marketplace.name == "openai-curated")
-            .expect("expected openai-curated marketplace entry");
+            .find(|marketplace| marketplace.name == "thinwedge-curated")
+            .expect("expected thinwedge-curated marketplace entry");
         assert_eq!(
             curated_marketplace
                 .plugins
                 .into_iter()
                 .map(|plugin| (plugin.id, plugin.installed, plugin.enabled))
                 .collect::<Vec<_>>(),
-            vec![("linear@openai-curated".to_string(), true, true)]
+            vec![("linear@thinwedge-curated".to_string(), true, true)]
         );
         wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1)
             .await?;
     }
 
     let config = std::fs::read_to_string(thinwedge_home.path().join("config.toml"))?;
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
+    assert!(config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
 
     {
         let mut mcp = McpProcess::new_with_plugin_startup_tasks(thinwedge_home.path()).await?;
@@ -1464,12 +1464,12 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
     write_plugin_sync_config(thinwedge_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_openai_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
+    write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
         .and(query_param("platform", "thinwedge"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@thinwedge-curated"]"#))
         .mount(&server)
         .await;
 
@@ -1489,7 +1489,7 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
 
     assert_eq!(
         response.featured_plugin_ids,
-        vec!["linear@openai-curated".to_string()]
+        vec!["linear@thinwedge-curated".to_string()]
     );
     Ok(())
 }
@@ -1499,12 +1499,12 @@ async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() ->
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
     write_plugin_sync_config(thinwedge_home.path(), &format!("{}/backend-api/", server.uri()))?;
-    write_openai_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
+    write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
         .and(query_param("platform", "thinwedge"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@thinwedge-curated"]"#))
         .expect(1)
         .mount(&server)
         .await;
@@ -1526,7 +1526,7 @@ async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() ->
 
     assert_eq!(
         response.featured_plugin_ids,
-        vec!["linear@openai-curated".to_string()]
+        vec!["linear@thinwedge-curated".to_string()]
     );
     Ok(())
 }
@@ -1619,13 +1619,13 @@ chatgpt_base_url = "{base_url}"
 [features]
 plugins = true
 
-[plugins."linear@openai-curated"]
+[plugins."linear@thinwedge-curated"]
 enabled = false
 
-[plugins."gmail@openai-curated"]
+[plugins."gmail@thinwedge-curated"]
 enabled = false
 
-[plugins."calendar@openai-curated"]
+[plugins."calendar@thinwedge-curated"]
 enabled = true
 "#
         ),
@@ -1650,7 +1650,7 @@ remote_plugin = true
     )
 }
 
-fn write_openai_curated_marketplace(
+fn write_thinwedge_curated_marketplace(
     thinwedge_home: &std::path::Path,
     plugin_names: &[&str],
 ) -> std::io::Result<()> {
@@ -1676,7 +1676,7 @@ fn write_openai_curated_marketplace(
         curated_root.join(".agents/plugins/marketplace.json"),
         format!(
             r#"{{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "plugins": [
 {plugins}
   ]

@@ -416,10 +416,10 @@
       "type": "object"
     },
     "AuthMode": {
-      "description": "Authentication mode for OpenAI-backed providers.",
+      "description": "Authentication mode for ThinWedge-backed providers.",
       "oneOf": [
         {
-          "description": "OpenAI API key provided by the caller and stored by ThinWedge.",
+          "description": "ThinWedge API key provided by the caller and stored by ThinWedge.",
           "enum": [
             "apikey"
           ],
@@ -433,7 +433,7 @@
           "type": "string"
         },
         {
-          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
+          "description": "[UNSTABLE] FOR THINWEDGE INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
           "enum": [
             "chatgptAuthTokens"
           ],
@@ -2512,7 +2512,7 @@
       "type": "string"
     },
     "ReasoningEffort": {
-      "description": "See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
+      "description": "See https://platform.thinwedge.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
       "enum": [
         "none",
         "minimal",
@@ -2947,7 +2947,7 @@
           "type": "string"
         },
         "modelProvider": {
-          "description": "Model provider used for this thread (for example, 'openai').",
+          "description": "Model provider used for this thread (for example, 'thinwedge').",
           "type": "string"
         },
         "name": {

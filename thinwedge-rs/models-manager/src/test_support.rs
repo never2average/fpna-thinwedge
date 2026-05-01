@@ -5,8 +5,8 @@
 use crate::ModelsManagerConfig;
 use crate::bundled_models_response;
 use crate::manager::construct_model_info_from_candidates;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
 
 /// Get model identifier without consulting remote state or cache.
 pub fn get_model_offline_for_tests(model: Option<&str>) -> String {

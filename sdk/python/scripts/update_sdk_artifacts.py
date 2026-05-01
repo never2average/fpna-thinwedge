@@ -17,8 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence, get_args, get_origin
 
-SDK_DISTRIBUTION_NAME = "openai-thinwedge-app-server-sdk"
-RUNTIME_DISTRIBUTION_NAME = "openai-thinwedge-cli-bin"
+SDK_DISTRIBUTION_NAME = "thinwedge-thinwedge-app-server-sdk"
+RUNTIME_DISTRIBUTION_NAME = "thinwedge-thinwedge-cli-bin"
 
 
 def repo_root() -> Path:
@@ -182,7 +182,7 @@ def _rewrite_sdk_runtime_dependency(pyproject_text: str, runtime_version: str) -
     raw_items = [
         item
         for item in raw_items
-        if RUNTIME_DISTRIBUTION_NAME.removeprefix("openai-") not in item
+        if RUNTIME_DISTRIBUTION_NAME.removeprefix("thinwedge-") not in item
         and RUNTIME_DISTRIBUTION_NAME not in item
     ]
     raw_items.append(f'"{RUNTIME_DISTRIBUTION_NAME}=={runtime_version}"')

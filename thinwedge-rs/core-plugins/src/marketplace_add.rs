@@ -1,4 +1,4 @@
-use crate::OPENAI_CURATED_MARKETPLACE_NAME;
+use crate::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use crate::installed_marketplaces::marketplace_install_root;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use std::fs;
@@ -121,9 +121,9 @@ where
 
     if let MarketplaceSource::Local { path } = &source {
         let marketplace_name = validate_marketplace_source_root(path)?;
-        if marketplace_name == OPENAI_CURATED_MARKETPLACE_NAME {
+        if marketplace_name == THINWEDGE_CURATED_MARKETPLACE_NAME {
             return Err(MarketplaceAddError::InvalidRequest(format!(
-                "marketplace '{OPENAI_CURATED_MARKETPLACE_NAME}' is reserved and cannot be added from this source"
+                "marketplace '{THINWEDGE_CURATED_MARKETPLACE_NAME}' is reserved and cannot be added from this source"
             )));
         }
         if find_marketplace_root_by_name(thinwedge_home, &install_root, &marketplace_name)?.is_some() {
@@ -165,9 +165,9 @@ where
     stage_marketplace_source(&source, &sparse_paths, &staged_root, clone_source)?;
 
     let marketplace_name = validate_marketplace_source_root(&staged_root)?;
-    if marketplace_name == OPENAI_CURATED_MARKETPLACE_NAME {
+    if marketplace_name == THINWEDGE_CURATED_MARKETPLACE_NAME {
         return Err(MarketplaceAddError::InvalidRequest(format!(
-            "marketplace '{OPENAI_CURATED_MARKETPLACE_NAME}' is reserved and cannot be added from this source"
+            "marketplace '{THINWEDGE_CURATED_MARKETPLACE_NAME}' is reserved and cannot be added from this source"
         )));
     }
 

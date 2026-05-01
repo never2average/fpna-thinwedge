@@ -6,7 +6,7 @@ use serde::Deserialize;
 use std::time::Duration;
 use url::Url;
 
-const DEFAULT_REMOTE_MARKETPLACE_NAME: &str = "openai-curated";
+const DEFAULT_REMOTE_MARKETPLACE_NAME: &str = "thinwedge-curated";
 const REMOTE_PLUGIN_FETCH_TIMEOUT: Duration = Duration::from_secs(30);
 const REMOTE_FEATURED_PLUGIN_FETCH_TIMEOUT: Duration = Duration::from_secs(10);
 const REMOTE_PLUGIN_MUTATION_TIMEOUT: Duration = Duration::from_secs(30);

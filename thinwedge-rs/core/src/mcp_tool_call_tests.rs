@@ -65,7 +65,7 @@ fn approval_metadata(
         tool_description: tool_description.map(str::to_string),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     }
 }
 
@@ -175,7 +175,7 @@ fn mcp_app_resource_uri_reads_known_tool_meta_keys() {
     );
 
     let output_template = serde_json::json!({
-        "openai/outputTemplate": "ui://widget/output-template.html",
+        "thinwedge/outputTemplate": "ui://widget/output-template.html",
     });
     assert_eq!(
         get_mcp_app_resource_uri(output_template.as_object()),
@@ -184,18 +184,18 @@ fn mcp_app_resource_uri_reads_known_tool_meta_keys() {
 }
 
 #[test]
-fn openai_file_params_are_only_honored_for_thinwedge_apps() {
+fn thinwedge_file_params_are_only_honored_for_thinwedge_apps() {
     let meta = serde_json::json!({
-        "openai/fileParams": ["file"],
+        "thinwedge/fileParams": ["file"],
     });
     let meta = meta.as_object();
 
     assert_eq!(
-        openai_file_input_params_for_server(THINWEDGE_APPS_MCP_SERVER_NAME, meta),
+        thinwedge_file_input_params_for_server(THINWEDGE_APPS_MCP_SERVER_NAME, meta),
         Some(vec!["file".to_string()])
     );
     assert_eq!(
-        openai_file_input_params_for_server("minimaltest", meta),
+        thinwedge_file_input_params_for_server("minimaltest", meta),
         None
     );
 }
@@ -892,7 +892,7 @@ async fn thinwedge_apps_tool_call_request_meta_includes_turn_metadata_and_thinwe
             .cloned()
             .expect("_thinwedge_apps metadata should be an object"),
         ),
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     assert_eq!(
@@ -1099,7 +1099,7 @@ fn guardian_mcp_review_request_includes_annotations_when_present() {
         tool_description: None,
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let request = build_guardian_mcp_tool_review_request("call-1", &invocation, Some(&metadata));
@@ -1663,7 +1663,7 @@ async fn approve_mode_skips_when_annotations_do_not_require_approval() {
         tool_description: None,
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -1736,7 +1736,7 @@ async fn guardian_mode_skips_auto_when_annotations_do_not_require_approval() {
         tool_description: None,
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -1792,7 +1792,7 @@ async fn permission_request_hook_allows_mcp_tool_call() {
         tool_description: None,
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -1923,7 +1923,7 @@ async fn permission_request_hook_runs_after_remembered_mcp_approval() {
         tool_description: None,
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
     let remembered_key =
         session_mcp_tool_approval_key(&invocation, Some(&metadata), AppToolApproval::Auto)
@@ -2009,7 +2009,7 @@ async fn guardian_mode_mcp_denial_returns_rationale_message() {
         tool_description: Some("Reads calendar data.".to_string()),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -2062,7 +2062,7 @@ async fn prompt_mode_waits_for_approval_when_annotations_do_not_require_approval
         tool_description: None,
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let mut approval_task = {
@@ -2141,7 +2141,7 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_for_model() {
         tool_description: Some("Performs a risky action.".to_string()),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -2213,7 +2213,7 @@ async fn custom_approve_mode_blocks_when_arc_returns_interrupt_for_model() {
         tool_description: Some("Performs a risky action.".to_string()),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -2285,7 +2285,7 @@ async fn approve_mode_blocks_when_arc_returns_interrupt_without_annotations() {
         tool_description: Some("Performs a risky action.".to_string()),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(
@@ -2362,7 +2362,7 @@ async fn full_access_mode_skips_arc_monitor_for_all_approval_modes() {
         tool_description: Some("Performs a risky action.".to_string()),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     for approval_mode in [
@@ -2469,7 +2469,7 @@ async fn approve_mode_routes_arc_ask_user_to_guardian_when_guardian_reviewer_is_
         tool_description: Some("Performs a risky action.".to_string()),
         mcp_app_resource_uri: None,
         thinwedge_apps_meta: None,
-        openai_file_input_params: None,
+        thinwedge_file_input_params: None,
     };
 
     let decision = maybe_request_mcp_tool_approval(

@@ -113,8 +113,8 @@ fn thinwedge_apps_mcp_url_for_base_url_keeps_existing_paths() {
         "https://chatgpt.com/backend-api/wham/apps"
     );
     assert_eq!(
-        thinwedge_apps_mcp_url_for_base_url("https://chat.openai.com"),
-        "https://chat.openai.com/backend-api/wham/apps"
+        thinwedge_apps_mcp_url_for_base_url("https://chat.thinwedge.com"),
+        "https://chat.thinwedge.com/backend-api/wham/apps"
     );
     assert_eq!(
         thinwedge_apps_mcp_url_for_base_url("http://localhost:8080/api/thinwedge"),

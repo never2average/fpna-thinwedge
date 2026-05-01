@@ -6,26 +6,26 @@ use super::PluginCapabilitySummary;
 use super::PluginsManager;
 use crate::config::Config;
 use thinwedge_config::types::ToolSuggestDiscoverableType;
-use thinwedge_core_plugins::OPENAI_BUNDLED_MARKETPLACE_NAME;
-use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::THINWEDGE_BUNDLED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use thinwedge_features::Feature;
 use thinwedge_tools::DiscoverablePluginInfo;
 
 const TOOL_SUGGEST_DISCOVERABLE_PLUGIN_ALLOWLIST: &[&str] = &[
-    "github@openai-curated",
-    "notion@openai-curated",
-    "slack@openai-curated",
-    "gmail@openai-curated",
-    "google-calendar@openai-curated",
-    "google-drive@openai-curated",
-    "linear@openai-curated",
-    "figma@openai-curated",
-    "computer-use@openai-bundled",
+    "github@thinwedge-curated",
+    "notion@thinwedge-curated",
+    "slack@thinwedge-curated",
+    "gmail@thinwedge-curated",
+    "google-calendar@thinwedge-curated",
+    "google-drive@thinwedge-curated",
+    "linear@thinwedge-curated",
+    "figma@thinwedge-curated",
+    "computer-use@thinwedge-bundled",
 ];
 
 const TOOL_SUGGEST_DISCOVERABLE_MARKETPLACE_ALLOWLIST: &[&str] = &[
-    OPENAI_BUNDLED_MARKETPLACE_NAME,
-    OPENAI_CURATED_MARKETPLACE_NAME,
+    THINWEDGE_BUNDLED_MARKETPLACE_NAME,
+    THINWEDGE_CURATED_MARKETPLACE_NAME,
 ];
 
 pub(crate) async fn list_tool_suggest_discoverable_plugins(

@@ -17,9 +17,9 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-PACKAGE_NAME = "openai-thinwedge-cli-bin"
-SDK_PACKAGE_NAME = "openai-thinwedge-app-server-sdk"
-REPO_SLUG = "openai/thinwedge"
+PACKAGE_NAME = "thinwedge-thinwedge-cli-bin"
+SDK_PACKAGE_NAME = "thinwedge-thinwedge-app-server-sdk"
+REPO_SLUG = "thinwedge/thinwedge"
 
 
 class RuntimeSetupError(RuntimeError):

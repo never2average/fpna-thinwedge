@@ -251,10 +251,10 @@ async fn refresh_accessible_connectors_cache_from_mcp_tools_writes_latest_instal
             ),
         ),
         (
-            "mcp__thinwedge_apps__openai_hidden".to_string(),
+            "mcp__thinwedge_apps__thinwedge_hidden".to_string(),
             thinwedge_app_tool(
-                "openai_hidden",
-                "connector_openai_hidden",
+                "thinwedge_hidden",
+                "connector_thinwedge_hidden",
                 Some("Hidden"),
                 &[],
             ),
@@ -1044,11 +1044,11 @@ fn filter_disallowed_connectors_allows_non_disallowed_connectors() {
 }
 
 #[test]
-fn filter_disallowed_connectors_filters_openai_prefix() {
+fn filter_disallowed_connectors_filters_thinwedge_prefix() {
     let filtered = filter_disallowed_connectors(
         vec![
-            app("connector_openai_foo"),
-            app("connector_openai_bar"),
+            app("connector_thinwedge_foo"),
+            app("connector_thinwedge_bar"),
             app("gamma"),
         ],
         "thinwedge_cli",
@@ -1070,10 +1070,10 @@ fn filter_disallowed_connectors_filters_disallowed_connector_ids() {
 }
 
 #[test]
-fn first_party_chat_originator_filters_target_and_openai_prefixed_connectors() {
+fn first_party_chat_originator_filters_target_and_thinwedge_prefixed_connectors() {
     let filtered = filter_disallowed_connectors(
         vec![
-            app("connector_openai_foo"),
+            app("connector_thinwedge_foo"),
             app("asdk_app_6938a94a61d881918ef32cb999ff937c"),
             app("connector_0f9c9d4592e54d0a9a12b3f44a1e2010"),
         ],
@@ -1094,7 +1094,7 @@ async fn tool_suggest_connector_ids_include_configured_tool_suggest_discoverable
 [tool_suggest]
 discoverables = [
   { type = "connector", id = "connector_2128aebfecb84f64a069897515042a44" },
-  { type = "plugin", id = "slack@openai-curated" },
+  { type = "plugin", id = "slack@thinwedge-curated" },
   { type = "connector", id = "   " }
 ]
 "#,

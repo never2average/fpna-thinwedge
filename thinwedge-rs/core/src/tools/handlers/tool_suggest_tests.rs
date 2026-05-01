@@ -3,7 +3,7 @@ use crate::plugins::PluginInstallRequest;
 use crate::plugins::PluginsManager;
 use crate::plugins::test_support::load_plugins_config;
 use crate::plugins::test_support::write_curated_plugin_sha;
-use crate::plugins::test_support::write_openai_curated_marketplace;
+use crate::plugins::test_support::write_thinwedge_curated_marketplace;
 use crate::plugins::test_support::write_plugins_feature_config;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_config::config_toml::ConfigToml;
@@ -25,7 +25,7 @@ use tempfile::tempdir;
 async fn verified_plugin_suggestion_completed_requires_installed_plugin() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["sample"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["sample"]);
     write_curated_plugin_sha(thinwedge_home.path());
     write_plugins_feature_config(thinwedge_home.path());
 
@@ -33,7 +33,7 @@ async fn verified_plugin_suggestion_completed_requires_installed_plugin() {
     let plugins_manager = PluginsManager::new(thinwedge_home.path().to_path_buf());
 
     assert!(!verified_plugin_suggestion_completed(
-        "sample@openai-curated",
+        "sample@thinwedge-curated",
         &config,
         &plugins_manager,
     ));
@@ -51,7 +51,7 @@ async fn verified_plugin_suggestion_completed_requires_installed_plugin() {
 
     let refreshed_config = load_plugins_config(thinwedge_home.path()).await;
     assert!(verified_plugin_suggestion_completed(
-        "sample@openai-curated",
+        "sample@thinwedge-curated",
         &refreshed_config,
         &plugins_manager,
     ));
@@ -114,7 +114,7 @@ async fn persist_tool_suggest_disable_writes_connector_config() {
 async fn persist_tool_suggest_disable_writes_plugin_config() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let tool = DiscoverableTool::Plugin(Box::new(DiscoverablePluginInfo {
-        id: "slack@openai-curated".to_string(),
+        id: "slack@thinwedge-curated".to_string(),
         name: "Slack".to_string(),
         description: None,
         has_skills: true,
@@ -133,7 +133,7 @@ async fn persist_tool_suggest_disable_writes_plugin_config() {
         parsed.tool_suggest,
         Some(ToolSuggestConfig {
             discoverables: Vec::new(),
-            disabled_tools: vec![ToolSuggestDisabledTool::plugin("slack@openai-curated")],
+            disabled_tools: vec![ToolSuggestDisabledTool::plugin("slack@thinwedge-curated")],
         })
     );
 }
@@ -147,7 +147,7 @@ async fn persist_tool_suggest_disable_dedupes_existing_disabled_tools() {
         r#"
 [tool_suggest]
 discoverables = [
-  { type = "plugin", id = "sample@openai-curated" }
+  { type = "plugin", id = "sample@thinwedge-curated" }
 ]
 
 [[tool_suggest.disabled_tools]]
@@ -164,7 +164,7 @@ id = "   "
 
 [[tool_suggest.disabled_tools]]
 type = "plugin"
-id = "slack@openai-curated"
+id = "slack@thinwedge-curated"
 "#,
     )
     .expect("write config");
@@ -181,11 +181,11 @@ id = "slack@openai-curated"
         Some(ToolSuggestConfig {
             discoverables: vec![ToolSuggestDiscoverable {
                 kind: ToolSuggestDiscoverableType::Plugin,
-                id: "sample@openai-curated".to_string(),
+                id: "sample@thinwedge-curated".to_string(),
             }],
             disabled_tools: vec![
                 ToolSuggestDisabledTool::connector("connector_calendar"),
-                ToolSuggestDisabledTool::plugin("slack@openai-curated"),
+                ToolSuggestDisabledTool::plugin("slack@thinwedge-curated"),
             ],
         })
     );

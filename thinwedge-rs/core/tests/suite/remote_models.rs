@@ -9,15 +9,15 @@ use thinwedge_models_manager::manager::RefreshStrategy;
 use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ConfigShellToolType;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ModelVisibility;
-use thinwedge_protocol::openai_models::ModelsResponse;
-use thinwedge_protocol::openai_models::ReasoningEffort;
-use thinwedge_protocol::openai_models::ReasoningEffortPreset;
-use thinwedge_protocol::openai_models::TruncationPolicyConfig;
-use thinwedge_protocol::openai_models::default_input_modalities;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::ExecCommandSource;
@@ -94,7 +94,7 @@ async fn remote_models_get_model_info_uses_longest_matching_prefix() -> Result<(
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),
@@ -917,7 +917,7 @@ async fn remote_models_do_not_append_removed_builtin_presets() -> Result<()> {
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),
@@ -978,7 +978,7 @@ async fn remote_models_merge_adds_new_high_priority_first() -> Result<()> {
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),
@@ -1025,7 +1025,7 @@ async fn remote_models_merge_replaces_overlapping_model() -> Result<()> {
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),
@@ -1069,7 +1069,7 @@ async fn remote_models_merge_preserves_bundled_models_on_empty_response() -> Res
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),
@@ -1111,7 +1111,7 @@ async fn remote_models_request_times_out_after_5s() -> Result<()> {
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),
@@ -1181,7 +1181,7 @@ async fn remote_models_hide_picker_only_models() -> Result<()> {
     let auth = ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing();
     let provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
-        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
+        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
     };
     let manager = thinwedge_core::test_support::models_manager_with_provider(
         thinwedge_home.path().to_path_buf(),

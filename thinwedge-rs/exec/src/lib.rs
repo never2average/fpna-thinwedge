@@ -1038,7 +1038,7 @@ fn session_configured_from_thread_response(
     sandbox_policy: SandboxPolicy,
     permission_profile: Option<PermissionProfile>,
     cwd: AbsolutePathBuf,
-    reasoning_effort: Option<thinwedge_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<thinwedge_protocol::thinwedge_models::ReasoningEffort>,
 ) -> Result<SessionConfiguredEvent, String> {
     let session_id = thinwedge_protocol::ThreadId::from_string(thread_id)
         .map_err(|err| format!("thread id `{thread_id}` is invalid: {err}"))?;

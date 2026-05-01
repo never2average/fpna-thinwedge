@@ -100,11 +100,11 @@ Clients must send a single `initialize` request per transport connection before 
 
 Applications building on top of `thinwedge app-server` should identify themselves via the `clientInfo` parameter.
 
-**Important**: `clientInfo.name` is used to identify the client for the OpenAI Compliance Logs Platform. If
+**Important**: `clientInfo.name` is used to identify the client for the ThinWedge Compliance Logs Platform. If
 you are developing a new ThinWedge integration that is intended for enterprise use, please contact us to get it
 added to a known clients list. For more context: https://chatgpt.com/admin/api-reference#tag/Logs:-ThinWedge
 
-Example (from OpenAI's official VSCode extension):
+Example (from ThinWedge's official VSCode extension):
 
 ```json
 {
@@ -262,7 +262,7 @@ Start a fresh thread when you need a new ThinWedge conversation.
     "thread": {
         "id": "thr_123",
         "preview": "",
-        "modelProvider": "openai",
+        "modelProvider": "thinwedge",
         "createdAt": 1730910000
     }
 } }
@@ -1134,7 +1134,7 @@ Today both notifications carry an empty `items` array even when item events were
 - `userMessage` — `{id, content}` where `content` is a list of user inputs (`text`, `image`, or `localImage`).
 - `agentMessage` — `{id, text}` containing the accumulated agent reply.
 - `plan` — `{id, text}` emitted for plan-mode turns; plan text can stream via `item/plan/delta` (experimental).
-- `reasoning` — `{id, summary, content}` where `summary` holds streamed reasoning summaries (applicable for most OpenAI models) and `content` holds raw reasoning blocks (applicable for e.g. open source models).
+- `reasoning` — `{id, summary, content}` where `summary` holds streamed reasoning summaries (applicable for most ThinWedge models) and `content` holds raw reasoning blocks (applicable for e.g. open source models).
 - `commandExecution` — `{id, command, cwd, status, commandActions, aggregatedOutput?, exitCode?, durationMs?}` for sandboxed commands; `status` is `inProgress`, `completed`, `failed`, or `declined`.
 - `fileChange` — `{id, changes, status}` describing proposed edits; `changes` list `{path, kind, diff}` and `status` is `inProgress`, `completed`, `failed`, or `declined`.
 - `mcpToolCall` — `{id, server, tool, status, arguments, result?, error?}` describing MCP calls; `status` is `inProgress`, `completed`, or `failed`.
@@ -1570,14 +1570,14 @@ Request:
 Response examples:
 
 ```json
-{ "id": 1, "result": { "account": null, "requiresOpenaiAuth": false } } // No OpenAI auth needed (e.g., OSS/local models)
-{ "id": 1, "result": { "account": null, "requiresOpenaiAuth": true } }  // OpenAI auth required (typical for OpenAI-hosted models)
-{ "id": 1, "result": { "account": { "type": "apiKey" }, "requiresOpenaiAuth": true } }
+{ "id": 1, "result": { "account": null, "requiresThinwedgeAuth": false } } // No ThinWedge auth needed (e.g., OSS/local models)
+{ "id": 1, "result": { "account": null, "requiresThinwedgeAuth": true } }  // ThinWedge auth required (typical for ThinWedge-hosted models)
+{ "id": 1, "result": { "account": { "type": "apiKey" }, "requiresThinwedgeAuth": true } }
 ```
 
 Field notes:
 
-- `requiresOpenaiAuth` reflects the active provider; when `false`, ThinWedge can run without OpenAI credentials.
+- `requiresThinwedgeAuth` reflects the active provider; when `false`, ThinWedge can run without ThinWedge credentials.
 
 ### 2) Log in with an API key
 

@@ -15,7 +15,7 @@ use tokio::task;
 use crate::operations::run_git_for_status;
 
 const BASELINE_COMMIT_MESSAGE: &str =
-    "Initialize ThinWedge git baseline\n\nCo-authored-by: ThinWedge <noreply@openai.com>";
+    "Initialize ThinWedge git baseline\n\nCo-authored-by: ThinWedge <noreply@thinwedge.com>";
 
 /// File-level change status between a git baseline and the current directory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -162,7 +162,7 @@ fn write_index_from_head(root: &Path) -> anyhow::Result<()> {
 fn thinwedge_signature() -> gix::actor::Signature {
     gix::actor::Signature {
         name: "ThinWedge".into(),
-        email: "noreply@openai.com".into(),
+        email: "noreply@thinwedge.com".into(),
         time: gix::date::Time {
             seconds: chrono::Utc::now().timestamp(),
             offset: 0,

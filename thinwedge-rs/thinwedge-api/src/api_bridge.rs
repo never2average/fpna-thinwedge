@@ -113,7 +113,7 @@ pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
                         request_id: extract_request_id(headers.as_ref()),
                         identity_authorization_error: extract_header(
                             headers.as_ref(),
-                            X_OPENAI_AUTHORIZATION_ERROR_HEADER,
+                            X_THINWEDGE_AUTHORIZATION_ERROR_HEADER,
                         ),
                         identity_error_code: extract_x_error_json_code(headers.as_ref()),
                     })
@@ -136,7 +136,7 @@ const ACTIVE_LIMIT_HEADER: &str = "x-thinwedge-active-limit";
 const REQUEST_ID_HEADER: &str = "x-request-id";
 const OAI_REQUEST_ID_HEADER: &str = "x-oai-request-id";
 const CF_RAY_HEADER: &str = "cf-ray";
-const X_OPENAI_AUTHORIZATION_ERROR_HEADER: &str = "x-openai-authorization-error";
+const X_THINWEDGE_AUTHORIZATION_ERROR_HEADER: &str = "x-thinwedge-authorization-error";
 const X_ERROR_JSON_HEADER: &str = "x-error-json";
 const CYBER_POLICY_ERROR_CODE: &str = "cyber_policy";
 const CYBER_POLICY_FALLBACK_MESSAGE: &str =

@@ -22,7 +22,7 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 #[derive(Default)]
 struct CreateConfigTomlParams {
     forced_method: Option<String>,
-    requires_openai_auth: Option<bool>,
+    requires_thinwedge_auth: Option<bool>,
     base_url: Option<String>,
     model_provider_id: Option<String>,
     extra_provider_config: Option<String>,
@@ -38,8 +38,8 @@ fn create_config_toml(thinwedge_home: &Path, params: CreateConfigTomlParams) -> 
     } else {
         String::new()
     };
-    let requires_line = match params.requires_openai_auth {
-        Some(true) => "requires_openai_auth = true\n".to_string(),
+    let requires_line = match params.requires_thinwedge_auth {
+        Some(true) => "requires_thinwedge_auth = true\n".to_string(),
         Some(false) => String::new(),
         None => String::new(),
     };
@@ -90,7 +90,7 @@ async fn logout_account_removes_auth_and_notifies() -> Result<()> {
     )?;
     assert!(thinwedge_home.path().join("auth.json").exists());
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let id = mcp.send_logout_account_request().await?;
@@ -209,12 +209,12 @@ async fn get_account_no_auth() -> Result<()> {
     create_config_toml(
         thinwedge_home.path(),
         CreateConfigTomlParams {
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
             ..Default::default()
         },
     )?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -232,7 +232,7 @@ async fn get_account_no_auth() -> Result<()> {
         account,
         GetAccountResponse {
             account: None,
-            requires_openai_auth: true,
+            requires_thinwedge_auth: true,
         }
     );
     Ok(())
@@ -244,7 +244,7 @@ async fn get_account_with_api_key() -> Result<()> {
     create_config_toml(
         thinwedge_home.path(),
         CreateConfigTomlParams {
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
             ..Default::default()
         },
     )?;
@@ -277,7 +277,7 @@ async fn get_account_with_api_key() -> Result<()> {
         received,
         GetAccountResponse {
             account: Some(Account::ApiKey {}),
-            requires_openai_auth: true,
+            requires_thinwedge_auth: true,
         }
     );
     Ok(())
@@ -289,7 +289,7 @@ async fn get_account_when_auth_not_required() -> Result<()> {
     create_config_toml(
         thinwedge_home.path(),
         CreateConfigTomlParams {
-            requires_openai_auth: Some(false),
+            requires_thinwedge_auth: Some(false),
             ..Default::default()
         },
     )?;
@@ -312,7 +312,7 @@ async fn get_account_when_auth_not_required() -> Result<()> {
         received,
         GetAccountResponse {
             account: None,
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
         }
     );
     Ok(())
@@ -354,7 +354,7 @@ region = "us-west-2"
         received,
         GetAccountResponse {
             account: Some(Account::AmazonBedrock {}),
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
         }
     );
     Ok(())

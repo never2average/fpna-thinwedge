@@ -11,7 +11,7 @@ use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::InitialHistory;
@@ -829,7 +829,7 @@ pub(crate) fn build_guardian_review_session_config(
     parent_config: &Config,
     live_network_config: Option<thinwedge_network_proxy::NetworkProxyConfig>,
     active_model: &str,
-    reasoning_effort: Option<thinwedge_protocol::openai_models::ReasoningEffort>,
+    reasoning_effort: Option<thinwedge_protocol::thinwedge_models::ReasoningEffort>,
 ) -> anyhow::Result<Config> {
     let mut guardian_config = parent_config.clone();
     guardian_config.model = Some(active_model.to_string());

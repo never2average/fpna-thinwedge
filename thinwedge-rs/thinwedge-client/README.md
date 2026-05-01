@@ -1,6 +1,6 @@
 # thinwedge-client
 
-Generic transport layer that wraps HTTP requests, retries, and streaming primitives without any ThinWedge/OpenAI awareness.
+Generic transport layer that wraps HTTP requests, retries, and streaming primitives without any ThinWedge/ThinWedge awareness.
 
 - Defines `HttpTransport` and a default `ReqwestTransport` plus thin `Request`/`Response` types.
 - Provides retry utilities (`RetryPolicy`, `RetryOn`, `run_with_retry`, `backoff`) that callers plug into for unary and streaming calls.

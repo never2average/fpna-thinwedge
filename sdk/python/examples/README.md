@@ -21,11 +21,11 @@ source .venv/bin/activate
 
 When running examples from this repo checkout, the SDK source uses the local
 tree and does not bundle a runtime binary. The helper in `examples/_bootstrap.py`
-uses the installed `openai-thinwedge-cli-bin` runtime package.
+uses the installed `thinwedge-thinwedge-cli-bin` runtime package.
 
-If the pinned `openai-thinwedge-cli-bin` runtime is not already installed, the bootstrap
+If the pinned `thinwedge-thinwedge-cli-bin` runtime is not already installed, the bootstrap
 will download the matching GitHub release artifact, stage a temporary local
-`openai-thinwedge-cli-bin` package, install it into your active interpreter, and clean up
+`thinwedge-thinwedge-cli-bin` package, install it into your active interpreter, and clean up
 the temporary files afterward.
 
 The pinned runtime version comes from the SDK package version.
@@ -41,7 +41,7 @@ python examples/<example-folder>/async.py
 
 The examples bootstrap local imports from `sdk/python/src` automatically, so no
 SDK wheel install is required. You only need the Python dependencies for your
-active interpreter and an installed `openai-thinwedge-cli-bin` runtime package (either
+active interpreter and an installed `thinwedge-thinwedge-cli-bin` runtime package (either
 already present or automatically provisioned by the bootstrap).
 
 ## Recommended first run

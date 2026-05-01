@@ -1,7 +1,7 @@
 use super::*;
 use assert_matches::assert_matches;
 use thinwedge_config::types::ModelAvailabilityNuxConfig;
-use thinwedge_protocol::openai_models::ModelAvailabilityNux;
+use thinwedge_protocol::thinwedge_models::ModelAvailabilityNux;
 use pretty_assertions::assert_eq;
 use tokio::sync::mpsc::unbounded_channel;
 

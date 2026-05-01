@@ -85,7 +85,7 @@ pub struct ApplyPatchToolArgs {
 }
 
 /// Returns a custom tool that can be used to edit files. Well-suited for GPT-5 models
-/// https://platform.openai.com/docs/guides/function-calling#custom-tools
+/// https://platform.thinwedge.com/docs/guides/function-calling#custom-tools
 pub fn create_apply_patch_freeform_tool() -> ToolSpec {
     ToolSpec::Freeform(FreeformTool {
         name: "apply_patch".to_string(),

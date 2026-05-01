@@ -1,8 +1,8 @@
 #![expect(clippy::expect_used)]
 
-//! Optional smoke tests that hit the real OpenAI /v1/responses endpoint. They are `#[ignore]` by
+//! Optional smoke tests that hit the real ThinWedge /v1/responses endpoint. They are `#[ignore]` by
 //! default so CI stays deterministic and free. Developers can run them locally with
-//! `cargo test --test live_cli -- --ignored` provided they set a valid `OPENAI_API_KEY`.
+//! `cargo test --test live_cli -- --ignored` provided they set a valid `THINWEDGE_API_KEY`.
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
@@ -11,8 +11,8 @@ use std::process::Stdio;
 use tempfile::TempDir;
 
 fn require_api_key() -> String {
-    std::env::var("OPENAI_API_KEY")
-        .expect("OPENAI_API_KEY env var not set — skip running live tests")
+    std::env::var("THINWEDGE_API_KEY")
+        .expect("THINWEDGE_API_KEY env var not set — skip running live tests")
 }
 
 /// Helper that spawns the binary inside a TempDir with minimal flags. Returns (Assert, TempDir).
@@ -32,7 +32,7 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
 
     let mut cmd = Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge-rs").unwrap());
     cmd.current_dir(dir.path());
-    cmd.env("OPENAI_API_KEY", require_api_key());
+    cmd.env("THINWEDGE_API_KEY", require_api_key());
 
     // We want three things at once:
     //   1. live streaming of the child’s stdout/stderr while the test is running
@@ -113,8 +113,8 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
 #[ignore]
 #[test]
 fn live_create_file_hello_txt() {
-    if std::env::var("OPENAI_API_KEY").is_err() {
-        eprintln!("skipping live_create_file_hello_txt – OPENAI_API_KEY not set");
+    if std::env::var("THINWEDGE_API_KEY").is_err() {
+        eprintln!("skipping live_create_file_hello_txt – THINWEDGE_API_KEY not set");
         return;
     }
 
@@ -135,8 +135,8 @@ fn live_create_file_hello_txt() {
 #[ignore]
 #[test]
 fn live_print_working_directory() {
-    if std::env::var("OPENAI_API_KEY").is_err() {
-        eprintln!("skipping live_print_working_directory – OPENAI_API_KEY not set");
+    if std::env::var("THINWEDGE_API_KEY").is_err() {
+        eprintln!("skipping live_print_working_directory – THINWEDGE_API_KEY not set");
         return;
     }
 

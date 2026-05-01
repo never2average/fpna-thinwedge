@@ -603,7 +603,7 @@ mod tests {
     #[test]
     fn debug_config_output_lists_requirement_sources() {
         let requirements_file = if cfg!(windows) {
-            absolute_path("C:\\ProgramData\\OpenAI\\ThinWedge\\requirements.toml")
+            absolute_path("C:\\ProgramData\\ThinWedge\\ThinWedge\\requirements.toml")
         } else {
             absolute_path("/etc/thinwedge/requirements.toml")
         };

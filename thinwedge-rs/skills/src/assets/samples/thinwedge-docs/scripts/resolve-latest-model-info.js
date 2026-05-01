@@ -4,8 +4,8 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 
 const DEFAULT_URL =
-  "https://developers.openai.com/api/docs/guides/latest-model.md";
-const DEFAULT_BASE_URL = "https://developers.openai.com";
+  "https://developers.thinwedge.com/api/docs/guides/latest-model.md";
+const DEFAULT_BASE_URL = "https://developers.thinwedge.com";
 
 function parseArgs(argv) {
   const args = {

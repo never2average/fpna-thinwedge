@@ -91,7 +91,7 @@ impl<T: HttpTransport> ResponsesClient<T> {
         }
         headers.extend(build_conversation_headers(conversation_id));
         if let Some(subagent) = subagent_header(&session_source) {
-            insert_header(&mut headers, "x-openai-subagent", &subagent);
+            insert_header(&mut headers, "x-thinwedge-subagent", &subagent);
         }
 
         self.stream(body, headers, compression, turn_state).await

@@ -20,8 +20,8 @@ const GITHUB_API_ACCEPT_HEADER: &str = "application/vnd.github+json";
 const GITHUB_API_VERSION_HEADER: &str = "2022-11-28";
 const CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL: &str =
     "https://chatgpt.com/backend-api/plugins/export/curated";
-const OPENAI_PLUGINS_OWNER: &str = "openai";
-const OPENAI_PLUGINS_REPO: &str = "plugins";
+const THINWEDGE_PLUGINS_OWNER: &str = "thinwedge";
+const THINWEDGE_PLUGINS_REPO: &str = "plugins";
 const CURATED_PLUGINS_RELATIVE_DIR: &str = ".tmp/plugins";
 const CURATED_PLUGINS_SHA_FILE: &str = ".tmp/plugins.sha";
 const CURATED_PLUGINS_BACKUP_ARCHIVE_FALLBACK_VERSION: &str = "export-backup";
@@ -63,8 +63,8 @@ fn curated_plugins_sha_path(thinwedge_home: &Path) -> PathBuf {
     thinwedge_home.join(CURATED_PLUGINS_SHA_FILE)
 }
 
-pub fn sync_openai_plugins_repo(thinwedge_home: &Path) -> Result<String, String> {
-    sync_openai_plugins_repo_with_transport_overrides(
+pub fn sync_thinwedge_plugins_repo(thinwedge_home: &Path) -> Result<String, String> {
+    sync_thinwedge_plugins_repo_with_transport_overrides(
         thinwedge_home,
         "git",
         GITHUB_API_BASE_URL,
@@ -72,13 +72,13 @@ pub fn sync_openai_plugins_repo(thinwedge_home: &Path) -> Result<String, String>
     )
 }
 
-fn sync_openai_plugins_repo_with_transport_overrides(
+fn sync_thinwedge_plugins_repo_with_transport_overrides(
     thinwedge_home: &Path,
     git_binary: &str,
     api_base_url: &str,
     backup_archive_api_url: &str,
 ) -> Result<String, String> {
-    match sync_openai_plugins_repo_via_git(thinwedge_home, git_binary) {
+    match sync_thinwedge_plugins_repo_via_git(thinwedge_home, git_binary) {
         Ok(remote_sha) => {
             emit_curated_plugins_startup_sync_metric("git", "success");
             emit_curated_plugins_startup_sync_final_metric("git", "success");
@@ -91,7 +91,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                 git_binary,
                 "git sync failed for curated plugin sync; falling back to GitHub HTTP"
             );
-            match sync_openai_plugins_repo_via_http(thinwedge_home, api_base_url) {
+            match sync_thinwedge_plugins_repo_via_http(thinwedge_home, api_base_url) {
                 Ok(remote_sha) => {
                     emit_curated_plugins_startup_sync_metric("http", "success");
                     emit_curated_plugins_startup_sync_final_metric("http", "success");
@@ -116,7 +116,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
                             backup_archive_api_url,
                             "GitHub HTTP sync failed for curated plugin sync; falling back to export archive"
                         );
-                        let result = sync_openai_plugins_repo_via_backup_archive(
+                        let result = sync_thinwedge_plugins_repo_via_backup_archive(
                             thinwedge_home,
                             backup_archive_api_url,
                         );
@@ -135,7 +135,7 @@ fn sync_openai_plugins_repo_with_transport_overrides(
     }
 }
 
-fn sync_openai_plugins_repo_via_git(thinwedge_home: &Path, git_binary: &str) -> Result<String, String> {
+fn sync_thinwedge_plugins_repo_via_git(thinwedge_home: &Path, git_binary: &str) -> Result<String, String> {
     let repo_path = curated_plugins_repo_path(thinwedge_home);
     let sha_path = thinwedge_home.join(CURATED_PLUGINS_SHA_FILE);
     let remote_sha = git_ls_remote_head_sha(git_binary)?;
@@ -152,7 +152,7 @@ fn sync_openai_plugins_repo_via_git(thinwedge_home: &Path, git_binary: &str) -> 
             .arg("clone")
             .arg("--depth")
             .arg("1")
-            .arg("https://github.com/openai/plugins.git")
+            .arg("https://github.com/thinwedge/plugins.git")
             .arg(staged_repo_dir.path()),
         "git clone curated plugins repo",
         CURATED_PLUGINS_GIT_TIMEOUT,
@@ -172,7 +172,7 @@ fn sync_openai_plugins_repo_via_git(thinwedge_home: &Path, git_binary: &str) -> 
     Ok(remote_sha)
 }
 
-fn sync_openai_plugins_repo_via_http(
+fn sync_thinwedge_plugins_repo_via_http(
     thinwedge_home: &Path,
     api_base_url: &str,
 ) -> Result<String, String> {
@@ -198,7 +198,7 @@ fn sync_openai_plugins_repo_via_http(
     Ok(remote_sha)
 }
 
-fn sync_openai_plugins_repo_via_backup_archive(
+fn sync_thinwedge_plugins_repo_via_backup_archive(
     thinwedge_home: &Path,
     backup_archive_api_url: &str,
 ) -> Result<String, String> {
@@ -470,7 +470,7 @@ fn git_ls_remote_head_sha(git_binary: &str) -> Result<String, String> {
         Command::new(git_binary)
             .env("GIT_OPTIONAL_LOCKS", "0")
             .arg("ls-remote")
-            .arg("https://github.com/openai/plugins.git")
+            .arg("https://github.com/thinwedge/plugins.git")
             .arg("HEAD"),
         "git ls-remote curated plugins repo",
         CURATED_PLUGINS_GIT_TIMEOUT,
@@ -589,7 +589,7 @@ fn ensure_git_success(output: &Output, context: &str) -> Result<(), String> {
 
 async fn fetch_curated_repo_remote_sha(api_base_url: &str) -> Result<String, String> {
     let api_base_url = api_base_url.trim_end_matches('/');
-    let repo_url = format!("{api_base_url}/repos/{OPENAI_PLUGINS_OWNER}/{OPENAI_PLUGINS_REPO}");
+    let repo_url = format!("{api_base_url}/repos/{THINWEDGE_PLUGINS_OWNER}/{THINWEDGE_PLUGINS_REPO}");
     let client = build_reqwest_client();
     let repo_body = fetch_github_text(&client, &repo_url, "get curated plugins repository").await?;
     let repo_summary: GitHubRepositorySummary =
@@ -622,7 +622,7 @@ async fn fetch_curated_repo_zipball(
     remote_sha: &str,
 ) -> Result<Vec<u8>, String> {
     let api_base_url = api_base_url.trim_end_matches('/');
-    let repo_url = format!("{api_base_url}/repos/{OPENAI_PLUGINS_OWNER}/{OPENAI_PLUGINS_REPO}");
+    let repo_url = format!("{api_base_url}/repos/{THINWEDGE_PLUGINS_OWNER}/{THINWEDGE_PLUGINS_REPO}");
     let zipball_url = format!("{repo_url}/zipball/{remote_sha}");
     let client = build_reqwest_client();
     fetch_github_bytes(&client, &zipball_url, "download curated plugins archive").await

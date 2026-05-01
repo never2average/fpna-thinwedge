@@ -2789,7 +2789,7 @@ mod tests {
                 new_agent_role: Some("explorer".into()),
                 prompt: "inspect the repo".into(),
                 model: "gpt-5.4-mini".into(),
-                reasoning_effort: thinwedge_protocol::openai_models::ReasoningEffort::Medium,
+                reasoning_effort: thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium,
                 status: AgentStatus::Running,
             }),
         ];
@@ -2811,7 +2811,7 @@ mod tests {
                 receiver_thread_ids: vec!["00000000-0000-0000-0000-000000000002".into()],
                 prompt: Some("inspect the repo".into()),
                 model: Some("gpt-5.4-mini".into()),
-                reasoning_effort: Some(thinwedge_protocol::openai_models::ReasoningEffort::Medium),
+                reasoning_effort: Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Medium),
                 agents_states: [(
                     "00000000-0000-0000-0000-000000000002".into(),
                     CollabAgentState {

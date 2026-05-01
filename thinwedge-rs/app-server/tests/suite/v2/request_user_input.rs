@@ -17,7 +17,7 @@ use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_protocol::config_types::CollaborationMode;
 use thinwedge_protocol::config_types::ModeKind;
 use thinwedge_protocol::config_types::Settings;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use tokio::time::timeout;
 
 const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);

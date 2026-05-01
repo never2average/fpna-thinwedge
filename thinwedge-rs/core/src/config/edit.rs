@@ -8,7 +8,7 @@ use thinwedge_features::FEATURES;
 use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::TrustLevel;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;

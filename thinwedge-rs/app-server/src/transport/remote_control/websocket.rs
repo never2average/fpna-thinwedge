@@ -1123,7 +1123,7 @@ mod tests {
         };
         let payload = serde_json::json!({
             "email": "user@example.com",
-            "https://api.openai.com/auth": {
+            "https://api.thinwedge.com/auth": {
                 "chatgpt_user_id": "user-12345",
                 "user_id": "user-12345",
                 "chatgpt_account_id": "account_id"
@@ -1136,7 +1136,7 @@ mod tests {
 
         AuthDotJson {
             auth_mode: Some(AuthMode::Chatgpt),
-            openai_api_key: None,
+            thinwedge_api_key: None,
             tokens: Some(TokenData {
                 id_token: parse_chatgpt_jwt_claims(&fake_jwt).expect("fake jwt should parse"),
                 access_token: access_token.to_string(),

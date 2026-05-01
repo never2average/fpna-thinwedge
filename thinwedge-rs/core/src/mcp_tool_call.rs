@@ -26,7 +26,7 @@ use crate::guardian::new_guardian_review_id;
 use crate::guardian::review_approval_request;
 use crate::guardian::routes_approval_to_guardian;
 use crate::hook_runtime::run_permission_request_hooks;
-use crate::mcp_openai_file::rewrite_mcp_tool_arguments_for_openai_files;
+use crate::mcp_thinwedge_file::rewrite_mcp_tool_arguments_for_thinwedge_files;
 use crate::mcp_tool_approval_templates::RenderedMcpToolApprovalParam;
 use crate::mcp_tool_approval_templates::render_mcp_tool_approval_template;
 use crate::session::session::Session;
@@ -41,11 +41,11 @@ use thinwedge_features::Feature;
 use thinwedge_hooks::PermissionRequestDecision;
 use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_mcp::SandboxState;
-use thinwedge_mcp::declared_openai_file_input_param_names;
+use thinwedge_mcp::declared_thinwedge_file_input_param_names;
 use thinwedge_mcp::mcp_permission_prompt_is_auto_approved;
 use thinwedge_otel::sanitize_metric_tag_value;
 use thinwedge_protocol::mcp::CallToolResult;
-use thinwedge_protocol::openai_models::InputModality;
+use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::McpInvocation;
 use thinwedge_protocol::protocol::McpToolCallBeginEvent;
@@ -312,11 +312,11 @@ async fn handle_approved_mcp_tool_call(
         .map(str::to_string);
 
     let start = Instant::now();
-    let rewrite = rewrite_mcp_tool_arguments_for_openai_files(
+    let rewrite = rewrite_mcp_tool_arguments_for_thinwedge_files(
         sess,
         turn_context,
         arguments_value.clone(),
-        metadata.and_then(|metadata| metadata.openai_file_input_params.as_deref()),
+        metadata.and_then(|metadata| metadata.thinwedge_file_input_params.as_deref()),
     )
     .await;
     let tool_input = match &rewrite {
@@ -714,11 +714,11 @@ pub(crate) struct McpToolApprovalMetadata {
     tool_description: Option<String>,
     mcp_app_resource_uri: Option<String>,
     thinwedge_apps_meta: Option<serde_json::Map<String, serde_json::Value>>,
-    openai_file_input_params: Option<Vec<String>>,
+    thinwedge_file_input_params: Option<Vec<String>>,
 }
 
 const MCP_TOOL_THINWEDGE_APPS_META_KEY: &str = "_thinwedge_apps";
-const MCP_TOOL_OPENAI_OUTPUT_TEMPLATE_META_KEY: &str = "openai/outputTemplate";
+const MCP_TOOL_THINWEDGE_OUTPUT_TEMPLATE_META_KEY: &str = "thinwedge/outputTemplate";
 const MCP_TOOL_UI_RESOURCE_URI_META_KEY: &str = "ui/resourceUri";
 const MCP_TOOL_THREAD_ID_META_KEY: &str = "threadId";
 
@@ -1248,19 +1248,19 @@ pub(crate) async fn lookup_mcp_tool_metadata(
             .and_then(serde_json::Value::as_object)
             .cloned(),
         // Disallow custom MCPs from uploading files via fileParams.
-        openai_file_input_params: openai_file_input_params_for_server(
+        thinwedge_file_input_params: thinwedge_file_input_params_for_server(
             server,
             tool_info.tool.meta.as_deref(),
         ),
     })
 }
 
-fn openai_file_input_params_for_server(
+fn thinwedge_file_input_params_for_server(
     server: &str,
     meta: Option<&serde_json::Map<String, serde_json::Value>>,
 ) -> Option<Vec<String>> {
     (server == THINWEDGE_APPS_MCP_SERVER_NAME)
-        .then_some(declared_openai_file_input_param_names(meta))
+        .then_some(declared_thinwedge_file_input_param_names(meta))
         .filter(|params| !params.is_empty())
 }
 
@@ -1277,7 +1277,7 @@ fn get_mcp_app_resource_uri(
                     .and_then(serde_json::Value::as_str)
             })
             .or_else(|| {
-                meta.get(MCP_TOOL_OPENAI_OUTPUT_TEMPLATE_META_KEY)
+                meta.get(MCP_TOOL_THINWEDGE_OUTPUT_TEMPLATE_META_KEY)
                     .and_then(serde_json::Value::as_str)
             })
             .map(str::to_string)

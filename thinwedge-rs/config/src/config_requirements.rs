@@ -2439,7 +2439,7 @@ command = "python3 /enterprise/hooks/pre.py"
 
             [experimental_network.domains]
             "api.example.com" = "allow"
-            "*.openai.com" = "allow"
+            "*.thinwedge.com" = "allow"
             "blocked.example.com" = "deny"
 
             [experimental_network.unix_sockets]
@@ -2467,7 +2467,7 @@ command = "python3 /enterprise/hooks/pre.py"
             Some(&NetworkDomainPermissionsToml {
                 entries: BTreeMap::from([
                     (
-                        "*.openai.com".to_string(),
+                        "*.thinwedge.com".to_string(),
                         NetworkDomainPermissionToml::Allow,
                     ),
                     (
@@ -2506,7 +2506,7 @@ command = "python3 /enterprise/hooks/pre.py"
             enabled = true
             allow_upstream_proxy = false
             dangerously_allow_all_unix_sockets = true
-            allowed_domains = ["api.example.com", "*.openai.com"]
+            allowed_domains = ["api.example.com", "*.thinwedge.com"]
             managed_allowed_domains_only = true
             denied_domains = ["blocked.example.com"]
             allow_unix_sockets = ["/tmp/example.sock"]
@@ -2534,7 +2534,7 @@ command = "python3 /enterprise/hooks/pre.py"
             Some(&NetworkDomainPermissionsToml {
                 entries: BTreeMap::from([
                     (
-                        "*.openai.com".to_string(),
+                        "*.thinwedge.com".to_string(),
                         NetworkDomainPermissionToml::Allow,
                     ),
                     (
@@ -2574,7 +2574,7 @@ command = "python3 /enterprise/hooks/pre.py"
                 allowed_domains = ["api.example.com"]
 
                 [experimental_network.domains]
-                "*.openai.com" = "allow"
+                "*.thinwedge.com" = "allow"
             "#,
         )
         .expect_err("mixed network domain shapes should fail");
@@ -2608,7 +2608,7 @@ command = "python3 /enterprise/hooks/pre.py"
         let domains = NetworkDomainPermissionsToml {
             entries: BTreeMap::from([
                 (
-                    "*.openai.com".to_string(),
+                    "*.thinwedge.com".to_string(),
                     NetworkDomainPermissionToml::Allow,
                 ),
                 (
@@ -2637,7 +2637,7 @@ command = "python3 /enterprise/hooks/pre.py"
         assert_eq!(
             domains.allowed_domains(),
             Some(vec![
-                "*.openai.com".to_string(),
+                "*.thinwedge.com".to_string(),
                 "api.example.com".to_string()
             ])
         );

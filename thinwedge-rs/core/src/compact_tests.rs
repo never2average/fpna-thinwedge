@@ -188,8 +188,8 @@ fn build_token_limited_compacted_history_appends_summary_message() {
 fn should_use_remote_compact_task_for_azure_provider() {
     let provider = ModelProviderInfo {
         name: "Azure".into(),
-        base_url: Some("https://example.com/openai".into()),
-        env_key: Some("AZURE_OPENAI_API_KEY".into()),
+        base_url: Some("https://example.com/thinwedge".into()),
+        env_key: Some("AZURE_THINWEDGE_API_KEY".into()),
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -202,7 +202,7 @@ fn should_use_remote_compact_task_for_azure_provider() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 

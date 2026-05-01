@@ -96,7 +96,7 @@ use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::SandboxEnforcement;
 use thinwedge_protocol::models::format_allow_prefixes;
-use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::FileChange;
@@ -314,7 +314,7 @@ use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseInputItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::BackgroundEventEvent;
@@ -413,7 +413,7 @@ pub(crate) struct ThinWedgeSpawnArgs {
 pub(crate) const INITIAL_SUBMIT_ID: &str = "";
 pub(crate) const SUBMISSION_CHANNEL_CAPACITY: usize = 512;
 const CYBER_VERIFY_URL: &str = "https://chatgpt.com/cyber";
-const CYBER_SAFETY_URL: &str = "https://developers.openai.com/thinwedge/concepts/cyber-safety";
+const CYBER_SAFETY_URL: &str = "https://developers.thinwedge.com/thinwedge/concepts/cyber-safety";
 
 impl ThinWedge {
     /// Spawn a new [`ThinWedge`] and initialize the session.

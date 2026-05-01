@@ -15,8 +15,8 @@ use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::ResponseInputItem;
-use thinwedge_protocol::openai_models::ReasoningEffort;
-use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 use thinwedge_protocol::protocol::CollabAgentRef;
 use thinwedge_protocol::protocol::CollabAgentStatusEntry;
 use thinwedge_protocol::protocol::Op;
@@ -337,7 +337,7 @@ pub(crate) async fn apply_requested_spawn_agent_model_overrides(
 }
 
 fn find_spawn_agent_model_name(
-    available_models: &[thinwedge_protocol::openai_models::ModelPreset],
+    available_models: &[thinwedge_protocol::thinwedge_models::ModelPreset],
     requested_model: &str,
 ) -> Result<String, FunctionCallError> {
     available_models

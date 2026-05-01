@@ -42,7 +42,7 @@ use tracing::error;
 use tracing::info;
 use tracing::trace;
 use tracing::warn;
-use tungstenite::protocol::WebSocketConfig;
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use url::Url;
 
 const REALTIME_WIRE_LOG_TARGET: &str = "thinwedge_api::realtime_websocket::wire";
@@ -1400,7 +1400,7 @@ mod tests {
     #[test]
     fn websocket_url_from_v1_base_appends_realtime_path() {
         let url = websocket_url_from_api_url(
-            "https://api.openai.com/v1",
+            "https://api.thinwedge.com/v1",
             /*query_params*/ None,
             Some("snapshot"),
             RealtimeEventParser::V1,
@@ -1409,14 +1409,14 @@ mod tests {
         .expect("build ws url");
         assert_eq!(
             url.as_str(),
-            "wss://api.openai.com/v1/realtime?intent=quicksilver&model=snapshot"
+            "wss://api.thinwedge.com/v1/realtime?intent=quicksilver&model=snapshot"
         );
     }
 
     #[test]
     fn websocket_url_from_nested_v1_base_appends_realtime_path() {
         let url = websocket_url_from_api_url(
-            "https://example.com/openai/v1",
+            "https://example.com/thinwedge/v1",
             /*query_params*/ None,
             Some("snapshot"),
             RealtimeEventParser::V1,
@@ -1425,7 +1425,7 @@ mod tests {
         .expect("build ws url");
         assert_eq!(
             url.as_str(),
-            "wss://example.com/openai/v1/realtime?intent=quicksilver&model=snapshot"
+            "wss://example.com/thinwedge/v1/realtime?intent=quicksilver&model=snapshot"
         );
     }
 
@@ -1499,7 +1499,7 @@ mod tests {
     #[test]
     fn websocket_url_for_call_id_joins_existing_realtime_session() {
         let url = websocket_url_from_api_url_for_call(
-            "https://api.openai.com/v1",
+            "https://api.thinwedge.com/v1",
             /*query_params*/ None,
             RealtimeEventParser::RealtimeV2,
             RealtimeSessionMode::Conversational,
@@ -1508,7 +1508,7 @@ mod tests {
         .expect("build ws url");
         assert_eq!(
             url.as_str(),
-            "wss://api.openai.com/v1/realtime?call_id=rtc_test"
+            "wss://api.thinwedge.com/v1/realtime?call_id=rtc_test"
         );
     }
 

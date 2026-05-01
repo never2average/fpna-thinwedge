@@ -45,7 +45,7 @@ async fn retries_on_early_close() {
     // environment variables.
 
     let model_provider = ModelProviderInfo {
-        name: "openai".into(),
+        name: "thinwedge".into(),
         base_url: Some(format!("{}/v1", server.uri())),
         // Environment variable that should exist in the test environment.
         // ModelClient will return an error if the environment variable for the
@@ -64,7 +64,7 @@ async fn retries_on_early_close() {
         stream_max_retries: Some(1),
         stream_idle_timeout_ms: Some(2000),
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 

@@ -19,7 +19,7 @@ use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseInputItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::Event;
 use thinwedge_protocol::protocol::Op;

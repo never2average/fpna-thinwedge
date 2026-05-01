@@ -1418,7 +1418,7 @@ mod tests {
             git: Some(GitInfo {
                 commit_hash: Some(thinwedge_git_utils::GitSha::new("rollout-sha")),
                 branch: Some("rollout-branch".to_string()),
-                repository_url: Some("git@example.com:openai/thinwedge.git".to_string()),
+                repository_url: Some("git@example.com:thinwedge/thinwedge.git".to_string()),
             }),
         })];
 
@@ -1439,7 +1439,7 @@ mod tests {
         assert_eq!(persisted.git_branch.as_deref(), Some("sqlite-branch"));
         assert_eq!(
             persisted.git_origin_url.as_deref(),
-            Some("git@example.com:openai/thinwedge.git")
+            Some("git@example.com:thinwedge/thinwedge.git")
         );
     }
 
@@ -1478,7 +1478,7 @@ mod tests {
                 thread_id,
                 Some(Some("abc123")),
                 Some(Some("feature/branch")),
-                Some(Some("git@example.com:openai/thinwedge.git")),
+                Some(Some("git@example.com:thinwedge/thinwedge.git")),
             )
             .await
             .expect("git info update should succeed");
@@ -1499,7 +1499,7 @@ mod tests {
         assert_eq!(persisted.git_branch.as_deref(), Some("feature/branch"));
         assert_eq!(
             persisted.git_origin_url.as_deref(),
-            Some("git@example.com:openai/thinwedge.git")
+            Some("git@example.com:thinwedge/thinwedge.git")
         );
     }
 
@@ -1559,7 +1559,7 @@ mod tests {
         let mut metadata = test_thread_metadata(&thinwedge_home, thread_id, thinwedge_home.clone());
         metadata.git_sha = Some("abc123".to_string());
         metadata.git_branch = Some("feature/branch".to_string());
-        metadata.git_origin_url = Some("git@example.com:openai/thinwedge.git".to_string());
+        metadata.git_origin_url = Some("git@example.com:thinwedge/thinwedge.git".to_string());
 
         runtime
             .upsert_thread(&metadata)

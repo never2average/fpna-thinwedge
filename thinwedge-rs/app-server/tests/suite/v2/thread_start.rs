@@ -28,7 +28,7 @@ use thinwedge_git_utils::resolve_root_git_project_for_trust;
 use thinwedge_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::TrustLevel;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
@@ -605,7 +605,7 @@ async fn thread_start_surfaces_cloud_requirements_load_errors() -> Result<()> {
     let mut mcp = McpProcess::new_with_env(
         thinwedge_home.path(),
         &[
-            ("OPENAI_API_KEY", None),
+            ("THINWEDGE_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_token_url.as_str()),

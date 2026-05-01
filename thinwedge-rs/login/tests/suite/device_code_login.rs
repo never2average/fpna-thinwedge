@@ -130,7 +130,7 @@ async fn device_code_login_integration_succeeds() -> anyhow::Result<()> {
     .await;
 
     let jwt = make_jwt(json!({
-        "https://api.openai.com/auth": {
+        "https://api.thinwedge.com/auth": {
             "chatgpt_account_id": "acct_321"
         }
     }));
@@ -147,7 +147,7 @@ async fn device_code_login_integration_succeeds() -> anyhow::Result<()> {
     let auth = load_auth_dot_json(thinwedge_home.path(), AuthCredentialsStoreMode::File)
         .context("auth.json should load after login succeeds")?
         .context("auth.json written")?;
-    // assert_eq!(auth.openai_api_key.as_deref(), Some("api-key-321"));
+    // assert_eq!(auth.thinwedge_api_key.as_deref(), Some("api-key-321"));
     let tokens = auth.tokens.expect("tokens persisted");
     assert_eq!(tokens.access_token, "access-token-123");
     assert_eq!(tokens.refresh_token, "refresh-token-123");
@@ -173,7 +173,7 @@ async fn device_code_login_rejects_workspace_mismatch() -> anyhow::Result<()> {
     .await;
 
     let jwt = make_jwt(json!({
-        "https://api.openai.com/auth": {
+        "https://api.thinwedge.com/auth": {
             "chatgpt_account_id": "acct_321",
             "organization_id": "org-actual"
         }
@@ -270,7 +270,7 @@ async fn device_code_login_integration_persists_without_api_key_on_exchange_fail
     let auth = load_auth_dot_json(thinwedge_home.path(), AuthCredentialsStoreMode::File)
         .context("auth.json should load after login succeeds")?
         .context("auth.json written")?;
-    assert!(auth.openai_api_key.is_none());
+    assert!(auth.thinwedge_api_key.is_none());
     let tokens = auth.tokens.expect("tokens persisted");
     assert_eq!(tokens.access_token, "access-token-123");
     assert_eq!(tokens.refresh_token, "refresh-token-123");

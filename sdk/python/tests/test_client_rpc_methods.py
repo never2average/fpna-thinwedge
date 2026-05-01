@@ -52,7 +52,7 @@ def test_thread_resume_response_accepts_auto_review_reviewer() -> None:
             "approvalsReviewer": "auto_review",
             "cwd": "/tmp",
             "model": "gpt-5",
-            "modelProvider": "openai",
+            "modelProvider": "thinwedge",
             "sandbox": {"type": "dangerFullAccess"},
             "thread": {
                 "cliVersion": "1.0.0",
@@ -60,7 +60,7 @@ def test_thread_resume_response_accepts_auto_review_reviewer() -> None:
                 "cwd": "/tmp",
                 "ephemeral": False,
                 "id": "thread-1",
-                "modelProvider": "openai",
+                "modelProvider": "thinwedge",
                 "preview": "",
                 "source": "cli",
                 "status": {"type": "idle"},

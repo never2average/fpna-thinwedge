@@ -30,7 +30,7 @@ pub(crate) fn build_tool_search_entries(
             Err(error) => {
                 let tool_name = info.canonical_tool_name();
                 tracing::error!(
-                    "Failed to convert deferred MCP tool `{tool_name}` to OpenAI tool: {error:?}"
+                    "Failed to convert deferred MCP tool `{tool_name}` to ThinWedge tool: {error:?}"
                 );
             }
         }
@@ -43,7 +43,7 @@ pub(crate) fn build_tool_search_entries(
             Ok(entry) => entries.push(entry),
             Err(error) => {
                 tracing::error!(
-                    "Failed to convert deferred dynamic tool {:?} to OpenAI tool: {error:?}",
+                    "Failed to convert deferred dynamic tool {:?} to ThinWedge tool: {error:?}",
                     tool.name
                 );
             }

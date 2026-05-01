@@ -19,7 +19,7 @@ use crate::tools::registry::ToolHandler;
 use crate::tools::registry::ToolKind;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ResponseInputItem;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::CollabAgentInteractionBeginEvent;
 use thinwedge_protocol::protocol::CollabAgentInteractionEndEvent;
 use thinwedge_protocol::protocol::CollabAgentRef;

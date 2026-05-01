@@ -48,7 +48,7 @@ from ._version import __version__ as SDK_VERSION
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 ApprovalHandler = Callable[[str, JsonObject | None], JsonObject]
-RUNTIME_PKG_NAME = "openai-thinwedge-cli-bin"
+RUNTIME_PKG_NAME = "thinwedge-thinwedge-cli-bin"
 
 
 def _params_dict(

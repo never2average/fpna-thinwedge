@@ -1,4 +1,4 @@
-use crate::OPENAI_CURATED_MARKETPLACE_NAME;
+use crate::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use crate::manifest::PluginManifestHooks;
 use crate::manifest::PluginManifestPaths;
 use crate::manifest::load_plugin_manifest;
@@ -167,7 +167,7 @@ pub fn refresh_curated_plugin_cache(
         if plugin_sources.contains_key(&plugin_name) {
             warn!(
                 plugin = plugin_name,
-                marketplace = OPENAI_CURATED_MARKETPLACE_NAME,
+                marketplace = THINWEDGE_CURATED_MARKETPLACE_NAME,
                 "ignoring duplicate curated plugin entry during cache refresh"
             );
             continue;
@@ -177,7 +177,7 @@ pub fn refresh_curated_plugin_cache(
             MarketplacePluginSource::Git { .. } => {
                 warn!(
                     plugin = plugin_name,
-                    marketplace = OPENAI_CURATED_MARKETPLACE_NAME,
+                    marketplace = THINWEDGE_CURATED_MARKETPLACE_NAME,
                     "skipping remote curated plugin source during cache refresh"
                 );
                 continue;
@@ -196,7 +196,7 @@ pub fn refresh_curated_plugin_cache(
         let Some(source_path) = plugin_sources.get(&plugin_id.plugin_name).cloned() else {
             warn!(
                 plugin = plugin_id.plugin_name,
-                marketplace = OPENAI_CURATED_MARKETPLACE_NAME,
+                marketplace = THINWEDGE_CURATED_MARKETPLACE_NAME,
                 "configured curated plugin no longer exists in curated marketplace during cache refresh"
             );
             continue;
@@ -271,7 +271,7 @@ fn refresh_non_curated_plugin_cache_with_mode(
     let mut plugin_sources = HashMap::<String, MarketplacePluginSource>::new();
 
     for marketplace in marketplace_outcome.marketplaces {
-        if marketplace.name == OPENAI_CURATED_MARKETPLACE_NAME {
+        if marketplace.name == THINWEDGE_CURATED_MARKETPLACE_NAME {
             continue;
         }
 
@@ -425,7 +425,7 @@ fn curated_plugin_ids_from_config_keys(
         "ignoring invalid configured plugin key during curated sync setup",
     )
     .into_iter()
-    .filter(|plugin_id| plugin_id.marketplace_name == OPENAI_CURATED_MARKETPLACE_NAME)
+    .filter(|plugin_id| plugin_id.marketplace_name == THINWEDGE_CURATED_MARKETPLACE_NAME)
     .collect::<Vec<_>>();
     configured_curated_plugin_ids.sort_unstable_by_key(PluginId::as_key);
     configured_curated_plugin_ids
@@ -439,7 +439,7 @@ fn non_curated_plugin_ids_from_config_keys(
         "ignoring invalid plugin key during non-curated cache refresh setup",
     )
     .into_iter()
-    .filter(|plugin_id| plugin_id.marketplace_name != OPENAI_CURATED_MARKETPLACE_NAME)
+    .filter(|plugin_id| plugin_id.marketplace_name != THINWEDGE_CURATED_MARKETPLACE_NAME)
     .collect::<Vec<_>>();
     configured_non_curated_plugin_ids.sort_unstable_by_key(PluginId::as_key);
     configured_non_curated_plugin_ids

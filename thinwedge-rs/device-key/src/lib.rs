@@ -1390,8 +1390,8 @@ mod tests {
 
         for origin in [
             "http://chatgpt.com",
-            "https://chat.openai.com",
-            "https://api.openai.com",
+            "https://chat.thinwedge.com",
+            "https://api.thinwedge.com",
             "https://chatgpt.com.evil.com",
             "https://evilchatgpt.com",
             "https://foo.localhost",

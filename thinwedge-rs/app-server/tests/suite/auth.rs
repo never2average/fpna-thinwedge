@@ -30,11 +30,11 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 
 fn create_config_toml_custom_provider(
     thinwedge_home: &Path,
-    requires_openai_auth: bool,
+    requires_thinwedge_auth: bool,
 ) -> std::io::Result<()> {
     let config_toml = thinwedge_home.join("config.toml");
-    let requires_line = if requires_openai_auth {
-        "requires_openai_auth = true\n"
+    let requires_line = if requires_thinwedge_auth {
+        "requires_thinwedge_auth = true\n"
     } else {
         ""
     };
@@ -110,7 +110,7 @@ async fn get_auth_status_no_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path())?;
 
-    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
+    let mut mcp = McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -162,7 +162,7 @@ async fn get_auth_status_with_api_key() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    create_config_toml_custom_provider(thinwedge_home.path(), /*requires_openai_auth*/ false)?;
+    create_config_toml_custom_provider(thinwedge_home.path(), /*requires_thinwedge_auth*/ false)?;
 
     let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
@@ -185,9 +185,9 @@ async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
     assert_eq!(status.auth_method, None, "expected no auth method");
     assert_eq!(status.auth_token, None, "expected no token");
     assert_eq!(
-        status.requires_openai_auth,
+        status.requires_thinwedge_auth,
         Some(false),
-        "requires_openai_auth should be false",
+        "requires_thinwedge_auth should be false",
     );
     Ok(())
 }
@@ -248,7 +248,7 @@ async fn get_auth_status_with_api_key_refresh_requested() -> Result<()> {
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::ApiKey),
             auth_token: Some("sk-test-key".to_string()),
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
         }
     );
     Ok(())
@@ -284,7 +284,7 @@ async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result
     let mut mcp = McpProcess::new_with_env(
         thinwedge_home.path(),
         &[
-            ("OPENAI_API_KEY", None),
+            ("THINWEDGE_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_url.as_str()),
@@ -312,7 +312,7 @@ async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: None,
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
         }
     );
 
@@ -366,7 +366,7 @@ async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result
     let mut mcp = McpProcess::new_with_env(
         thinwedge_home.path(),
         &[
-            ("OPENAI_API_KEY", None),
+            ("THINWEDGE_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_url.as_str()),
@@ -394,7 +394,7 @@ async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: None,
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
         }
     );
 
@@ -433,7 +433,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
     let mut mcp = McpProcess::new_with_env(
         thinwedge_home.path(),
         &[
-            ("OPENAI_API_KEY", None),
+            ("THINWEDGE_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_url.as_str()),
@@ -461,7 +461,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: None,
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
         }
     );
 
@@ -494,7 +494,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: Some("recovered-access-token".to_string()),
-            requires_openai_auth: Some(true),
+            requires_thinwedge_auth: Some(true),
         }
     );
 

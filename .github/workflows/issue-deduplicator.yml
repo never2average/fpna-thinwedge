@@ -9,8 +9,8 @@ on:
 jobs:
   gather-duplicates-all:
     name: Identify potential duplicates (all issues)
-    # Prevent runs on forks (requires OpenAI API key, wastes Actions minutes)
-    if: github.repository == 'openai/thinwedge' && (github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name == 'thinwedge-deduplicate'))
+    # Prevent runs on forks (requires ThinWedge API key, wastes Actions minutes)
+    if: github.repository == 'thinwedge/thinwedge' && (github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name == 'thinwedge-deduplicate'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,9 +61,9 @@ jobs:
       # .github/prompts/issue-deduplicator.txt file is obsolete and removed.
       - id: thinwedge-all
         name: Find duplicates (pass 1, all issues)
-        uses: openai/thinwedge-action@5c3f4ccdb2b8790f73d6b21751ac00e602aa0c02 # v1.7
+        uses: thinwedge/thinwedge-action@5c3f4ccdb2b8790f73d6b21751ac00e602aa0c02 # v1.7
         with:
-          openai-api-key: ${{ secrets.THINWEDGE_OPENAI_API_KEY }}
+          thinwedge-api-key: ${{ secrets.THINWEDGE_THINWEDGE_API_KEY }}
           allow-users: "*"
           prompt: |
             You are an assistant that triages new GitHub issues by identifying potential duplicates.
@@ -195,9 +195,9 @@ jobs:
 
       - id: thinwedge-open
         name: Find duplicates (pass 2, open issues)
-        uses: openai/thinwedge-action@5c3f4ccdb2b8790f73d6b21751ac00e602aa0c02 # v1.7
+        uses: thinwedge/thinwedge-action@5c3f4ccdb2b8790f73d6b21751ac00e602aa0c02 # v1.7
         with:
-          openai-api-key: ${{ secrets.THINWEDGE_OPENAI_API_KEY }}
+          thinwedge-api-key: ${{ secrets.THINWEDGE_THINWEDGE_API_KEY }}
           allow-users: "*"
           prompt: |
             You are an assistant that triages new GitHub issues by identifying potential duplicates.
@@ -382,7 +382,7 @@ jobs:
               '',
               ...filteredIssues.map((value) => `- #${String(value)}`),
               '',
-              '*Powered by [ThinWedge Action](https://github.com/openai/thinwedge-action)*'];
+              '*Powered by [ThinWedge Action](https://github.com/thinwedge/thinwedge-action)*'];
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
