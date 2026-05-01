@@ -7,7 +7,7 @@ use anyhow::Result;
 use thinwedge_features::Feature;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;

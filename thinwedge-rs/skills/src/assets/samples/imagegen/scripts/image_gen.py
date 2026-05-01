@@ -67,13 +67,13 @@ def _dependency_hint(package: str, *, upgrade: bool = False) -> str:
 
 
 def _ensure_api_key(dry_run: bool) -> None:
-    if os.getenv("OPENAI_API_KEY"):
-        print("OPENAI_API_KEY is set.", file=sys.stderr)
+    if os.getenv("THINWEDGE_API_KEY"):
+        print("THINWEDGE_API_KEY is set.", file=sys.stderr)
         return
     if dry_run:
-        _warn("OPENAI_API_KEY is not set; dry-run only.")
+        _warn("THINWEDGE_API_KEY is not set; dry-run only.")
         return
-    _die("OPENAI_API_KEY is not set. Export it before running.")
+    _die("THINWEDGE_API_KEY is not set. Export it before running.")
 
 
 def _read_prompt(prompt: Optional[str], prompt_file: Optional[str]) -> str:
@@ -396,27 +396,27 @@ def _decode_write_and_downscale(
 
 def _create_client():
     try:
-        from openai import OpenAI
+        from thinwedge import ThinWedge
     except ImportError:
-        _die(f"openai SDK not installed in the active environment. {_dependency_hint('openai')}")
-    return OpenAI()
+        _die(f"thinwedge SDK not installed in the active environment. {_dependency_hint('thinwedge')}")
+    return ThinWedge()
 
 
 def _create_async_client():
     try:
-        from openai import AsyncOpenAI
+        from thinwedge import AsyncThinWedge
     except ImportError:
         try:
-            import openai as _openai  # noqa: F401
+            import thinwedge as _thinwedge  # noqa: F401
         except ImportError:
             _die(
-                f"openai SDK not installed in the active environment. {_dependency_hint('openai')}"
+                f"thinwedge SDK not installed in the active environment. {_dependency_hint('thinwedge')}"
             )
         _die(
-            "AsyncOpenAI not available in this openai SDK version. "
-            f"{_dependency_hint('openai', upgrade=True)}"
+            "AsyncThinWedge not available in this thinwedge SDK version. "
+            f"{_dependency_hint('thinwedge', upgrade=True)}"
         )
-    return AsyncOpenAI()
+    return AsyncThinWedge()
 
 
 def _slugify(value: str) -> str:
@@ -507,7 +507,7 @@ def _job_output_paths(
 
 
 def _extract_retry_after_seconds(exc: Exception) -> Optional[float]:
-    # Best-effort: openai SDK errors vary by version. Prefer a conservative fallback.
+    # Best-effort: thinwedge SDK errors vary by version. Prefer a conservative fallback.
     for attr in ("retry_after", "retry_after_seconds"):
         val = getattr(exc, attr, None)
         if isinstance(val, (int, float)) and val >= 0:

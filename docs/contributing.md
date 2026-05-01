@@ -94,4 +94,4 @@ No special Git commands, email attachments, or commit footers required.
 
 ### Security & responsible AI
 
-Have you discovered a vulnerability or have concerns about model output? Please e-mail **security@openai.com** and we will respond promptly.
+Have you discovered a vulnerability or have concerns about model output? Please e-mail **security@thinwedge.com** and we will respond promptly.

@@ -24,7 +24,7 @@ const META_RFC3339: &str = "2025-01-02T12:00:00Z";
 const CREATED_AT_RFC3339: &str = "2025-01-02T12:00:00.000Z";
 const UPDATED_AT_RFC3339: &str = "2025-01-02T12:00:00.000Z";
 const PREVIEW: &str = "Summarize this conversation";
-const MODEL_PROVIDER: &str = "openai";
+const MODEL_PROVIDER: &str = "thinwedge";
 const INVALID_REQUEST_ERROR_CODE: i64 = -32600;
 
 fn expected_summary(conversation_id: ThreadId, path: PathBuf) -> ConversationSummary {

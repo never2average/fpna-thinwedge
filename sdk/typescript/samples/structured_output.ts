@@ -1,6 +1,6 @@
 #!/usr/bin/env -S NODE_NO_WARNINGS=1 pnpm ts-node-esm --files
 
-import { ThinWedge } from "@openai/thinwedge-sdk";
+import { ThinWedge } from "@thinwedge/thinwedge-sdk";
 
 import { thinwedgePathOverride } from "./helpers.ts";
 

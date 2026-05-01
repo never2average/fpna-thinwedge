@@ -1,4 +1,4 @@
-# External (non-OpenAI) Pull Request Requirements
+# External (non-ThinWedge) Pull Request Requirements
 
 External code contributions are by invitation only. Please read the dedicated "Contributing" markdown file for details:
 https://github.com/never2average/fpna-thinwedge/blob/main/docs/contributing.md

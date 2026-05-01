@@ -3,7 +3,7 @@ use thinwedge_core::ThreadConfigSnapshot;
 use thinwedge_core::config::AgentRoleConfig;
 use thinwedge_features::Feature;
 use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;

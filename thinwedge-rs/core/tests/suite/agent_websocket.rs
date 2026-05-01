@@ -231,7 +231,7 @@ async fn websocket_v2_test_thinwedge_shell_chain() -> Result<()> {
 
     let handshake = server.single_handshake();
     assert_eq!(
-        handshake.header("openai-beta"),
+        handshake.header("thinwedge-beta"),
         Some(WS_V2_BETA_HEADER_VALUE.to_string())
     );
 

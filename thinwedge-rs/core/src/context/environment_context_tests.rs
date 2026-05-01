@@ -42,7 +42,7 @@ fn serialize_workspace_write_environment_context() {
 #[test]
 fn serialize_environment_context_with_network() {
     let network = NetworkContext::new(
-        vec!["api.example.com".to_string(), "*.openai.com".to_string()],
+        vec!["api.example.com".to_string(), "*.thinwedge.com".to_string()],
         vec!["blocked.example.com".to_string()],
     );
     let context = EnvironmentContext::new(
@@ -62,7 +62,7 @@ fn serialize_environment_context_with_network() {
   <timezone>America/Los_Angeles</timezone>
   <network enabled="true">
     <allowed>api.example.com</allowed>
-    <allowed>*.openai.com</allowed>
+    <allowed>*.thinwedge.com</allowed>
     <denied>blocked.example.com</denied>
   </network>
 </environment_context>"#,

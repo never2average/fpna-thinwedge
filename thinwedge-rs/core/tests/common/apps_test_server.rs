@@ -208,7 +208,7 @@ impl Respond for ThinWedgeAppsJsonRpcResponder {
                                     "connector_id": CONNECTOR_ID,
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
-                                    "openai/outputTemplate": CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI,
+                                    "thinwedge/outputTemplate": CALENDAR_CREATE_EVENT_MCP_APP_RESOURCE_URI,
                                     "_thinwedge_apps": {
                                         "resource_uri": CALENDAR_CREATE_EVENT_RESOURCE_URI,
                                         "contains_mcp_source": true,
@@ -266,7 +266,7 @@ impl Respond for ThinWedgeAppsJsonRpcResponder {
                                     "connector_id": CONNECTOR_ID,
                                     "connector_name": self.connector_name.clone(),
                                     "connector_description": self.connector_description.clone(),
-                                    "openai/fileParams": ["file"],
+                                    "thinwedge/fileParams": ["file"],
                                     "_thinwedge_apps": {
                                         "resource_uri": DOCUMENT_EXTRACT_TEXT_RESOURCE_URI,
                                         "contains_mcp_source": true,

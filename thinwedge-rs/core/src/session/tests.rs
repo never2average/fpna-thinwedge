@@ -346,7 +346,7 @@ fn test_model_client_session() -> crate::client::ModelClientSession {
         ThreadId::try_from("00000000-0000-4000-8000-000000000001")
             .expect("test thread id should be valid"),
         /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
-        ModelProviderInfo::create_openai_provider(/* base_url */ /*base_url*/ None),
+        ModelProviderInfo::create_thinwedge_provider(/* base_url */ /*base_url*/ None),
         thinwedge_protocol::protocol::SessionSource::Exec,
         /*model_verbosity*/ None,
         /*enable_request_compression*/ false,
@@ -1167,7 +1167,7 @@ async fn reload_user_config_layer_updates_effective_tool_suggest_config() {
         r#"[tool_suggest]
 disabled_tools = [
   { type = "connector", id = " calendar " },
-  { type = "plugin", id = "slack@openai-curated" },
+  { type = "plugin", id = "slack@thinwedge-curated" },
 ]
 "#,
     )
@@ -1180,7 +1180,7 @@ disabled_tools = [
         config.tool_suggest.disabled_tools,
         vec![
             ToolSuggestDisabledTool::connector("calendar"),
-            ToolSuggestDisabledTool::plugin("slack@openai-curated"),
+            ToolSuggestDisabledTool::plugin("slack@thinwedge-curated"),
         ]
     );
 }
@@ -1241,7 +1241,7 @@ fn filter_connectors_for_input_skips_disabled_connectors() {
 #[test]
 fn filter_connectors_for_input_skips_plugin_mentions() {
     let connectors = vec![make_connector("figma", "Figma")];
-    let input = vec![user_message("use [@figma](plugin://figma@openai-curated)")];
+    let input = vec![user_message("use [@figma](plugin://figma@thinwedge-curated)")];
     let explicitly_enabled_connectors = HashSet::new();
     let selected = filter_connectors_for_input(
         &connectors,

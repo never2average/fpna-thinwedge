@@ -36,7 +36,7 @@ use thinwedge_model_provider_info::LMSTUDIO_OSS_PROVIDER_ID;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_model_provider_info::OLLAMA_CHAT_PROVIDER_REMOVED_ERROR;
 use thinwedge_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
-use thinwedge_model_provider_info::OPENAI_PROVIDER_ID;
+use thinwedge_model_provider_info::THINWEDGE_PROVIDER_ID;
 use thinwedge_model_provider_info::OPENROUTER_PROVIDER_ID;
 use thinwedge_protocol::config_types::ForcedLoginMethod;
 use thinwedge_protocol::config_types::Personality;
@@ -49,7 +49,7 @@ use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WebSearchToolConfig;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
@@ -61,7 +61,7 @@ use serde::Serialize;
 
 const RESERVED_MODEL_PROVIDER_IDS: [&str; 5] = [
     AMAZON_BEDROCK_PROVIDER_ID,
-    OPENAI_PROVIDER_ID,
+    THINWEDGE_PROVIDER_ID,
     OPENROUTER_PROVIDER_ID,
     OLLAMA_OSS_PROVIDER_ID,
     LMSTUDIO_OSS_PROVIDER_ID,
@@ -182,7 +182,7 @@ pub struct ConfigToml {
 
     /// Preferred backend for storing MCP OAuth credentials.
     /// keyring: Use an OS-specific keyring service.
-    ///          https://github.com/openai/thinwedge/blob/main/thinwedge-rs/rmcp-client/src/oauth.rs#L2
+    ///          https://github.com/thinwedge/thinwedge/blob/main/thinwedge-rs/rmcp-client/src/oauth.rs#L2
     /// file: Use a file in the ThinWedge home directory.
     /// auto (default): Use the OS-specific keyring service if available, otherwise use a file.
     #[serde(default)]
@@ -280,11 +280,11 @@ pub struct ConfigToml {
     /// Optional explicit service tier preference for new turns (`fast` or `flex`).
     pub service_tier: Option<ServiceTier>,
 
-    /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
+    /// Base URL for requests to ChatGPT (as opposed to the ThinWedge API).
     pub chatgpt_base_url: Option<String>,
 
-    /// Base URL override for the built-in `openai` model provider.
-    pub openai_base_url: Option<String>,
+    /// Base URL override for the built-in `thinwedge` model provider.
+    pub thinwedge_base_url: Option<String>,
 
     /// Machine-local realtime audio device preferences used by realtime voice.
     #[serde(default)]
@@ -845,7 +845,7 @@ pub fn validate_reserved_model_provider_ids(
     } else {
         Err(format!(
             "model_providers contains reserved built-in provider IDs: {}. \
-Built-in providers cannot be overridden. Rename your custom provider (for example, `openai-custom`).",
+Built-in providers cannot be overridden. Rename your custom provider (for example, `thinwedge-custom`).",
             conflicts.join(", ")
         ))
     }

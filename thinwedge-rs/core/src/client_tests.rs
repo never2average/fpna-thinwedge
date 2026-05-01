@@ -6,7 +6,7 @@ use super::X_THINWEDGE_INSTALLATION_ID_HEADER;
 use super::X_THINWEDGE_PARENT_THREAD_ID_HEADER;
 use super::X_THINWEDGE_TURN_METADATA_HEADER;
 use super::X_THINWEDGE_WINDOW_ID_HEADER;
-use super::X_OPENAI_SUBAGENT_HEADER;
+use super::X_THINWEDGE_SUBAGENT_HEADER;
 use thinwedge_api::ApiError;
 use thinwedge_api::ResponseEvent;
 use thinwedge_app_server_protocol::AuthMode;
@@ -17,7 +17,7 @@ use thinwedge_otel::SessionTelemetry;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::protocol::InternalSessionSource;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::SubAgentSource;
@@ -193,7 +193,7 @@ fn build_subagent_headers_sets_other_subagent_label() {
     )));
     let headers = client.build_subagent_headers();
     let value = headers
-        .get(X_OPENAI_SUBAGENT_HEADER)
+        .get(X_THINWEDGE_SUBAGENT_HEADER)
         .and_then(|value| value.to_str().ok());
     assert_eq!(value, Some("memory_consolidation"));
 }
@@ -205,7 +205,7 @@ fn build_subagent_headers_sets_internal_memory_consolidation_label() {
     ));
     let headers = client.build_subagent_headers();
     let value = headers
-        .get(X_OPENAI_SUBAGENT_HEADER)
+        .get(X_THINWEDGE_SUBAGENT_HEADER)
         .and_then(|value| value.to_str().ok());
     assert_eq!(value, Some("memory_consolidation"));
 }
@@ -237,7 +237,7 @@ fn build_ws_client_metadata_includes_window_lineage_and_turn_metadata() {
                 format!("{conversation_id}:1"),
             ),
             (
-                X_OPENAI_SUBAGENT_HEADER.to_string(),
+                X_THINWEDGE_SUBAGENT_HEADER.to_string(),
                 "collab_spawn".to_string(),
             ),
             (

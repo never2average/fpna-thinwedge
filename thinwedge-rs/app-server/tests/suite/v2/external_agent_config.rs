@@ -558,7 +558,7 @@ async fn external_agent_config_import_compacts_huge_session_before_first_follow_
         &server.uri(),
         &BTreeMap::default(),
         /*auto_compact_limit*/ 200,
-        /*requires_openai_auth*/ None,
+        /*requires_thinwedge_auth*/ None,
         "mock_provider",
         "Summarize the conversation.",
     )?;

@@ -67,7 +67,7 @@ pub(super) async fn list_threads(
 mod tests {
     use std::path::PathBuf;
 
-    use thinwedge_protocol::openai_models::ReasoningEffort;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use thinwedge_protocol::protocol::SessionSource;
     use pretty_assertions::assert_eq;
     use tonic::Request;
@@ -108,7 +108,7 @@ mod tests {
             assert_eq!(
                 request.model_provider_filter,
                 Some(proto::ModelProviderFilter {
-                    values: vec!["openai".to_string()],
+                    values: vec!["thinwedge".to_string()],
                 })
             );
             assert_eq!(
@@ -129,7 +129,7 @@ mod tests {
                     forked_from_id: None,
                     preview: "hello".to_string(),
                     name: Some("named thread".to_string()),
-                    model_provider: "openai".to_string(),
+                    model_provider: "thinwedge".to_string(),
                     model: Some("gpt-5".to_string()),
                     created_at: 100,
                     updated_at: 200,
@@ -188,7 +188,7 @@ mod tests {
                 sort_key: ThreadSortKey::UpdatedAt,
                 sort_direction: crate::SortDirection::Desc,
                 allowed_sources: vec![SessionSource::Cli],
-                model_providers: Some(vec!["openai".to_string()]),
+                model_providers: Some(vec!["thinwedge".to_string()]),
                 cwd_filters: Some(vec![PathBuf::from("/workspace")]),
                 archived: true,
                 search_term: Some("needle".to_string()),
@@ -207,7 +207,7 @@ mod tests {
         assert_eq!(item.name.as_deref(), Some("named thread"));
         assert_eq!(item.preview, "hello");
         assert_eq!(item.first_user_message.as_deref(), Some("hello"));
-        assert_eq!(item.model_provider, "openai");
+        assert_eq!(item.model_provider, "thinwedge");
         assert_eq!(item.model.as_deref(), Some("gpt-5"));
         assert_eq!(item.created_at.timestamp(), 100);
         assert_eq!(item.updated_at.timestamp(), 200);
@@ -232,7 +232,7 @@ mod tests {
             forked_from_id: Some("22222222-2222-2222-2222-222222222222".to_string()),
             preview: "preview text".to_string(),
             name: Some("named thread".to_string()),
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             model: Some("gpt-5".to_string()),
             created_at: 100,
             updated_at: 200,

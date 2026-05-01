@@ -48,9 +48,9 @@ rustPlatform.buildRustPackage (_: {
   };
 
   meta = with lib; {
-    description = "OpenAI ThinWedge command‑line interface rust implementation";
+    description = "ThinWedge ThinWedge command‑line interface rust implementation";
     license = licenses.asl20;
-    homepage = "https://github.com/openai/thinwedge";
+    homepage = "https://github.com/thinwedge/thinwedge";
     mainProgram = "thinwedge";
   };
 })

@@ -774,10 +774,10 @@
       ]
     },
     "AuthMode": {
-      "description": "Authentication mode for OpenAI-backed providers.",
+      "description": "Authentication mode for ThinWedge-backed providers.",
       "oneOf": [
         {
-          "description": "OpenAI API key provided by the caller and stored by ThinWedge.",
+          "description": "ThinWedge API key provided by the caller and stored by ThinWedge.",
           "enum": [
             "apikey"
           ],
@@ -791,7 +791,7 @@
           "type": "string"
         },
         {
-          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
+          "description": "[UNSTABLE] FOR THINWEDGE INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
           "enum": [
             "chatgptAuthTokens"
           ],
@@ -5774,12 +5774,12 @@
             }
           ]
         },
-        "requiresOpenaiAuth": {
+        "requiresThinwedgeAuth": {
           "type": "boolean"
         }
       },
       "required": [
-        "requiresOpenaiAuth"
+        "requiresThinwedgeAuth"
       ],
       "title": "GetAccountResponse",
       "type": "object"
@@ -8879,7 +8879,7 @@
       "type": "object"
     },
     "ReasoningEffort": {
-      "description": "See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
+      "description": "See https://platform.thinwedge.com/docs/guides/reasoning?api-mode=responses#get-started-with-reasoning",
       "enum": [
         "none",
         "minimal",
@@ -8974,7 +8974,7 @@
       ]
     },
     "ReasoningSummary": {
-      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries",
+      "description": "A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.thinwedge.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries",
       "oneOf": [
         {
           "enum": [
@@ -12100,7 +12100,7 @@
           "type": "string"
         },
         "modelProvider": {
-          "description": "Model provider used for this thread (for example, 'openai').",
+          "description": "Model provider used for this thread (for example, 'thinwedge').",
           "type": "string"
         },
         "name": {
@@ -15174,7 +15174,7 @@
       ]
     },
     "Verbosity": {
-      "description": "Controls output length/detail on GPT-5 models via the Responses API. Serialized with lowercase values to match the OpenAI API.",
+      "description": "Controls output length/detail on GPT-5 models via the Responses API. Serialized with lowercase values to match the ThinWedge API.",
       "enum": [
         "low",
         "medium",

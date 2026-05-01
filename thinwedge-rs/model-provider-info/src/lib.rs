@@ -32,24 +32,24 @@ const MAX_STREAM_MAX_RETRIES: u64 = 100;
 /// Hard cap for user-configured `request_max_retries`.
 const MAX_REQUEST_MAX_RETRIES: u64 = 100;
 
-const OPENAI_PROVIDER_NAME: &str = "OpenAI";
-pub const OPENAI_PROVIDER_ID: &str = "openai";
+const THINWEDGE_PROVIDER_NAME: &str = "ThinWedge";
+pub const THINWEDGE_PROVIDER_ID: &str = "thinwedge";
 const OPENROUTER_PROVIDER_NAME: &str = "OpenRouter";
 pub const OPENROUTER_PROVIDER_ID: &str = "openrouter";
 pub const OPENROUTER_DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 const AMAZON_BEDROCK_PROVIDER_NAME: &str = "Amazon Bedrock";
 pub const AMAZON_BEDROCK_PROVIDER_ID: &str = "amazon-bedrock";
 pub const AMAZON_BEDROCK_DEFAULT_BASE_URL: &str =
-    "https://bedrock-mantle.us-east-1.api.aws/openai/v1";
-const CHAT_WIRE_API_REMOVED_ERROR: &str = "`wire_api = \"chat\"` is no longer supported.\nHow to fix: set `wire_api = \"responses\"` in your provider config.\nMore info: https://github.com/openai/thinwedge/discussions/7782";
+    "https://bedrock-mantle.us-east-1.api.aws/thinwedge/v1";
+const CHAT_WIRE_API_REMOVED_ERROR: &str = "`wire_api = \"chat\"` is no longer supported.\nHow to fix: set `wire_api = \"responses\"` in your provider config.\nMore info: https://github.com/thinwedge/thinwedge/discussions/7782";
 pub const LEGACY_OLLAMA_CHAT_PROVIDER_ID: &str = "ollama-chat";
-pub const OLLAMA_CHAT_PROVIDER_REMOVED_ERROR: &str = "`ollama-chat` is no longer supported.\nHow to fix: replace `ollama-chat` with `ollama` in `model_provider`, `oss_provider`, or `--local-provider`.\nMore info: https://github.com/openai/thinwedge/discussions/7782";
+pub const OLLAMA_CHAT_PROVIDER_REMOVED_ERROR: &str = "`ollama-chat` is no longer supported.\nHow to fix: replace `ollama-chat` with `ollama` in `model_provider`, `oss_provider`, or `--local-provider`.\nMore info: https://github.com/thinwedge/thinwedge/discussions/7782";
 
 /// Wire protocol that the provider speaks.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum WireApi {
-    /// The Responses API exposed by OpenAI at `/v1/responses`.
+    /// The Responses API exposed by ThinWedge at `/v1/responses`.
     #[default]
     Responses,
 }
@@ -84,7 +84,7 @@ pub struct ModelProviderInfo {
     /// Friendly display name.
     #[serde(default)]
     pub name: String,
-    /// Base URL for the provider's OpenAI-compatible API.
+    /// Base URL for the provider's ThinWedge-compatible API.
     pub base_url: Option<String>,
     /// Environment variable that stores the user's API key for this provider.
     pub env_key: Option<String>,
@@ -123,12 +123,12 @@ pub struct ModelProviderInfo {
     /// Maximum time (in milliseconds) to wait for a websocket connection attempt before treating
     /// it as failed.
     pub websocket_connect_timeout_ms: Option<u64>,
-    /// Does this provider require an OpenAI API Key or ChatGPT login token? If true,
+    /// Does this provider require an ThinWedge API Key or ChatGPT login token? If true,
     /// user is presented with login screen on first run, and login preference and token/key
     /// are stored in auth.json. If false (which is the default), login screen is skipped,
     /// and API key (if needed) comes from the "env_key" environment variable.
     #[serde(default)]
-    pub requires_openai_auth: bool,
+    pub requires_thinwedge_auth: bool,
     /// Whether this provider supports the Responses API WebSocket transport.
     #[serde(default)]
     pub supports_websockets: bool,
@@ -164,8 +164,8 @@ impl ModelProviderInfo {
             if self.auth.is_some() {
                 conflicts.push("auth");
             }
-            if self.requires_openai_auth {
-                conflicts.push("requires_openai_auth");
+            if self.requires_thinwedge_auth {
+                conflicts.push("requires_thinwedge_auth");
             }
 
             if !conflicts.is_empty() {
@@ -191,8 +191,8 @@ impl ModelProviderInfo {
         if self.experimental_bearer_token.is_some() {
             conflicts.push("experimental_bearer_token");
         }
-        if self.requires_openai_auth {
-            conflicts.push("requires_openai_auth");
+        if self.requires_thinwedge_auth {
+            conflicts.push("requires_thinwedge_auth");
         }
 
         if conflicts.is_empty() {
@@ -239,7 +239,7 @@ impl ModelProviderInfo {
         ) {
             "https://chatgpt.com/backend-api/thinwedge"
         } else {
-            "https://api.openai.com/v1"
+            "https://api.thinwedge.com/v1"
         };
         let base_url = self
             .base_url
@@ -314,9 +314,9 @@ impl ModelProviderInfo {
             .unwrap_or(Duration::from_millis(DEFAULT_WEBSOCKET_CONNECT_TIMEOUT_MS))
     }
 
-    pub fn create_openai_provider(base_url: Option<String>) -> ModelProviderInfo {
+    pub fn create_thinwedge_provider(base_url: Option<String>) -> ModelProviderInfo {
         ModelProviderInfo {
-            name: OPENAI_PROVIDER_NAME.into(),
+            name: THINWEDGE_PROVIDER_NAME.into(),
             base_url,
             env_key: None,
             env_key_instructions: None,
@@ -333,10 +333,10 @@ impl ModelProviderInfo {
             env_http_headers: Some(
                 [
                     (
-                        "OpenAI-Organization".to_string(),
-                        "OPENAI_ORGANIZATION".to_string(),
+                        "ThinWedge-Organization".to_string(),
+                        "THINWEDGE_ORGANIZATION".to_string(),
                     ),
-                    ("OpenAI-Project".to_string(), "OPENAI_PROJECT".to_string()),
+                    ("ThinWedge-Project".to_string(), "THINWEDGE_PROJECT".to_string()),
                 ]
                 .into_iter()
                 .collect(),
@@ -346,7 +346,7 @@ impl ModelProviderInfo {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: true,
+            requires_thinwedge_auth: true,
             supports_websockets: true,
         }
     }
@@ -372,7 +372,7 @@ impl ModelProviderInfo {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
             supports_websockets: false,
         }
     }
@@ -399,13 +399,13 @@ impl ModelProviderInfo {
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
             supports_websockets: false,
         }
     }
 
-    pub fn is_openai(&self) -> bool {
-        self.name == OPENAI_PROVIDER_NAME
+    pub fn is_thinwedge(&self) -> bool {
+        self.name == THINWEDGE_PROVIDER_NAME
     }
 
     pub fn is_openrouter(&self) -> bool {
@@ -417,7 +417,7 @@ impl ModelProviderInfo {
     }
 
     pub fn supports_remote_compaction(&self) -> bool {
-        self.is_openai() || is_azure_responses_provider(&self.name, self.base_url.as_deref())
+        self.is_thinwedge() || is_azure_responses_provider(&self.name, self.base_url.as_deref())
     }
 
     pub fn has_command_auth(&self) -> bool {
@@ -433,20 +433,20 @@ pub const OLLAMA_OSS_PROVIDER_ID: &str = "ollama";
 
 /// Built-in default provider list.
 pub fn built_in_model_providers(
-    openai_base_url: Option<String>,
+    thinwedge_base_url: Option<String>,
 ) -> HashMap<String, ModelProviderInfo> {
     use ModelProviderInfo as P;
-    let openai_provider = P::create_openai_provider(openai_base_url);
+    let thinwedge_provider = P::create_thinwedge_provider(thinwedge_base_url);
     let openrouter_provider = P::create_openrouter_provider();
     let amazon_bedrock_provider = P::create_amazon_bedrock_provider(/*aws*/ None);
 
     // We do not want to be in the business of adjucating which third-party
-    // providers are bundled with ThinWedge CLI, so we only include the OpenAI and
+    // providers are bundled with ThinWedge CLI, so we only include the ThinWedge and
     // open source ("oss") providers by default. Users are encouraged to add to
     // `model_providers` in config.toml to add their own providers.
     [
         (OPENROUTER_PROVIDER_ID, openrouter_provider),
-        (OPENAI_PROVIDER_ID, openai_provider),
+        (THINWEDGE_PROVIDER_ID, thinwedge_provider),
         (AMAZON_BEDROCK_PROVIDER_ID, amazon_bedrock_provider),
         (
             OLLAMA_OSS_PROVIDER_ID,
@@ -536,7 +536,7 @@ pub fn create_oss_provider_with_base_url(base_url: &str, wire_api: WireApi) -> M
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     }
 }

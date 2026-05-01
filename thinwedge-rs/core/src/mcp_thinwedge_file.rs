@@ -1,9 +1,9 @@
-//! Bridges Apps SDK-style `openai/fileParams` metadata into ThinWedge's MCP flow.
+//! Bridges Apps SDK-style `thinwedge/fileParams` metadata into ThinWedge's MCP flow.
 //!
 //! Strategy:
-//! - Inspect `_meta["openai/fileParams"]` to discover which tool arguments are
+//! - Inspect `_meta["thinwedge/fileParams"]` to discover which tool arguments are
 //!   file inputs.
-//! - At tool execution time, upload those local files to OpenAI file storage
+//! - At tool execution time, upload those local files to ThinWedge file storage
 //!   and rewrite only the declared arguments into the provided-file payload
 //!   shape expected by the downstream Apps tool.
 //!
@@ -16,13 +16,13 @@ use thinwedge_api::upload_local_file;
 use thinwedge_login::ThinWedgeAuth;
 use serde_json::Value as JsonValue;
 
-pub(crate) async fn rewrite_mcp_tool_arguments_for_openai_files(
+pub(crate) async fn rewrite_mcp_tool_arguments_for_thinwedge_files(
     sess: &Session,
     turn_context: &TurnContext,
     arguments_value: Option<JsonValue>,
-    openai_file_input_params: Option<&[String]>,
+    thinwedge_file_input_params: Option<&[String]>,
 ) -> Result<Option<JsonValue>, String> {
-    let Some(openai_file_input_params) = openai_file_input_params else {
+    let Some(thinwedge_file_input_params) = thinwedge_file_input_params else {
         return Ok(arguments_value);
     };
 
@@ -35,12 +35,12 @@ pub(crate) async fn rewrite_mcp_tool_arguments_for_openai_files(
     let auth = sess.services.auth_manager.auth().await;
     let mut rewritten_arguments = arguments.clone();
 
-    for field_name in openai_file_input_params {
+    for field_name in thinwedge_file_input_params {
         let Some(value) = arguments.get(field_name) else {
             continue;
         };
         let Some(uploaded_value) =
-            rewrite_argument_value_for_openai_files(turn_context, auth.as_ref(), field_name, value)
+            rewrite_argument_value_for_thinwedge_files(turn_context, auth.as_ref(), field_name, value)
                 .await?
         else {
             continue;
@@ -55,7 +55,7 @@ pub(crate) async fn rewrite_mcp_tool_arguments_for_openai_files(
     Ok(Some(JsonValue::Object(rewritten_arguments)))
 }
 
-async fn rewrite_argument_value_for_openai_files(
+async fn rewrite_argument_value_for_thinwedge_files(
     turn_context: &TurnContext,
     auth: Option<&ThinWedgeAuth>,
     field_name: &str,
@@ -146,17 +146,17 @@ mod tests {
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn openai_file_argument_rewrite_requires_declared_file_params() {
+    async fn thinwedge_file_argument_rewrite_requires_declared_file_params() {
         let (session, turn_context) = make_session_and_context().await;
         let arguments = Some(serde_json::json!({
             "file": "/tmp/thinwedge-smoke-file.txt"
         }));
 
-        let rewritten = rewrite_mcp_tool_arguments_for_openai_files(
+        let rewritten = rewrite_mcp_tool_arguments_for_thinwedge_files(
             &session,
             &Arc::new(turn_context),
             arguments.clone(),
-            /*openai_file_input_params*/ None,
+            /*thinwedge_file_input_params*/ None,
         )
         .await
         .expect("rewrite should succeed");
@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rewrite_argument_value_for_openai_files_rewrites_scalar_path() {
+    async fn rewrite_argument_value_for_thinwedge_files_rewrites_scalar_path() {
         use wiremock::Mock;
         use wiremock::MockServer;
         use wiremock::ResponseTemplate;
@@ -302,7 +302,7 @@ mod tests {
         let mut config = (*turn_context.config).clone();
         config.chatgpt_base_url = format!("{}/backend-api", server.uri());
         turn_context.config = Arc::new(config);
-        let rewritten = rewrite_argument_value_for_openai_files(
+        let rewritten = rewrite_argument_value_for_thinwedge_files(
             &turn_context,
             Some(&auth),
             "file",
@@ -325,7 +325,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rewrite_argument_value_for_openai_files_rewrites_array_paths() {
+    async fn rewrite_argument_value_for_thinwedge_files_rewrites_array_paths() {
         use wiremock::Mock;
         use wiremock::MockServer;
         use wiremock::ResponseTemplate;
@@ -416,7 +416,7 @@ mod tests {
         let mut config = (*turn_context.config).clone();
         config.chatgpt_base_url = format!("{}/backend-api", server.uri());
         turn_context.config = Arc::new(config);
-        let rewritten = rewrite_argument_value_for_openai_files(
+        let rewritten = rewrite_argument_value_for_thinwedge_files(
             &turn_context,
             Some(&auth),
             "files",
@@ -449,12 +449,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn rewrite_mcp_tool_arguments_for_openai_files_surfaces_upload_failures() {
+    async fn rewrite_mcp_tool_arguments_for_thinwedge_files_surfaces_upload_failures() {
         let (mut session, turn_context) = make_session_and_context().await;
         session.services.auth_manager = crate::test_support::auth_manager_from_auth(
             ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing(),
         );
-        let error = rewrite_mcp_tool_arguments_for_openai_files(
+        let error = rewrite_mcp_tool_arguments_for_thinwedge_files(
             &session,
             &turn_context,
             Some(serde_json::json!({

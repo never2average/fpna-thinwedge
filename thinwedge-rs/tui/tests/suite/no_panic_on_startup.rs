@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::select;
 use tokio::time::timeout;
 
-/// Regression test for https://github.com/openai/thinwedge/issues/8803.
+/// Regression test for https://github.com/thinwedge/thinwedge/issues/8803.
 #[tokio::test]
 #[ignore = "TODO(mbolin): flaky"]
 async fn malformed_rules_should_not_panic() -> anyhow::Result<()> {
@@ -25,7 +25,7 @@ async fn malformed_rules_should_not_panic() -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
     let config_contents = format!(
         r#"
-# Pick a local provider so the CLI doesn't prompt for OpenAI auth in this test.
+# Pick a local provider so the CLI doesn't prompt for ThinWedge auth in this test.
 model_provider = "ollama"
 
 [projects]

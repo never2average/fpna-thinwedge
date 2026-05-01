@@ -21,7 +21,7 @@ preview: string,
  */
 ephemeral: boolean,
 /**
- * Model provider used for this thread (for example, 'openai').
+ * Model provider used for this thread (for example, 'thinwedge').
  */
 modelProvider: string,
 /**

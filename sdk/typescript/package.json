@@ -1,14 +1,14 @@
 {
-  "name": "@openai/thinwedge-sdk",
+  "name": "@thinwedge/thinwedge-sdk",
   "version": "0.0.0-dev",
   "description": "TypeScript SDK for ThinWedge APIs.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openai/thinwedge.git",
+    "url": "git+https://github.com/thinwedge/thinwedge.git",
     "directory": "sdk/typescript"
   },
   "keywords": [
-    "openai",
+    "thinwedge",
     "thinwedge",
     "sdk",
     "typescript",

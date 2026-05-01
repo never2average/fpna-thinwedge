@@ -9,13 +9,13 @@ use thinwedge_protocol::config_types::WebSearchFilters as ConfigWebSearchFilters
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WebSearchUserLocation as ConfigWebSearchUserLocation;
 use thinwedge_protocol::config_types::WebSearchUserLocationType;
-use thinwedge_protocol::openai_models::WebSearchToolType;
+use thinwedge_protocol::thinwedge_models::WebSearchToolType;
 use serde::Serialize;
 use serde_json::Value;
 
 const WEB_SEARCH_TEXT_AND_IMAGE_CONTENT_TYPES: [&str; 2] = ["text", "image"];
 
-/// When serialized as JSON, this produces a valid "Tool" in the OpenAI
+/// When serialized as JSON, this produces a valid "Tool" in the ThinWedge
 /// Responses API.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(tag = "type")]
@@ -36,10 +36,10 @@ pub enum ToolSpec {
     ImageGeneration { output_format: String },
     // TODO: Understand why we get an error on web_search although the API docs
     // say it's supported.
-    // https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses#:~:text=%7B%20type%3A%20%22web_search%22%20%7D%2C
+    // https://platform.thinwedge.com/docs/guides/tools-web-search?api-mode=responses#:~:text=%7B%20type%3A%20%22web_search%22%20%7D%2C
     // The `external_web_access` field determines whether the web search is over
     // cached or live content.
-    // https://platform.openai.com/docs/guides/tools-web-search#live-internet-access
+    // https://platform.thinwedge.com/docs/guides/tools-web-search#live-internet-access
     #[serde(rename = "web_search")]
     WebSearch {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -149,7 +149,7 @@ impl ConfiguredToolSpec {
 
 /// Returns JSON values that are compatible with Function Calling in the
 /// Responses API:
-/// https://platform.openai.com/docs/guides/function-calling?api-mode=responses
+/// https://platform.thinwedge.com/docs/guides/function-calling?api-mode=responses
 pub fn create_tools_json_for_responses_api(
     tools: &[ToolSpec],
 ) -> Result<Vec<Value>, serde_json::Error> {

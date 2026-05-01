@@ -2640,7 +2640,7 @@ class ReasoningSummary(RootModel[ReasoningSummaryValue | Literal["none"]]):
     root: Annotated[
         ReasoningSummaryValue | Literal["none"],
         Field(
-            description="A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries"
+            description="A summary of the reasoning performed by the model. This can be useful for debugging and understanding the model's reasoning process. See https://platform.thinwedge.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries"
         ),
     ]
 
@@ -5706,7 +5706,7 @@ class GetAccountResponse(BaseModel):
         populate_by_name=True,
     )
     account: Account | None = None
-    requires_openai_auth: Annotated[bool, Field(alias="requiresOpenaiAuth")]
+    requires_thinwedge_auth: Annotated[bool, Field(alias="requiresThinwedgeAuth")]
 
 
 class GuardianApprovalReview(BaseModel):
@@ -7930,7 +7930,7 @@ class Thread(BaseModel):
         str,
         Field(
             alias="modelProvider",
-            description="Model provider used for this thread (for example, 'openai').",
+            description="Model provider used for this thread (for example, 'thinwedge').",
         ),
     ]
     name: Annotated[

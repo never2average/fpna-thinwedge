@@ -15,7 +15,7 @@ use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::ManagedFileSystemPermissions;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::CreditsSnapshot;
 use thinwedge_protocol::protocol::NetworkSandboxPolicy;
@@ -142,7 +142,7 @@ async fn status_snapshot_includes_reasoning_details() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
     config.model = Some("gpt-5.1-thinwedge-max".to_string());
-    config.model_provider_id = "openai".to_string();
+    config.model_provider_id = "thinwedge".to_string();
     config.model_reasoning_summary = Some(ReasoningSummary::Detailed);
     config.cwd = test_path_buf("/workspace/tests").abs();
     config
@@ -216,7 +216,7 @@ async fn status_permissions_non_default_workspace_write_is_custom() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
     config.model = Some("gpt-5.1-thinwedge-max".to_string());
-    config.model_provider_id = "openai".to_string();
+    config.model_provider_id = "thinwedge".to_string();
     config
         .permissions
         .approval_policy
@@ -290,7 +290,7 @@ async fn status_snapshot_includes_forked_from() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
     config.model = Some("gpt-5.1-thinwedge-max".to_string());
-    config.model_provider_id = "openai".to_string();
+    config.model_provider_id = "thinwedge".to_string();
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -344,7 +344,7 @@ async fn status_snapshot_includes_monthly_limit() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
     config.model = Some("gpt-5.1-thinwedge-max".to_string());
-    config.model_provider_id = "openai".to_string();
+    config.model_provider_id = "thinwedge".to_string();
     config.cwd = test_path_buf("/workspace/tests").abs();
 
     let account_display = test_status_account_display();
@@ -649,7 +649,7 @@ async fn status_snapshot_truncates_in_narrow_terminal() {
     let temp_home = TempDir::new().expect("temp home");
     let mut config = test_config(&temp_home).await;
     config.model = Some("gpt-5.1-thinwedge-max".to_string());
-    config.model_provider_id = "openai".to_string();
+    config.model_provider_id = "thinwedge".to_string();
     config.model_reasoning_summary = Some(ReasoningSummary::Detailed);
     config.cwd = test_path_buf("/workspace/tests").abs();
 

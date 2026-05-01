@@ -278,7 +278,7 @@ wheels = [
 ]
 
 [[package]]
-name = "openai-thinwedge-app-server-sdk"
+name = "thinwedge-thinwedge-app-server-sdk"
 version = "0.116.0a1"
 source = { editable = "." }
 dependencies = [

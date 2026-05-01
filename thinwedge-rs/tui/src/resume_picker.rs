@@ -1583,7 +1583,7 @@ mod tests {
         let params = thread_list_params(
             Some(String::from("cursor-1")),
             cwd_filter.as_deref(),
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             ThreadSortKey::UpdatedAt,
             /*include_non_interactive*/ false,
         );
@@ -1667,7 +1667,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -1745,7 +1745,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -1777,7 +1777,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -1837,7 +1837,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -1915,7 +1915,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -1944,7 +1944,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -1991,7 +1991,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -2030,7 +2030,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -2071,7 +2071,7 @@ mod tests {
             forked_from_id: None,
             preview: String::from("remote thread"),
             ephemeral: false,
-            model_provider: String::from("openai"),
+            model_provider: String::from("thinwedge"),
             created_at: 1,
             updated_at: 2,
             status: thinwedge_app_server_protocol::ThreadStatus::Idle,
@@ -2099,7 +2099,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,
@@ -2146,7 +2146,7 @@ mod tests {
         let mut state = PickerState::new(
             FrameRequester::test_dummy(),
             loader,
-            ProviderFilter::MatchDefault(String::from("openai")),
+            ProviderFilter::MatchDefault(String::from("thinwedge")),
             /*show_all*/ true,
             /*filter_cwd*/ None,
             SessionPickerAction::Resume,

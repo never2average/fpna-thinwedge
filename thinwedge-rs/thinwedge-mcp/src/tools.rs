@@ -53,14 +53,14 @@ impl ToolInfo {
     }
 }
 
-pub fn declared_openai_file_input_param_names(
+pub fn declared_thinwedge_file_input_param_names(
     meta: Option<&Map<String, JsonValue>>,
 ) -> Vec<String> {
     let Some(meta) = meta else {
         return Vec::new();
     };
 
-    meta.get(META_OPENAI_FILE_PARAMS)
+    meta.get(META_THINWEDGE_FILE_PARAMS)
         .and_then(JsonValue::as_array)
         .into_iter()
         .flatten()
@@ -109,7 +109,7 @@ impl ToolFilter {
 /// used by execution. Keep cache entries raw and call this at manager return
 /// boundaries.
 pub(crate) fn tool_with_model_visible_input_schema(tool: &Tool) -> Tool {
-    let file_params = declared_openai_file_input_param_names(tool.meta.as_deref());
+    let file_params = declared_thinwedge_file_input_param_names(tool.meta.as_deref());
     if file_params.is_empty() {
         return tool.clone();
     }
@@ -240,7 +240,7 @@ struct CallableToolCandidate {
 const MCP_TOOL_NAME_DELIMITER: &str = "__";
 const MAX_TOOL_NAME_LENGTH: usize = 64;
 const CALLABLE_NAME_HASH_LEN: usize = 12;
-const META_OPENAI_FILE_PARAMS: &str = "openai/fileParams";
+const META_THINWEDGE_FILE_PARAMS: &str = "thinwedge/fileParams";
 
 fn mask_input_schema_for_file_path_params(input_schema: &mut JsonValue, file_params: &[String]) {
     let Some(properties) = input_schema

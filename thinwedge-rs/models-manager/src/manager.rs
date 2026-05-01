@@ -7,9 +7,9 @@ use async_trait::async_trait;
 use thinwedge_login::AuthManager;
 use thinwedge_protocol::config_types::CollaborationModeMask;
 use thinwedge_protocol::error::Result as CoreResult;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -25,7 +25,7 @@ pub use super::cache::ModelsCacheProviderIdentity;
 const MODEL_CACHE_FILE: &str = "models_cache.json";
 const DEFAULT_MODEL_CACHE_TTL: Duration = Duration::from_secs(300);
 
-/// Remote endpoint used by the OpenAI-compatible model manager.
+/// Remote endpoint used by the ThinWedge-compatible model manager.
 ///
 /// Implementations own provider-specific auth and transport details. The model
 /// manager owns refresh policy, cache behavior, and catalog merging; it calls
@@ -187,9 +187,9 @@ pub trait ModelsManager: fmt::Debug + Send + Sync {
 /// Shared model manager handle used across runtime services.
 pub type SharedModelsManager = Arc<dyn ModelsManager>;
 
-/// OpenAI-compatible model manager backed by bundled models, cache, and `/models`.
+/// ThinWedge-compatible model manager backed by bundled models, cache, and `/models`.
 #[derive(Debug)]
-pub struct OpenAiModelsManager {
+pub struct ThinWedgeModelsManager {
     remote_models: RwLock<Vec<ModelInfo>>,
     collaboration_modes_config: CollaborationModesConfig,
     etag: RwLock<Option<String>>,
@@ -206,8 +206,8 @@ pub struct StaticModelsManager {
     auth_manager: Option<Arc<AuthManager>>,
 }
 
-impl OpenAiModelsManager {
-    /// Construct an OpenAI-compatible remote model manager.
+impl ThinWedgeModelsManager {
+    /// Construct an ThinWedge-compatible remote model manager.
     pub fn new(
         thinwedge_home: PathBuf,
         endpoint_client: Arc<dyn ModelsEndpointClient>,
@@ -248,7 +248,7 @@ impl StaticModelsManager {
 }
 
 #[async_trait]
-impl ModelsManager for OpenAiModelsManager {
+impl ModelsManager for ThinWedgeModelsManager {
     async fn raw_model_catalog(&self, refresh_strategy: RefreshStrategy) -> ModelsResponse {
         if let Err(err) = self.refresh_available_models(refresh_strategy).await {
             error!("failed to refresh available models: {err}");
@@ -288,7 +288,7 @@ impl ModelsManager for OpenAiModelsManager {
     }
 }
 
-impl OpenAiModelsManager {
+impl ThinWedgeModelsManager {
     /// Refresh available models according to the specified strategy.
     async fn refresh_available_models(&self, refresh_strategy: RefreshStrategy) -> CoreResult<()> {
         if !self.should_refresh_models().await {

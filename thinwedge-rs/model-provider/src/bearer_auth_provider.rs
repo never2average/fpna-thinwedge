@@ -2,7 +2,7 @@ use thinwedge_api::AuthProvider;
 use http::HeaderMap;
 use http::HeaderValue;
 
-/// Bearer-token auth provider for OpenAI-compatible model-provider requests.
+/// Bearer-token auth provider for ThinWedge-compatible model-provider requests.
 #[derive(Clone, Default)]
 pub struct BearerAuthProvider {
     pub token: Option<String>,
@@ -41,7 +41,7 @@ impl AuthProvider for BearerAuthProvider {
             let _ = headers.insert("ChatGPT-Account-ID", header);
         }
         if self.is_fedramp_account {
-            let _ = headers.insert("X-OpenAI-Fedramp", HeaderValue::from_static("true"));
+            let _ = headers.insert("X-ThinWedge-Fedramp", HeaderValue::from_static("true"));
         }
     }
 }
@@ -102,7 +102,7 @@ mod tests {
 
         assert_eq!(
             headers
-                .get("X-OpenAI-Fedramp")
+                .get("X-ThinWedge-Fedramp")
                 .and_then(|value| value.to_str().ok()),
             Some("true")
         );

@@ -1,4 +1,4 @@
-use thinwedge_api::OpenAiVerbosity;
+use thinwedge_api::ThinWedgeVerbosity;
 use thinwedge_api::ResponsesApiRequest;
 use thinwedge_api::TextControls;
 use thinwedge_api::create_text_param_for_request;
@@ -26,7 +26,7 @@ fn serializes_text_verbosity_when_set() {
         prompt_cache_key: None,
         service_tier: None,
         text: Some(TextControls {
-            verbosity: Some(OpenAiVerbosity::Low),
+            verbosity: Some(ThinWedgeVerbosity::Low),
             format: None,
         }),
         client_metadata: None,

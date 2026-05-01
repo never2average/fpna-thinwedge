@@ -91,8 +91,8 @@ const REFRESH_TOKEN_UNKNOWN_MESSAGE: &str =
     "Your access token could not be refreshed. Please log out and sign in again.";
 const REFRESH_TOKEN_ACCOUNT_MISMATCH_MESSAGE: &str = "Your access token could not be refreshed because you have since logged out or signed in to another account. Please sign in again.";
 const DEFAULT_CHATGPT_BACKEND_BASE_URL: &str = "https://chatgpt.com/backend-api";
-const REFRESH_TOKEN_URL: &str = "https://auth.openai.com/oauth/token";
-pub(super) const REVOKE_TOKEN_URL: &str = "https://auth.openai.com/oauth/revoke";
+const REFRESH_TOKEN_URL: &str = "https://auth.thinwedge.com/oauth/token";
+pub(super) const REVOKE_TOKEN_URL: &str = "https://auth.thinwedge.com/oauth/revoke";
 pub const REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR: &str = "THINWEDGE_REFRESH_TOKEN_URL_OVERRIDE";
 pub const REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR: &str = "THINWEDGE_REVOKE_TOKEN_URL_OVERRIDE";
 static NEXT_DUMMY_AUTH_ID: AtomicU64 = AtomicU64::new(1);
@@ -205,7 +205,7 @@ impl ThinWedgeAuth {
         let auth_mode = auth_dot_json.resolved_mode();
         let client = create_client();
         if auth_mode == ApiAuthMode::ApiKey {
-            let Some(api_key) = auth_dot_json.openai_api_key.as_deref() else {
+            let Some(api_key) = auth_dot_json.thinwedge_api_key.as_deref() else {
                 return Err(std::io::Error::other("API key auth is missing a key."));
             };
             return Ok(Self::from_api_key(api_key));
@@ -412,7 +412,7 @@ impl ThinWedgeAuth {
     pub fn create_dummy_chatgpt_auth_for_testing() -> Self {
         let auth_dot_json = AuthDotJson {
             auth_mode: Some(ApiAuthMode::Chatgpt),
-            openai_api_key: None,
+            thinwedge_api_key: None,
             tokens: Some(TokenData {
                 id_token: Default::default(),
                 access_token: "Access Token".to_string(),
@@ -462,9 +462,8 @@ impl ChatgptAuth {
     }
 }
 
-pub const OPENAI_API_KEY_ENV_VAR: &str = "OPENAI_API_KEY";
-pub const OPENROUTER_API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
 pub const THINWEDGE_API_KEY_ENV_VAR: &str = "THINWEDGE_API_KEY";
+pub const OPENROUTER_API_KEY_ENV_VAR: &str = "OPENROUTER_API_KEY";
 pub const THINWEDGE_AGENT_IDENTITY_ENV_VAR: &str = "THINWEDGE_AGENT_IDENTITY";
 
 fn read_api_key_env_var(name: &str) -> Option<String> {
@@ -474,8 +473,8 @@ fn read_api_key_env_var(name: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-pub fn read_openai_api_key_from_env() -> Option<String> {
-    read_api_key_env_var(OPENAI_API_KEY_ENV_VAR)
+pub fn read_thinwedge_api_key_from_env() -> Option<String> {
+    read_api_key_env_var(THINWEDGE_API_KEY_ENV_VAR)
 }
 
 pub fn read_openrouter_api_key_from_env() -> Option<String> {
@@ -483,21 +482,17 @@ pub fn read_openrouter_api_key_from_env() -> Option<String> {
 }
 
 pub fn read_preferred_api_key_from_env() -> Option<String> {
-    read_openrouter_api_key_from_env().or_else(read_openai_api_key_from_env)
+    read_openrouter_api_key_from_env().or_else(read_thinwedge_api_key_from_env)
 }
 
 pub fn read_preferred_api_key_env_var_name() -> Option<&'static str> {
     if read_openrouter_api_key_from_env().is_some() {
         Some(OPENROUTER_API_KEY_ENV_VAR)
-    } else if read_openai_api_key_from_env().is_some() {
-        Some(OPENAI_API_KEY_ENV_VAR)
+    } else if read_thinwedge_api_key_from_env().is_some() {
+        Some(THINWEDGE_API_KEY_ENV_VAR)
     } else {
         None
     }
-}
-
-pub fn read_thinwedge_api_key_from_env() -> Option<String> {
-    read_api_key_env_var(THINWEDGE_API_KEY_ENV_VAR)
 }
 
 pub fn read_thinwedge_agent_identity_from_env() -> Option<String> {
@@ -552,7 +547,7 @@ pub fn login_with_api_key(
 ) -> std::io::Result<()> {
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(ApiAuthMode::ApiKey),
-        openai_api_key: Some(api_key.to_string()),
+        thinwedge_api_key: Some(api_key.to_string()),
         tokens: None,
         last_refresh: None,
         agent_identity: None,
@@ -574,7 +569,7 @@ pub async fn login_with_agent_identity(
     verified_agent_identity_record(agent_identity, &base_url).await?;
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(ApiAuthMode::AgentIdentity),
-        openai_api_key: None,
+        thinwedge_api_key: None,
         tokens: None,
         last_refresh: None,
         agent_identity: Some(agent_identity.to_string()),
@@ -972,7 +967,7 @@ impl AuthDotJson {
 
         Ok(Self {
             auth_mode: Some(ApiAuthMode::ChatgptAuthTokens),
-            openai_api_key: None,
+            thinwedge_api_key: None,
             tokens: Some(tokens),
             last_refresh: Some(Utc::now()),
             agent_identity: None,
@@ -996,7 +991,7 @@ impl AuthDotJson {
         if let Some(mode) = self.auth_mode {
             return mode;
         }
-        if self.openai_api_key.is_some() {
+        if self.thinwedge_api_key.is_some() {
             return ApiAuthMode::ApiKey;
         }
         ApiAuthMode::Chatgpt

@@ -16,11 +16,11 @@ use strum_macros::EnumIter;
 use ts_rs::TS;
 use wildmatch::WildMatchPattern;
 
-use crate::openai_models::ReasoningEffort;
+use crate::thinwedge_models::ReasoningEffort;
 
 /// A summary of the reasoning performed by the model. This can be useful for
 /// debugging and understanding the model's reasoning process.
-/// See https://platform.openai.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries
+/// See https://platform.thinwedge.com/docs/guides/reasoning?api-mode=responses#reasoning-summaries
 #[derive(
     Debug, Serialize, Deserialize, Default, Clone, Copy, PartialEq, Eq, Display, JsonSchema, TS,
 )]
@@ -36,7 +36,7 @@ pub enum ReasoningSummary {
 }
 
 /// Controls output length/detail on GPT-5 models via the Responses API.
-/// Serialized with lowercase values to match the OpenAI API.
+/// Serialized with lowercase values to match the ThinWedge API.
 #[derive(
     Hash,
     Debug,
@@ -728,7 +728,7 @@ mod tests {
     fn web_search_tool_config_merge_prefers_overlay_values() {
         let base = WebSearchToolConfig {
             context_size: Some(WebSearchContextSize::Low),
-            allowed_domains: Some(vec!["openai.com".to_string()]),
+            allowed_domains: Some(vec!["thinwedge.com".to_string()]),
             location: Some(WebSearchLocation {
                 country: Some("US".to_string()),
                 region: Some("CA".to_string()),
@@ -749,7 +749,7 @@ mod tests {
 
         let expected = WebSearchToolConfig {
             context_size: Some(WebSearchContextSize::High),
-            allowed_domains: Some(vec!["openai.com".to_string()]),
+            allowed_domains: Some(vec!["thinwedge.com".to_string()]),
             location: Some(WebSearchLocation {
                 country: Some("US".to_string()),
                 region: Some("WA".to_string()),

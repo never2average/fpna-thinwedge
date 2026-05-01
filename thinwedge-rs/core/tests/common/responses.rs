@@ -9,7 +9,7 @@ use anyhow::Result;
 use base64::Engine;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use futures::SinkExt;
 use futures::StreamExt;
 use serde_json::Value;
@@ -645,7 +645,7 @@ pub fn ev_model_verification_metadata(id: &str, verifications: Vec<&str>) -> Val
         "sequence_number": 1,
         "response_id": id,
         "metadata": {
-            "openai_verification_recommendation": verifications,
+            "thinwedge_verification_recommendation": verifications,
         }
     })
 }

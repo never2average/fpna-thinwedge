@@ -75,11 +75,11 @@ fn build_tool_suggestion_elicitation_request_for_plugin_omits_install_url() {
     let args = ToolSuggestArgs {
         tool_type: DiscoverableToolType::Plugin,
         action_type: DiscoverableToolAction::Install,
-        tool_id: "sample@openai-curated".to_string(),
+        tool_id: "sample@thinwedge-curated".to_string(),
         suggest_reason: "Use the sample plugin's skills and MCP server".to_string(),
     };
     let plugin = DiscoverableTool::Plugin(Box::new(DiscoverablePluginInfo {
-        id: "sample@openai-curated".to_string(),
+        id: "sample@thinwedge-curated".to_string(),
         name: "Sample Plugin".to_string(),
         description: Some("Includes skills, MCP servers, and apps.".to_string()),
         has_skills: true,
@@ -109,7 +109,7 @@ fn build_tool_suggestion_elicitation_request_for_plugin_omits_install_url() {
                     tool_type: DiscoverableToolType::Plugin,
                     suggest_type: DiscoverableToolAction::Install,
                     suggest_reason: "Use the sample plugin's skills and MCP server",
-                    tool_id: "sample@openai-curated",
+                    tool_id: "sample@thinwedge-curated",
                     tool_name: "Sample Plugin",
                     install_url: None,
                 })),

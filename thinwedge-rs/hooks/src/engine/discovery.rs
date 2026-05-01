@@ -649,7 +649,7 @@ mod tests {
         );
         assert_eq!(
             super::hook_source_for_config_layer_source(&ConfigLayerSource::Mdm {
-                domain: "com.openai.thinwedge".to_string(),
+                domain: "com.thinwedge.thinwedge".to_string(),
                 key: "config".to_string(),
             }),
             HookSource::Mdm,

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-For information about AGENTS.md, see [this documentation](https://developers.openai.com/thinwedge/guides/agents-md).
+For information about AGENTS.md, see [this documentation](https://developers.thinwedge.com/thinwedge/guides/agents-md).
 
 ## Hierarchical agents message
 

@@ -14,7 +14,7 @@ use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::HookEventName;
 use thinwedge_protocol::protocol::HookRunStatus;

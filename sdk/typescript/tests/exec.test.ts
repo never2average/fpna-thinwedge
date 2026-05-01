@@ -137,7 +137,7 @@ describe("ThinWedgeExec", () => {
       expect(spawnEnv.THINWEDGE_API_KEY).toBe("test");
       expect(spawnEnv.THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE).toBeDefined();
       expect(commandArgs).toContain("--config");
-      expect(commandArgs).toContain(`openai_base_url=${JSON.stringify("https://example.test")}`);
+      expect(commandArgs).toContain(`thinwedge_base_url=${JSON.stringify("https://example.test")}`);
     } finally {
       delete process.env.THINWEDGE_ENV_SHOULD_NOT_LEAK;
     }

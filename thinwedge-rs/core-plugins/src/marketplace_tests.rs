@@ -127,7 +127,7 @@ fn find_marketplace_plugin_supports_git_subdir_sources() {
       "name": "remote-plugin",
       "source": {
         "source": "git-subdir",
-        "url": "openai/joey_marketplace3",
+        "url": "thinwedge/joey_marketplace3",
         "path": "plugins/toolkit",
         "ref": "main",
         "sha": "abc123"
@@ -150,7 +150,7 @@ fn find_marketplace_plugin_supports_git_subdir_sources() {
             plugin_id: PluginId::new("remote-plugin".to_string(), "thinwedge-curated".to_string())
                 .unwrap(),
             source: MarketplacePluginSource::Git {
-                url: "https://github.com/openai/joey_marketplace3.git".to_string(),
+                url: "https://github.com/thinwedge/joey_marketplace3.git".to_string(),
                 path: Some("plugins/toolkit".to_string()),
                 ref_name: Some("main".to_string()),
                 sha: Some("abc123".to_string()),
@@ -181,7 +181,7 @@ fn find_marketplace_plugin_normalizes_github_shorthand_with_dot_git_suffix() {
       "name": "remote-plugin",
       "source": {
         "source": "git-subdir",
-        "url": "openai/toolkit.git",
+        "url": "thinwedge/toolkit.git",
         "path": "plugins/toolkit"
       }
     }
@@ -199,7 +199,7 @@ fn find_marketplace_plugin_normalizes_github_shorthand_with_dot_git_suffix() {
     assert_eq!(
         resolved.source,
         MarketplacePluginSource::Git {
-            url: "https://github.com/openai/toolkit.git".to_string(),
+            url: "https://github.com/thinwedge/toolkit.git".to_string(),
             path: Some("plugins/toolkit".to_string()),
             ref_name: None,
             sha: None,
@@ -297,7 +297,7 @@ fn find_marketplace_plugin_skips_root_equivalent_git_subdir_paths() {
       "name": "remote-plugin",
       "source": {{
         "source": "git-subdir",
-        "url": "openai/toolkit",
+        "url": "thinwedge/toolkit",
         "path": "{path}"
       }}
     }}
@@ -829,7 +829,7 @@ fn list_marketplaces_reads_marketplace_display_name() {
     fs::write(
         repo_root.join(".agents/plugins/marketplace.json"),
         r#"{
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "interface": {
     "displayName": "ChatGPT Official"
   },

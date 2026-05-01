@@ -9,7 +9,7 @@ use thinwedge_login::ExternalAuth;
 use thinwedge_login::ExternalAuthRefreshContext;
 use thinwedge_login::ExternalAuthTokens;
 use thinwedge_login::TokenData;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 use std::collections::VecDeque;
@@ -184,11 +184,11 @@ impl ModelsEndpointClient for TestModelsEndpoint {
     }
 }
 
-fn openai_manager_for_tests(
+fn thinwedge_manager_for_tests(
     thinwedge_home: std::path::PathBuf,
     endpoint_client: Arc<dyn ModelsEndpointClient>,
-) -> OpenAiModelsManager {
-    openai_manager_for_tests_with_auth(
+) -> ThinWedgeModelsManager {
+    thinwedge_manager_for_tests_with_auth(
         thinwedge_home,
         endpoint_client,
         Some(AuthManager::from_auth_for_testing(
@@ -197,12 +197,12 @@ fn openai_manager_for_tests(
     )
 }
 
-fn openai_manager_for_tests_with_auth(
+fn thinwedge_manager_for_tests_with_auth(
     thinwedge_home: std::path::PathBuf,
     endpoint_client: Arc<dyn ModelsEndpointClient>,
     auth_manager: Option<Arc<AuthManager>>,
-) -> OpenAiModelsManager {
-    OpenAiModelsManager::new(
+) -> ThinWedgeModelsManager {
+    ThinWedgeModelsManager::new(
         thinwedge_home,
         endpoint_client,
         auth_manager,
@@ -221,7 +221,7 @@ fn static_manager_for_tests(model_catalog: ModelsResponse) -> StaticModelsManage
 async fn chatgpt_auth_tokens_for_tests(thinwedge_home: &Path) -> ThinWedgeAuth {
     let auth_dot_json = thinwedge_login::AuthDotJson {
         auth_mode: Some(AuthMode::ChatgptAuthTokens),
-        openai_api_key: None,
+        thinwedge_api_key: None,
         tokens: Some(TokenData {
             id_token: thinwedge_login::token_data::parse_chatgpt_jwt_claims(
                 "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
@@ -257,7 +257,7 @@ c2ln",
 async fn get_model_info_tracks_fallback_usage() {
     let thinwedge_home = tempdir().expect("temp dir");
     let config = ModelsManagerConfig::default();
-    let manager = openai_manager_for_tests(
+    let manager = thinwedge_manager_for_tests(
         thinwedge_home.path().to_path_buf(),
         TestModelsEndpoint::new(Vec::new()),
     );
@@ -323,7 +323,7 @@ async fn get_model_info_matches_namespaced_suffix() {
 async fn get_model_info_rejects_multi_segment_namespace_suffix_matching() {
     let thinwedge_home = tempdir().expect("temp dir");
     let config = ModelsManagerConfig::default();
-    let manager = openai_manager_for_tests(
+    let manager = thinwedge_manager_for_tests(
         thinwedge_home.path().to_path_buf(),
         TestModelsEndpoint::new(Vec::new()),
     );
@@ -350,7 +350,7 @@ async fn refresh_available_models_sorts_by_priority() {
     ];
     let thinwedge_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
-    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -380,7 +380,7 @@ async fn refresh_available_models_uses_cache_when_fresh() {
     let remote_models = vec![remote_model("cached", "Cached", /*priority*/ 5)];
     let thinwedge_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
-    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -407,7 +407,7 @@ async fn refresh_available_models_refetches_when_cache_stale() {
     let thinwedge_home = tempdir().expect("temp dir");
     let updated_models = vec![remote_model("fresh", "Fresh", /*priority*/ 9)];
     let endpoint = TestModelsEndpoint::new(vec![initial_models.clone(), updated_models.clone()]);
-    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -441,7 +441,7 @@ async fn refresh_available_models_refetches_when_version_mismatch() {
     let thinwedge_home = tempdir().expect("temp dir");
     let updated_models = vec![remote_model("new", "New", /*priority*/ 2)];
     let endpoint = TestModelsEndpoint::new(vec![initial_models.clone(), updated_models.clone()]);
-    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -483,7 +483,7 @@ async fn refresh_available_models_drops_removed_remote_models() {
         /*priority*/ 1,
     )];
     let endpoint = TestModelsEndpoint::new(vec![initial_models, refreshed_models]);
-    let mut manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let mut manager = thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
     manager.cache_manager.set_ttl(Duration::ZERO);
 
     manager
@@ -523,7 +523,7 @@ async fn refresh_available_models_skips_network_without_chatgpt_auth() {
         "No Auth",
         /*priority*/ 1,
     )]]);
-    let manager = openai_manager_for_tests_with_auth(
+    let manager = thinwedge_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         /*auth_manager*/ None,
@@ -633,7 +633,7 @@ async fn refresh_available_models_skips_network_when_external_api_key_overrides_
             /*priority*/ 1,
         )]],
     );
-    let manager = openai_manager_for_tests_with_auth(
+    let manager = thinwedge_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         Some(auth_manager),
@@ -673,7 +673,7 @@ async fn refresh_available_models_uses_cached_chatgpt_when_external_api_key_is_u
             /*priority*/ 1,
         )]],
     );
-    let manager = openai_manager_for_tests_with_auth(
+    let manager = thinwedge_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         Some(auth_manager),
@@ -709,7 +709,7 @@ async fn refresh_available_models_fetches_with_chatgpt_auth_tokens() {
         /*priority*/ 1,
     )]]);
     let auth = chatgpt_auth_tokens_for_tests(thinwedge_home.path()).await;
-    let manager = openai_manager_for_tests_with_auth(
+    let manager = thinwedge_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         Some(AuthManager::from_auth_for_testing(auth)),

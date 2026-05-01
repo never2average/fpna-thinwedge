@@ -22,12 +22,12 @@
     "displayName": "Plugin Display Name",
     "shortDescription": "Short description for subtitle",
     "longDescription": "Long description for details page",
-    "developerName": "OpenAI",
+    "developerName": "ThinWedge",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
-    "websiteURL": "https://openai.com/",
-    "privacyPolicyURL": "https://openai.com/policies/row-privacy-policy/",
-    "termsOfServiceURL": "https://openai.com/policies/row-terms-of-use/",
+    "websiteURL": "https://thinwedge.com/",
+    "privacyPolicyURL": "https://thinwedge.com/policies/row-privacy-policy/",
+    "termsOfServiceURL": "https://thinwedge.com/policies/row-terms-of-use/",
     "defaultPrompt": [
       "Summarize my inbox and draft replies for me.",
       "Find open bugs and turn them into Linear tickets.",
@@ -104,7 +104,7 @@
 
 ```json
 {
-  "name": "openai-curated",
+  "name": "thinwedge-curated",
   "interface": {
     "displayName": "ChatGPT Official"
   },

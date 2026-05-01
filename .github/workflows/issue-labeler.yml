@@ -9,8 +9,8 @@ on:
 jobs:
   gather-labels:
     name: Generate label suggestions
-    # Prevent runs on forks (requires OpenAI API key, wastes Actions minutes)
-    if: github.repository == 'openai/thinwedge' && (github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name == 'thinwedge-label'))
+    # Prevent runs on forks (requires ThinWedge API key, wastes Actions minutes)
+    if: github.repository == 'thinwedge/thinwedge' && (github.event.action == 'opened' || (github.event.action == 'labeled' && github.event.label.name == 'thinwedge-label'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,9 +20,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - id: thinwedge
-        uses: openai/thinwedge-action@5c3f4ccdb2b8790f73d6b21751ac00e602aa0c02 # v1.7
+        uses: thinwedge/thinwedge-action@5c3f4ccdb2b8790f73d6b21751ac00e602aa0c02 # v1.7
         with:
-          openai-api-key: ${{ secrets.THINWEDGE_OPENAI_API_KEY }}
+          thinwedge-api-key: ${{ secrets.THINWEDGE_THINWEDGE_API_KEY }}
           allow-users: "*"
           prompt: |
             You are an assistant that reviews GitHub issues for the repository.
@@ -48,7 +48,7 @@ jobs:
             1. windows-os — Bugs or friction specific to Windows environments (always when PowerShell is mentioned, path handling, copy/paste, OS-specific auth or tooling failures).
             2. mcp — Topics involving Model Context Protocol servers/clients.
             3. mcp-server — Problems related to the thinwedge mcp-server command, where thinwedge runs as an MCP server.
-            4. azure — Problems or requests tied to Azure OpenAI deployments.
+            4. azure — Problems or requests tied to Azure ThinWedge deployments.
             5. model-behavior — Undesirable LLM behavior: forgetting goals, refusing work, hallucinating environment details, quota misreports, or other reasoning/performance anomalies.
             6. code-review — Issues related to the code review feature or functionality.
             7. safety-check - Issues related to cyber risk detection or trusted access verification.

@@ -240,7 +240,7 @@ pub fn find_thinwedge_linux_sandbox_exe() -> Result<PathBuf, CargoBinError> {
 /// single SSE event with at least a `type` field matching the `event:` value.
 /// Additional fields become the JSON payload for the `data:` line. An object
 /// with only a `type` field results in an event with no `data:` section. This
-/// makes it trivial to extend the fixtures as OpenAI adds new event kinds or
+/// makes it trivial to extend the fixtures as ThinWedge adds new event kinds or
 /// fields.
 pub fn load_sse_fixture(path: impl AsRef<std::path::Path>) -> String {
     let events: Vec<serde_json::Value> =

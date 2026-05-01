@@ -2,7 +2,7 @@ use crate::error::ApiError;
 use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use thinwedge_protocol::config_types::Verbosity as VerbosityConfig;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::ModelVerification;
 use thinwedge_protocol::protocol::RateLimitSnapshot;
 use thinwedge_protocol::protocol::TokenUsage;
@@ -69,7 +69,7 @@ pub enum ResponseEvent {
     Created,
     OutputItemDone(ResponseItem),
     OutputItemAdded(ResponseItem),
-    /// Emitted when the server includes `OpenAI-Model` on the stream response.
+    /// Emitted when the server includes `ThinWedge-Model` on the stream response.
     /// This can differ from the requested model when backend safety routing applies.
     ServerModel(String),
     /// Emitted when the server recommends additional account verification.
@@ -123,7 +123,7 @@ pub enum TextFormatType {
 
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
 pub struct TextFormat {
-    /// Format type used by the OpenAI text controls.
+    /// Format type used by the ThinWedge text controls.
     pub r#type: TextFormatType,
     /// When true, the server is expected to strictly validate responses.
     pub strict: bool,
@@ -138,26 +138,26 @@ pub struct TextFormat {
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
 pub struct TextControls {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub verbosity: Option<OpenAiVerbosity>,
+    pub verbosity: Option<ThinWedgeVerbosity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<TextFormat>,
 }
 
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum OpenAiVerbosity {
+pub enum ThinWedgeVerbosity {
     Low,
     #[default]
     Medium,
     High,
 }
 
-impl From<VerbosityConfig> for OpenAiVerbosity {
+impl From<VerbosityConfig> for ThinWedgeVerbosity {
     fn from(v: VerbosityConfig) -> Self {
         match v {
-            VerbosityConfig::Low => OpenAiVerbosity::Low,
-            VerbosityConfig::Medium => OpenAiVerbosity::Medium,
-            VerbosityConfig::High => OpenAiVerbosity::High,
+            VerbosityConfig::Low => ThinWedgeVerbosity::Low,
+            VerbosityConfig::Medium => ThinWedgeVerbosity::Medium,
+            VerbosityConfig::High => ThinWedgeVerbosity::High,
         }
     }
 }

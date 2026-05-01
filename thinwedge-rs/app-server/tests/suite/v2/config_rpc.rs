@@ -26,7 +26,7 @@ use thinwedge_protocol::config_types::TrustLevel;
 use thinwedge_protocol::config_types::WebSearchContextSize;
 use thinwedge_protocol::config_types::WebSearchLocation;
 use thinwedge_protocol::config_types::WebSearchToolConfig;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use pretty_assertions::assert_eq;
 use serde_json::json;

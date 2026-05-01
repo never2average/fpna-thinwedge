@@ -4,7 +4,7 @@ use crate::plugins::test_support::load_plugins_config;
 use crate::plugins::test_support::write_curated_plugin;
 use crate::plugins::test_support::write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
-use crate::plugins::test_support::write_openai_curated_marketplace;
+use crate::plugins::test_support::write_thinwedge_curated_marketplace;
 use crate::plugins::test_support::write_plugins_feature_config;
 use thinwedge_core_plugins::startup_sync::curated_plugins_repo_path;
 use thinwedge_tools::DiscoverablePluginInfo;
@@ -19,7 +19,7 @@ use tracing_test::internal::MockWriter;
 async fn list_tool_suggest_discoverable_plugins_returns_uninstalled_curated_plugins() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["sample", "slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["sample", "slack"]);
     write_plugins_feature_config(thinwedge_home.path());
 
     let config = load_plugins_config(thinwedge_home.path()).await;
@@ -30,7 +30,7 @@ async fn list_tool_suggest_discoverable_plugins_returns_uninstalled_curated_plug
     assert_eq!(
         discoverable_plugins,
         vec![DiscoverablePluginInfo {
-            id: "slack@openai-curated".to_string(),
+            id: "slack@thinwedge-curated".to_string(),
             name: "slack".to_string(),
             description: Some(
                 "Plugin that includes skills, MCP servers, and app connectors".to_string(),
@@ -52,7 +52,7 @@ async fn list_tool_suggest_discoverable_plugins_deduplicates_allowlisted_configu
             plugin_id
                 .rsplit_once('@')
                 .is_some_and(|(_plugin_name, marketplace_name)| {
-                    marketplace_name == OPENAI_BUNDLED_MARKETPLACE_NAME
+                    marketplace_name == THINWEDGE_BUNDLED_MARKETPLACE_NAME
                 })
         })
         .expect("allowlist should include a bundled plugin");
@@ -104,13 +104,13 @@ discoverables = [{{ type = "plugin", id = "{plugin_id}" }}]
 async fn list_tool_suggest_discoverable_plugins_ignores_missing_allowlisted_plugin() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     let marketplace_name = TOOL_SUGGEST_DISCOVERABLE_PLUGIN_ALLOWLIST
         .iter()
         .copied()
         .filter_map(|plugin_id| plugin_id.rsplit_once('@'))
         .find(|(_plugin_name, marketplace_name)| {
-            *marketplace_name == OPENAI_BUNDLED_MARKETPLACE_NAME
+            *marketplace_name == THINWEDGE_BUNDLED_MARKETPLACE_NAME
         })
         .map(|(_plugin_name, marketplace_name)| marketplace_name)
         .expect("allowlist should include a bundled plugin");
@@ -148,14 +148,14 @@ source = "/tmp/{marketplace_name}"
         .unwrap();
 
     assert_eq!(discoverable_plugins.len(), 1);
-    assert_eq!(discoverable_plugins[0].id, "slack@openai-curated");
+    assert_eq!(discoverable_plugins[0].id, "slack@thinwedge-curated");
 }
 
 #[tokio::test]
 async fn list_tool_suggest_discoverable_plugins_returns_empty_when_plugins_feature_disabled() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_file(
         &thinwedge_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
@@ -175,7 +175,7 @@ plugins = false
 async fn list_tool_suggest_discoverable_plugins_normalizes_description() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_plugins_feature_config(thinwedge_home.path());
     write_file(
         &curated_root.join("plugins/slack/.thinwedge-plugin/plugin.json"),
@@ -193,7 +193,7 @@ async fn list_tool_suggest_discoverable_plugins_normalizes_description() {
     assert_eq!(
         discoverable_plugins,
         vec![DiscoverablePluginInfo {
-            id: "slack@openai-curated".to_string(),
+            id: "slack@thinwedge-curated".to_string(),
             name: "slack".to_string(),
             description: Some("Plugin with extra spacing".to_string()),
             has_skills: true,
@@ -207,7 +207,7 @@ async fn list_tool_suggest_discoverable_plugins_normalizes_description() {
 async fn list_tool_suggest_discoverable_plugins_omits_installed_curated_plugins() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_curated_plugin_sha(thinwedge_home.path());
     write_plugins_feature_config(thinwedge_home.path());
 
@@ -234,7 +234,7 @@ async fn list_tool_suggest_discoverable_plugins_omits_installed_curated_plugins(
 async fn list_tool_suggest_discoverable_plugins_omits_disabled_tool_suggestions() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["slack"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["slack"]);
     write_file(
         &thinwedge_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
@@ -242,7 +242,7 @@ plugins = true
 
 [tool_suggest]
 disabled_tools = [
-  { type = "plugin", id = "slack@openai-curated" }
+  { type = "plugin", id = "slack@thinwedge-curated" }
 ]
 "#,
     );
@@ -259,14 +259,14 @@ disabled_tools = [
 async fn list_tool_suggest_discoverable_plugins_includes_configured_plugin_ids() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(&curated_root, &["sample"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["sample"]);
     write_file(
         &thinwedge_home.path().join(crate::config::CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
 [tool_suggest]
-discoverables = [{ type = "plugin", id = "sample@openai-curated" }]
+discoverables = [{ type = "plugin", id = "sample@thinwedge-curated" }]
 "#,
     );
 
@@ -278,7 +278,7 @@ discoverables = [{ type = "plugin", id = "sample@openai-curated" }]
     assert_eq!(
         discoverable_plugins,
         vec![DiscoverablePluginInfo {
-            id: "sample@openai-curated".to_string(),
+            id: "sample@thinwedge-curated".to_string(),
             name: "sample".to_string(),
             description: Some(
                 "Plugin that includes skills, MCP servers, and app connectors".to_string(),
@@ -294,7 +294,7 @@ discoverables = [{ type = "plugin", id = "sample@openai-curated" }]
 async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_plugin() {
     let thinwedge_home = tempdir().expect("tempdir should succeed");
     let curated_root = curated_plugins_repo_path(thinwedge_home.path());
-    write_openai_curated_marketplace(
+    write_thinwedge_curated_marketplace(
         &curated_root,
         &["slack", "build-ios-apps", "life-science-research"],
     );
@@ -333,7 +333,7 @@ async fn list_tool_suggest_discoverable_plugins_does_not_reload_marketplace_per_
         .unwrap();
 
     assert_eq!(discoverable_plugins.len(), 1);
-    assert_eq!(discoverable_plugins[0].id, "slack@openai-curated");
+    assert_eq!(discoverable_plugins[0].id, "slack@thinwedge-curated");
 
     let logs = String::from_utf8(buffer.lock().expect("buffer lock").clone())
         .expect("utf8 logs")

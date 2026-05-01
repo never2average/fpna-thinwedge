@@ -12,7 +12,7 @@ use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::FunctionCallOutputPayload;
 use thinwedge_protocol::models::ImageDetail;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::InputModality;
+use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_protocol::protocol::InterAgentCommunication;
 use thinwedge_protocol::protocol::TokenUsage;
 use thinwedge_protocol::protocol::TokenUsageInfo;
@@ -510,11 +510,11 @@ fn estimate_item_token_count(item: &ResponseItem) -> i64 {
 /// The estimator later converts bytes to tokens using a 4-bytes/token heuristic
 /// with ceiling division, so 7,373 bytes maps to approximately 1,844 tokens.
 const RESIZED_IMAGE_BYTES_ESTIMATE: i64 = 7373;
-// See https://platform.openai.com/docs/guides/images-vision#calculating-costs.
+// See https://platform.thinwedge.com/docs/guides/images-vision#calculating-costs.
 // Use a direct 32px patch count only for `detail: "original"`;
 // all other image inputs continue to use `RESIZED_IMAGE_BYTES_ESTIMATE`.
 const ORIGINAL_IMAGE_PATCH_SIZE: u32 = 32;
-// See https://platform.openai.com/docs/guides/images-vision#model-sizing-behavior.
+// See https://platform.thinwedge.com/docs/guides/images-vision#model-sizing-behavior.
 // Keep this hard-coded for now; move it into model capabilities if the patch
 // budget starts changing often across model releases.
 const ORIGINAL_IMAGE_MAX_PATCHES: usize = 10_000;

@@ -45,7 +45,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
 
     let request_recorder = responses::mount_sse_once_match(
         &server,
-        header("x-openai-subagent", "review"),
+        header("x-thinwedge-subagent", "review"),
         response_body,
     )
     .await;
@@ -66,7 +66,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 
@@ -143,7 +143,7 @@ async fn responses_stream_includes_subagent_header_on_review() {
     let request = request_recorder.single_request();
     let expected_window_id = format!("{conversation_id}:0");
     assert_eq!(
-        request.header("x-openai-subagent").as_deref(),
+        request.header("x-thinwedge-subagent").as_deref(),
         Some("review")
     );
     assert_eq!(
@@ -170,7 +170,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
 
     let request_recorder = responses::mount_sse_once_match(
         &server,
-        header("x-openai-subagent", "my-task"),
+        header("x-thinwedge-subagent", "my-task"),
         response_body,
     )
     .await;
@@ -191,7 +191,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 
@@ -268,7 +268,7 @@ async fn responses_stream_includes_subagent_header_on_other() {
 
     let request = request_recorder.single_request();
     assert_eq!(
-        request.header("x-openai-subagent").as_deref(),
+        request.header("x-thinwedge-subagent").as_deref(),
         Some("my-task")
     );
 }
@@ -301,7 +301,7 @@ async fn responses_respects_model_info_overrides_from_config() {
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
 
@@ -485,7 +485,7 @@ async fn responses_stream_includes_turn_metadata_header_for_git_workspace_e2e() 
         "remote",
         "add",
         "origin",
-        "https://github.com/openai/thinwedge.git",
+        "https://github.com/thinwedge/thinwedge.git",
     ]);
 
     let expected_head = String::from_utf8(run_git(&["rev-parse", "HEAD"]).stdout)

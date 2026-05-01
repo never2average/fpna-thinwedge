@@ -53,7 +53,7 @@ async fn mcp_server_tool_call_returns_tool_result() -> Result<()> {
         &responses_server.uri(),
         &BTreeMap::new(),
         /*auto_compact_limit*/ 1024,
-        /*requires_openai_auth*/ None,
+        /*requires_thinwedge_auth*/ None,
         "mock_provider",
         "compact",
     )?;

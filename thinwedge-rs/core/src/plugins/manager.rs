@@ -7,7 +7,7 @@ use crate::config::edit::ConfigEditsBuilder;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_config::ConfigLayerStack;
 use thinwedge_config::types::PluginConfig;
-use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
 use thinwedge_core_plugins::installed_marketplaces::installed_marketplace_roots_from_layer_stack;
 use thinwedge_core_plugins::loader::configured_curated_plugin_ids_from_thinwedge_home;
 use thinwedge_core_plugins::loader::curated_plugin_cache_version;
@@ -45,7 +45,7 @@ use thinwedge_core_plugins::remote_legacy::RemotePluginFetchError;
 use thinwedge_core_plugins::remote_legacy::RemotePluginMutationError;
 use thinwedge_core_plugins::startup_sync::curated_plugins_repo_path;
 use thinwedge_core_plugins::startup_sync::read_curated_plugins_sha;
-use thinwedge_core_plugins::startup_sync::sync_openai_plugins_repo;
+use thinwedge_core_plugins::startup_sync::sync_thinwedge_plugins_repo;
 use thinwedge_core_plugins::store::PluginInstallResult as StorePluginInstallResult;
 use thinwedge_core_plugins::store::PluginStore;
 use thinwedge_core_plugins::store::PluginStoreError;
@@ -567,7 +567,7 @@ impl PluginsManager {
     ) -> Result<PluginInstallOutcome, PluginInstallError> {
         let auth_policy = resolved.policy.authentication;
         let plugin_version =
-            if resolved.plugin_id.marketplace_name == OPENAI_CURATED_MARKETPLACE_NAME {
+            if resolved.plugin_id.marketplace_name == THINWEDGE_CURATED_MARKETPLACE_NAME {
                 let curated_plugin_version = read_curated_plugins_sha(self.thinwedge_home.as_path())
                     .ok_or_else(|| {
                         PluginStoreError::Invalid(
@@ -1335,7 +1335,7 @@ impl PluginsManager {
         if let Err(err) = std::thread::Builder::new()
             .name("plugins-curated-repo-sync".to_string())
             .spawn(
-                move || match sync_openai_plugins_repo(thinwedge_home.as_path()) {
+                move || match sync_thinwedge_plugins_repo(thinwedge_home.as_path()) {
                     Ok(curated_plugin_version) => {
                         let configured_curated_plugin_ids =
                             configured_curated_plugin_ids_from_thinwedge_home(thinwedge_home.as_path());

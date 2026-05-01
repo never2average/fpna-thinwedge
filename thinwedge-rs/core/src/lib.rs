@@ -54,7 +54,7 @@ pub use network_proxy_loader::build_network_proxy_state;
 pub use network_proxy_loader::build_network_proxy_state_and_reloader;
 mod original_image_detail;
 pub use thinwedge_mcp::SandboxState;
-mod mcp_openai_file;
+mod mcp_thinwedge_file;
 mod mcp_tool_call;
 pub(crate) mod mention_syntax;
 pub(crate) mod message_history;

@@ -12,7 +12,7 @@ uv sync
 source .venv/bin/activate
 ```
 
-Published SDK builds pin an exact `openai-thinwedge-cli-bin` runtime dependency
+Published SDK builds pin an exact `thinwedge-thinwedge-cli-bin` runtime dependency
 with the same version as the SDK. For local repo development, either pass
 `AppServerConfig(thinwedge_bin=...)` to point at a local build explicitly, or use
 the repo examples/notebook bootstrap which installs the pinned runtime package
@@ -55,7 +55,7 @@ python examples/01_quickstart_constructor/async.py
 
 The repo no longer checks `thinwedge` binaries into `sdk/python`.
 
-Published SDK builds are pinned to an exact `openai-thinwedge-cli-bin` package
+Published SDK builds are pinned to an exact `thinwedge-thinwedge-cli-bin` package
 version, and that runtime package carries the platform-specific binary for the
 target wheel. The SDK package version and runtime package version must match.
 
@@ -71,11 +71,11 @@ cd sdk/python
 python scripts/update_sdk_artifacts.py generate-types
 python scripts/update_sdk_artifacts.py \
   stage-sdk \
-  /tmp/thinwedge-python-release/openai-thinwedge-app-server-sdk \
+  /tmp/thinwedge-python-release/thinwedge-thinwedge-app-server-sdk \
   --thinwedge-version <thinwedge-release-tag-or-pep440-version>
 python scripts/update_sdk_artifacts.py \
   stage-runtime \
-  /tmp/thinwedge-python-release/openai-thinwedge-cli-bin \
+  /tmp/thinwedge-python-release/thinwedge-thinwedge-cli-bin \
   /path/to/thinwedge \
   --thinwedge-version <thinwedge-release-tag-or-pep440-version>
 ```
@@ -89,14 +89,14 @@ matrix is `macosx_11_0_arm64`, `macosx_10_9_x86_64`,
 This supports the CI release flow:
 
 - run `generate-types` before packaging
-- stage `openai-thinwedge-app-server-sdk` once with an exact `openai-thinwedge-cli-bin==...` dependency
-- stage `openai-thinwedge-cli-bin` on each supported platform runner with the same pinned runtime version
-- build and publish `openai-thinwedge-cli-bin` as platform wheels only; do not publish an sdist
+- stage `thinwedge-thinwedge-app-server-sdk` once with an exact `thinwedge-thinwedge-cli-bin==...` dependency
+- stage `thinwedge-thinwedge-cli-bin` on each supported platform runner with the same pinned runtime version
+- build and publish `thinwedge-thinwedge-cli-bin` as platform wheels only; do not publish an sdist
 
 ## Compatibility and versioning
 
-- Package: `openai-thinwedge-app-server-sdk`
-- Runtime package: `openai-thinwedge-cli-bin`
+- Package: `thinwedge-thinwedge-app-server-sdk`
+- Runtime package: `thinwedge-thinwedge-cli-bin`
 - Python: `>=3.10`
 - Target protocol: ThinWedge `app-server` JSON-RPC v2
 - Versioning rule: the SDK package version is the underlying ThinWedge runtime version

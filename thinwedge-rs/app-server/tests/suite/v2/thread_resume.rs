@@ -2421,7 +2421,7 @@ async fn thread_resume_surfaces_cloud_requirements_load_errors() -> Result<()> {
     let mut mcp = McpProcess::new_with_env(
         thinwedge_home.path(),
         &[
-            ("OPENAI_API_KEY", None),
+            ("THINWEDGE_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_token_url.as_str()),

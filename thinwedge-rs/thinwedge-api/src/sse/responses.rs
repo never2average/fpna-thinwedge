@@ -27,7 +27,7 @@ use tracing::debug;
 use tracing::trace;
 
 const X_REASONING_INCLUDED_HEADER: &str = "x-reasoning-included";
-const OPENAI_MODEL_HEADER: &str = "openai-model";
+const THINWEDGE_MODEL_HEADER: &str = "thinwedge-model";
 const REQUEST_ID_HEADER: &str = "x-request-id";
 const TRUSTED_ACCESS_FOR_CYBER_VERIFICATION: &str = "trusted_access_for_cyber";
 
@@ -74,7 +74,7 @@ pub fn spawn_response_stream(
         .map(ToString::to_string);
     let server_model = stream_response
         .headers
-        .get(OPENAI_MODEL_HEADER)
+        .get(THINWEDGE_MODEL_HEADER)
         .and_then(|v| v.to_str().ok())
         .map(ToString::to_string);
     let reasoning_included = stream_response
@@ -206,14 +206,14 @@ impl ResponsesStreamEvent {
             .response
             .as_ref()
             .and_then(|response| response.get("headers"))
-            .and_then(header_openai_model_value_from_json);
+            .and_then(header_thinwedge_model_value_from_json);
 
         match response_headers_model {
             Some(model) => Some(model),
             None => self
                 .headers
                 .as_ref()
-                .and_then(header_openai_model_value_from_json),
+                .and_then(header_thinwedge_model_value_from_json),
         }
     }
 
@@ -224,15 +224,15 @@ impl ResponsesStreamEvent {
 
         self.metadata
             .as_ref()
-            .and_then(|metadata| metadata.get("openai_verification_recommendation"))
+            .and_then(|metadata| metadata.get("thinwedge_verification_recommendation"))
             .and_then(model_verifications_from_json_value)
     }
 }
 
-fn header_openai_model_value_from_json(value: &Value) -> Option<String> {
+fn header_thinwedge_model_value_from_json(value: &Value) -> Option<String> {
     let headers = value.as_object()?;
     headers.iter().find_map(|(name, value)| {
-        if name.eq_ignore_ascii_case("openai-model") || name.eq_ignore_ascii_case("x-openai-model")
+        if name.eq_ignore_ascii_case("thinwedge-model") || name.eq_ignore_ascii_case("x-thinwedge-model")
         {
             json_value_as_string(value)
         } else {
@@ -872,7 +872,7 @@ mod tests {
 
     #[tokio::test]
     async fn error_when_error_event() {
-        let raw_error = r#"{"type":"response.failed","sequence_number":3,"response":{"id":"resp_689bcf18d7f08194bf3440ba62fe05d803fee0cdac429894","object":"response","created_at":1755041560,"status":"failed","background":false,"error":{"code":"rate_limit_exceeded","message":"Rate limit reached for gpt-5.1 in organization org-AAA on tokens per min (TPM): Limit 30000, Used 22999, Requested 12528. Please try again in 11.054s. Visit https://platform.openai.com/account/rate-limits to learn more."}, "usage":null,"user":null,"metadata":{}}}"#;
+        let raw_error = r#"{"type":"response.failed","sequence_number":3,"response":{"id":"resp_689bcf18d7f08194bf3440ba62fe05d803fee0cdac429894","object":"response","created_at":1755041560,"status":"failed","background":false,"error":{"code":"rate_limit_exceeded","message":"Rate limit reached for gpt-5.1 in organization org-AAA on tokens per min (TPM): Limit 30000, Used 22999, Requested 12528. Please try again in 11.054s. Visit https://platform.thinwedge.com/account/rate-limits to learn more."}, "usage":null,"user":null,"metadata":{}}}"#;
 
         let sse1 = format!("event: response.failed\ndata: {raw_error}\n\n");
 
@@ -884,7 +884,7 @@ mod tests {
             Err(ApiError::Retryable { message, delay }) => {
                 assert_eq!(
                     message,
-                    "Rate limit reached for gpt-5.1 in organization org-AAA on tokens per min (TPM): Limit 30000, Used 22999, Requested 12528. Please try again in 11.054s. Visit https://platform.openai.com/account/rate-limits to learn more."
+                    "Rate limit reached for gpt-5.1 in organization org-AAA on tokens per min (TPM): Limit 30000, Used 22999, Requested 12528. Please try again in 11.054s. Visit https://platform.thinwedge.com/account/rate-limits to learn more."
                 );
                 assert_eq!(*delay, Some(Duration::from_secs_f64(11.054)));
             }
@@ -920,7 +920,7 @@ mod tests {
 
     #[tokio::test]
     async fn quota_exceeded_error_is_fatal() {
-        let raw_error = r#"{"type":"response.failed","sequence_number":3,"response":{"id":"resp_fatal_quota","object":"response","created_at":1759771626,"status":"failed","background":false,"error":{"code":"insufficient_quota","message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors."},"incomplete_details":null}}"#;
+        let raw_error = r#"{"type":"response.failed","sequence_number":3,"response":{"id":"resp_fatal_quota","object":"response","created_at":1759771626,"status":"failed","background":false,"error":{"code":"insufficient_quota","message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.thinwedge.com/docs/guides/error-codes/api-errors."},"incomplete_details":null}}"#;
 
         let sse1 = format!("event: response.failed\ndata: {raw_error}\n\n");
 
@@ -1074,7 +1074,7 @@ mod tests {
         let mut headers = HeaderMap::new();
         headers.insert(REQUEST_ID_HEADER, HeaderValue::from_static("req-1"));
         headers.insert(
-            OPENAI_MODEL_HEADER,
+            THINWEDGE_MODEL_HEADER,
             HeaderValue::from_static(CYBER_RESTRICTED_MODEL_FOR_TESTS),
         );
         let bytes = stream::iter(Vec::<Result<Bytes, TransportError>>::new());
@@ -1109,7 +1109,7 @@ mod tests {
     async fn spawn_response_stream_ignores_model_verification_header() {
         let mut headers = HeaderMap::new();
         headers.insert(
-            "openai-verification-recommendation",
+            "thinwedge-verification-recommendation",
             HeaderValue::from_static(TRUSTED_ACCESS_FOR_CYBER_VERIFICATION),
         );
         let completed = json!({
@@ -1182,7 +1182,7 @@ mod tests {
                 "response": {
                     "id": "resp-1",
                     "headers": {
-                        "OpenAI-Model": CYBER_RESTRICTED_MODEL_FOR_TESTS
+                        "ThinWedge-Model": CYBER_RESTRICTED_MODEL_FOR_TESTS
                     }
                 }
             }),
@@ -1219,7 +1219,7 @@ mod tests {
                 "sequence_number": 1,
                 "response_id": "resp-1",
                 "metadata": {
-                    "openai_verification_recommendation": [TRUSTED_ACCESS_FOR_CYBER_VERIFICATION]
+                    "thinwedge_verification_recommendation": [TRUSTED_ACCESS_FOR_CYBER_VERIFICATION]
                 }
             }),
             json!({
@@ -1251,7 +1251,7 @@ mod tests {
         let ev: ResponsesStreamEvent = serde_json::from_value(json!({
             "type": "response.metadata",
             "headers": {
-                "openai-model": CYBER_RESTRICTED_MODEL_FOR_TESTS,
+                "thinwedge-model": CYBER_RESTRICTED_MODEL_FOR_TESTS,
             }
         }))
         .expect("expected event to deserialize");
@@ -1267,12 +1267,12 @@ mod tests {
         let ev: ResponsesStreamEvent = serde_json::from_value(json!({
             "type": "response.created",
             "headers": {
-                "openai-model": "top-level-model"
+                "thinwedge-model": "top-level-model"
             },
             "response": {
                 "id": "resp-1",
                 "headers": {
-                    "openai-model": CYBER_RESTRICTED_MODEL_FOR_TESTS
+                    "thinwedge-model": CYBER_RESTRICTED_MODEL_FOR_TESTS
                 }
             }
         }))
@@ -1291,7 +1291,7 @@ mod tests {
             "sequence_number": 1,
             "response_id": "resp-1",
             "metadata": {
-                "openai_verification_recommendation": [TRUSTED_ACCESS_FOR_CYBER_VERIFICATION]
+                "thinwedge_verification_recommendation": [TRUSTED_ACCESS_FOR_CYBER_VERIFICATION]
             }
         });
         let event: ResponsesStreamEvent =
@@ -1308,7 +1308,7 @@ mod tests {
         let event = json!({
             "type": "response.metadata",
             "metadata": {
-                "openai_verification_recommendation": ["unknown"]
+                "thinwedge_verification_recommendation": ["unknown"]
             }
         });
         let event: ResponsesStreamEvent =
@@ -1322,7 +1322,7 @@ mod tests {
         let event = json!({
             "type": "response.metadata",
             "metadata": {
-                "openai_verification_recommendation": TRUSTED_ACCESS_FOR_CYBER_VERIFICATION
+                "thinwedge_verification_recommendation": TRUSTED_ACCESS_FOR_CYBER_VERIFICATION
             }
         });
         let event: ResponsesStreamEvent =
@@ -1335,7 +1335,7 @@ mod tests {
     fn test_try_parse_retry_after() {
         let err = Error {
             r#type: None,
-            message: Some("Rate limit reached for gpt-5.1 in organization org- on tokens per min (TPM): Limit 1, Used 1, Requested 19304. Please try again in 28ms. Visit https://platform.openai.com/account/rate-limits to learn more.".to_string()),
+            message: Some("Rate limit reached for gpt-5.1 in organization org- on tokens per min (TPM): Limit 1, Used 1, Requested 19304. Please try again in 28ms. Visit https://platform.thinwedge.com/account/rate-limits to learn more.".to_string()),
             code: Some("rate_limit_exceeded".to_string()),
             plan_type: None,
             resets_at: None,
@@ -1349,7 +1349,7 @@ mod tests {
     fn test_try_parse_retry_after_no_delay() {
         let err = Error {
             r#type: None,
-            message: Some("Rate limit reached for gpt-5.1 in organization <ORG> on tokens per min (TPM): Limit 30000, Used 6899, Requested 24050. Please try again in 1.898s. Visit https://platform.openai.com/account/rate-limits to learn more.".to_string()),
+            message: Some("Rate limit reached for gpt-5.1 in organization <ORG> on tokens per min (TPM): Limit 30000, Used 6899, Requested 24050. Please try again in 1.898s. Visit https://platform.thinwedge.com/account/rate-limits to learn more.".to_string()),
             code: Some("rate_limit_exceeded".to_string()),
             plan_type: None,
             resets_at: None,

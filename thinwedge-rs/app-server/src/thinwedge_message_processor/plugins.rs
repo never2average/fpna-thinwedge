@@ -137,7 +137,7 @@ impl ThinWedgeMessageProcessor {
 
         let featured_plugin_ids = if data
             .iter()
-            .any(|marketplace| marketplace.name == OPENAI_CURATED_MARKETPLACE_NAME)
+            .any(|marketplace| marketplace.name == THINWEDGE_CURATED_MARKETPLACE_NAME)
         {
             match plugins_manager
                 .featured_plugin_ids_for_config(&config, auth.as_ref())

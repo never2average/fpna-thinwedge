@@ -86,8 +86,8 @@ use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::SandboxEnforcement;
-use thinwedge_protocol::openai_models::ModelsResponse;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
@@ -440,7 +440,7 @@ pub struct Config {
 
     /// Optional commit attribution text for commit message co-author trailers.
     ///
-    /// - `None`: use default attribution (`ThinWedge <noreply@openai.com>`)
+    /// - `None`: use default attribution (`ThinWedge <noreply@thinwedge.com>`)
     /// - `Some("")` or whitespace-only: disable commit attribution
     /// - `Some("...")`: use the provided attribution text verbatim
     pub commit_attribution: Option<String>,
@@ -532,7 +532,7 @@ pub struct Config {
     /// Preferred store for MCP OAuth credentials.
     /// keyring: Use an OS-specific keyring service.
     ///          Credentials stored in the keyring will only be readable by ThinWedge unless the user explicitly grants access via OS-level keyring access.
-    ///          https://github.com/openai/thinwedge/blob/main/thinwedge-rs/rmcp-client/src/oauth.rs#L2
+    ///          https://github.com/thinwedge/thinwedge/blob/main/thinwedge-rs/rmcp-client/src/oauth.rs#L2
     /// file: THINWEDGE_HOME/.credentials.json
     ///       This file will be readable to ThinWedge and other applications running as the same user.
     /// auto (default): keyring if available, otherwise file.
@@ -644,7 +644,7 @@ pub struct Config {
     /// Optional verbosity control for GPT-5 models (Responses API `text.verbosity`).
     pub model_verbosity: Option<Verbosity>,
 
-    /// Base URL for requests to ChatGPT (as opposed to the OpenAI API).
+    /// Base URL for requests to ChatGPT (as opposed to the ThinWedge API).
     pub chatgpt_base_url: String,
 
     /// Machine-local realtime audio device preferences used by realtime voice.
@@ -2243,13 +2243,13 @@ impl Config {
             agent_roles::load_agent_roles(fs, &cfg, &config_layer_stack, &mut startup_warnings)
                 .await?;
 
-        let openai_base_url = cfg
-            .openai_base_url
+        let thinwedge_base_url = cfg
+            .thinwedge_base_url
             .clone()
             .filter(|value| !value.is_empty());
 
         let model_providers =
-            merge_configured_model_providers(built_in_model_providers(openai_base_url), cfg.model_providers)
+            merge_configured_model_providers(built_in_model_providers(thinwedge_base_url), cfg.model_providers)
                 .map_err(|message| std::io::Error::new(std::io::ErrorKind::InvalidData, message))?;
 
         let model_provider_id = model_provider

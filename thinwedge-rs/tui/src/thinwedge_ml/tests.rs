@@ -43,7 +43,7 @@ async fn seed_models(home: &TempDir) {
                     default_environment_id: Some("env-pricing".to_string()),
                     inference: Some(InferenceTarget {
                         provider_id: "openrouter".to_string(),
-                        model_name: "openai/gpt-4.1-mini".to_string(),
+                        model_name: "thinwedge/gpt-4.1-mini".to_string(),
                         base_url: Some("https://openrouter.ai/api/v1".to_string()),
                         api_key_env: Some("OPENROUTER_API_KEY".to_string()),
                         wire_api: Some("chatCompletions".to_string()),

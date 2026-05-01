@@ -1,13 +1,13 @@
 use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::openai_models::ConfigShellToolType;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelInstructionsVariables;
-use thinwedge_protocol::openai_models::ModelMessages;
-use thinwedge_protocol::openai_models::ModelVisibility;
-use thinwedge_protocol::openai_models::TruncationMode;
-use thinwedge_protocol::openai_models::TruncationPolicyConfig;
-use thinwedge_protocol::openai_models::WebSearchToolType;
-use thinwedge_protocol::openai_models::default_input_modalities;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelInstructionsVariables;
+use thinwedge_protocol::thinwedge_models::ModelMessages;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::TruncationMode;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::WebSearchToolType;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
 
 use crate::config::ModelsManagerConfig;
 use thinwedge_utils_output_truncation::approx_bytes_for_tokens;

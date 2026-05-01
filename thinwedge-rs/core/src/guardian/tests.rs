@@ -182,7 +182,7 @@ async fn seed_guardian_parent_history(session: &Arc<Session>, turn: &Arc<TurnCon
                     id: None,
                     name: "gh_repo_view".to_string(),
                     namespace: None,
-                    arguments: "{\"repo\":\"openai/thinwedge\"}".to_string(),
+                    arguments: "{\"repo\":\"thinwedge/thinwedge\"}".to_string(),
                     call_id: "call-1".to_string(),
                 },
                 ResponseItem::FunctionCallOutput {
@@ -2040,7 +2040,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
         &parent_config,
         /*live_network_config*/ None,
         "parent-active-model",
-        Some(thinwedge_protocol::openai_models::ReasoningEffort::Low),
+        Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Low),
     )
     .expect("guardian config");
 
@@ -2051,7 +2051,7 @@ async fn guardian_review_session_config_preserves_parent_network_proxy() {
     );
     assert_eq!(
         guardian_config.model_reasoning_effort,
-        Some(thinwedge_protocol::openai_models::ReasoningEffort::Low)
+        Some(thinwedge_protocol::thinwedge_models::ReasoningEffort::Low)
     );
     assert_eq!(
         guardian_config.permissions.approval_policy,

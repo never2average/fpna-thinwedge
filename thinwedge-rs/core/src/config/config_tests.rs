@@ -507,7 +507,7 @@ model_provider = "amazon-bedrock"
 [model_providers.amazon-bedrock]
 name = "Custom Bedrock"
 base_url = "https://bedrock.example.com/v1"
-requires_openai_auth = true
+requires_thinwedge_auth = true
 supports_websockets = true
 
 [model_providers.amazon-bedrock.aws]
@@ -615,7 +615,7 @@ enable_socks5 = false
 allow_upstream_proxy = false
 
 [permissions.workspace.network.domains]
-"openai.com" = "allow"
+"thinwedge.com" = "allow"
 "#;
     let cfg: ConfigToml =
         toml::from_str(toml).expect("TOML deserialization should succeed for permissions profiles");
@@ -655,7 +655,7 @@ allow_upstream_proxy = false
                         mode: None,
                         domains: Some(NetworkDomainPermissionsToml {
                             entries: BTreeMap::from([(
-                                "openai.com".to_string(),
+                                "thinwedge.com".to_string(),
                                 NetworkDomainPermissionToml::Allow,
                             )]),
                         }),
@@ -795,7 +795,7 @@ async fn permissions_profiles_network_disabled_by_default_does_not_start_proxy()
                         network: Some(NetworkToml {
                             domains: Some(NetworkDomainPermissionsToml {
                                 entries: BTreeMap::from([(
-                                    "openai.com".to_string(),
+                                    "thinwedge.com".to_string(),
                                     NetworkDomainPermissionToml::Allow,
                                 )]),
                             }),
@@ -1102,7 +1102,7 @@ async fn permission_profile_override_preserves_configured_network_policy_without
                             allow_upstream_proxy: Some(false),
                             domains: Some(NetworkDomainPermissionsToml {
                                 entries: BTreeMap::from([(
-                                    "openai.com".to_string(),
+                                    "thinwedge.com".to_string(),
                                     NetworkDomainPermissionToml::Allow,
                                 )]),
                             }),
@@ -4350,8 +4350,8 @@ struct PrecedenceTestFixture {
     thinwedge_home: TempDir,
     cfg: ConfigToml,
     model_provider_map: HashMap<String, ModelProviderInfo>,
-    openai_provider: ModelProviderInfo,
-    openai_custom_provider: ModelProviderInfo,
+    thinwedge_provider: ModelProviderInfo,
+    thinwedge_custom_provider: ModelProviderInfo,
 }
 
 impl PrecedenceTestFixture {
@@ -5764,10 +5764,10 @@ profile = "gpt3"
 [analytics]
 enabled = true
 
-[model_providers.openai-custom]
-name = "OpenAI custom"
-base_url = "https://api.openai.com/v1"
-env_key = "OPENAI_API_KEY"
+[model_providers.thinwedge-custom]
+name = "ThinWedge custom"
+base_url = "https://api.thinwedge.com/v1"
+env_key = "THINWEDGE_API_KEY"
 wire_api = "responses"
 request_max_retries = 4            # retry failed HTTP requests
 stream_max_retries = 10            # retry dropped SSE streams
@@ -5776,18 +5776,18 @@ websocket_connect_timeout_ms = 15000
 
 [profiles.o3]
 model = "o3"
-model_provider = "openai"
+model_provider = "thinwedge"
 approval_policy = "never"
 model_reasoning_effort = "high"
 model_reasoning_summary = "detailed"
 
 [profiles.gpt3]
 model = "gpt-3.5-turbo"
-model_provider = "openai-custom"
+model_provider = "thinwedge-custom"
 
 [profiles.zdr]
 model = "o3"
-model_provider = "openai"
+model_provider = "thinwedge"
 approval_policy = "on-failure"
 
 [profiles.zdr.analytics]
@@ -5795,7 +5795,7 @@ enabled = false
 
 [profiles.gpt5]
 model = "gpt-5.4"
-model_provider = "openai"
+model_provider = "thinwedge"
 approval_policy = "on-failure"
 model_reasoning_effort = "high"
 model_reasoning_summary = "detailed"
@@ -5814,10 +5814,10 @@ model_verbosity = "high"
 
     let thinwedge_home_temp_dir = TempDir::new().unwrap();
 
-    let openai_custom_provider = ModelProviderInfo {
-        name: "OpenAI custom".to_string(),
-        base_url: Some("https://api.openai.com/v1".to_string()),
-        env_key: Some("OPENAI_API_KEY".to_string()),
+    let thinwedge_custom_provider = ModelProviderInfo {
+        name: "ThinWedge custom".to_string(),
+        base_url: Some("https://api.thinwedge.com/v1".to_string()),
+        env_key: Some("THINWEDGE_API_KEY".to_string()),
         wire_api: WireApi::Responses,
         env_key_instructions: None,
         experimental_bearer_token: None,
@@ -5830,19 +5830,19 @@ model_verbosity = "high"
         stream_max_retries: Some(10),
         stream_idle_timeout_ms: Some(300_000),
         websocket_connect_timeout_ms: Some(15_000),
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: false,
     };
     let model_provider_map = {
         let mut model_provider_map =
-            built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None);
-        model_provider_map.insert("openai-custom".to_string(), openai_custom_provider.clone());
+            built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None);
+        model_provider_map.insert("thinwedge-custom".to_string(), thinwedge_custom_provider.clone());
         model_provider_map
     };
 
-    let openai_provider = model_provider_map
-        .get("openai")
-        .expect("openai provider should exist")
+    let thinwedge_provider = model_provider_map
+        .get("thinwedge")
+        .expect("thinwedge provider should exist")
         .clone();
 
     Ok(PrecedenceTestFixture {
@@ -5850,8 +5850,8 @@ model_verbosity = "high"
         thinwedge_home: thinwedge_home_temp_dir,
         cfg,
         model_provider_map,
-        openai_provider,
-        openai_custom_provider,
+        thinwedge_provider,
+        thinwedge_custom_provider,
     })
 }
 
@@ -5863,7 +5863,7 @@ model_verbosity = "high"
 ///    (or in the config file itself)
 /// 3. as an entry in `config.toml`, e.g. `model = "o3"`
 /// 4. the default value for a required field defined in code, e.g.,
-///    `crate::flags::OPENAI_DEFAULT_MODEL`
+///    `crate::flags::THINWEDGE_DEFAULT_MODEL`
 ///
 /// Note that profiles are the recommended way to specify a group of
 /// configuration options together.
@@ -5889,8 +5889,8 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             model_context_window: None,
             model_auto_compact_token_limit: None,
             service_tier: None,
-            model_provider_id: "openai".to_string(),
-            model_provider: fixture.openai_provider.clone(),
+            model_provider_id: "thinwedge".to_string(),
+            model_provider: fixture.thinwedge_provider.clone(),
             permissions: Permissions {
                 approval_policy: Constrained::allow_any(AskForApproval::Never),
                 permission_profile: Constrained::allow_any(PermissionProfile::read_only()),
@@ -6083,8 +6083,8 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         model_context_window: None,
         model_auto_compact_token_limit: None,
         service_tier: None,
-        model_provider_id: "openai-custom".to_string(),
-        model_provider: fixture.openai_custom_provider.clone(),
+        model_provider_id: "thinwedge-custom".to_string(),
+        model_provider: fixture.thinwedge_custom_provider.clone(),
         permissions: Permissions {
             approval_policy: Constrained::allow_any(AskForApproval::UnlessTrusted),
             permission_profile: Constrained::allow_any(PermissionProfile::read_only()),
@@ -6231,8 +6231,8 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         model_context_window: None,
         model_auto_compact_token_limit: None,
         service_tier: None,
-        model_provider_id: "openai".to_string(),
-        model_provider: fixture.openai_provider.clone(),
+        model_provider_id: "thinwedge".to_string(),
+        model_provider: fixture.thinwedge_provider.clone(),
         permissions: Permissions {
             approval_policy: Constrained::allow_any(AskForApproval::OnFailure),
             permission_profile: Constrained::allow_any(PermissionProfile::read_only()),
@@ -6364,8 +6364,8 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         model_context_window: None,
         model_auto_compact_token_limit: None,
         service_tier: None,
-        model_provider_id: "openai".to_string(),
-        model_provider: fixture.openai_provider.clone(),
+        model_provider_id: "thinwedge".to_string(),
+        model_provider: fixture.thinwedge_provider.clone(),
         permissions: Permissions {
             approval_policy: Constrained::allow_any(AskForApproval::OnFailure),
             permission_profile: Constrained::allow_any(PermissionProfile::read_only()),
@@ -8121,7 +8121,7 @@ async fn tool_suggest_discoverables_load_from_config_toml() -> std::io::Result<(
 [tool_suggest]
 discoverables = [
   { type = "connector", id = "connector_alpha" },
-  { type = "plugin", id = "plugin_alpha@openai-curated" },
+  { type = "plugin", id = "plugin_alpha@thinwedge-curated" },
   { type = "connector", id = "   " }
 ]
 "#,
@@ -8138,7 +8138,7 @@ discoverables = [
                 },
                 ToolSuggestDiscoverable {
                     kind: ToolSuggestDiscoverableType::Plugin,
-                    id: "plugin_alpha@openai-curated".to_string(),
+                    id: "plugin_alpha@thinwedge-curated".to_string(),
                 },
                 ToolSuggestDiscoverable {
                     kind: ToolSuggestDiscoverableType::Connector,
@@ -8167,7 +8167,7 @@ discoverables = [
                 },
                 ToolSuggestDiscoverable {
                     kind: ToolSuggestDiscoverableType::Plugin,
-                    id: "plugin_alpha@openai-curated".to_string(),
+                    id: "plugin_alpha@thinwedge-curated".to_string(),
                 },
             ],
             disabled_tools: Vec::new(),
@@ -8185,7 +8185,7 @@ disabled_tools = [
   { type = "connector", id = " connector_calendar " },
   { type = "connector", id = "connector_calendar" },
   { type = "connector", id = "   " },
-  { type = "plugin", id = "slack@openai-curated" }
+  { type = "plugin", id = "slack@thinwedge-curated" }
 ]
 "#,
     )
@@ -8199,7 +8199,7 @@ disabled_tools = [
                 ToolSuggestDisabledTool::connector(" connector_calendar "),
                 ToolSuggestDisabledTool::connector("connector_calendar"),
                 ToolSuggestDisabledTool::connector("   "),
-                ToolSuggestDisabledTool::plugin("slack@openai-curated"),
+                ToolSuggestDisabledTool::plugin("slack@thinwedge-curated"),
             ],
         })
     );
@@ -8218,7 +8218,7 @@ disabled_tools = [
             discoverables: Vec::new(),
             disabled_tools: vec![
                 ToolSuggestDisabledTool::connector("connector_calendar"),
-                ToolSuggestDisabledTool::plugin("slack@openai-curated"),
+                ToolSuggestDisabledTool::plugin("slack@thinwedge-curated"),
             ],
         }
     );

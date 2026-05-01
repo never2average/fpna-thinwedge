@@ -2,7 +2,7 @@ use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::FunctionCallOutputPayload;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::InputModality;
+use thinwedge_protocol::thinwedge_models::InputModality;
 use std::collections::HashSet;
 
 use crate::util::error_or_panic;

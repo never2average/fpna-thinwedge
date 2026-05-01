@@ -93,7 +93,7 @@ async fn plugin_read_rejects_multiple_read_sources() -> Result<()> {
             marketplace_path: Some(AbsolutePathBuf::try_from(
                 thinwedge_home.path().join("marketplace.json"),
             )?),
-            remote_marketplace_name: Some("openai-curated".to_string()),
+            remote_marketplace_name: Some("thinwedge-curated".to_string()),
             plugin_name: "sample-plugin".to_string(),
         })
         .await?;
@@ -422,12 +422,12 @@ async fn plugin_read_rejects_invalid_remote_plugin_name() -> Result<()> {
 }
 
 #[tokio::test]
-async fn plugin_read_returns_canonical_openai_curated_marketplace_name() -> Result<()> {
+async fn plugin_read_returns_canonical_thinwedge_curated_marketplace_name() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let repo_root = TempDir::new()?;
     write_plugin_marketplace(
         repo_root.path(),
-        "openai-curated",
+        "thinwedge-curated",
         "demo-plugin",
         "./demo-plugin",
     )?;
@@ -438,7 +438,7 @@ async fn plugin_read_returns_canonical_openai_curated_marketplace_name() -> Resu
             .join("demo-plugin/.thinwedge-plugin/plugin.json"),
         r#"{
   "name": "demo-plugin",
-  "description": "OpenAI curated plugin"
+  "description": "ThinWedge curated plugin"
 }"#,
     )?;
     std::fs::write(
@@ -446,11 +446,11 @@ async fn plugin_read_returns_canonical_openai_curated_marketplace_name() -> Resu
         r#"[features]
 plugins = true
 
-[plugins."demo-plugin@openai-curated"]
+[plugins."demo-plugin@thinwedge-curated"]
 enabled = true
 "#,
     )?;
-    write_installed_plugin(&thinwedge_home, "openai-curated", "demo-plugin")?;
+    write_installed_plugin(&thinwedge_home, "thinwedge-curated", "demo-plugin")?;
 
     let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
@@ -472,9 +472,9 @@ enabled = true
     .await??;
     let response: PluginReadResponse = to_response(response)?;
 
-    assert_eq!(response.plugin.marketplace_name, "openai-curated");
+    assert_eq!(response.plugin.marketplace_name, "thinwedge-curated");
     assert_eq!(response.plugin.marketplace_path, Some(marketplace_path));
-    assert_eq!(response.plugin.summary.id, "demo-plugin@openai-curated");
+    assert_eq!(response.plugin.summary.id, "demo-plugin@thinwedge-curated");
     assert_eq!(response.plugin.summary.name, "demo-plugin");
     Ok(())
 }
@@ -518,12 +518,12 @@ async fn plugin_read_returns_plugin_details_with_bundle_contents() -> Result<()>
     "displayName": "Plugin Display Name",
     "shortDescription": "Short description for subtitle",
     "longDescription": "Long description for details page",
-    "developerName": "OpenAI",
+    "developerName": "ThinWedge",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
-    "websiteURL": "https://openai.com/",
-    "privacyPolicyURL": "https://openai.com/policies/row-privacy-policy/",
-    "termsOfServiceURL": "https://openai.com/policies/row-terms-of-use/",
+    "websiteURL": "https://thinwedge.com/",
+    "privacyPolicyURL": "https://thinwedge.com/policies/row-privacy-policy/",
+    "termsOfServiceURL": "https://thinwedge.com/policies/row-terms-of-use/",
     "defaultPrompt": [
       "Draft the reply",
       "Find my next action"
@@ -557,7 +557,7 @@ description: Visible only for ChatGPT
     )?;
     std::fs::create_dir_all(plugin_root.join("skills/thread-summarizer/agents"))?;
     std::fs::write(
-        plugin_root.join("skills/thread-summarizer/agents/openai.yaml"),
+        plugin_root.join("skills/thread-summarizer/agents/thinwedge.yaml"),
         r#"policy:
   products:
     - THINWEDGE
@@ -565,7 +565,7 @@ description: Visible only for ChatGPT
     )?;
     std::fs::create_dir_all(plugin_root.join("skills/chatgpt-only/agents"))?;
     std::fs::write(
-        plugin_root.join("skills/chatgpt-only/agents/openai.yaml"),
+        plugin_root.join("skills/chatgpt-only/agents/thinwedge.yaml"),
         r#"policy:
   products:
     - CHATGPT

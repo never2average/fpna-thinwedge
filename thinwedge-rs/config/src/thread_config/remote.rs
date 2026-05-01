@@ -182,7 +182,7 @@ fn model_provider_from_proto(
         stream_max_retries: provider.stream_max_retries,
         stream_idle_timeout_ms: provider.stream_idle_timeout_ms,
         websocket_connect_timeout_ms: provider.websocket_connect_timeout_ms,
-        requires_openai_auth: provider.requires_openai_auth,
+        requires_thinwedge_auth: provider.requires_thinwedge_auth,
         supports_websockets: provider.supports_websockets,
     };
     Ok((id, info))
@@ -209,7 +209,7 @@ fn model_provider_to_proto(
         stream_max_retries,
         stream_idle_timeout_ms,
         websocket_connect_timeout_ms,
-        requires_openai_auth,
+        requires_thinwedge_auth,
         supports_websockets,
     } = provider;
 
@@ -229,7 +229,7 @@ fn model_provider_to_proto(
         stream_max_retries,
         stream_idle_timeout_ms,
         websocket_connect_timeout_ms,
-        requires_openai_auth,
+        requires_thinwedge_auth,
         supports_websockets,
     }
 }
@@ -446,7 +446,7 @@ mod tests {
                             stream_max_retries: Some(8),
                             stream_idle_timeout_ms: Some(9_000),
                             websocket_connect_timeout_ms: Some(10_000),
-                            requires_openai_auth: false,
+                            requires_thinwedge_auth: false,
                             supports_websockets: true,
                         }],
                         features: HashMap::from([
@@ -509,7 +509,7 @@ mod tests {
             stream_max_retries: Some(8),
             stream_idle_timeout_ms: Some(9_000),
             websocket_connect_timeout_ms: Some(10_000),
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
             supports_websockets: true,
             aws: None,
         }

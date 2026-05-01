@@ -4,7 +4,7 @@ use chrono::Utc;
 use thinwedge_config::config_toml::RealtimeWsVersion;
 use thinwedge_core::test_support::auth_manager_from_auth;
 use thinwedge_login::ThinWedgeAuth;
-use thinwedge_login::OPENAI_API_KEY_ENV_VAR;
+use thinwedge_login::THINWEDGE_API_KEY_ENV_VAR;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
@@ -164,7 +164,7 @@ where
 
 fn run_realtime_conversation_test_in_subprocess(
     test_name: &str,
-    openai_api_key: Option<&str>,
+    thinwedge_api_key: Option<&str>,
 ) -> Result<()> {
     let mut command = Command::new(std::env::current_exe()?);
     command
@@ -176,12 +176,12 @@ fn run_realtime_conversation_test_in_subprocess(
     for &key in thinwedge_network_proxy::PROXY_ENV_KEYS {
         command.env_remove(key);
     }
-    match openai_api_key {
-        Some(openai_api_key) => {
-            command.env(OPENAI_API_KEY_ENV_VAR, openai_api_key);
+    match thinwedge_api_key {
+        Some(thinwedge_api_key) => {
+            command.env(THINWEDGE_API_KEY_ENV_VAR, thinwedge_api_key);
         }
         None => {
-            command.env_remove(OPENAI_API_KEY_ENV_VAR);
+            command.env_remove(THINWEDGE_API_KEY_ENV_VAR);
         }
     }
     let output = command.output()?;
@@ -596,10 +596,10 @@ async fn conversation_webrtc_start_posts_generated_session() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth() -> Result<()> {
+async fn conversation_start_uses_thinwedge_env_key_fallback_with_chatgpt_auth() -> Result<()> {
     if std::env::var_os(REALTIME_CONVERSATION_TEST_SUBPROCESS_ENV_VAR).is_none() {
         return run_realtime_conversation_test_in_subprocess(
-            "suite::realtime_conversation::conversation_start_uses_openai_env_key_fallback_with_chatgpt_auth",
+            "suite::realtime_conversation::conversation_start_uses_thinwedge_env_key_fallback_with_chatgpt_auth",
             Some("env-realtime-key"),
         );
     }
@@ -761,7 +761,7 @@ async fn conversation_start_preflight_failure_emits_realtime_error_only() -> Res
     if std::env::var_os(REALTIME_CONVERSATION_TEST_SUBPROCESS_ENV_VAR).is_none() {
         return run_realtime_conversation_test_in_subprocess(
             "suite::realtime_conversation::conversation_start_preflight_failure_emits_realtime_error_only",
-            /*openai_api_key*/ None,
+            /*thinwedge_api_key*/ None,
         );
     }
 

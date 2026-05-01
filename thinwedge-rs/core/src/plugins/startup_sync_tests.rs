@@ -4,7 +4,7 @@ use crate::plugins::PluginsManager;
 use crate::plugins::test_support::TEST_CURATED_PLUGIN_CACHE_VERSION;
 use crate::plugins::test_support::write_curated_plugin_sha;
 use crate::plugins::test_support::write_file;
-use crate::plugins::test_support::write_openai_curated_marketplace;
+use crate::plugins::test_support::write_thinwedge_curated_marketplace;
 use thinwedge_core_plugins::startup_sync::curated_plugins_repo_path;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
@@ -23,14 +23,14 @@ use wiremock::matchers::path;
 async fn startup_remote_plugin_sync_writes_marker_and_reconciles_state() {
     let tmp = tempdir().expect("tempdir");
     let curated_root = curated_plugins_repo_path(tmp.path());
-    write_openai_curated_marketplace(&curated_root, &["linear"]);
+    write_thinwedge_curated_marketplace(&curated_root, &["linear"]);
     write_curated_plugin_sha(tmp.path());
     write_file(
         &tmp.path().join(CONFIG_TOML_FILE),
         r#"[features]
 plugins = true
 
-[plugins."linear@openai-curated"]
+[plugins."linear@thinwedge-curated"]
 enabled = false
 "#,
     );
@@ -42,7 +42,7 @@ enabled = false
         .and(header("chatgpt-account-id", "account_id"))
         .respond_with(ResponseTemplate::new(200).set_body_string(
             r#"[
-  {"id":"1","name":"linear","marketplace_name":"openai-curated","version":"1.0.0","enabled":true}
+  {"id":"1","name":"linear","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true}
 ]"#,
         ))
         .mount(&server)
@@ -76,13 +76,13 @@ enabled = false
     assert!(
         tmp.path()
             .join(format!(
-                "plugins/cache/openai-curated/linear/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
+                "plugins/cache/thinwedge-curated/linear/{TEST_CURATED_PLUGIN_CACHE_VERSION}"
             ))
             .is_dir()
     );
     let config =
         std::fs::read_to_string(tmp.path().join(CONFIG_TOML_FILE)).expect("config should exist");
-    assert!(config.contains(r#"[plugins."linear@openai-curated"]"#));
+    assert!(config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
     assert!(config.contains("enabled = true"));
 
     let marker_contents = std::fs::read_to_string(marker_path).expect("marker should be readable");

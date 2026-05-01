@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn ignores_non_chatgpt_cookies() {
         let store = ChatGptCloudflareCookieStore::default();
-        let url = reqwest::Url::parse("https://api.openai.com/v1/responses").unwrap();
+        let url = reqwest::Url::parse("https://api.thinwedge.com/v1/responses").unwrap();
         let set_cookie = HeaderValue::from_static("_cfuvid=visitor; Path=/; Secure; HttpOnly");
 
         store.set_cookies(&mut std::iter::once(&set_cookie), &url);
@@ -201,7 +201,7 @@ mod tests {
         let store = ChatGptCloudflareCookieStore::default();
         let chatgpt_url =
             reqwest::Url::parse("https://chatgpt.com/backend-api/thinwedge/responses").unwrap();
-        let api_url = reqwest::Url::parse("https://api.openai.com/v1/responses").unwrap();
+        let api_url = reqwest::Url::parse("https://api.thinwedge.com/v1/responses").unwrap();
         let set_cookie = HeaderValue::from_static("_cfuvid=visitor; Path=/; Secure; HttpOnly");
 
         store.set_cookies(&mut std::iter::once(&set_cookie), &chatgpt_url);

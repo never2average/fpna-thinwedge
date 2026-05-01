@@ -29,7 +29,7 @@ body:
     id: model
     attributes:
       label: Which model were you using?
-      description: Like `openai/gpt-4.1-mini`, `anthropic/claude-sonnet-4.5`, etc.
+      description: Like `thinwedge/gpt-4.1-mini`, `anthropic/claude-sonnet-4.5`, etc.
   - type: input
     id: platform
     attributes:

@@ -200,7 +200,7 @@ fn map_api_error_extracts_identity_auth_details_from_headers() {
     headers.insert(REQUEST_ID_HEADER, http::HeaderValue::from_static("req-401"));
     headers.insert(CF_RAY_HEADER, http::HeaderValue::from_static("ray-401"));
     headers.insert(
-        X_OPENAI_AUTHORIZATION_ERROR_HEADER,
+        X_THINWEDGE_AUTHORIZATION_ERROR_HEADER,
         http::HeaderValue::from_static("missing_authorization_header"),
     );
     let x_error_json =

@@ -1204,16 +1204,16 @@ mod tests {
     async fn http_connect_accept_denies_denylisted_host() {
         let policy = {
             let mut policy = NetworkProxySettings::default();
-            policy.set_allowed_domains(vec!["**.openai.com".to_string()]);
-            policy.set_denied_domains(vec!["api.openai.com".to_string()]);
+            policy.set_allowed_domains(vec!["**.thinwedge.com".to_string()]);
+            policy.set_denied_domains(vec!["api.thinwedge.com".to_string()]);
             policy
         };
         let state = Arc::new(network_proxy_state_for_policy(policy));
 
         let mut req = Request::builder()
             .method(Method::CONNECT)
-            .uri("https://api.openai.com:443")
-            .header("host", "api.openai.com:443")
+            .uri("https://api.thinwedge.com:443")
+            .header("host", "api.thinwedge.com:443")
             .body(Body::empty())
             .unwrap();
         req.extensions_mut().insert(state);
@@ -1235,7 +1235,7 @@ mod tests {
         ));
         let mut req = Request::builder()
             .method(Method::GET)
-            .uri("http://raw.githubusercontent.com/openai/thinwedge/main/README.md")
+            .uri("http://raw.githubusercontent.com/thinwedge/thinwedge/main/README.md")
             .header(header::HOST, "api.github.com")
             .body(Body::empty())
             .unwrap();

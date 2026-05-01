@@ -1,10 +1,10 @@
 # Upgrading to GPT-5.5
 
-Use this guide when the user explicitly asks to upgrade an existing integration to GPT-5.5. Pair it with current OpenAI docs lookups. The default target string is `gpt-5.5`.
+Use this guide when the user explicitly asks to upgrade an existing integration to GPT-5.5. Pair it with current ThinWedge docs lookups. The default target string is `gpt-5.5`.
 
 ## Freshness check
 
-Before applying this bundled guide for a latest/current/default model upgrade, run `node scripts/resolve-latest-model-info.js` from the OpenAI Docs skill directory.
+Before applying this bundled guide for a latest/current/default model upgrade, run `node scripts/resolve-latest-model-info.js` from the ThinWedge Docs skill directory.
 
 - If the command returns `modelSlug: "gpt-5p5"`, continue with this bundled guide and use `references/prompting-guide.md` when prompt updates are needed.
 - If the command returns a different `modelSlug`, fetch both the returned `migrationGuideUrl` and `promptingGuideUrl` and use them as the current source of truth instead of the bundled references.
@@ -61,8 +61,8 @@ Upgrade with the narrowest safe change set:
 Output rule:
 
 - For each usage site, state the starting reasoning-effort recommendation.
-- If the repo exposes the current reasoning setting, recommend preserving it first unless current OpenAI docs say otherwise.
-- If the repo does not expose the current setting, recommend not adding one unless current OpenAI docs require it.
+- If the repo exposes the current reasoning setting, recommend preserving it first unless current ThinWedge docs say otherwise.
+- If the repo does not expose the current setting, recommend not adding one unless current ThinWedge docs require it.
 
 ## Upgrade outcomes
 
@@ -114,7 +114,7 @@ Choose this when:
 - the upgrade appears to require parameter rewrites or reasoning-setting changes that are not exposed outside implementation code
 - the upgrade would require changing tool definitions, tool handler wiring, or schema contracts
 - the user is asking for a tooling, IDE, plugin, shell, or environment migration rather than a model and prompt migration
-- the integration depends on provider-specific APIs that do not map to the current OpenAI API surface without implementation work
+- the integration depends on provider-specific APIs that do not map to the current ThinWedge API surface without implementation work
 - you cannot confidently identify the prompt surface tied to the model usage
 
 Default action:

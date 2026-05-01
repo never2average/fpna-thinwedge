@@ -8,7 +8,7 @@ include_github_meta_ranges="${THINWEDGE_INCLUDE_GITHUB_META_RANGES:-1}"
 if [ -f "$allowed_domains_file" ]; then
   mapfile -t allowed_domains < <(sed '/^\s*#/d;/^\s*$/d' "$allowed_domains_file")
 else
-  allowed_domains=("api.openai.com")
+  allowed_domains=("api.thinwedge.com")
 fi
 
 if [ "${#allowed_domains[@]}" -eq 0 ]; then
@@ -152,8 +152,8 @@ if curl --connect-timeout 5 https://example.com >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! curl --connect-timeout 5 https://api.openai.com >/dev/null 2>&1; then
-  echo "ERROR: Firewall verification failed - unable to reach https://api.openai.com"
+if ! curl --connect-timeout 5 https://api.thinwedge.com >/dev/null 2>&1; then
+  echo "ERROR: Firewall verification failed - unable to reach https://api.thinwedge.com"
   exit 1
 fi
 

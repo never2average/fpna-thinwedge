@@ -1,16 +1,16 @@
 # Configuration
 
-For basic configuration instructions, see [this documentation](https://developers.openai.com/thinwedge/config-basic).
+For basic configuration instructions, see [this documentation](https://developers.thinwedge.com/thinwedge/config-basic).
 
-For advanced configuration instructions, see [this documentation](https://developers.openai.com/thinwedge/config-advanced).
+For advanced configuration instructions, see [this documentation](https://developers.thinwedge.com/thinwedge/config-advanced).
 
-For a full configuration reference, see [this documentation](https://developers.openai.com/thinwedge/config-reference).
+For a full configuration reference, see [this documentation](https://developers.thinwedge.com/thinwedge/config-reference).
 
 ## Connecting to MCP servers
 
 ThinWedge can connect to MCP servers configured in `~/.thinwedge/config.toml`. See the configuration reference for the latest MCP server options:
 
-- https://developers.openai.com/thinwedge/config-reference
+- https://developers.thinwedge.com/thinwedge/config-reference
 
 MCP tools default to serialized calls. To mark every tool exposed by one server
 as eligible for parallel tool calls, set `supports_parallel_tool_calls` on that
@@ -53,7 +53,7 @@ ThinWedge stores "never show again" choices for tool suggestions in `config.toml
 ```toml
 [tool_suggest]
 disabled_tools = [
-  { type = "plugin", id = "slack@openai-curated" },
+  { type = "plugin", id = "slack@thinwedge-curated" },
   { type = "connector", id = "connector_google_calendar" },
 ]
 ```
@@ -62,7 +62,7 @@ disabled_tools = [
 
 ThinWedge can run a notification hook when the agent finishes a turn. See the configuration reference for the latest notification settings:
 
-- https://developers.openai.com/thinwedge/config-reference
+- https://developers.thinwedge.com/thinwedge/config-reference
 
 When ThinWedge knows which client started the turn, the legacy notify JSON payload also includes a top-level `client` field. The TUI reports `thinwedge-tui`, and the app server reports the `clientInfo.name` value from `initialize`.
 

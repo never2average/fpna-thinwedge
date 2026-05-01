@@ -873,7 +873,7 @@ mod tests {
     async fn auth_manager_with_api_key() -> Arc<AuthManager> {
         let tmp = tempdir().expect("tempdir");
         let auth_json = json!({
-            "OPENAI_API_KEY": "sk-test-key",
+            "THINWEDGE_API_KEY": "sk-test-key",
             "tokens": null,
             "last_refresh": null,
         });
@@ -970,7 +970,7 @@ mod tests {
         });
         let payload = json!({
             "email": "user@example.com",
-            "https://api.openai.com/auth": auth_payload,
+            "https://api.thinwedge.com/auth": auth_payload,
         });
         let header_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&header).expect("header"));
         let payload_b64 = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload).expect("payload"));
@@ -978,7 +978,7 @@ mod tests {
         let fake_jwt = format!("{header_b64}.{payload_b64}.{signature_b64}");
 
         let mut auth_json = json!({
-            "OPENAI_API_KEY": null,
+            "THINWEDGE_API_KEY": null,
             "tokens": {
                 "id_token": fake_jwt,
                 "access_token": access_token,

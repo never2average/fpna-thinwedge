@@ -1161,17 +1161,17 @@ mod tests {
 
     #[tokio::test]
     async fn host_blocked_subdomain_wildcards_exclude_apex() {
-        let state = network_proxy_state_for_policy(network_settings(&["*.openai.com"], &[]));
+        let state = network_proxy_state_for_policy(network_settings(&["*.thinwedge.com"], &[]));
 
         assert_eq!(
             state
-                .host_blocked("api.openai.com", /*port*/ 80)
+                .host_blocked("api.thinwedge.com", /*port*/ 80)
                 .await
                 .unwrap(),
             HostBlockDecision::Allowed
         );
         assert_eq!(
-            state.host_blocked("openai.com", /*port*/ 80).await.unwrap(),
+            state.host_blocked("thinwedge.com", /*port*/ 80).await.unwrap(),
             HostBlockDecision::Blocked(HostBlockReason::NotAllowed)
         );
     }
@@ -1189,7 +1189,7 @@ mod tests {
         );
         assert_eq!(
             state
-                .host_blocked("api.openai.com", /*port*/ 443)
+                .host_blocked("api.thinwedge.com", /*port*/ 443)
                 .await
                 .unwrap(),
             HostBlockDecision::Allowed
@@ -1388,7 +1388,7 @@ mod tests {
 
         let config = NetworkProxyConfig {
             network: {
-                let mut network = network_settings(&["example.com", "api.openai.com"], &[]);
+                let mut network = network_settings(&["example.com", "api.thinwedge.com"], &[]);
                 network.enabled = true;
                 network
             },
@@ -1659,20 +1659,20 @@ mod tests {
 
     #[test]
     fn compile_globset_excludes_apex_for_subdomain_patterns() {
-        let patterns = vec!["*.openai.com".to_string()];
+        let patterns = vec!["*.thinwedge.com".to_string()];
         let set = compile_denylist_globset(&patterns).unwrap();
-        assert!(set.is_match("api.openai.com"));
-        assert!(!set.is_match("openai.com"));
-        assert!(!set.is_match("evilopenai.com"));
+        assert!(set.is_match("api.thinwedge.com"));
+        assert!(!set.is_match("thinwedge.com"));
+        assert!(!set.is_match("evilthinwedge.com"));
     }
 
     #[test]
     fn compile_globset_includes_apex_for_double_wildcard_patterns() {
-        let patterns = vec!["**.openai.com".to_string()];
+        let patterns = vec!["**.thinwedge.com".to_string()];
         let set = compile_denylist_globset(&patterns).unwrap();
-        assert!(set.is_match("openai.com"));
-        assert!(set.is_match("api.openai.com"));
-        assert!(!set.is_match("evilopenai.com"));
+        assert!(set.is_match("thinwedge.com"));
+        assert!(set.is_match("api.thinwedge.com"));
+        assert!(!set.is_match("evilthinwedge.com"));
     }
 
     #[test]
@@ -1686,7 +1686,7 @@ mod tests {
         let patterns = vec!["*".to_string()];
         let set = compile_allowlist_globset(&patterns).unwrap();
         assert!(set.is_match("example.com"));
-        assert!(set.is_match("api.openai.com"));
+        assert!(set.is_match("api.thinwedge.com"));
         assert!(set.is_match("localhost"));
     }
 

@@ -9,7 +9,7 @@ use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::mcp::RequestId as McpRequestId;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::ConversationAudioParams;
 use thinwedge_protocol::protocol::ConversationStartParams;

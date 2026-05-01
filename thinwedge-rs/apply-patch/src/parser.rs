@@ -41,7 +41,7 @@ const EOF_MARKER: &str = "*** End of File";
 const CHANGE_CONTEXT_MARKER: &str = "@@ ";
 const EMPTY_CHANGE_CONTEXT_MARKER: &str = "@@";
 
-/// Currently, the only OpenAI model that knowingly requires lenient parsing is
+/// Currently, the only ThinWedge model that knowingly requires lenient parsing is
 /// gpt-4.1. While we could try to require everyone to pass in a strictness
 /// param when invoking apply_patch, it is a pain to thread it through all of
 /// the call sites, so we resign ourselves allowing lenient parsing for all

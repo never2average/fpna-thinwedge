@@ -25,7 +25,7 @@ use std::sync::RwLock;
 /// However, future users of this should use this with caution as a result.
 /// In addition, we want to be confident that this value is used for ALL clients and doing that requires a
 /// lot of wiring and it's easy to miss code paths by doing so.
-/// See https://github.com/openai/thinwedge/pull/3388/files for an example of what that would look like.
+/// See https://github.com/thinwedge/thinwedge/pull/3388/files for an example of what that would look like.
 /// Finally, we want to make sure this is set for ALL mcp clients without needing to know a special env var
 /// or having to set data that they already specified in the mcp initialize request somewhere else.
 ///
@@ -35,7 +35,7 @@ use std::sync::RwLock;
 pub static USER_AGENT_SUFFIX: LazyLock<Mutex<Option<String>>> = LazyLock::new(|| Mutex::new(None));
 pub const DEFAULT_ORIGINATOR: &str = "thinwedge_cli_rs";
 pub const THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE_ENV_VAR: &str = "THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE";
-pub const RESIDENCY_HEADER_NAME: &str = "x-openai-internal-thinwedge-residency";
+pub const RESIDENCY_HEADER_NAME: &str = "x-thinwedge-internal-thinwedge-residency";
 
 pub use thinwedge_config::ResidencyRequirement;
 

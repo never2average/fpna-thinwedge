@@ -8,7 +8,7 @@ fi
 
 echo "[devcontainer] Firewall mode: strict"
 
-domains_raw="${OPENAI_ALLOWED_DOMAINS:-api.openai.com}"
+domains_raw="${THINWEDGE_ALLOWED_DOMAINS:-api.thinwedge.com}"
 mapfile -t domains < <(printf '%s\n' "$domains_raw" | tr ', ' '\n\n' | sed '/^$/d' | sort -u)
 
 if [ "${#domains[@]}" -eq 0 ]; then
@@ -19,7 +19,7 @@ fi
 tmp_file="$(mktemp)"
 for domain in "${domains[@]}"; do
   if [[ ! "$domain" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,}$ ]]; then
-    echo "[devcontainer] Invalid domain in OPENAI_ALLOWED_DOMAINS: $domain"
+    echo "[devcontainer] Invalid domain in THINWEDGE_ALLOWED_DOMAINS: $domain"
     rm -f "$tmp_file"
     exit 1
   fi

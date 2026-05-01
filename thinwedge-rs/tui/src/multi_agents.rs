@@ -8,7 +8,7 @@ use crate::history_cell::PlainHistoryCell;
 use crate::render::line_utils::prefix_lines;
 use crate::text_formatting::truncate_text;
 use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::AgentStatus;
 use thinwedge_protocol::protocol::CollabAgentInteractionEndEvent;
 use thinwedge_protocol::protocol::CollabAgentRef;

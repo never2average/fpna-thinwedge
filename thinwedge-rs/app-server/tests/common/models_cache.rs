@@ -3,12 +3,12 @@ use chrono::Utc;
 use thinwedge_core::test_support::all_model_presets;
 use thinwedge_models_manager::client_version_to_whole;
 use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::openai_models::ConfigShellToolType;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ModelVisibility;
-use thinwedge_protocol::openai_models::TruncationPolicyConfig;
-use thinwedge_protocol::openai_models::default_input_modalities;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use serde_json::json;
 use std::path::Path;
 

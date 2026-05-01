@@ -151,7 +151,7 @@ mod tests {
     use thinwedge_protocol::config_types::ReasoningSummary;
     use thinwedge_protocol::models::ContentItem;
     use thinwedge_protocol::models::ResponseItem;
-    use thinwedge_protocol::openai_models::ReasoningEffort;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use thinwedge_protocol::protocol::AskForApproval;
     use thinwedge_protocol::protocol::EventMsg;
     use thinwedge_protocol::protocol::RolloutItem;
@@ -281,7 +281,7 @@ mod tests {
                     agent_path: None,
                     agent_nickname: None,
                     agent_role: None,
-                    model_provider: Some("openai".to_string()),
+                    model_provider: Some("thinwedge".to_string()),
                     base_instructions: None,
                     dynamic_tools: None,
                     memory_mode: None,
@@ -414,7 +414,7 @@ mod tests {
                     agent_path: None,
                     agent_nickname: None,
                     agent_role: None,
-                    model_provider: Some("openai".to_string()),
+                    model_provider: Some("thinwedge".to_string()),
                     base_instructions: None,
                     dynamic_tools: None,
                     memory_mode: None,
@@ -440,7 +440,7 @@ mod tests {
             agent_path: None,
             agent_nickname: None,
             agent_role: None,
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             model: None,
             reasoning_effort: None,
             cwd: PathBuf::from("/tmp"),

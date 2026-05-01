@@ -4,7 +4,7 @@ use crate::thinwedge_apps::ThinWedgeAppsToolsCacheContext;
 use crate::thinwedge_apps::load_startup_cached_thinwedge_apps_tools_snapshot;
 use crate::thinwedge_apps::read_cached_thinwedge_apps_tools;
 use crate::thinwedge_apps::write_cached_thinwedge_apps_tools;
-use crate::declared_openai_file_input_param_names;
+use crate::declared_thinwedge_file_input_param_names;
 use crate::elicitation::ElicitationRequestManager;
 use crate::elicitation::elicitation_is_rejected_by_policy;
 use crate::rmcp_client::AsyncManagedClient;
@@ -88,14 +88,14 @@ fn create_thinwedge_apps_tools_cache_context(
 }
 
 #[test]
-fn declared_openai_file_fields_treat_names_literally() {
+fn declared_thinwedge_file_fields_treat_names_literally() {
     let meta = serde_json::json!({
-        "openai/fileParams": ["file", "input_file", "attachments"]
+        "thinwedge/fileParams": ["file", "input_file", "attachments"]
     });
     let meta = meta.as_object().expect("meta object");
 
     assert_eq!(
-        declared_openai_file_input_param_names(Some(meta)),
+        declared_thinwedge_file_input_param_names(Some(meta)),
         vec![
             "file".to_string(),
             "input_file".to_string(),
@@ -127,7 +127,7 @@ fn tool_with_model_visible_input_schema_masks_file_params() {
     );
     tool.meta = Some(Meta(
         serde_json::json!({
-            "openai/fileParams": ["file", "files"]
+            "thinwedge/fileParams": ["file", "files"]
         })
         .as_object()
         .expect("object")
@@ -559,7 +559,7 @@ fn thinwedge_apps_tools_cache_filters_disallowed_connectors() {
         create_test_tool_with_connector(
             THINWEDGE_APPS_MCP_SERVER_NAME,
             "blocked_tool",
-            "connector_openai_hidden",
+            "connector_thinwedge_hidden",
             Some("Hidden"),
         ),
         create_test_tool_with_connector(

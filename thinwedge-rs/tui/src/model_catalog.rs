@@ -1,7 +1,7 @@
 use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use thinwedge_models_manager::collaboration_mode_presets::builtin_collaboration_mode_presets;
 use thinwedge_protocol::config_types::CollaborationModeMask;
-use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
 use std::convert::Infallible;
 
 #[derive(Debug, Clone)]

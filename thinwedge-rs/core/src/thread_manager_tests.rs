@@ -11,7 +11,7 @@ use thinwedge_models_manager::manager::RefreshStrategy;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use thinwedge_protocol::protocol::AgentMessageEvent;
 use thinwedge_protocol::protocol::InitialHistory;
 use thinwedge_protocol::protocol::InternalSessionSource;

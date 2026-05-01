@@ -379,7 +379,7 @@ pub(crate) fn set_chatgpt_auth(chat: &mut ChatWidget) {
 
 fn test_model_info(slug: &str, priority: i32, supports_fast_mode: bool) -> ModelInfo {
     let additional_speed_tiers = if supports_fast_mode {
-        vec![thinwedge_protocol::openai_models::SPEED_TIER_FAST]
+        vec![thinwedge_protocol::thinwedge_models::SPEED_TIER_FAST]
     } else {
         Vec::new()
     };
@@ -924,7 +924,7 @@ pub(super) fn plugins_test_curated_marketplace(
     plugins: Vec<PluginSummary>,
 ) -> PluginMarketplaceEntry {
     PluginMarketplaceEntry {
-        name: OPENAI_CURATED_MARKETPLACE_NAME.to_string(),
+        name: THINWEDGE_CURATED_MARKETPLACE_NAME.to_string(),
         path: Some(plugins_test_absolute_path("marketplaces/chatgpt")),
         interface: Some(MarketplaceInterface {
             display_name: Some("Marketplace".to_string()),

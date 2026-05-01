@@ -15,15 +15,15 @@ use serde::Serialize;
 use strum_macros::Display;
 use ts_rs::TS;
 
-/// Authentication mode for OpenAI-backed providers.
+/// Authentication mode for ThinWedge-backed providers.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Display, JsonSchema, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthMode {
-    /// OpenAI API key provided by the caller and stored by ThinWedge.
+    /// ThinWedge API key provided by the caller and stored by ThinWedge.
     ApiKey,
     /// ChatGPT OAuth managed by ThinWedge (tokens persisted and refreshed by ThinWedge).
     Chatgpt,
-    /// [UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.
+    /// [UNSTABLE] FOR THINWEDGE INTERNAL USE ONLY - DO NOT USE.
     ///
     /// ChatGPT auth tokens are supplied by an external host app and are only
     /// stored in memory. Token refresh must be handled by the external host app.
@@ -1947,7 +1947,7 @@ mod tests {
                     forked_from_id: None,
                     preview: "first prompt".to_string(),
                     ephemeral: true,
-                    model_provider: "openai".to_string(),
+                    model_provider: "thinwedge".to_string(),
                     created_at: 1,
                     updated_at: 2,
                     status: v2::ThreadStatus::Idle,
@@ -1962,7 +1962,7 @@ mod tests {
                     turns: Vec::new(),
                 },
                 model: "gpt-5".to_string(),
-                model_provider: "openai".to_string(),
+                model_provider: "thinwedge".to_string(),
                 service_tier: None,
                 cwd,
                 instruction_sources: vec![absolute_path("/tmp/AGENTS.md")],
@@ -1991,7 +1991,7 @@ mod tests {
                         "forkedFromId": null,
                         "preview": "first prompt",
                         "ephemeral": true,
-                        "modelProvider": "openai",
+                        "modelProvider": "thinwedge",
                         "createdAt": 1,
                         "updatedAt": 2,
                         "status": {
@@ -2008,7 +2008,7 @@ mod tests {
                         "turns": []
                     },
                     "model": "gpt-5",
-                    "modelProvider": "openai",
+                    "modelProvider": "thinwedge",
                     "serviceTier": null,
                     "cwd": absolute_path_string("tmp"),
                     "instructionSources": [absolute_path_string("tmp/AGENTS.md")],

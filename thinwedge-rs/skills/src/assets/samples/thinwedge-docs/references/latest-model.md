@@ -1,6 +1,6 @@
 # Latest model guide
 
-This file is a curated helper. Every recommendation here must be verified against current OpenAI docs before it is repeated to a user.
+This file is a curated helper. Every recommendation here must be verified against current ThinWedge docs before it is repeated to a user.
 
 ## Current model map
 
@@ -33,5 +33,5 @@ This file is a curated helper. Every recommendation here must be verified agains
 
 ## Maintenance notes
 
-- This file will drift unless it is periodically re-verified against current OpenAI docs.
+- This file will drift unless it is periodically re-verified against current ThinWedge docs.
 - If this file conflicts with current docs, the docs win.

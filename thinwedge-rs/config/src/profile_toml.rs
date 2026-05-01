@@ -14,7 +14,7 @@ use thinwedge_protocol::config_types::SandboxMode;
 use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::config_types::Verbosity;
 use thinwedge_protocol::config_types::WebSearchMode;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 
 /// Collection of common configuration options that a user can define as a unit

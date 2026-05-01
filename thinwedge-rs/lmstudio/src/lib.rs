@@ -4,7 +4,7 @@ pub use client::LMStudioClient;
 use thinwedge_core::config::Config;
 
 /// Default OSS model to use when `--oss` is passed without an explicit `-m`.
-pub const DEFAULT_OSS_MODEL: &str = "openai/gpt-oss-20b";
+pub const DEFAULT_OSS_MODEL: &str = "thinwedge/gpt-oss-20b";
 
 /// Prepare the local OSS environment when `--oss` is selected.
 ///

@@ -101,7 +101,7 @@ pub(crate) fn pre_main_hardening_macos() {
 
     // Remove macOS malloc stack-logging controls so allocator diagnostics from
     // ThinWedge or inherited child processes do not get sprayed into the TUI:
-    // https://github.com/openai/thinwedge/issues/11555
+    // https://github.com/thinwedge/thinwedge/issues/11555
     remove_env_vars_with_prefix(b"MallocStackLogging");
     remove_env_vars_with_prefix(b"MallocLogFile");
 }

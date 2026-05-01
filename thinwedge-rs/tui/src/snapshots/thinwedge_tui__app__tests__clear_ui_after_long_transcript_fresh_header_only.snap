@@ -3,7 +3,7 @@ source: tui/src/app.rs
 expression: rendered
 ---
 ╭─────────────────────────────────────────────╮
-│ >_ OpenAI ThinWedge (v<VERSION>)                │
+│ >_ ThinWedge ThinWedge (v<VERSION>)                │
 │                                             │
 │ model:     gpt-test high   /model to change │
 │ directory: /tmp/project                     │

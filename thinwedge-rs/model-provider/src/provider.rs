@@ -8,16 +8,16 @@ use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
-use thinwedge_models_manager::manager::OpenAiModelsManager;
+use thinwedge_models_manager::manager::ThinWedgeModelsManager;
 use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_models_manager::manager::StaticModelsManager;
 use thinwedge_protocol::account::ProviderAccount;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 
 use crate::amazon_bedrock::AmazonBedrockModelProvider;
 use crate::auth::auth_manager_for_provider;
 use crate::auth::resolve_provider_auth;
-use crate::models_endpoint::OpenAiModelsEndpoint;
+use crate::models_endpoint::ThinWedgeModelsEndpoint;
 
 /// Optional provider-backed features that ThinWedge may expose at runtime.
 ///
@@ -45,7 +45,7 @@ impl Default for ProviderCapabilities {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderAccountState {
     pub account: Option<ProviderAccount>,
-    pub requires_openai_auth: bool,
+    pub requires_thinwedge_auth: bool,
 }
 
 /// Error returned when a provider cannot construct its app-visible account state.
@@ -75,7 +75,7 @@ pub type ProviderAccountResult = std::result::Result<ProviderAccountState, Provi
 ///
 /// Implementations own provider-specific behavior for a model backend. The
 /// `ModelProviderInfo` returned by `info` is the serialized/configured provider
-/// metadata used by the default OpenAI-compatible implementation.
+/// metadata used by the default ThinWedge-compatible implementation.
 #[async_trait::async_trait]
 pub trait ModelProvider: fmt::Debug + Send + Sync {
     /// Returns the configured provider metadata.
@@ -172,7 +172,7 @@ impl ModelProvider for ConfiguredModelProvider {
     }
 
     fn account_state(&self) -> ProviderAccountResult {
-        let account = if self.info.requires_openai_auth {
+        let account = if self.info.requires_thinwedge_auth {
             self.auth_manager
                 .as_ref()
                 .and_then(|auth_manager| {
@@ -205,7 +205,7 @@ impl ModelProvider for ConfiguredModelProvider {
 
         Ok(ProviderAccountState {
             account,
-            requires_openai_auth: self.info.requires_openai_auth,
+            requires_thinwedge_auth: self.info.requires_thinwedge_auth,
         })
     }
 
@@ -222,11 +222,11 @@ impl ModelProvider for ConfiguredModelProvider {
                 collaboration_modes_config,
             )),
             None => {
-                let endpoint = Arc::new(OpenAiModelsEndpoint::new(
+                let endpoint = Arc::new(ThinWedgeModelsEndpoint::new(
                     self.info.clone(),
                     self.auth_manager.clone(),
                 ));
-                Arc::new(OpenAiModelsManager::new(
+                Arc::new(ThinWedgeModelsManager::new(
                     thinwedge_home,
                     endpoint,
                     self.auth_manager.clone(),
@@ -245,8 +245,8 @@ mod tests {
     use thinwedge_model_provider_info::WireApi;
     use thinwedge_models_manager::manager::RefreshStrategy;
     use thinwedge_protocol::config_types::ModelProviderAuthInfo;
-    use thinwedge_protocol::openai_models::ModelInfo;
-    use thinwedge_protocol::openai_models::ModelsResponse;
+    use thinwedge_protocol::thinwedge_models::ModelInfo;
+    use thinwedge_protocol::thinwedge_models::ModelsResponse;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use wiremock::Mock;
@@ -270,8 +270,8 @@ mod tests {
                     .try_into()
                     .expect("current dir should be absolute"),
             }),
-            requires_openai_auth: false,
-            ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
+            requires_thinwedge_auth: false,
+            ..ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None)
         }
     }
 
@@ -296,7 +296,7 @@ mod tests {
             stream_max_retries: Some(0),
             stream_idle_timeout_ms: Some(5_000),
             websocket_connect_timeout_ms: None,
-            requires_openai_auth: false,
+            requires_thinwedge_auth: false,
             supports_websockets: false,
         }
     }
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     fn configured_provider_uses_default_capabilities() {
         let provider = create_model_provider(
-            ModelProviderInfo::create_openai_provider(/*base_url*/ None),
+            ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None),
             /*auth_manager*/ None,
         );
 
@@ -353,14 +353,14 @@ mod tests {
     }
 
     #[test]
-    fn create_model_provider_does_not_use_openai_auth_manager_for_amazon_bedrock_provider() {
+    fn create_model_provider_does_not_use_thinwedge_auth_manager_for_amazon_bedrock_provider() {
         let provider = create_model_provider(
             ModelProviderInfo::create_amazon_bedrock_provider(Some(ModelProviderAwsAuthInfo {
                 profile: Some("thinwedge-bedrock".to_string()),
                 region: None,
             })),
             Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-                "openai-api-key",
+                "thinwedge-api-key",
             ))),
         );
 
@@ -368,11 +368,11 @@ mod tests {
     }
 
     #[test]
-    fn create_model_provider_does_not_use_openai_auth_manager_for_openrouter_provider() {
+    fn create_model_provider_does_not_use_thinwedge_auth_manager_for_openrouter_provider() {
         let provider = create_model_provider(
             ModelProviderInfo::create_openrouter_provider(),
             Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-                "openai-api-key",
+                "thinwedge-api-key",
             ))),
         );
 
@@ -381,15 +381,15 @@ mod tests {
             provider.account_state(),
             Ok(ProviderAccountState {
                 account: None,
-                requires_openai_auth: false,
+                requires_thinwedge_auth: false,
             })
         );
     }
 
     #[test]
-    fn openai_provider_returns_unauthenticated_openai_account_state() {
+    fn thinwedge_provider_returns_unauthenticated_thinwedge_account_state() {
         let provider = create_model_provider(
-            ModelProviderInfo::create_openai_provider(/*base_url*/ None),
+            ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None),
             /*auth_manager*/ None,
         );
 
@@ -397,17 +397,17 @@ mod tests {
             provider.account_state(),
             Ok(ProviderAccountState {
                 account: None,
-                requires_openai_auth: true,
+                requires_thinwedge_auth: true,
             })
         );
     }
 
     #[test]
-    fn openai_provider_returns_api_key_account_state() {
+    fn thinwedge_provider_returns_api_key_account_state() {
         let provider = create_model_provider(
-            ModelProviderInfo::create_openai_provider(/*base_url*/ None),
+            ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None),
             Some(AuthManager::from_auth_for_testing(ThinWedgeAuth::from_api_key(
-                "openai-api-key",
+                "thinwedge-api-key",
             ))),
         );
 
@@ -415,19 +415,19 @@ mod tests {
             provider.account_state(),
             Ok(ProviderAccountState {
                 account: Some(ProviderAccount::ApiKey),
-                requires_openai_auth: true,
+                requires_thinwedge_auth: true,
             })
         );
     }
 
     #[test]
-    fn custom_non_openai_provider_returns_no_account_state() {
+    fn custom_non_thinwedge_provider_returns_no_account_state() {
         let provider = create_model_provider(
             ModelProviderInfo {
                 name: "Custom".to_string(),
                 base_url: Some("http://localhost:1234/v1".to_string()),
                 wire_api: WireApi::Responses,
-                requires_openai_auth: false,
+                requires_thinwedge_auth: false,
                 ..Default::default()
             },
             /*auth_manager*/ None,
@@ -437,7 +437,7 @@ mod tests {
             provider.account_state(),
             Ok(ProviderAccountState {
                 account: None,
-                requires_openai_auth: false,
+                requires_thinwedge_auth: false,
             })
         );
     }
@@ -453,7 +453,7 @@ mod tests {
             provider.account_state(),
             Ok(ProviderAccountState {
                 account: Some(ProviderAccount::AmazonBedrock),
-                requires_openai_auth: false,
+                requires_thinwedge_auth: false,
             })
         );
     }
@@ -480,9 +480,9 @@ mod tests {
         assert_eq!(
             model_ids,
             vec![
-                "openai.gpt-5.4",
-                "openai.gpt-oss-120b",
-                "openai.gpt-oss-20b"
+                "thinwedge.gpt-5.4",
+                "thinwedge.gpt-oss-120b",
+                "thinwedge.gpt-oss-20b"
             ]
         );
 
@@ -493,7 +493,7 @@ mod tests {
             .find(|preset| preset.is_default)
             .expect("Bedrock catalog should have a default model");
 
-        assert_eq!(default_model.model, "openai.gpt-5.4");
+        assert_eq!(default_model.model, "thinwedge.gpt-5.4");
     }
 
     #[tokio::test]

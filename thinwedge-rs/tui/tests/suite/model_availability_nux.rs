@@ -56,7 +56,7 @@ async fn resume_startup_does_not_consume_model_availability_nux_count() -> Resul
     let catalog_display = custom_catalog_path.display();
     let config_contents = format!(
         r#"model = "{model_slug}"
-model_provider = "openai"
+model_provider = "thinwedge"
 model_catalog_json = "{catalog_display}"
 
 [projects."{repo_root_display}"]
@@ -89,7 +89,7 @@ trust_level = "trusted"
         .arg(&repo_root)
         .arg("seed session for resume")
         .env("THINWEDGE_HOME", thinwedge_home.path())
-        .env("OPENAI_API_KEY", "dummy")
+        .env("THINWEDGE_API_KEY", "dummy")
         .env("THINWEDGE_RS_SSE_FIXTURE", fixture_path)
         .output()
         .context("failed to execute thinwedge exec")?;
@@ -104,7 +104,7 @@ trust_level = "trusted"
         "THINWEDGE_HOME".to_string(),
         thinwedge_home.path().display().to_string(),
     );
-    env.insert("OPENAI_API_KEY".to_string(), "dummy".to_string());
+    env.insert("THINWEDGE_API_KEY".to_string(), "dummy".to_string());
 
     let args = vec![
         "resume".to_string(),

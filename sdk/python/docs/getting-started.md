@@ -18,7 +18,7 @@ Requirements:
 
 - Python `>=3.10`
 - uv
-- installed `openai-thinwedge-cli-bin` runtime package, or an explicit `thinwedge_bin` override
+- installed `thinwedge-thinwedge-cli-bin` runtime package, or an explicit `thinwedge_bin` override
 - local ThinWedge auth/session configured
 
 ## 2) Run your first turn (sync)

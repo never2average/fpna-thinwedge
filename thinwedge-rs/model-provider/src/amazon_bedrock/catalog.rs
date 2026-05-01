@@ -1,33 +1,33 @@
 use thinwedge_models_manager::model_info::BASE_INSTRUCTIONS;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::Verbosity;
-use thinwedge_protocol::openai_models::ApplyPatchToolType;
-use thinwedge_protocol::openai_models::ConfigShellToolType;
-use thinwedge_protocol::openai_models::InputModality;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelVisibility;
-use thinwedge_protocol::openai_models::ModelsResponse;
-use thinwedge_protocol::openai_models::ReasoningEffort;
-use thinwedge_protocol::openai_models::ReasoningEffortPreset;
-use thinwedge_protocol::openai_models::TruncationPolicyConfig;
-use thinwedge_protocol::openai_models::WebSearchToolType;
+use thinwedge_protocol::thinwedge_models::ApplyPatchToolType;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::InputModality;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelVisibility;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::thinwedge_models::WebSearchToolType;
 
 const GPT_OSS_CONTEXT_WINDOW: i64 = 128_000;
 const GPT_5_4_CONTEXT_WINDOW: i64 = 272_000;
 const GPT_5_4_MAX_CONTEXT_WINDOW: i64 = 1_000_000;
-const GPT_5_4_CMB_MODEL_ID: &str = "openai.gpt-5.4";
+const GPT_5_4_CMB_MODEL_ID: &str = "thinwedge.gpt-5.4";
 
 pub(crate) fn static_model_catalog() -> ModelsResponse {
     ModelsResponse {
         models: vec![
             gpt_5_4_cmb_bedrock_model(/*priority*/ 0),
             bedrock_oss_model(
-                "openai.gpt-oss-120b",
+                "thinwedge.gpt-oss-120b",
                 "GPT OSS 120B on Bedrock",
                 /*priority*/ 1,
             ),
             bedrock_oss_model(
-                "openai.gpt-oss-20b",
+                "thinwedge.gpt-oss-20b",
                 "GPT OSS 20B on Bedrock",
                 /*priority*/ 2,
             ),
@@ -147,8 +147,8 @@ mod tests {
 
         assert_eq!(catalog.models.len(), 3);
         assert_eq!(catalog.models[0].slug, GPT_5_4_CMB_MODEL_ID);
-        assert_eq!(catalog.models[1].slug, "openai.gpt-oss-120b");
-        assert_eq!(catalog.models[2].slug, "openai.gpt-oss-20b");
+        assert_eq!(catalog.models[1].slug, "thinwedge.gpt-oss-120b");
+        assert_eq!(catalog.models[2].slug, "thinwedge.gpt-oss-20b");
     }
 
     #[test]

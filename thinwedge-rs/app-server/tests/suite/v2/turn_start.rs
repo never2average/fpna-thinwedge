@@ -65,7 +65,7 @@ use thinwedge_protocol::config_types::ModeKind;
 use thinwedge_protocol::config_types::Personality;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::Settings;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::MAX_USER_INPUT_TEXT_CHARS;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use core_test_support::responses;

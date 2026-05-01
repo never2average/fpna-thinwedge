@@ -5,8 +5,8 @@ use thinwedge_app_server_protocol::ModelUpgradeInfo;
 use thinwedge_app_server_protocol::ReasoningEffortOption;
 use thinwedge_core::ThreadManager;
 use thinwedge_models_manager::manager::RefreshStrategy;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
 
 pub async fn supported_models(
     thread_manager: Arc<ThreadManager>,

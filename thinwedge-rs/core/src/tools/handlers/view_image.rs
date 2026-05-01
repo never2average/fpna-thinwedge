@@ -4,7 +4,7 @@ use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::FunctionCallOutputPayload;
 use thinwedge_protocol::models::ImageDetail;
 use thinwedge_protocol::models::ResponseInputItem;
-use thinwedge_protocol::openai_models::InputModality;
+use thinwedge_protocol::thinwedge_models::InputModality;
 use thinwedge_utils_image::PromptImageMode;
 use thinwedge_utils_image::load_for_prompt_bytes;
 use serde::Deserialize;

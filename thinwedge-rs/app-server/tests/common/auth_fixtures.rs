@@ -128,7 +128,7 @@ pub fn encode_id_token(claims: &ChatGptIdTokenClaims) -> Result<String> {
     }
     if !auth_payload.is_empty() {
         payload.insert(
-            "https://api.openai.com/auth".to_string(),
+            "https://api.thinwedge.com/auth".to_string(),
             serde_json::Value::Object(auth_payload),
         );
     }
@@ -160,7 +160,7 @@ pub fn write_chatgpt_auth(
 
     let auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        openai_api_key: None,
+        thinwedge_api_key: None,
         tokens: Some(tokens),
         last_refresh,
         agent_identity: None,

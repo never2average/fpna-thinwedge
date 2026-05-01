@@ -7,7 +7,7 @@ use crate::skills_load_input_from_config;
 use thinwedge_config::ConfigLayerStackOrdering;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::Verbosity;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_absolute_path::test_support::PathExt;
 use pretty_assertions::assert_eq;
 use std::fs;

@@ -22,8 +22,8 @@ use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::SessionSource;
@@ -52,7 +52,7 @@ use tracing::Instrument;
 use tracing_test::traced_test;
 
 const MODEL: &str = "gpt-5.3-thinwedge";
-const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
+const THINWEDGE_BETA_HEADER: &str = "ThinWedge-Beta";
 const USER_AGENT_HEADER: &str = "user-agent";
 const WS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
 const X_CLIENT_REQUEST_ID_HEADER: &str = "x-client-request-id";
@@ -120,7 +120,7 @@ async fn responses_websocket_streams_request() {
     assert_eq!(body["input"].as_array().map(Vec::len), Some(1));
     let handshake = server.single_handshake();
     assert_eq!(
-        handshake.header(OPENAI_BETA_HEADER),
+        handshake.header(THINWEDGE_BETA_HEADER),
         Some(WS_V2_BETA_HEADER_VALUE.to_string())
     );
     assert_eq!(
@@ -522,11 +522,11 @@ async fn responses_websocket_prewarm_uses_v2_when_provider_supports_websockets()
     assert_eq!(server.single_connection().len(), 1);
 
     let handshake = server.single_handshake();
-    let openai_beta_header = handshake
-        .header(OPENAI_BETA_HEADER)
-        .expect("missing OpenAI-Beta header");
+    let thinwedge_beta_header = handshake
+        .header(THINWEDGE_BETA_HEADER)
+        .expect("missing ThinWedge-Beta header");
     assert!(
-        openai_beta_header
+        thinwedge_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -575,11 +575,11 @@ async fn responses_websocket_preconnect_runs_when_only_v2_feature_enabled() {
     assert_eq!(server.single_connection().len(), 1);
 
     let handshake = server.single_handshake();
-    let openai_beta_header = handshake
-        .header(OPENAI_BETA_HEADER)
-        .expect("missing OpenAI-Beta header");
+    let thinwedge_beta_header = handshake
+        .header(THINWEDGE_BETA_HEADER)
+        .expect("missing ThinWedge-Beta header");
     assert!(
-        openai_beta_header
+        thinwedge_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -624,11 +624,11 @@ async fn responses_websocket_v2_requests_use_v2_when_provider_supports_websocket
     );
 
     let handshake = server.single_handshake();
-    let openai_beta_header = handshake
-        .header(OPENAI_BETA_HEADER)
-        .expect("missing OpenAI-Beta header");
+    let thinwedge_beta_header = handshake
+        .header(THINWEDGE_BETA_HEADER)
+        .expect("missing ThinWedge-Beta header");
     assert!(
-        openai_beta_header
+        thinwedge_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -717,11 +717,11 @@ async fn responses_websocket_v2_wins_when_both_features_enabled() {
     );
 
     let handshake = server.single_handshake();
-    let openai_beta_header = handshake
-        .header(OPENAI_BETA_HEADER)
-        .expect("missing OpenAI-Beta header");
+    let thinwedge_beta_header = handshake
+        .header(THINWEDGE_BETA_HEADER)
+        .expect("missing ThinWedge-Beta header");
     assert!(
-        openai_beta_header
+        thinwedge_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -1248,7 +1248,7 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
     let mut client_session = harness.client.new_session();
     let first_turn_metadata =
         r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write"}"#;
-    let enriched_turn_metadata = r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write","workspaces":[{"root_path":"/tmp/repo","latest_git_commit_hash":"abc123","associated_remote_urls":["git@github.com:openai/thinwedge.git"],"has_changes":true}]}"#;
+    let enriched_turn_metadata = r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write","workspaces":[{"root_path":"/tmp/repo","latest_git_commit_hash":"abc123","associated_remote_urls":["git@github.com:thinwedge/thinwedge.git"],"has_changes":true}]}"#;
     let prompt_one = prompt_with_input(vec![message_item("hello")]);
     let prompt_two = prompt_with_input(vec![
         message_item("hello"),
@@ -1697,7 +1697,7 @@ async fn responses_websocket_v2_surfaces_terminal_error_without_close_handshake(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn responses_websocket_v2_sets_openai_beta_header() {
+async fn responses_websocket_v2_sets_thinwedge_beta_header() {
     skip_if_no_network!();
 
     let server = start_websocket_server(vec![vec![vec![
@@ -1713,11 +1713,11 @@ async fn responses_websocket_v2_sets_openai_beta_header() {
     stream_until_complete(&mut session, &harness, &prompt).await;
 
     let handshake = server.single_handshake();
-    let openai_beta_header = handshake
-        .header(OPENAI_BETA_HEADER)
-        .expect("missing OpenAI-Beta header");
+    let thinwedge_beta_header = handshake
+        .header(THINWEDGE_BETA_HEADER)
+        .expect("missing ThinWedge-Beta header");
     assert!(
-        openai_beta_header
+        thinwedge_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -1781,7 +1781,7 @@ fn websocket_provider_with_connect_timeout(
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms,
-        requires_openai_auth: false,
+        requires_thinwedge_auth: false,
         supports_websockets: true,
     }
 }

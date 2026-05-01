@@ -3,8 +3,8 @@
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
-import { ThinWedge } from "@openai/thinwedge-sdk";
-import type { ThreadEvent, ThreadItem } from "@openai/thinwedge-sdk";
+import { ThinWedge } from "@thinwedge/thinwedge-sdk";
+import type { ThreadEvent, ThreadItem } from "@thinwedge/thinwedge-sdk";
 import { thinwedgePathOverride } from "./helpers.ts";
 
 const thinwedge = new ThinWedge({ thinwedgePathOverride: thinwedgePathOverride() });

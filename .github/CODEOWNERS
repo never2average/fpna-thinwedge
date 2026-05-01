@@ -1,5 +1,5 @@
 # Core crate ownership.
-/thinwedge-rs/core/ @openai/thinwedge-core-agent-team
+/thinwedge-rs/core/ @thinwedge/thinwedge-core-agent-team
 
 # Keep ownership changes reviewed by the same team.
-/.github/CODEOWNERS @openai/thinwedge-core-agent-team
+/.github/CODEOWNERS @thinwedge/thinwedge-core-agent-team

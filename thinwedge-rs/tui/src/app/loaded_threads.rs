@@ -115,7 +115,7 @@ mod tests {
             forked_from_id: None,
             preview: String::new(),
             ephemeral: false,
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             created_at: 0,
             updated_at: 0,
             status: ThreadStatus::Idle,

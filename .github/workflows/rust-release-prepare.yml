@@ -15,7 +15,7 @@ permissions:
 jobs:
   prepare:
     # Prevent scheduled runs on forks (no secrets, wastes Actions minutes)
-    if: github.repository == 'openai/thinwedge'
+    if: github.repository == 'thinwedge/thinwedge'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -25,17 +25,17 @@ jobs:
 
       - name: Update models.json
         env:
-          OPENAI_API_KEY: ${{ secrets.THINWEDGE_OPENAI_API_KEY }}
+          THINWEDGE_API_KEY: ${{ secrets.THINWEDGE_THINWEDGE_API_KEY }}
         run: |
           set -euo pipefail
 
           client_version="99.99.99"
           terminal_info="github-actions"
           user_agent="thinwedge_cli_rs/99.99.99 (Linux $(uname -r); $(uname -m)) ${terminal_info}"
-          base_url="${OPENAI_BASE_URL:-https://chatgpt.com/backend-api/thinwedge}"
+          base_url="${THINWEDGE_BASE_URL:-https://chatgpt.com/backend-api/thinwedge}"
 
           headers=(
-            -H "Authorization: Bearer ${OPENAI_API_KEY}"
+            -H "Authorization: Bearer ${THINWEDGE_API_KEY}"
             -H "User-Agent: ${user_agent}"
           )
 

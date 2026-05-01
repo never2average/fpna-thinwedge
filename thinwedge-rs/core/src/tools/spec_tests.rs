@@ -13,8 +13,8 @@ use thinwedge_models_manager::model_info::with_config_overrides;
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ConfigShellToolType;
-use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_tools::AdditionalProperties;
 use thinwedge_tools::ConfiguredToolSpec;
@@ -1433,7 +1433,7 @@ async fn test_mcp_tool_anyof_defaults_to_string() {
 }
 
 #[tokio::test]
-async fn test_get_openai_tools_mcp_tools_with_additional_properties_schema() {
+async fn test_get_thinwedge_tools_mcp_tools_with_additional_properties_schema() {
     let config = test_config().await;
     let model_info = construct_model_info_offline("gpt-5.4", &config);
     let mut features = Features::with_defaults();

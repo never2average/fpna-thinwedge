@@ -13,8 +13,8 @@
 //! direction.
 
 use thinwedge_protocol::config_types::ModeKind;
-use thinwedge_protocol::openai_models::ModelPreset;
-use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
+use thinwedge_protocol::thinwedge_models::ModelPreset;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use crossterm::event::KeyEvent;
 use strum::IntoEnumIterator;
 

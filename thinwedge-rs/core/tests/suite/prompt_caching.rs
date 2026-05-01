@@ -10,7 +10,7 @@ use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::Settings;
 use thinwedge_protocol::config_types::WebSearchMode;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::permissions::NetworkSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::ENVIRONMENT_CONTEXT_OPEN_TAG;

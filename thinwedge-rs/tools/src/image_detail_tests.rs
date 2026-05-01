@@ -2,7 +2,7 @@ use super::*;
 use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::ImageDetail;
-use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 

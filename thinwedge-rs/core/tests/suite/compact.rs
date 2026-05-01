@@ -9,8 +9,8 @@ use thinwedge_model_provider_info::built_in_model_providers;
 use thinwedge_models_manager::bundled_models_response;
 use thinwedge_protocol::items::TurnItem;
 use thinwedge_protocol::models::PermissionProfile;
-use thinwedge_protocol::openai_models::ModelInfo;
-use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::thinwedge_models::ModelsResponse;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::ItemCompletedEvent;
@@ -119,10 +119,10 @@ fn json_fragment(text: &str) -> String {
         .to_string()
 }
 
-fn non_openai_model_provider(server: &MockServer) -> ModelProviderInfo {
+fn non_thinwedge_model_provider(server: &MockServer) -> ModelProviderInfo {
     let mut provider =
-        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
-    provider.name = "OpenAI (test)".into();
+        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone();
+    provider.name = "ThinWedge (test)".into();
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
     provider
@@ -252,7 +252,7 @@ async fn summarize_context_three_requests_and_instructions() {
     let request_log = mount_sse_sequence(&server, vec![sse1, sse2, sse3]).await;
 
     // Build config pointing to the mock server and spawn ThinWedge.
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
@@ -454,7 +454,7 @@ async fn manual_compact_uses_custom_prompt() {
 
     let custom_prompt = "Use this compact prompt instead";
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         config.compact_prompt = Some(custom_prompt.to_string());
@@ -545,7 +545,7 @@ async fn manual_compact_emits_api_and_local_token_usage_events() {
     ]);
     mount_sse_once(&server, sse_compact).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
@@ -604,7 +604,7 @@ async fn manual_compact_emits_context_compaction_items() {
     ]);
     mount_sse_sequence(&server, vec![sse1, sse2]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
@@ -670,10 +670,10 @@ async fn multiple_auto_compact_per_task_runs_after_token_limit_hit() {
 
     let server = start_mock_server().await;
 
-    let non_openai_provider_name = non_openai_model_provider(&server).name;
+    let non_thinwedge_provider_name = non_thinwedge_model_provider(&server).name;
     let thinwedge = test_thinwedge()
         .with_config(move |config| {
-            config.model_provider.name = non_openai_provider_name;
+            config.model_provider.name = non_thinwedge_provider_name;
         })
         .build(&server)
         .await
@@ -1268,7 +1268,7 @@ async fn auto_compact_runs_after_token_limit_hit() {
 
     let request_log = mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
 
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
@@ -1464,7 +1464,7 @@ async fn auto_compact_emits_context_compaction_items() {
 
     mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
@@ -1549,7 +1549,7 @@ async fn auto_compact_starts_after_turn_started() {
 
     mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
@@ -1768,7 +1768,7 @@ async fn pre_sampling_compact_runs_on_switch_to_smaller_context_model() {
     )
     .await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_model(previous_model)
@@ -1870,7 +1870,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
     )
     .await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut initial_builder = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_model(previous_model)
@@ -1913,7 +1913,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
     })
     .await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut resumed_builder = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_model(previous_model)
@@ -2007,7 +2007,7 @@ async fn auto_compact_persists_rollout_entries() {
     };
     mount_sse_once_match(&server, fourth_matcher, sse4).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
 
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
@@ -2125,7 +2125,7 @@ async fn manual_compact_retries_after_context_window_error() {
     )
     .await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
 
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
@@ -2233,7 +2233,7 @@ async fn manual_compact_non_context_failure_retries_then_emits_task_error() {
 
     mount_sse_sequence(&server, vec![user_turn, compact_failed_1, compact_failed_2]).await;
 
-    let mut model_provider = non_openai_model_provider(&server);
+    let mut model_provider = non_thinwedge_model_provider(&server);
     model_provider.stream_max_retries = Some(1);
 
     let thinwedge = test_thinwedge()
@@ -2333,7 +2333,7 @@ async fn manual_compact_twice_preserves_latest_user_messages() {
     )
     .await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
 
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
@@ -2527,7 +2527,7 @@ async fn auto_compact_allows_multiple_attempts_when_interleaved_with_other_turn_
 
     let request_log = mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4, sse5, sse6]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
 
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
@@ -2632,7 +2632,7 @@ async fn snapshot_request_shape_mid_turn_continuation_compaction() {
     let auto_compact_mock = mount_sse_once(&server, auto_compact_turn).await;
     let post_auto_compact_mock = mount_sse_once(&server, post_auto_compact_turn).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
 
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
@@ -2736,7 +2736,7 @@ async fn auto_compact_clamps_config_limit_to_context_window() {
     let auto_compact_mock = mount_sse_once(&server, auto_compact_turn).await;
     mount_sse_once(&server, post_auto_compact_turn).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let mut builder = test_thinwedge().with_config(move |config| {
         config.model_provider = model_provider;
         set_test_compact_prompt(config);
@@ -3007,7 +3007,7 @@ async fn snapshot_request_shape_pre_turn_compaction_including_incoming_user_mess
     ]);
     let request_log = mount_sse_sequence(&server, vec![sse1, sse2, sse3, sse4]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let thinwedge = test_thinwedge()
         .with_config(move |config| {
             config.model_provider = model_provider;
@@ -3135,7 +3135,7 @@ async fn snapshot_request_shape_pre_turn_compaction_strips_incoming_model_switch
     )
     .await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let test = test_thinwedge()
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
         .with_model(previous_model)
@@ -3233,7 +3233,7 @@ async fn snapshot_request_shape_pre_turn_compaction_context_window_exceeded() {
     );
     let request_log = mount_sse_sequence(&server, responses).await;
 
-    let mut model_provider = non_openai_model_provider(&server);
+    let mut model_provider = non_thinwedge_model_provider(&server);
     model_provider.stream_max_retries = Some(0);
     let thinwedge = test_thinwedge()
         .with_config(move |config| {
@@ -3318,7 +3318,7 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
     ]);
     let request_log = mount_sse_sequence(&server, vec![compact_turn, follow_up_turn]).await;
 
-    let model_provider = non_openai_model_provider(&server);
+    let model_provider = non_thinwedge_model_provider(&server);
     let thinwedge = test_thinwedge()
         .with_config(move |config| {
             config.model_provider = model_provider;

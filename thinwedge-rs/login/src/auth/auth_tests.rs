@@ -27,7 +27,7 @@ async fn refresh_without_id_token() {
     let thinwedge_home = tempdir().unwrap();
     let fake_jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: None,
         },
@@ -58,7 +58,7 @@ fn login_with_api_key_overwrites_existing_auth_json() {
     let dir = tempdir().unwrap();
     let auth_path = dir.path().join("auth.json");
     let stale_auth = json!({
-        "OPENAI_API_KEY": "sk-old",
+        "THINWEDGE_API_KEY": "sk-old",
         "tokens": {
             "id_token": "stale.header.payload",
             "access_token": "stale-access",
@@ -79,7 +79,7 @@ fn login_with_api_key_overwrites_existing_auth_json() {
     let auth = storage
         .try_read_auth_json(&auth_path)
         .expect("auth.json should parse");
-    assert_eq!(auth.openai_api_key.as_deref(), Some("sk-new"));
+    assert_eq!(auth.thinwedge_api_key.as_deref(), Some("sk-new"));
     assert!(auth.tokens.is_none(), "tokens should be cleared");
 }
 
@@ -118,7 +118,7 @@ async fn login_with_agent_identity_writes_only_token() {
         Some(agent_identity.as_str())
     );
     assert!(auth.tokens.is_none(), "tokens should be cleared");
-    assert!(auth.openai_api_key.is_none(), "API key should be cleared");
+    assert!(auth.thinwedge_api_key.is_none(), "API key should be cleared");
     server.verify().await;
 }
 
@@ -194,7 +194,7 @@ async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let fake_jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: None,
         },
@@ -225,7 +225,7 @@ async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
     assert_eq!(
         AuthDotJson {
             auth_mode: None,
-            openai_api_key: None,
+            thinwedge_api_key: None,
             tokens: Some(TokenData {
                 id_token: IdTokenInfo {
                     email: Some("user@example.com".to_string()),
@@ -254,7 +254,7 @@ async fn loads_api_key_from_auth_json() {
     let auth_file = dir.path().join("auth.json");
     std::fs::write(
         auth_file,
-        r#"{"OPENAI_API_KEY":"sk-test-key","tokens":null,"last_refresh":null}"#,
+        r#"{"THINWEDGE_API_KEY":"sk-test-key","tokens":null,"last_refresh":null}"#,
     )
     .unwrap();
 
@@ -278,7 +278,7 @@ fn logout_removes_auth_file() -> Result<(), std::io::Error> {
     let dir = tempdir()?;
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(ApiAuthMode::ApiKey),
-        openai_api_key: Some("sk-test-key".to_string()),
+        thinwedge_api_key: Some("sk-test-key".to_string()),
         tokens: None,
         last_refresh: None,
         agent_identity: None,
@@ -327,7 +327,7 @@ async fn refresh_failure_is_scoped_to_the_matching_auth_snapshot() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: Some("org_mine".to_string()),
         },
@@ -593,7 +593,7 @@ exit 1
 }
 
 struct AuthFileParams {
-    openai_api_key: Option<String>,
+    thinwedge_api_key: Option<String>,
     chatgpt_plan_type: Option<String>,
     chatgpt_account_id: Option<String>,
 }
@@ -602,7 +602,7 @@ fn write_auth_file(params: AuthFileParams, thinwedge_home: &Path) -> std::io::Re
     let fake_jwt = fake_jwt_for_auth_file_params(&params)?;
     let auth_file = get_auth_file(thinwedge_home);
     let auth_json_data = json!({
-        "OPENAI_API_KEY": params.openai_api_key,
+        "THINWEDGE_API_KEY": params.thinwedge_api_key,
         "tokens": {
             "id_token": fake_jwt,
             "access_token": "test-access-token",
@@ -642,7 +642,7 @@ fn fake_jwt_for_auth_file_params(params: &AuthFileParams) -> std::io::Result<Str
     let payload = serde_json::json!({
         "email": "user@example.com",
         "email_verified": true,
-        "https://api.openai.com/auth": auth_payload,
+        "https://api.thinwedge.com/auth": auth_payload,
     });
     let b64 = |b: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b);
     let header_b64 = b64(&serde_json::to_vec(&header)?);
@@ -808,7 +808,7 @@ async fn enforce_login_restrictions_logs_out_for_workspace_mismatch() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: Some("org_another_org".to_string()),
         },
@@ -840,7 +840,7 @@ async fn enforce_login_restrictions_allows_matching_workspace() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: Some("org_mine".to_string()),
         },
@@ -1045,7 +1045,7 @@ async fn plan_type_maps_known_plan() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: None,
         },
@@ -1073,7 +1073,7 @@ async fn plan_type_maps_self_serve_business_usage_based_plan() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("self_serve_business_usage_based".to_string()),
             chatgpt_account_id: None,
         },
@@ -1104,7 +1104,7 @@ async fn plan_type_maps_enterprise_cbp_usage_based_plan() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("enterprise_cbp_usage_based".to_string()),
             chatgpt_account_id: None,
         },
@@ -1135,7 +1135,7 @@ async fn plan_type_maps_unknown_to_unknown() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: Some("mystery-tier".to_string()),
             chatgpt_account_id: None,
         },
@@ -1163,7 +1163,7 @@ async fn missing_plan_type_maps_to_unknown() {
     let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
     let _jwt = write_auth_file(
         AuthFileParams {
-            openai_api_key: None,
+            thinwedge_api_key: None,
             chatgpt_plan_type: None,
             chatgpt_account_id: None,
         },

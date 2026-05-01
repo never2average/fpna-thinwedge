@@ -668,7 +668,7 @@ mod tests {
                     "connectorDescription": "Mail connector",
                     "connectorFutureField": "future connector metadata",
                     "CONNECTOR_UPPERCASE": "uppercase connector metadata",
-                    "openai/fileParams": ["file"],
+                    "thinwedge/fileParams": ["file"],
                     "custom": "kept"
                 })
                 .as_object()
@@ -707,7 +707,7 @@ mod tests {
         }
         assert!(meta.0.contains_key("connectorFutureField"));
         assert!(meta.0.contains_key("CONNECTOR_UPPERCASE"));
-        assert!(meta.0.contains_key("openai/fileParams"));
+        assert!(meta.0.contains_key("thinwedge/fileParams"));
         assert_eq!(
             meta.0.get("custom").and_then(|value| value.as_str()),
             Some("kept")

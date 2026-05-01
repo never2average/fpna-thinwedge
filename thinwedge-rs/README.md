@@ -230,7 +230,7 @@ Example model record:
   "defaultEnvironmentId": "env-pricing",
   "inference": {
     "providerId": "openrouter",
-    "modelName": "openai/gpt-4.1-mini",
+    "modelName": "thinwedge/gpt-4.1-mini",
     "baseUrl": "https://openrouter.ai/api/v1",
     "apiKeyEnv": "OPENROUTER_API_KEY",
     "wireApi": "chatCompletions"

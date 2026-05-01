@@ -3,7 +3,7 @@ use thinwedge_collaboration_mode_templates::PLAN as COLLABORATION_MODE_PLAN;
 use thinwedge_protocol::config_types::CollaborationModeMask;
 use thinwedge_protocol::config_types::ModeKind;
 use thinwedge_protocol::config_types::TUI_VISIBLE_COLLABORATION_MODES;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_template::Template;
 use std::sync::LazyLock;
 

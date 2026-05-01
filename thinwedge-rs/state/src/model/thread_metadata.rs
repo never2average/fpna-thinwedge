@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::DateTime;
 use chrono::Utc;
 use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
@@ -469,7 +469,7 @@ mod tests {
     use chrono::DateTime;
     use chrono::Utc;
     use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::openai_models::ReasoningEffort;
+    use thinwedge_protocol::thinwedge_models::ReasoningEffort;
     use pretty_assertions::assert_eq;
     use std::path::PathBuf;
 
@@ -483,7 +483,7 @@ mod tests {
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             model: Some("gpt-5".to_string()),
             reasoning_effort: reasoning_effort.map(str::to_string),
             cwd: "/tmp/workspace".to_string(),
@@ -511,7 +511,7 @@ mod tests {
             agent_nickname: None,
             agent_role: None,
             agent_path: None,
-            model_provider: "openai".to_string(),
+            model_provider: "thinwedge".to_string(),
             model: Some("gpt-5".to_string()),
             reasoning_effort,
             cwd: PathBuf::from("/tmp/workspace"),

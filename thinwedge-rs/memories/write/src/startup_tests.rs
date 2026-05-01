@@ -4,7 +4,7 @@ use thinwedge_git_utils::diff_since_latest_init;
 use thinwedge_git_utils::reset_git_repository;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::ServiceTier;
-use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::SessionSource;

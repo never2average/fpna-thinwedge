@@ -1781,7 +1781,7 @@ async fn webrtc_v2_background_agent_progress_is_sent_before_function_output() ->
 async fn webrtc_v2_tool_call_delegated_turn_can_execute_shell_tool() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
-    // Phase 1: keep the two mocked OpenAI conversations explicit. The realtime sideband only
+    // Phase 1: keep the two mocked ThinWedge conversations explicit. The realtime sideband only
     // calls the `background_agent` function; the shell command is requested by the delegated
     // background agent Responses turn that app-server starts after receiving that function call.
     let main_loop = main_loop_responses(vec![

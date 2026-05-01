@@ -25,7 +25,7 @@ use thinwedge_config::config_toml::RealtimeWsMode;
 use thinwedge_config::config_toml::RealtimeWsVersion;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::default_client::default_headers;
-use thinwedge_login::read_openai_api_key_from_env;
+use thinwedge_login::read_thinwedge_api_key_from_env;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
@@ -946,8 +946,8 @@ fn realtime_api_key(auth: Option<&ThinWedgeAuth>, provider: &ModelProviderInfo) 
 
     // TODO(aibrahim): Remove this temporary fallback once realtime auth no longer
     // requires API key auth for ChatGPT/SIWC sessions.
-    if provider.is_openai()
-        && let Some(api_key) = read_openai_api_key_from_env()
+    if provider.is_thinwedge()
+        && let Some(api_key) = read_thinwedge_api_key_from_env()
     {
         return Ok(api_key);
     }

@@ -41,15 +41,15 @@ export type ThinWedgeExecArgs = {
 
 const INTERNAL_ORIGINATOR_ENV = "THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE";
 const TYPESCRIPT_SDK_ORIGINATOR = "thinwedge_sdk_ts";
-const THINWEDGE_NPM_NAME = "@openai/thinwedge";
+const THINWEDGE_NPM_NAME = "@thinwedge/thinwedge";
 
 const PLATFORM_PACKAGE_BY_TARGET: Record<string, string> = {
-  "x86_64-unknown-linux-musl": "@openai/thinwedge-linux-x64",
-  "aarch64-unknown-linux-musl": "@openai/thinwedge-linux-arm64",
-  "x86_64-apple-darwin": "@openai/thinwedge-darwin-x64",
-  "aarch64-apple-darwin": "@openai/thinwedge-darwin-arm64",
-  "x86_64-pc-windows-msvc": "@openai/thinwedge-win32-x64",
-  "aarch64-pc-windows-msvc": "@openai/thinwedge-win32-arm64",
+  "x86_64-unknown-linux-musl": "@thinwedge/thinwedge-linux-x64",
+  "aarch64-unknown-linux-musl": "@thinwedge/thinwedge-linux-arm64",
+  "x86_64-apple-darwin": "@thinwedge/thinwedge-darwin-x64",
+  "aarch64-apple-darwin": "@thinwedge/thinwedge-darwin-arm64",
+  "x86_64-pc-windows-msvc": "@thinwedge/thinwedge-win32-x64",
+  "aarch64-pc-windows-msvc": "@thinwedge/thinwedge-win32-arm64",
 };
 
 const moduleRequire = createRequire(import.meta.url);
@@ -81,7 +81,7 @@ export class ThinWedgeExec {
     if (args.baseUrl) {
       commandArgs.push(
         "--config",
-        `openai_base_url=${toTomlValue(args.baseUrl, "openai_base_url")}`,
+        `thinwedge_base_url=${toTomlValue(args.baseUrl, "thinwedge_base_url")}`,
       );
     }
 
