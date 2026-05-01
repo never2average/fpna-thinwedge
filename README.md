@@ -1,9 +1,5 @@
 <p align="center"><code>npm i -g @never2average-does-npm/cli</code></p>
 <p align="center"><strong>ThinWedge</strong> is an FP&amp;A agent terminal that runs locally on your computer.
-<p align="center">
-  <img src="./.github/thinwedge-cli-splash.png" alt="ThinWedge terminal splash" width="80%" />
-</p>
-</br>
 ThinWedge is published from this repository for GitHub Releases and npm.</p>
 
 ---

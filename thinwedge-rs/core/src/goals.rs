@@ -14,8 +14,6 @@ use anyhow::Context;
 use futures::future::BoxFuture;
 use std::sync::Arc;
 use std::sync::LazyLock;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 use thinwedge_features::Feature;
@@ -90,7 +88,6 @@ pub(crate) enum GoalRuntimeEvent<'a> {
     TurnFinished {
         turn_context: &'a TurnContext,
         turn_completed: bool,
-        tool_calls: u64,
     },
     MaybeContinueIfIdle,
     TaskAborted {
@@ -112,7 +109,6 @@ pub(crate) struct GoalRuntimeState {
     accounting: Mutex<GoalAccountingSnapshot>,
     continuation_turn_id: Mutex<Option<String>>,
     pub(crate) continuation_lock: Semaphore,
-    pub(crate) continuation_suppressed: AtomicBool,
 }
 
 struct GoalContinuationCandidate {
@@ -129,7 +125,6 @@ impl GoalRuntimeState {
             accounting: Mutex::new(GoalAccountingSnapshot::new()),
             continuation_turn_id: Mutex::new(None),
             continuation_lock: Semaphore::new(/*permits*/ 1),
-            continuation_suppressed: AtomicBool::new(false),
         }
     }
 }
@@ -276,9 +271,7 @@ impl Session {
     /// account usage and may inject budget steering, completion accounting
     /// suppresses that steering, external mutations account best-effort before
     /// changing state, interrupts pause active goals, resumes reactivate paused
-    /// goals, explicit maybe-continue events start idle goal continuation turns,
-    /// and no-tool continuation turns suppress the next automatic continuation
-    /// until user/tool/external activity resets it.
+    /// goals, and explicit maybe-continue events start idle goal continuation turns.
     pub(crate) fn goal_runtime_apply<'a>(
         self: &'a Arc<Self>,
         event: GoalRuntimeEvent<'a>,
@@ -296,7 +289,6 @@ impl Session {
                 turn_context,
                 tool_name,
             } => Box::pin(async move {
-                self.reset_thread_goal_continuation_suppression();
                 if tool_name != thinwedge_tools::UPDATE_GOAL_TOOL_NAME {
                     self.account_thread_goal_progress(turn_context, BudgetLimitSteering::Allowed)
                         .await?;
@@ -304,7 +296,6 @@ impl Session {
                 Ok(())
             }),
             GoalRuntimeEvent::ToolCompletedGoal { turn_context } => Box::pin(async move {
-                self.reset_thread_goal_continuation_suppression();
                 self.account_thread_goal_progress(turn_context, BudgetLimitSteering::Suppressed)
                     .await?;
                 Ok(())
@@ -312,9 +303,8 @@ impl Session {
             GoalRuntimeEvent::TurnFinished {
                 turn_context,
                 turn_completed,
-                tool_calls,
             } => Box::pin(async move {
-                self.finish_thread_goal_turn(turn_context, turn_completed, tool_calls)
+                self.finish_thread_goal_turn(turn_context, turn_completed)
                     .await;
                 Ok(())
             }),
@@ -331,7 +321,6 @@ impl Session {
                 Ok(())
             }),
             GoalRuntimeEvent::ExternalMutationStarting => Box::pin(async move {
-                self.reset_thread_goal_continuation_suppression();
                 if let Err(err) = self.account_thread_goal_before_external_mutation().await {
                     tracing::warn!(
                         "failed to account thread goal progress before external mutation: {err}"
@@ -463,7 +452,6 @@ impl Session {
         let goal_status = goal.status;
         let goal_id = goal.goal_id.clone();
         let goal = protocol_goal_from_state(goal);
-        self.reset_thread_goal_continuation_suppression();
         *self.goal_runtime.budget_limit_reported_goal_id.lock().await = None;
         let newly_active_goal = goal_status == thinwedge_state::ThreadGoalStatus::Active
             && (replacing_goal
@@ -532,7 +520,6 @@ impl Session {
 
         let goal_id = goal.goal_id.clone();
         let goal = protocol_goal_from_state(goal);
-        self.reset_thread_goal_continuation_suppression();
         *self.goal_runtime.budget_limit_reported_goal_id.lock().await = None;
 
         let current_token_usage = self.total_token_usage().await.unwrap_or_default();
@@ -561,7 +548,6 @@ impl Session {
     ) {
         match status {
             thinwedge_state::ThreadGoalStatus::Active => {
-                self.reset_thread_goal_continuation_suppression();
                 match self.state_db_for_thread_goals().await {
                     Ok(Some(state_db)) => {
                         match state_db.get_thread_goal(self.conversation_id).await {
@@ -609,7 +595,6 @@ impl Session {
     }
 
     async fn clear_stopped_thread_goal_runtime_state(&self) {
-        self.reset_thread_goal_continuation_suppression();
         *self.goal_runtime.budget_limit_reported_goal_id.lock().await = None;
         let mut accounting = self.goal_runtime.accounting.lock().await;
         if let Some(turn) = accounting.turn.as_mut() {
@@ -664,16 +649,6 @@ impl Session {
         turn_context: &TurnContext,
         token_usage: TokenUsage,
     ) {
-        if self
-            .goal_runtime
-            .continuation_turn_id
-            .lock()
-            .await
-            .as_ref()
-            .is_none_or(|turn_id| turn_id != &turn_context.sub_id)
-        {
-            self.reset_thread_goal_continuation_suppression();
-        }
         self.goal_runtime.accounting.lock().await.turn = Some(GoalTurnAccountingSnapshot::new(
             turn_context.sub_id.clone(),
             token_usage,
@@ -724,12 +699,6 @@ impl Session {
         }
     }
 
-    fn reset_thread_goal_continuation_suppression(&self) {
-        self.goal_runtime
-            .continuation_suppressed
-            .store(false, Ordering::SeqCst);
-    }
-
     async fn mark_thread_goal_continuation_turn_started(&self, turn_id: String) {
         *self.goal_runtime.continuation_turn_id.lock().await = Some(turn_id);
     }
@@ -758,7 +727,6 @@ impl Session {
         self: &Arc<Self>,
         turn_context: &TurnContext,
         turn_completed: bool,
-        turn_tool_calls: u64,
     ) {
         if turn_completed
             && let Err(err) = self
@@ -768,15 +736,8 @@ impl Session {
             tracing::warn!("failed to account thread goal progress at turn end: {err}");
         }
 
-        if self
-            .take_thread_goal_continuation_turn(&turn_context.sub_id)
-            .await
-            && turn_tool_calls == 0
-        {
-            self.goal_runtime
-                .continuation_suppressed
-                .store(true, Ordering::SeqCst);
-        }
+        self.take_thread_goal_continuation_turn(&turn_context.sub_id)
+            .await;
         if turn_completed {
             let mut accounting = self.goal_runtime.accounting.lock().await;
             if accounting
@@ -1127,7 +1088,6 @@ impl Session {
         };
         let goal_id = goal.goal_id.clone();
         let goal = protocol_goal_from_state(goal);
-        self.reset_thread_goal_continuation_suppression();
         *self.goal_runtime.budget_limit_reported_goal_id.lock().await = None;
         let active_turn_id = self
             .active_turn_context()
@@ -1253,16 +1213,6 @@ impl Session {
         if self.has_trigger_turn_mailbox_items().await {
             tracing::debug!(
                 "skipping active goal continuation because trigger-turn mailbox input is pending"
-            );
-            return None;
-        }
-        if self
-            .goal_runtime
-            .continuation_suppressed
-            .load(Ordering::SeqCst)
-        {
-            tracing::debug!(
-                "skipping active goal continuation because the last continuation made no tool calls"
             );
             return None;
         }
