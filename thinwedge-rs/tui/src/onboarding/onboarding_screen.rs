@@ -495,7 +495,7 @@ pub(crate) async fn run_onboarding_app(
     use tokio_stream::StreamExt;
 
     let mut onboarding_screen = OnboardingScreen::new(tui, args).await;
-    // One-time guard to fully clear the screen after ChatGPT login success message is shown
+    // One-time guard to fully clear the screen after auth success is shown.
     let mut did_full_clear_after_success = false;
 
     tui.draw(u16::MAX, |frame| {
