@@ -13,6 +13,7 @@ const require = createRequire(import.meta.url);
 
 const PLATFORM_PACKAGE_BY_TARGET = {
   "x86_64-unknown-linux-musl": "@never2average-does-npm/cli-linux-x64",
+  "aarch64-unknown-linux-musl": "@never2average-does-npm/cli-linux-arm64",
   "x86_64-apple-darwin": "@never2average-does-npm/cli-darwin-x64",
   "aarch64-apple-darwin": "@never2average-does-npm/cli-darwin-arm64",
   "x86_64-pc-windows-msvc": "@never2average-does-npm/cli-win32-x64",
@@ -70,11 +71,6 @@ if (!targetTriple) {
 
 const platformPackage = PLATFORM_PACKAGE_BY_TARGET[targetTriple];
 if (!platformPackage) {
-  if (targetTriple === "aarch64-unknown-linux-musl") {
-    throw new Error(
-      "ThinWedge does not currently publish a Linux arm64 npm package. Use a GitHub release artifact instead.",
-    );
-  }
   throw new Error(`Unsupported target triple: ${targetTriple}`);
 }
 
