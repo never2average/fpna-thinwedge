@@ -1,12 +1,12 @@
-use super::ArtificialAnalysisCreator;
 use super::ArtificialAnalysisModel;
-use super::ArtificialAnalysisPricing;
 use super::LlmCostSnapshot;
 use super::LlmSortBy;
 use super::coding_index;
 use super::intelligence_index;
 use super::snapshot_for_model;
 use super::sort_models;
+use super::types::ArtificialAnalysisCreator;
+use super::types::ArtificialAnalysisPricing;
 use pretty_assertions::assert_eq;
 use serde_json::json;
 

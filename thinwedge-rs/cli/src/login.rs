@@ -106,7 +106,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
 
 fn print_api_token_login_help() {
     eprintln!(
-        "ThinWedge uses OpenRouter-compatible API-token authentication.\n\nSet OPENROUTER_API_KEY and run:\n\n    thinwedge login\n\nOr pipe the token directly:\n\n    printenv OPENROUTER_API_KEY | thinwedge login --with-api-key\n\nThe token is stored locally in ThinWedge auth storage."
+        "ThinWedge uses OpenRouter-compatible API-token authentication.\n\nRequired for chat:\n\n    export OPENROUTER_API_KEY=...\n    thinwedge login\n\nOr pipe the token directly:\n\n    printenv OPENROUTER_API_KEY | thinwedge login --with-api-key\n\nOptional capability keys:\n\n    ARTIFICIAL_ANALYSIS_API_KEY  LLM market data and cost context\n    RUNPOD_API_KEY               GPU sandbox lifecycle commands\n    AWS_PROFILE/AWS_REGION       AWS Bedrock and cost tools\n\nThe token is stored locally in ThinWedge auth storage."
     );
 }
 

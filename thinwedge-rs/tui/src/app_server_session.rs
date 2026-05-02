@@ -7,7 +7,6 @@ use crate::permission_compat::legacy_compatible_permission_profile;
 use crate::status::StatusAccountDisplay;
 use crate::status::plan_type_display_name;
 use crate::thinwedge_ml;
-use color_eyre::eyre::ContextCompat;
 use color_eyre::eyre::Result;
 use color_eyre::eyre::WrapErr;
 use std::collections::HashMap;
@@ -232,7 +231,7 @@ impl AppServerSession {
             .into_iter()
             .map(model_preset_from_api_model)
             .collect::<Vec<_>>();
-        let default_model = config
+        let default_model = match config
             .model
             .clone()
             .or_else(|| {
@@ -242,7 +241,17 @@ impl AppServerSession {
                     .map(|model| model.model.clone())
             })
             .or_else(|| available_models.first().map(|model| model.model.clone()))
-            .wrap_err("model/list returned no models for TUI bootstrap")?;
+        {
+            Some(model) => model,
+            None => {
+                if let Some(message) = missing_model_provider_env_key_message(config) {
+                    return Err(color_eyre::eyre::eyre!(message));
+                }
+                return Err(color_eyre::eyre::eyre!(
+                    "model/list returned no models for TUI bootstrap"
+                ));
+            }
+        };
 
         let (
             account_email,
@@ -1039,6 +1048,25 @@ pub(crate) fn status_account_display_from_auth_mode(
         }),
         None => None,
     }
+}
+
+fn missing_model_provider_env_key_message(config: &Config) -> Option<String> {
+    let env_key = config.model_provider.env_key.as_deref()?;
+    let is_missing = std::env::var(env_key)
+        .ok()
+        .is_none_or(|value| value.trim().is_empty());
+    if !is_missing {
+        return None;
+    }
+
+    let instructions = config
+        .model_provider
+        .env_key_instructions
+        .as_deref()
+        .unwrap_or("Set the required API key environment variable before starting ThinWedge.");
+    Some(format!(
+        "Missing environment variable: `{env_key}`. {instructions}"
+    ))
 }
 
 fn model_preset_from_api_model(model: ApiModel) -> ModelPreset {
