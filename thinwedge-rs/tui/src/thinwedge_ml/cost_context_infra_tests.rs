@@ -1,6 +1,6 @@
 use super::AwsLineItemSelectBy;
-use super::aws_json_rpc_endpoint_url;
 use super::extract_on_demand_price_dimensions;
+use super::logic::aws_json_rpc_endpoint_url;
 use super::lowest_hourly_price_usd;
 use super::select_price_dimension;
 use pretty_assertions::assert_eq;

@@ -200,17 +200,32 @@ impl AuthModeWidget {
         let mut lines: Vec<Line> = vec![
             Line::from(vec![
                 "  ".into(),
-                "ThinWedge uses API-key authentication.".into(),
+                "ThinWedge uses OpenRouter-compatible API-key authentication.".into(),
             ]),
             Line::from(vec![
                 "  ".into(),
-                "Connect an OpenRouter-compatible API key to continue.".into(),
+                "Required for chat: set ".into(),
+                "OPENROUTER_API_KEY".bold(),
+                " or paste it here.".into(),
             ]),
             "".into(),
-            Line::from(vec!["> 1. ".cyan().dim(), "Provide your API key".cyan()]),
-            "     Works with OpenRouter and other compatible providers"
+            Line::from(vec![
+                "> 1. ".cyan().dim(),
+                "Provide OPENROUTER_API_KEY".cyan(),
+            ]),
+            "     Stored locally in ThinWedge auth storage"
                 .dim()
                 .cyan()
+                .into(),
+            "".into(),
+            "  Optional later: ARTIFICIAL_ANALYSIS_API_KEY for LLM market data."
+                .dim()
+                .into(),
+            "  Optional later: RUNPOD_API_KEY for GPU sandbox lifecycle commands."
+                .dim()
+                .into(),
+            "  Optional later: AWS_PROFILE/AWS_REGION for Bedrock and AWS cost tools."
+                .dim()
                 .into(),
             "".into(),
             Line::from(vec![
@@ -252,12 +267,21 @@ impl AuthModeWidget {
         let mut intro_lines: Vec<Line> = vec![
             Line::from(vec![
                 "> ".into(),
-                "Provide your API key for ThinWedge".bold(),
+                "Provide OPENROUTER_API_KEY for ThinWedge".bold(),
             ]),
             "".into(),
-            "  Paste or type your API key below. It will be stored locally in auth.json.".into(),
+            "  Paste or type your OpenRouter-compatible key below.".into(),
+            "  It will be stored locally in auth.json.".into(),
             "".into(),
         ];
+        if state.value.is_empty() && !state.prepopulated_from_env {
+            intro_lines.push(
+                "  You can also quit, export OPENROUTER_API_KEY, and rerun ThinWedge."
+                    .dim()
+                    .into(),
+            );
+            intro_lines.push("".into());
+        }
         if state.prepopulated_from_env {
             let env_var_name = state.env_var_name.unwrap_or("OPENROUTER_API_KEY");
             intro_lines.push(format!("  Detected {env_var_name}.").into());
@@ -273,7 +297,7 @@ impl AuthModeWidget {
             .render(intro_area, buf);
 
         let content_line: Line = if state.value.is_empty() {
-            vec!["Paste or type your API key".dim()].into()
+            vec!["Paste or type OPENROUTER_API_KEY".dim()].into()
         } else {
             Line::from(state.value.clone())
         };
@@ -281,7 +305,7 @@ impl AuthModeWidget {
             .wrap(Wrap { trim: false })
             .block(
                 Block::default()
-                    .title("API key")
+                    .title("OPENROUTER_API_KEY")
                     .borders(Borders::ALL)
                     .border_type(BorderType::Rounded)
                     .border_style(Style::default().fg(Color::Cyan)),
