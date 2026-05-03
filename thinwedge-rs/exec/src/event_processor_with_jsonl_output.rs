@@ -18,8 +18,9 @@ use thinwedge_core::config::Config;
 use thinwedge_protocol::models::WebSearchAction;
 use thinwedge_protocol::protocol::SessionConfiguredEvent;
 
-pub use crate::event_processor::CodexStatus;
 use crate::event_processor::EventProcessor;
+pub use crate::event_processor::ThinWedgeStatus;
+pub use crate::event_processor::ThinWedgeStatus as CodexStatus;
 use crate::event_processor::handle_last_message;
 use crate::exec_events::AgentMessageItem;
 use crate::exec_events::CollabAgentState;
