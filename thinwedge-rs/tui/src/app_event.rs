@@ -614,6 +614,9 @@ pub(crate) enum AppEvent {
         updates: Vec<(Feature, bool)>,
     },
 
+    /// Persist and apply the built-in Power user permission preset.
+    EnablePowerUserPermissions,
+
     /// Update memory settings and persist them to config.toml.
     UpdateMemorySettings {
         use_memories: bool,

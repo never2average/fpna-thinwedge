@@ -16,6 +16,7 @@ pub enum SlashCommand {
     Fast,
     Approvals,
     Permissions,
+    PowerUser,
     Keymap,
     #[strum(serialize = "setup-default-sandbox")]
     ElevateSandbox,
@@ -114,6 +115,9 @@ impl SlashCommand {
             SlashCommand::Side => "start a side conversation in an ephemeral fork",
             SlashCommand::Approvals => "choose what ThinWedge is allowed to do",
             SlashCommand::Permissions => "choose what ThinWedge is allowed to do",
+            SlashCommand::PowerUser => {
+                "use Power user permissions with auto-review and secret read denies"
+            }
             SlashCommand::Keymap => "remap TUI shortcuts",
             SlashCommand::ElevateSandbox => "set up elevated agent sandbox",
             SlashCommand::SandboxReadRoot => {
@@ -175,6 +179,7 @@ impl SlashCommand {
             | SlashCommand::Personality
             | SlashCommand::Approvals
             | SlashCommand::Permissions
+            | SlashCommand::PowerUser
             | SlashCommand::Keymap
             | SlashCommand::ElevateSandbox
             | SlashCommand::SandboxReadRoot

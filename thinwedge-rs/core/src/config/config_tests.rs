@@ -1279,6 +1279,62 @@ async fn default_permissions_can_select_builtin_profile_without_permissions_tabl
 }
 
 #[tokio::test]
+async fn default_permissions_can_select_builtin_power_user_profile() -> std::io::Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let cwd = TempDir::new()?;
+
+    let config = Config::load_from_base_config_with_overrides(
+        ConfigToml {
+            default_permissions: Some(":power-user".to_string()),
+            sandbox_workspace_write: Some(SandboxWorkspaceWrite {
+                network_access: true,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ConfigOverrides {
+            cwd: Some(cwd.path().to_path_buf()),
+            ..Default::default()
+        },
+        thinwedge_home.abs(),
+    )
+    .await?;
+
+    let policy = config.permissions.file_system_sandbox_policy();
+    assert!(
+        policy.can_write_path_with_cwd(cwd.path(), cwd.path()),
+        "expected :power-user to allow writing the project root, policy: {policy:?}"
+    );
+    assert!(
+        !policy.can_write_path_with_cwd(&cwd.path().join(".git"), cwd.path()),
+        "expected :power-user to protect project metadata, policy: {policy:?}"
+    );
+    assert_eq!(
+        config.permissions.network_sandbox_policy(),
+        NetworkSandboxPolicy::Restricted,
+        ":power-user must not inherit sandbox_workspace_write.network_access=true"
+    );
+    for pattern in [
+        "**/.env*",
+        "**/*secret*",
+        "**/*token*",
+        "**/*.pem",
+        "**/*_key*",
+    ] {
+        assert!(
+            policy.entries.contains(&FileSystemSandboxEntry {
+                path: FileSystemPath::GlobPattern {
+                    pattern: pattern.to_string(),
+                },
+                access: FileSystemAccessMode::None,
+            }),
+            "expected :power-user to deny-read {pattern}, policy: {policy:?}"
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
 async fn empty_config_defaults_to_builtin_profile_for_trusted_project() -> std::io::Result<()> {
     let thinwedge_home = TempDir::new()?;
     let cwd = TempDir::new()?;
