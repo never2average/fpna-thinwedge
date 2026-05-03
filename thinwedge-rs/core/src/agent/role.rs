@@ -468,7 +468,6 @@ Rules:
 - Escalate to `spend-policy-manager` when pricing or packaging conclusions need purchasing policy, approval thresholds, renewal controls, or budget-governance design.
 - You may run `npx @open-slide/cli init` when the user needs a concise pricing deck with options, sensitivities, and risks.
 - Return a decision-ready pricing memo, not just notes."#.to_string()),
-                        config_file: None,
                         nickname_candidates: Some(vec![
                             "Ratecard".to_string(),
                             "Yield".to_string(),
@@ -481,6 +480,7 @@ Rules:
                             "cohort-analysis".to_string(),
                             "willingness-to-pay".to_string(),
                         ]),
+                        config_file: Some(PathBuf::from("pricing-researcher.toml")),
                     }
                 ),
                 (
@@ -500,7 +500,6 @@ Rules:
 - Call `spend-policy-manager` when defensibility or adoption depends on procurement rules, approval friction, budget ownership, or vendor-governance constraints.
 - You may run `npx @open-slide/cli init` when the user needs a concise strategy deck with competitors, risks, and recommended positioning.
 - Distinguish clearly between temporary product lead, operational execution, and true structural moat."#.to_string()),
-                        config_file: None,
                         nickname_candidates: Some(vec![
                             "Alpha".to_string(),
                             "Premium".to_string(),
@@ -512,6 +511,7 @@ Rules:
                             "trend-analysis".to_string(),
                             "benchmark-evidence-capture".to_string(),
                         ]),
+                        config_file: Some(PathBuf::from("moat-researcher.toml")),
                     }
                 ),
                 (
@@ -533,7 +533,6 @@ Rules:
 - Return an assumptions register covering profile, region, billing scope, time window, units, and quantities.
 - Return a line-item BOQ or billing summary with source API, selected units, totals, uncertainty, and unresolved gaps.
 - Return cost evidence and a decision-ready BOQ, but do not make the final business recommendation."#.to_string()),
-                        config_file: None,
                         nickname_candidates: Some(vec![
                             "Basis".to_string(),
                             "Runrate".to_string(),
@@ -545,6 +544,7 @@ Rules:
                             "infrastructure-pricing".to_string(),
                             "terraform-iac-review".to_string(),
                         ]),
+                        config_file: Some(PathBuf::from("aws-cost-engineer.toml")),
                     }
                 ),
             ])
@@ -561,6 +561,9 @@ Rules:
                 Some(include_str!("builtins/machine-learning-engineer.toml"))
             }
             "spend-policy-manager.toml" => Some(include_str!("builtins/spend-policy-manager.toml")),
+            "pricing-researcher.toml" => Some(include_str!("builtins/pricing-researcher.toml")),
+            "moat-researcher.toml" => Some(include_str!("builtins/moat-researcher.toml")),
+            "aws-cost-engineer.toml" => Some(include_str!("builtins/aws-cost-engineer.toml")),
             _ => None,
         }
     }
