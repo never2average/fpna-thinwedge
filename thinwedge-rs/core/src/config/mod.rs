@@ -577,6 +577,9 @@ pub struct Config {
     /// User-defined role declarations keyed by role name.
     pub agent_roles: BTreeMap<String, AgentRoleConfig>,
 
+    /// Skill names declared as prominently visible for the role selected for this session.
+    pub role_visible_skills: Vec<String>,
+
     /// Memories subsystem settings.
     pub memories: MemoriesConfig,
 
@@ -1419,6 +1422,8 @@ pub struct AgentRoleConfig {
     pub config_file: Option<PathBuf>,
     /// Candidate nicknames for agents spawned with this role.
     pub nickname_candidates: Option<Vec<String>>,
+    /// Skill names to show prominently for agents spawned with this role.
+    pub visible_skills: Option<Vec<String>>,
 }
 
 fn resolve_tool_suggest_config(
@@ -2703,6 +2708,7 @@ impl Config {
             agent_max_threads,
             agent_max_depth,
             agent_roles,
+            role_visible_skills: Vec::new(),
             memories: cfg.memories.unwrap_or_default().into(),
             agent_job_max_runtime_seconds,
             agent_interrupt_message_enabled,

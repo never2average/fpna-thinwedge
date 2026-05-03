@@ -4621,6 +4621,7 @@ async fn load_config_rejects_missing_agent_role_config_file() -> std::io::Result
                     description: Some("Research role".to_string()),
                     config_file: Some(missing_path.abs()),
                     nickname_candidates: None,
+                    visible_skills: None,
                 },
             )]),
         }),
@@ -4763,6 +4764,7 @@ async fn agent_role_file_metadata_overrides_config_toml_metadata() -> std::io::R
         r#"
 description = "Role metadata from file"
 nickname_candidates = ["Hypatia"]
+visible_skills = ["pricing", "risk-review"]
 developer_instructions = "Research carefully"
 model = "gpt-5.2"
 "#,
@@ -4774,6 +4776,7 @@ model = "gpt-5.2"
 description = "Research role from config"
 config_file = "./agents/researcher.toml"
 nickname_candidates = ["Noether"]
+visible_skills = ["market-research"]
 "#,
     )
     .await?;
@@ -4794,6 +4797,12 @@ nickname_candidates = ["Noether"]
             .as_ref()
             .map(|candidates| candidates.iter().map(String::as_str).collect::<Vec<_>>()),
         Some(vec!["Hypatia"])
+    );
+    assert_eq!(
+        role.visible_skills
+            .as_ref()
+            .map(|skills| skills.iter().map(String::as_str).collect::<Vec<_>>()),
+        Some(vec!["pricing", "risk-review"])
     );
 
     Ok(())
@@ -5571,6 +5580,7 @@ async fn load_config_normalizes_agent_role_nickname_candidates() -> std::io::Res
                         "  Hypatia  ".to_string(),
                         "Noether".to_string(),
                     ]),
+                    visible_skills: None,
                 },
             )]),
         }),
@@ -5597,6 +5607,87 @@ async fn load_config_normalizes_agent_role_nickname_candidates() -> std::io::Res
 }
 
 #[tokio::test]
+async fn load_config_normalizes_agent_role_visible_skills() -> std::io::Result<()> {
+    let codex_home = TempDir::new()?;
+    let cfg = ConfigToml {
+        agents: Some(AgentsToml {
+            max_threads: None,
+            max_depth: None,
+            job_max_runtime_seconds: None,
+            interrupt_message: None,
+            roles: BTreeMap::from([(
+                "researcher".to_string(),
+                AgentRoleToml {
+                    description: Some("Research role".to_string()),
+                    config_file: None,
+                    nickname_candidates: None,
+                    visible_skills: Some(vec![
+                        "  market-research  ".to_string(),
+                        "pricing".to_string(),
+                    ]),
+                },
+            )]),
+        }),
+        ..Default::default()
+    };
+
+    let config = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await?;
+
+    assert_eq!(
+        config
+            .agent_roles
+            .get("researcher")
+            .and_then(|role| role.visible_skills.as_ref())
+            .map(|skills| skills.iter().map(String::as_str).collect::<Vec<_>>()),
+        Some(vec!["market-research", "pricing"])
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn load_config_rejects_blank_agent_role_visible_skills() -> std::io::Result<()> {
+    let codex_home = TempDir::new()?;
+    let cfg = ConfigToml {
+        agents: Some(AgentsToml {
+            max_threads: None,
+            max_depth: None,
+            job_max_runtime_seconds: None,
+            interrupt_message: None,
+            roles: BTreeMap::from([(
+                "researcher".to_string(),
+                AgentRoleToml {
+                    description: Some("Research role".to_string()),
+                    config_file: None,
+                    nickname_candidates: None,
+                    visible_skills: Some(vec![" ".to_string()]),
+                },
+            )]),
+        }),
+        ..Default::default()
+    };
+
+    let err = Config::load_from_base_config_with_overrides(
+        cfg,
+        ConfigOverrides::default(),
+        codex_home.abs(),
+    )
+    .await
+    .expect_err("blank visible skill names should be rejected");
+    assert!(
+        err.to_string()
+            .contains("agents.researcher.visible_skills cannot contain blank skill names")
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn load_config_rejects_empty_agent_role_nickname_candidates() -> std::io::Result<()> {
     let thinwedge_home = TempDir::new()?;
     let cfg = ConfigToml {
@@ -5611,6 +5702,7 @@ async fn load_config_rejects_empty_agent_role_nickname_candidates() -> std::io::
                     description: Some("Research role".to_string()),
                     config_file: None,
                     nickname_candidates: Some(Vec::new()),
+                    visible_skills: None,
                 },
             )]),
         }),
@@ -5648,6 +5740,7 @@ async fn load_config_rejects_duplicate_agent_role_nickname_candidates() -> std::
                     description: Some("Research role".to_string()),
                     config_file: None,
                     nickname_candidates: Some(vec!["Hypatia".to_string(), " Hypatia ".to_string()]),
+                    visible_skills: None,
                 },
             )]),
         }),
@@ -5685,6 +5778,7 @@ async fn load_config_rejects_unsafe_agent_role_nickname_candidates() -> std::io:
                     description: Some("Research role".to_string()),
                     config_file: None,
                     nickname_candidates: Some(vec!["Agent <One>".to_string()]),
+                    visible_skills: None,
                 },
             )]),
         }),
@@ -5932,6 +6026,7 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             agent_max_threads: DEFAULT_AGENT_MAX_THREADS,
             agent_max_depth: DEFAULT_AGENT_MAX_DEPTH,
             agent_roles: BTreeMap::new(),
+            role_visible_skills: Vec::new(),
             memories: MemoriesConfig::default(),
             agent_job_max_runtime_seconds: DEFAULT_AGENT_JOB_MAX_RUNTIME_SECONDS,
             agent_interrupt_message_enabled: true,
@@ -6126,6 +6221,7 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         agent_max_threads: DEFAULT_AGENT_MAX_THREADS,
         agent_max_depth: DEFAULT_AGENT_MAX_DEPTH,
         agent_roles: BTreeMap::new(),
+        role_visible_skills: Vec::new(),
         memories: MemoriesConfig::default(),
         agent_job_max_runtime_seconds: DEFAULT_AGENT_JOB_MAX_RUNTIME_SECONDS,
         agent_interrupt_message_enabled: true,
@@ -6274,6 +6370,7 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         agent_max_threads: DEFAULT_AGENT_MAX_THREADS,
         agent_max_depth: DEFAULT_AGENT_MAX_DEPTH,
         agent_roles: BTreeMap::new(),
+        role_visible_skills: Vec::new(),
         memories: MemoriesConfig::default(),
         agent_job_max_runtime_seconds: DEFAULT_AGENT_JOB_MAX_RUNTIME_SECONDS,
         agent_interrupt_message_enabled: true,
@@ -6407,6 +6504,7 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         agent_max_threads: DEFAULT_AGENT_MAX_THREADS,
         agent_max_depth: DEFAULT_AGENT_MAX_DEPTH,
         agent_roles: BTreeMap::new(),
+        role_visible_skills: Vec::new(),
         memories: MemoriesConfig::default(),
         agent_job_max_runtime_seconds: DEFAULT_AGENT_JOB_MAX_RUNTIME_SECONDS,
         agent_interrupt_message_enabled: true,

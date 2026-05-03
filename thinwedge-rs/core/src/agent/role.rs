@@ -15,6 +15,7 @@ use anyhow::anyhow;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::LazyLock;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
@@ -52,7 +53,9 @@ pub(crate) async fn apply_role_to_config(
         .map_err(|err| {
             tracing::warn!("failed to apply role to config: {err}");
             AGENT_TYPE_UNAVAILABLE_ERROR.to_string()
-        })
+        })?;
+    config.role_visible_skills = role.visible_skills.clone().unwrap_or_default();
+    Ok(())
 }
 
 async fn apply_role_to_config_inner(
@@ -369,6 +372,9 @@ Rules:
 - Own the final recommendation, including what to do next and why.
 - Delegate pricing strategy, packaging, willingness-to-pay, and unit economics work to `pricing_researcher` when the task becomes monetization-specific.
 - Delegate competitive durability, strategic positioning, and moat analysis to `moat_researcher` when the task becomes defensibility-specific.
+- Delegate statistical reasoning, experiment interpretation, feature analysis, or model-oriented data exploration to `data-scientist`.
+- Delegate metric interpretation, trend explanation, and decision support from existing analytics outputs to `data-analyst`.
+- Delegate ML system implementation across training pipelines, feature flow, model serving, or inference integration to `machine-learning-engineer`.
 - Delegate technical cost structure, infrastructure economics, and cost-to-serve modeling to `aws_cost_engineer` when the task depends on architecture, cloud, GPU, storage, networking, training, or serving cost details.
 - Keep the working plan coherent across delegated work.
 - Force every delegated thread to return assumptions, evidence, risks, and a decision-ready conclusion.
@@ -380,6 +386,45 @@ Rules:
                             "Steward".to_string(),
                             "Northstar".to_string(),
                         ]),
+                        visible_skills: Some(vec![
+                            "synthesis".to_string(),
+                            "finance-decision-framing".to_string(),
+                            "evidence-review".to_string(),
+                            "risk-review".to_string(),
+                        ]),
+                    }
+                ),
+                (
+                    "data-scientist".to_string(),
+                    AgentRoleConfig {
+                        description: Some(
+                            "Use when a task needs statistical reasoning, experiment interpretation, feature analysis, or model-oriented data exploration.".to_string(),
+                        ),
+                        config_file: Some(PathBuf::from("data-scientist.toml")),
+                        nickname_candidates: None,
+                        visible_skills: None,
+                    }
+                ),
+                (
+                    "data-analyst".to_string(),
+                    AgentRoleConfig {
+                        description: Some(
+                            "Use when a task needs data interpretation, metric breakdown, trend explanation, or decision support from existing analytics outputs.".to_string(),
+                        ),
+                        config_file: Some(PathBuf::from("data-analyst.toml")),
+                        nickname_candidates: None,
+                        visible_skills: None,
+                    }
+                ),
+                (
+                    "machine-learning-engineer".to_string(),
+                    AgentRoleConfig {
+                        description: Some(
+                            "Use when a task needs ML system implementation work across training pipelines, feature flow, model serving, or inference integration.".to_string(),
+                        ),
+                        config_file: Some(PathBuf::from("machine-learning-engineer.toml")),
+                        nickname_candidates: None,
+                        visible_skills: None,
                     }
                 ),
                 (
@@ -404,6 +449,13 @@ Rules:
                             "Yield".to_string(),
                             "Tariff".to_string(),
                         ]),
+                        visible_skills: Some(vec![
+                            "market-research".to_string(),
+                            "quant-analysis".to_string(),
+                            "pricing-packaging".to_string(),
+                            "cohort-analysis".to_string(),
+                            "willingness-to-pay".to_string(),
+                        ]),
                     }
                 ),
                 (
@@ -426,6 +478,12 @@ Rules:
                             "Alpha".to_string(),
                             "Premium".to_string(),
                             "Edge".to_string(),
+                        ]),
+                        visible_skills: Some(vec![
+                            "competitive-analysis".to_string(),
+                            "market-research".to_string(),
+                            "trend-analysis".to_string(),
+                            "benchmark-evidence-capture".to_string(),
                         ]),
                     }
                 ),
@@ -452,6 +510,12 @@ Rules:
                             "Runrate".to_string(),
                             "Variance".to_string(),
                         ]),
+                        visible_skills: Some(vec![
+                            "cloud-architecture".to_string(),
+                            "finops-aws-cost".to_string(),
+                            "infrastructure-pricing".to_string(),
+                            "terraform-iac-review".to_string(),
+                        ]),
                     }
                 ),
             ])
@@ -461,8 +525,14 @@ Rules:
 
     /// Resolves a built-in role `config_file` path to embedded content.
     pub(super) fn config_file_contents(path: &Path) -> Option<&'static str> {
-        let _ = path;
-        None
+        match path.to_str()? {
+            "data-scientist.toml" => Some(include_str!("builtins/data-scientist.toml")),
+            "data-analyst.toml" => Some(include_str!("builtins/data-analyst.toml")),
+            "machine-learning-engineer.toml" => {
+                Some(include_str!("builtins/machine-learning-engineer.toml"))
+            }
+            _ => None,
+        }
     }
 }
 

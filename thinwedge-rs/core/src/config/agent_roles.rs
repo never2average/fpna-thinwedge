@@ -156,6 +156,7 @@ async fn read_declared_role(
         role_name = parsed_file.role_name;
         role.description = parsed_file.description.or(role.description);
         role.nickname_candidates = parsed_file.nickname_candidates.or(role.nickname_candidates);
+        role.visible_skills = parsed_file.visible_skills.or(role.visible_skills);
     }
 
     Ok((role_name, role))
@@ -168,6 +169,10 @@ fn merge_missing_role_fields(role: &mut AgentRoleConfig, fallback: &AgentRoleCon
         .nickname_candidates
         .clone()
         .or(fallback.nickname_candidates.clone());
+    role.visible_skills = role
+        .visible_skills
+        .clone()
+        .or(fallback.visible_skills.clone());
 }
 
 fn agents_toml_from_layer(
@@ -206,11 +211,16 @@ async fn agent_role_config_from_toml(
         &format!("agents.{role_name}.nickname_candidates"),
         role.nickname_candidates.as_deref(),
     )?;
+    let visible_skills = normalize_agent_role_visible_skills(
+        &format!("agents.{role_name}.visible_skills"),
+        role.visible_skills.as_deref(),
+    )?;
 
     Ok(AgentRoleConfig {
         description,
         config_file: config_file.map(AbsolutePathBuf::into_path_buf),
         nickname_candidates,
+        visible_skills,
     })
 }
 
@@ -220,6 +230,7 @@ struct RawAgentRoleFileToml {
     name: Option<String>,
     description: Option<String>,
     nickname_candidates: Option<Vec<String>>,
+    visible_skills: Option<Vec<String>>,
     #[serde(flatten)]
     config: ConfigToml,
 }
@@ -229,6 +240,7 @@ pub(crate) struct ResolvedAgentRoleFile {
     pub(crate) role_name: String,
     pub(crate) description: Option<String>,
     pub(crate) nickname_candidates: Option<Vec<String>>,
+    pub(crate) visible_skills: Option<Vec<String>>,
     pub(crate) config: TomlValue,
 }
 
@@ -291,6 +303,13 @@ pub(crate) fn parse_agent_role_file_contents(
         ),
         parsed.nickname_candidates.as_deref(),
     )?;
+    let visible_skills = normalize_agent_role_visible_skills(
+        &format!(
+            "agent role file {}.visible_skills",
+            role_file_label.display()
+        ),
+        parsed.visible_skills.as_deref(),
+    )?;
 
     let mut config = role_file_toml;
     let Some(config_table) = config.as_table_mut() else {
@@ -305,11 +324,13 @@ pub(crate) fn parse_agent_role_file_contents(
     config_table.remove("name");
     config_table.remove("description");
     config_table.remove("nickname_candidates");
+    config_table.remove("visible_skills");
 
     Ok(ResolvedAgentRoleFile {
         role_name,
         description,
         nickname_candidates,
+        visible_skills,
         config,
     })
 }
@@ -468,6 +489,43 @@ fn normalize_agent_role_nickname_candidates(
     Ok(Some(normalized_candidates))
 }
 
+fn normalize_agent_role_visible_skills(
+    field_label: &str,
+    visible_skills: Option<&[String]>,
+) -> std::io::Result<Option<Vec<String>>> {
+    let Some(visible_skills) = visible_skills else {
+        return Ok(None);
+    };
+
+    if visible_skills.is_empty() {
+        return Ok(Some(Vec::new()));
+    }
+
+    let mut normalized_skills = Vec::with_capacity(visible_skills.len());
+    let mut seen_skills = BTreeSet::new();
+
+    for skill_name in visible_skills {
+        let normalized_skill = skill_name.trim();
+        if normalized_skill.is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("{field_label} cannot contain blank skill names"),
+            ));
+        }
+
+        if !seen_skills.insert(normalized_skill.to_owned()) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                format!("{field_label} cannot contain duplicates"),
+            ));
+        }
+
+        normalized_skills.push(normalized_skill.to_owned());
+    }
+
+    Ok(Some(normalized_skills))
+}
+
 async fn discover_agent_roles_in_dir(
     fs: &dyn ExecutorFileSystem,
     agents_dir: &AbsolutePathBuf,
@@ -508,6 +566,7 @@ async fn discover_agent_roles_in_dir(
                 description: parsed_file.description,
                 config_file: Some(agent_file.to_path_buf()),
                 nickname_candidates: parsed_file.nickname_candidates,
+                visible_skills: parsed_file.visible_skills,
             },
         );
     }

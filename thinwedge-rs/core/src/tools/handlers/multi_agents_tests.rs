@@ -123,6 +123,7 @@ model_reasoning_effort = "minimal"
             description: Some("Role with model overrides".to_string()),
             config_file: Some(role_config_path),
             nickname_candidates: None,
+            visible_skills: None,
         },
     );
     turn.config = Arc::new(config);

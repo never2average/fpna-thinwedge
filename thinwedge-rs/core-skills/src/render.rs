@@ -60,6 +60,14 @@ pub const SKILLS_HOW_TO_USE_WITH_ALIASES: &str = r###"- Discovery: The list abov
 - Safety and fallback: If a skill can't be applied cleanly (missing files, unclear instructions), state the issue, pick the next-best approach, and continue."###;
 
 pub fn render_available_skills_body(skill_root_lines: &[String], skill_lines: &[String]) -> String {
+    render_available_skills_body_with_role_guidance(skill_root_lines, &[], skill_lines)
+}
+
+pub fn render_available_skills_body_with_role_guidance(
+    skill_root_lines: &[String],
+    role_guidance_lines: &[String],
+    skill_lines: &[String],
+) -> String {
     let mut lines: Vec<String> = Vec::new();
     lines.push("## Skills".to_string());
     if skill_root_lines.is_empty() {
@@ -68,6 +76,11 @@ pub fn render_available_skills_body(skill_root_lines: &[String], skill_lines: &[
         lines.push(SKILLS_INTRO_WITH_ALIASES.to_string());
         lines.push("### Skill roots".to_string());
         lines.extend(skill_root_lines.iter().cloned());
+    }
+    if !role_guidance_lines.is_empty() {
+        lines.push("### Role guidance".to_string());
+        lines.push("Role-relevant visible skills for this agent:".to_string());
+        lines.extend(role_guidance_lines.iter().cloned());
     }
     lines.push("### Available skills".to_string());
     lines.extend(skill_lines.iter().cloned());
@@ -135,6 +148,7 @@ pub enum SkillRenderSideEffects<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AvailableSkills {
     pub skill_root_lines: Vec<String>,
+    pub role_guidance_lines: Vec<String>,
     pub skill_lines: Vec<String>,
     pub report: SkillRenderReport,
     pub warning_message: Option<String>,
@@ -162,6 +176,15 @@ pub fn build_available_skills(
     budget: SkillMetadataBudget,
     side_effects: SkillRenderSideEffects<'_>,
 ) -> Option<AvailableSkills> {
+    build_available_skills_with_role_visible_skills(outcome, &[], budget, side_effects)
+}
+
+pub fn build_available_skills_with_role_visible_skills(
+    outcome: &SkillLoadOutcome,
+    role_visible_skill_names: &[String],
+    budget: SkillMetadataBudget,
+    side_effects: SkillRenderSideEffects<'_>,
+) -> Option<AvailableSkills> {
     let skills = outcome.allowed_skills_for_implicit_invocation();
     if skills.is_empty() {
         record_skill_render_side_effects(
@@ -173,19 +196,23 @@ pub fn build_available_skills(
         );
         return None;
     }
+    let role_visible_skills = RoleVisibleSkills::new(role_visible_skill_names, &skills);
 
-    let absolute_lines = ordered_absolute_skill_lines(&skills);
+    let absolute_lines = ordered_absolute_skill_lines(&skills, &role_visible_skills);
     let absolute = build_available_skills_from_lines(
         absolute_lines,
         skills.len(),
         budget,
         SkillPathAliases::default(),
+        role_visible_skills.guidance_lines(),
     )?;
 
     let selected =
         if absolute.report.omitted_count == 0 && absolute.report.truncated_description_chars == 0 {
             absolute
-        } else if let Some(aliased) = build_aliased_available_skills(outcome, &skills, budget) {
+        } else if let Some(aliased) =
+            build_aliased_available_skills(outcome, &skills, &role_visible_skills, budget)
+        {
             if aliased_render_is_better(&aliased, &absolute, budget) {
                 aliased
             } else {
@@ -204,6 +231,7 @@ fn build_available_skills_from_lines(
     total_count: usize,
     budget: SkillMetadataBudget,
     path_aliases: SkillPathAliases,
+    role_guidance_lines: Vec<String>,
 ) -> Option<AvailableSkills> {
     if total_count == 0 {
         return None;
@@ -243,6 +271,7 @@ fn build_available_skills_from_lines(
     };
     let available = AvailableSkills {
         skill_root_lines: path_aliases.skill_root_lines,
+        role_guidance_lines,
         skill_lines,
         report,
         warning_message,
@@ -448,6 +477,7 @@ struct SkillLine<'a> {
     name: &'a str,
     description: &'a str,
     path: String,
+    role_relevant: bool,
 }
 
 struct RenderedSkillLine {
@@ -477,18 +507,34 @@ fn sum_description_truncation(rendered: &[RenderedSkillLine]) -> (usize, usize) 
 }
 
 impl<'a> SkillLine<'a> {
+    #[cfg(test)]
     fn new(skill: &'a SkillMetadata) -> Self {
-        Self::with_path(
+        Self::new_with_role_relevance(skill, false)
+    }
+
+    fn new_with_role_relevance(skill: &'a SkillMetadata, role_relevant: bool) -> Self {
+        Self::with_path_and_role_relevance(
             skill,
             skill.path_to_skills_md.to_string_lossy().replace('\\', "/"),
+            role_relevant,
         )
     }
 
+    #[cfg(test)]
     fn with_path(skill: &'a SkillMetadata, path: String) -> Self {
+        Self::with_path_and_role_relevance(skill, path, false)
+    }
+
+    fn with_path_and_role_relevance(
+        skill: &'a SkillMetadata,
+        path: String,
+        role_relevant: bool,
+    ) -> Self {
         Self {
             name: skill.name.as_str(),
             description: skill.description.as_str(),
             path,
+            role_relevant,
         }
     }
 
@@ -521,19 +567,27 @@ impl<'a> SkillLine<'a> {
 
     fn render_with_description_chars(&self, description_chars: usize) -> String {
         if description_chars == 0 {
-            format!("- {}: (file: {})", self.name, self.path)
+            self.render_with_description("")
         } else {
             let end = self.rendered_description_prefix_len(description_chars);
             let description = &self.description[..end];
-            format!("- {}: {} (file: {})", self.name, description, self.path)
+            self.render_with_description(description)
         }
     }
 
     fn render_with_description(&self, description: &str) -> String {
-        if description.is_empty() {
-            format!("- {}: (file: {})", self.name, self.path)
+        let marker = if self.role_relevant {
+            "[role-relevant] "
         } else {
-            format!("- {}: {} (file: {})", self.name, description, self.path)
+            ""
+        };
+        if description.is_empty() {
+            format!("- {}: {}(file: {})", self.name, marker, self.path)
+        } else {
+            format!(
+                "- {}: {}{} (file: {})",
+                self.name, marker, description, self.path
+            )
         }
     }
 }
@@ -638,6 +692,7 @@ fn render_lines_with_description_budget(
 fn build_aliased_available_skills(
     outcome: &SkillLoadOutcome,
     skills: &[SkillMetadata],
+    role_visible_skills: &RoleVisibleSkills,
     budget: SkillMetadataBudget,
 ) -> Option<AvailableSkills> {
     let plan = build_alias_plan(outcome, skills, budget)?;
@@ -650,12 +705,24 @@ fn build_aliased_available_skills(
         SkillMetadataBudget::Tokens(_) => SkillMetadataBudget::Tokens(adjusted_limit),
         SkillMetadataBudget::Characters(_) => SkillMetadataBudget::Characters(adjusted_limit),
     };
-    let ordered_skills = ordered_skills_for_budget(skills);
+    let ordered_skills = ordered_skills_for_budget(skills, role_visible_skills);
     let skill_lines = ordered_skills
         .into_iter()
-        .map(|skill| SkillLine::with_path(skill, render_skill_path_with_aliases(skill, &plan)))
+        .map(|skill| {
+            SkillLine::with_path_and_role_relevance(
+                skill,
+                render_skill_path_with_aliases(skill, &plan),
+                role_visible_skills.contains(skill.name.as_str()),
+            )
+        })
         .collect::<Vec<_>>();
-    build_available_skills_from_lines(skill_lines, skills.len(), adjusted_budget, plan.aliases)
+    build_available_skills_from_lines(
+        skill_lines,
+        skills.len(),
+        adjusted_budget,
+        plan.aliases,
+        role_visible_skills.guidance_lines(),
+    )
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -875,22 +942,86 @@ fn available_skills_cost(budget: SkillMetadataBudget, available: &AvailableSkill
     metadata_cost.saturating_add(lines_cost(budget, &available.skill_lines))
 }
 
-fn ordered_absolute_skill_lines(skills: &[SkillMetadata]) -> Vec<SkillLine<'_>> {
-    ordered_skills_for_budget(skills)
+fn ordered_absolute_skill_lines<'a>(
+    skills: &'a [SkillMetadata],
+    role_visible_skills: &RoleVisibleSkills,
+) -> Vec<SkillLine<'a>> {
+    ordered_skills_for_budget(skills, role_visible_skills)
         .into_iter()
-        .map(SkillLine::new)
+        .map(|skill| {
+            SkillLine::new_with_role_relevance(
+                skill,
+                role_visible_skills.contains(skill.name.as_str()),
+            )
+        })
         .collect()
 }
 
-fn ordered_skills_for_budget(skills: &[SkillMetadata]) -> Vec<&SkillMetadata> {
+fn ordered_skills_for_budget<'a>(
+    skills: &'a [SkillMetadata],
+    role_visible_skills: &RoleVisibleSkills,
+) -> Vec<&'a SkillMetadata> {
     let mut ordered = skills.iter().collect::<Vec<_>>();
     ordered.sort_by(|a, b| {
-        prompt_scope_rank(a.scope)
-            .cmp(&prompt_scope_rank(b.scope))
+        role_visible_skills
+            .rank(a.name.as_str())
+            .cmp(&role_visible_skills.rank(b.name.as_str()))
+            .then_with(|| prompt_scope_rank(a.scope).cmp(&prompt_scope_rank(b.scope)))
             .then_with(|| a.name.cmp(&b.name))
             .then_with(|| a.path_to_skills_md.cmp(&b.path_to_skills_md))
     });
     ordered
+}
+
+#[derive(Debug, Clone, Default)]
+struct RoleVisibleSkills {
+    ranks: HashMap<String, usize>,
+    guidance_lines: Vec<String>,
+}
+
+impl RoleVisibleSkills {
+    fn new(role_visible_skill_names: &[String], skills: &[SkillMetadata]) -> Self {
+        if role_visible_skill_names.is_empty() {
+            return Self::default();
+        }
+
+        let skills_by_name = skills
+            .iter()
+            .map(|skill| (skill.name.as_str(), skill))
+            .collect::<HashMap<_, _>>();
+        let mut ranks = HashMap::new();
+        let mut guidance_lines = Vec::new();
+
+        for skill_name in role_visible_skill_names {
+            let skill_name = skill_name.trim();
+            if skill_name.is_empty() || ranks.contains_key(skill_name) {
+                continue;
+            }
+            let Some(skill) = skills_by_name.get(skill_name) else {
+                continue;
+            };
+            let rank = ranks.len();
+            ranks.insert(skill.name.clone(), rank);
+            guidance_lines.push(format!("- {}: {}", skill.name, skill.description));
+        }
+
+        Self {
+            ranks,
+            guidance_lines,
+        }
+    }
+
+    fn contains(&self, skill_name: &str) -> bool {
+        self.ranks.contains_key(skill_name)
+    }
+
+    fn rank(&self, skill_name: &str) -> usize {
+        self.ranks.get(skill_name).copied().unwrap_or(usize::MAX)
+    }
+
+    fn guidance_lines(&self) -> Vec<String> {
+        self.guidance_lines.clone()
+    }
 }
 
 fn prompt_scope_rank(scope: SkillScope) -> u8 {
@@ -973,11 +1104,13 @@ mod tests {
         skills: &[SkillMetadata],
         budget: SkillMetadataBudget,
     ) -> Option<AvailableSkills> {
+        let role_visible_skills = RoleVisibleSkills::default();
         build_available_skills_from_lines(
-            ordered_absolute_skill_lines(skills),
+            ordered_absolute_skill_lines(skills, &role_visible_skills),
             skills.len(),
             budget,
             SkillPathAliases::default(),
+            Vec::new(),
         )
     }
 
@@ -1203,6 +1336,49 @@ mod tests {
     }
 
     #[test]
+    fn outcome_rendering_prioritizes_and_marks_role_visible_skills() {
+        const SKILL_BODY_SENTINEL: &str = "SECRET_ROLE_BODY";
+        let pricing =
+            make_skill_with_description("pricing", SkillScope::User, "pricing decision support");
+        let system = make_skill_with_description("system-skill", SkillScope::System, "system desc");
+        let outcome = outcome_with_roots(vec![system, pricing], Vec::new());
+
+        let rendered = build_available_skills_with_role_visible_skills(
+            &outcome,
+            &["pricing".to_string(), "missing-skill".to_string()],
+            SkillMetadataBudget::Characters(usize::MAX),
+            SkillRenderSideEffects::None,
+        )
+        .expect("skills should render");
+
+        assert_eq!(
+            rendered.role_guidance_lines,
+            vec!["- pricing: pricing decision support"]
+        );
+        assert!(
+            rendered.skill_lines[0].starts_with("- pricing: [role-relevant] "),
+            "role-visible skill should render first and be marked: {:?}",
+            rendered.skill_lines
+        );
+        assert!(!rendered.role_guidance_lines.join("\n").contains("SKILL.md"));
+        assert!(
+            rendered
+                .skill_lines
+                .iter()
+                .any(|line| line.starts_with("- system-skill: system desc"))
+        );
+
+        let prompt_body = render_available_skills_body_with_role_guidance(
+            &rendered.skill_root_lines,
+            &rendered.role_guidance_lines,
+            &rendered.skill_lines,
+        );
+        assert!(prompt_body.contains("### Role guidance"));
+        assert!(prompt_body.contains("- pricing: pricing decision support"));
+        assert!(!prompt_body.contains(SKILL_BODY_SENTINEL));
+    }
+
+    #[test]
     fn outcome_rendering_uses_aliases_when_they_allow_more_skills_to_fit() {
         let root = test_path_buf(
             "/Users/xl/.thinwedge/plugins/cache/thinwedge-curated/example/hash1234567890/skills-with-a-very-long-shared-prefix",
@@ -1355,6 +1531,7 @@ mod tests {
         let rendered = build_aliased_available_skills(
             &outcome,
             &[alpha, beta],
+            &RoleVisibleSkills::default(),
             SkillMetadataBudget::Characters(plan.table_cost + alpha_cost),
         )
         .expect("skills should render");

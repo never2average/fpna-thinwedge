@@ -14,7 +14,7 @@ use crate::agent::Mailbox;
 use crate::agent::MailboxReceiver;
 use crate::agent::agent_status_from_event;
 use crate::agent::status::is_final;
-use crate::build_available_skills;
+use crate::build_available_skills_with_role_visible_skills;
 use crate::commit_attribution::commit_message_trailer_instruction;
 use crate::compact;
 use crate::config::ManagedFeatures;
@@ -2622,8 +2622,9 @@ impl Session {
             }
         }
         if turn_context.config.include_skill_instructions {
-            let available_skills = build_available_skills(
+            let available_skills = build_available_skills_with_role_visible_skills(
                 &turn_context.turn_skills.outcome,
+                &turn_context.config.role_visible_skills,
                 default_skill_metadata_budget(turn_context.model_info.context_window),
                 SkillRenderSideEffects::ThreadStart {
                     session_telemetry: &self.services.session_telemetry,

@@ -30,5 +30,7 @@ pub use render::SKILLS_INTRO_WITH_ALIASES;
 pub use render::SkillMetadataBudget;
 pub use render::SkillRenderReport;
 pub use render::build_available_skills;
+pub use render::build_available_skills_with_role_visible_skills;
 pub use render::default_skill_metadata_budget;
 pub use render::render_available_skills_body;
+pub use render::render_available_skills_body_with_role_guidance;
