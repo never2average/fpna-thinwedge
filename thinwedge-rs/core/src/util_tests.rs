@@ -79,7 +79,6 @@ fn emit_feedback_request_tags_records_sentry_feedback_fields() {
 
     let auth_env = AuthEnvTelemetry {
         thinwedge_api_key_env_present: true,
-        thinwedge_api_key_env_present: false,
         thinwedge_api_key_env_enabled: true,
         provider_env_key_name: Some("configured".to_string()),
         provider_env_key_present: Some(true),
@@ -123,11 +122,6 @@ fn emit_feedback_request_tags_records_sentry_feedback_fields() {
         tags.get("auth_env_thinwedge_api_key_present")
             .map(String::as_str),
         Some("true")
-    );
-    assert_eq!(
-        tags.get("auth_env_thinwedge_api_key_present")
-            .map(String::as_str),
-        Some("false")
     );
     assert_eq!(
         tags.get("auth_env_thinwedge_api_key_enabled")
@@ -380,11 +374,6 @@ fn emit_feedback_request_tags_preserves_auth_env_fields_for_legacy_emitters() {
     assert_eq!(
         tags.get("auth_error_code").map(String::as_str),
         Some("\"\"")
-    );
-    assert_eq!(
-        tags.get("auth_env_thinwedge_api_key_present")
-            .map(String::as_str),
-        Some("true")
     );
     assert_eq!(
         tags.get("auth_env_thinwedge_api_key_present")

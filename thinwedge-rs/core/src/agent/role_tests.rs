@@ -120,10 +120,18 @@ async fn apply_pricing_researcher_role_enables_slide_scaffolding() {
 
 #[tokio::test]
 async fn apply_moat_researcher_role_preserves_current_model_and_reasoning_effort() {
-    let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
+    let (_home, mut config) = test_config_with_cli_overrides(vec![
+        (
+            "model".to_string(),
+            TomlValue::String("gpt-5.4-mini".to_string()),
+        ),
+        (
+            "model_reasoning_effort".to_string(),
+            TomlValue::String("high".to_string()),
+        ),
+    ])
+    .await;
     let before_layers = session_flags_layer_count(&config);
-    config.model = Some("gpt-5.4-mini".to_string());
-    config.model_reasoning_effort = Some(ReasoningEffort::High);
 
     apply_role_to_config(&mut config, Some("moat_researcher"))
         .await
