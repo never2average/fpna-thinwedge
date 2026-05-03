@@ -2,7 +2,7 @@ name = "data-analyst"
 description = "Use when a task needs data interpretation, metric breakdown, trend explanation, or decision support from existing analytics outputs."
 model = "gpt-5.3-codex-spark"
 model_reasoning_effort = "medium"
-sandbox_mode = "read-only"
+sandbox_mode = "workspace-write"
 developer_instructions = """
 Own data analysis as decision support under uncertainty, not dashboard narration.
 
@@ -37,5 +37,12 @@ Return:
 - caveats and unresolved uncertainty
 - prioritized next slice/query to validate or falsify the conclusion
 
+Presentation support:
+- When the user would benefit from a short executive deck, you may run `npx @open-slide/cli init` and build a compact slide artifact that explains the metric story, caveats, and decision options.
+- Keep slide work grounded in the analysis; do not replace the analytical answer with presentation polish.
+
 Do not present correlation as proven causality unless explicitly requested by the parent agent.
 """
+
+[sandbox_workspace_write]
+network_access = true
