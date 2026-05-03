@@ -12,7 +12,7 @@ ASSET_NAMES = {
     "macos_arm64": "thinwedge-aarch64-apple-darwin.tar.gz",
     "macos_x64": "thinwedge-x86_64-apple-darwin.tar.gz",
     "linux_arm64": "thinwedge-aarch64-unknown-linux-musl.tar.gz",
-    "linux_x64": "thinwedge-x86_64-unknown-linux-musl.tar.gz",
+    "linux_x64": "thinwedge-x86_64-unknown-linux-gnu.tar.gz",
 }
 
 
@@ -70,7 +70,7 @@ def main() -> int:
       if OS.mac?
         Hardware::CPU.arm? ? "thinwedge-aarch64-apple-darwin" : "thinwedge-x86_64-apple-darwin"
       else
-        Hardware::CPU.arm? ? "thinwedge-aarch64-unknown-linux-musl" : "thinwedge-x86_64-unknown-linux-musl"
+        Hardware::CPU.arm? ? "thinwedge-aarch64-unknown-linux-musl" : "thinwedge-x86_64-unknown-linux-gnu"
       end
 
     bin.install binary_name => "thinwedge"
