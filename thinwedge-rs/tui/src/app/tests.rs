@@ -1690,6 +1690,77 @@ async fn update_feature_flags_enabling_guardian_selects_auto_review() -> Result<
 }
 
 #[tokio::test]
+async fn enable_power_user_permissions_persists_and_updates_runtime_context() -> Result<()> {
+    let (mut app, _app_event_rx, mut op_rx) = make_test_app_with_channels().await;
+    let thinwedge_home = tempdir()?;
+    app.config.thinwedge_home = thinwedge_home.path().to_path_buf().abs();
+
+    app.enable_power_user_permissions().await;
+
+    assert_eq!(
+        app.config.permissions.approval_policy.value(),
+        AskForApproval::OnRequest
+    );
+    assert_eq!(app.config.approvals_reviewer, ApprovalsReviewer::AutoReview);
+    assert_eq!(
+        app.chat_widget
+            .config_ref()
+            .permissions
+            .approval_policy
+            .value(),
+        AskForApproval::OnRequest
+    );
+    assert_eq!(
+        app.chat_widget.config_ref().approvals_reviewer,
+        ApprovalsReviewer::AutoReview
+    );
+
+    let permission_profile = app.config.permissions.permission_profile();
+    let file_system_policy = permission_profile.file_system_sandbox_policy();
+    assert!(
+        file_system_policy
+            .can_write_path_with_cwd(app.config.cwd.as_path(), app.config.cwd.as_path())
+    );
+    assert!(file_system_policy.entries.iter().any(|entry| matches!(
+        &entry.path,
+        thinwedge_protocol::permissions::FileSystemPath::GlobPattern { pattern }
+            if pattern == "**/.env*"
+    )));
+    assert_eq!(
+        permission_profile.network_sandbox_policy(),
+        thinwedge_protocol::permissions::NetworkSandboxPolicy::Restricted
+    );
+    assert_eq!(
+        app.runtime_permission_profile_override,
+        Some(permission_profile.clone())
+    );
+
+    assert_eq!(
+        op_rx.try_recv(),
+        Ok(Op::OverrideTurnContext {
+            cwd: None,
+            approval_policy: Some(AskForApproval::OnRequest),
+            approvals_reviewer: Some(ApprovalsReviewer::AutoReview),
+            sandbox_policy: None,
+            permission_profile: Some(permission_profile),
+            windows_sandbox_level: None,
+            model: None,
+            effort: None,
+            summary: None,
+            service_tier: None,
+            collaboration_mode: None,
+            personality: None,
+        })
+    );
+
+    let config = std::fs::read_to_string(thinwedge_home.path().join("config.toml"))?;
+    assert!(config.contains("approval_policy = \"on-request\""));
+    assert!(config.contains("approvals_reviewer = \"auto_review\""));
+    assert!(config.contains("default_permissions = \":power-user\""));
+    Ok(())
+}
+
+#[tokio::test]
 async fn update_feature_flags_disabling_guardian_clears_review_policy_and_restores_default()
 -> Result<()> {
     let (mut app, mut app_event_rx, mut op_rx) = make_test_app_with_channels().await;
