@@ -124,6 +124,115 @@ impl App {
         true
     }
 
+    pub(super) async fn enable_power_user_permissions(&mut self) {
+        let active_profile = self.active_profile.clone();
+        let scoped_segments = |key: &str| {
+            if let Some(profile) = active_profile.as_deref() {
+                vec!["profiles".to_string(), profile.to_string(), key.to_string()]
+            } else {
+                vec![key.to_string()]
+            }
+        };
+
+        let edits = [
+            ConfigEdit::SetPath {
+                segments: scoped_segments("approval_policy"),
+                value: "on-request".into(),
+            },
+            ConfigEdit::SetPath {
+                segments: scoped_segments("approvals_reviewer"),
+                value: "auto_review".into(),
+            },
+            ConfigEdit::SetPath {
+                segments: scoped_segments("default_permissions"),
+                value: ":power-user".into(),
+            },
+        ];
+
+        if let Err(err) = ConfigEditsBuilder::new(&self.config.thinwedge_home)
+            .with_profile(self.active_profile.as_deref())
+            .with_edits(edits)
+            .apply()
+            .await
+        {
+            tracing::error!(error = %err, "failed to persist power-user permissions");
+            self.chat_widget
+                .add_error_message(format!("Failed to enable Power user: {err}"));
+            return;
+        }
+
+        let mut next_config = match self
+            .rebuild_config_for_cwd(self.chat_widget.config_ref().cwd.to_path_buf())
+            .await
+        {
+            Ok(config) => config,
+            Err(err) => {
+                tracing::error!(error = %err, "failed to reload config after enabling power-user permissions");
+                self.chat_widget.add_error_message(format!(
+                    "Saved Power user settings, but failed to reload config: {err}"
+                ));
+                return;
+            }
+        };
+
+        if !self.try_set_approval_policy_on_config(
+            &mut next_config,
+            AskForApproval::OnRequest,
+            "Failed to enable Power user",
+            "failed to set power-user approval policy on reloaded config",
+        ) {
+            return;
+        }
+        next_config.approvals_reviewer = ApprovalsReviewer::AutoReview;
+
+        let approval_policy = next_config.permissions.approval_policy.value();
+        let approvals_reviewer = next_config.approvals_reviewer;
+        let permission_profile = next_config.permissions.permission_profile();
+
+        self.config = next_config;
+        self.runtime_approval_policy_override = Some(approval_policy);
+        self.runtime_permission_profile_override = Some(permission_profile.clone());
+        self.set_approvals_reviewer_in_app_and_widget(approvals_reviewer);
+        self.chat_widget.set_approval_policy(approval_policy);
+        if let Err(err) = self
+            .chat_widget
+            .set_permission_profile(permission_profile.clone())
+        {
+            tracing::error!(error = %err, "failed to set power-user permission profile on chat config");
+            self.chat_widget
+                .add_error_message(format!("Failed to enable Power user: {err}"));
+            return;
+        }
+
+        self.sync_active_thread_permission_settings_to_cached_session()
+            .await;
+        let op = AppCommand::override_turn_context(
+            /*cwd*/ None,
+            Some(approval_policy),
+            Some(approvals_reviewer),
+            Some(permission_profile),
+            /*windows_sandbox_level*/ None,
+            /*model*/ None,
+            /*effort*/ None,
+            /*summary*/ None,
+            /*service_tier*/ None,
+            /*collaboration_mode*/ None,
+            /*personality*/ None,
+        );
+        let replay_state_op =
+            ThreadEventStore::op_can_change_pending_replay_state(&op).then(|| op.clone());
+        let submitted = self.chat_widget.submit_op(op);
+        if submitted && let Some(op) = replay_state_op.as_ref() {
+            self.note_active_thread_outbound_op(op).await;
+            self.refresh_pending_thread_approvals().await;
+        }
+
+        self.chat_widget.add_info_message(
+            "Permissions updated to Power user".to_string(),
+            Some("Saved default_permissions = \":power-user\" for future sessions.".to_string()),
+        );
+    }
+
     pub(super) async fn update_feature_flags(&mut self, updates: Vec<(Feature, bool)>) {
         if updates.is_empty() {
             return;
