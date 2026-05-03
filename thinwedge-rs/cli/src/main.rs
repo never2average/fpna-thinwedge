@@ -56,6 +56,7 @@ use thinwedge_features::FEATURES;
 use thinwedge_features::Stage;
 use thinwedge_features::is_known_feature_key;
 use thinwedge_login::AuthManager;
+use thinwedge_login::read_preferred_api_key_from_env;
 use thinwedge_memories_write::clear_memory_roots_contents;
 use thinwedge_models_manager::bundled_models_response;
 use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
@@ -983,6 +984,26 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                         let agent_identity = read_agent_identity_from_stdin();
                         run_login_with_agent_identity(login_cli.config_overrides, agent_identity)
                             .await;
+                    } else if read_preferred_api_key_from_env().is_none()
+                        && std::io::stdin().is_terminal()
+                        && std::io::stderr().is_terminal()
+                    {
+                        eprintln!(
+                            "OPENROUTER_API_KEY is not set. Opening ThinWedge's interactive login."
+                        );
+                        let mut login_interactive = TuiCli::parse_from(["thinwedge"]);
+                        prepend_config_flags(
+                            &mut login_interactive.config_overrides,
+                            login_cli.config_overrides,
+                        );
+                        let exit_info = run_interactive_tui(
+                            login_interactive,
+                            root_remote.clone(),
+                            root_remote_auth_token_env.clone(),
+                            arg0_paths.clone(),
+                        )
+                        .await?;
+                        handle_app_exit(exit_info)?;
                     } else {
                         run_login_with_preferred_api_key(login_cli.config_overrides).await;
                     }
