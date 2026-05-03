@@ -25,6 +25,7 @@ pub use thinwedge_core_skills::SkillRenderReport;
 pub use thinwedge_core_skills::SkillsLoadInput;
 pub use thinwedge_core_skills::SkillsManager;
 pub use thinwedge_core_skills::build_available_skills;
+pub use thinwedge_core_skills::build_available_skills_with_role_visible_skills;
 pub use thinwedge_core_skills::build_skill_name_counts;
 pub use thinwedge_core_skills::collect_env_var_dependencies;
 pub use thinwedge_core_skills::config_rules;
@@ -210,15 +211,13 @@ pub(crate) async fn maybe_emit_implicit_skill_invocation(
         return;
     }
 
-    turn_context.session_telemetry.counter(
-        "thinwedge.skill.injected",
-        /*inc*/ 1,
-        &[
+    turn_context
+        .session_telemetry
+        .counter("codex.skill.injected", /*inc*/ 1, &[
             ("status", "ok"),
             ("skill", skill_name.as_str()),
             ("invoke_type", "implicit"),
-        ],
-    );
+        ]);
     sess.services
         .analytics_events_client
         .track_skill_invocations(

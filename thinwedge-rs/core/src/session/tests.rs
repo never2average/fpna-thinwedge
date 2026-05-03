@@ -8,6 +8,7 @@ use crate::exec::ExecCapturePolicy;
 use crate::function_tool::FunctionCallError;
 use crate::shell::default_user_shell;
 use crate::skills::SkillRenderSideEffects;
+use crate::skills::build_available_skills;
 use crate::skills::render::SkillMetadataBudget;
 use crate::test_support::models_manager_with_provider;
 use crate::tools::format_exec_output_str;
@@ -3121,6 +3122,7 @@ enabled = false
             description: None,
             config_file: Some(role_path.to_path_buf()),
             nickname_candidates: None,
+            visible_skills: Some(vec!["demo-skill".to_string()]),
         },
     );
     crate::agent::role::apply_role_to_config(&mut child_config, Some("custom"))
@@ -3135,6 +3137,7 @@ enabled = false
     let child_turn = session
         .new_default_turn_with_sub_id("role-skill-turn".to_string())
         .await;
+    assert_eq!(child_turn.config.role_visible_skills, vec!["demo-skill"]);
     let child_skill = child_turn
         .turn_skills
         .outcome

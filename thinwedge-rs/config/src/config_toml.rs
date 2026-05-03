@@ -619,6 +619,9 @@ pub struct AgentRoleToml {
 
     /// Candidate nicknames for agents spawned with this role.
     pub nickname_candidates: Option<Vec<String>>,
+
+    /// Skill names to show prominently for agents spawned with this role.
+    pub visible_skills: Option<Vec<String>>,
 }
 
 impl From<ToolsToml> for Tools {
