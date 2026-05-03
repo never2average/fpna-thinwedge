@@ -27,7 +27,16 @@ use super::ProjectConfig;
 
 pub(crate) const BUILT_IN_READ_ONLY_PROFILE: &str = ":read-only";
 pub(crate) const BUILT_IN_WORKSPACE_PROFILE: &str = ":workspace";
+pub(crate) const BUILT_IN_POWER_USER_PROFILE: &str = ":power-user";
 pub(crate) const BUILT_IN_DANGER_NO_SANDBOX_PROFILE: &str = ":danger-no-sandbox";
+
+const POWER_USER_DENY_READ_GLOBS: &[&str] = &[
+    "**/.env*",
+    "**/*secret*",
+    "**/*token*",
+    "**/*.pem",
+    "**/*_key*",
+];
 
 pub(crate) fn default_builtin_permission_profile_name(
     active_project: &ProjectConfig,
@@ -47,6 +56,7 @@ pub(crate) fn is_builtin_permission_profile_name(profile_name: &str) -> bool {
         profile_name,
         BUILT_IN_READ_ONLY_PROFILE
             | BUILT_IN_WORKSPACE_PROFILE
+            | BUILT_IN_POWER_USER_PROFILE
             | BUILT_IN_DANGER_NO_SANDBOX_PROFILE
     )
 }
@@ -75,9 +85,46 @@ pub(crate) fn builtin_permission_profile(
             ),
             None => PermissionProfile::workspace_write(),
         }),
+        BUILT_IN_POWER_USER_PROFILE => Some(power_user_permission_profile(workspace_write)),
         BUILT_IN_DANGER_NO_SANDBOX_PROFILE => Some(PermissionProfile::Disabled),
         _ => None,
     }
+}
+
+fn power_user_permission_profile(
+    workspace_write: Option<&SandboxWorkspaceWrite>,
+) -> PermissionProfile {
+    let mut profile = match workspace_write {
+        Some(SandboxWorkspaceWrite {
+            writable_roots,
+            exclude_tmpdir_env_var,
+            exclude_slash_tmp,
+            ..
+        }) => PermissionProfile::workspace_write_with(
+            writable_roots,
+            NetworkSandboxPolicy::Restricted,
+            *exclude_tmpdir_env_var,
+            *exclude_slash_tmp,
+        ),
+        None => PermissionProfile::workspace_write(),
+    };
+
+    let (mut file_system_sandbox_policy, network_sandbox_policy) = profile.to_runtime_permissions();
+    for pattern in POWER_USER_DENY_READ_GLOBS {
+        file_system_sandbox_policy
+            .entries
+            .push(FileSystemSandboxEntry {
+                path: FileSystemPath::GlobPattern {
+                    pattern: pattern.to_string(),
+                },
+                access: FileSystemAccessMode::None,
+            });
+    }
+    profile = PermissionProfile::from_runtime_permissions(
+        &file_system_sandbox_policy,
+        network_sandbox_policy,
+    );
+    profile
 }
 
 pub(crate) fn validate_user_permission_profile_names(
