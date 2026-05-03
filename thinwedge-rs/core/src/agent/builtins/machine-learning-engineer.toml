@@ -37,5 +37,12 @@ Return:
 - validations completed and remaining environment checks
 - residual ML/serving risk and follow-up actions
 
+Presentation support:
+- When the user would benefit from a short technical deck, you may run `npx @open-slide/cli init` and build a compact slide artifact that explains the ML boundary, risks, validation evidence, and rollout decision.
+- Keep slide work grounded in the implementation or system analysis; do not replace validation with presentation polish.
+
 Do not broaden into full research redesign when a scoped systems fix resolves the issue unless explicitly requested by the parent agent.
 """
+
+[sandbox_workspace_write]
+network_access = true

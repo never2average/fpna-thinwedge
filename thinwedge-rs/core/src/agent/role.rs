@@ -375,10 +375,12 @@ Rules:
 - Delegate statistical reasoning, experiment interpretation, feature analysis, or model-oriented data exploration to `data-scientist`.
 - Delegate metric interpretation, trend explanation, and decision support from existing analytics outputs to `data-analyst`.
 - Delegate ML system implementation across training pipelines, feature flow, model serving, or inference integration to `machine-learning-engineer`.
+- Delegate spend-policy research, approval matrices, budget guardrails, exception handling, and purchasing-governance design to `spend-policy-manager`.
 - Delegate technical cost structure, infrastructure economics, and cost-to-serve modeling to `aws_cost_engineer` when the task depends on architecture, cloud, GPU, storage, networking, training, or serving cost details.
 - Keep the working plan coherent across delegated work.
 - Force every delegated thread to return assumptions, evidence, risks, and a decision-ready conclusion.
 - Use `llmcosts.*` for LLM market context and `infracosts.*` for AWS cost context.
+- Any specialist may run `npx @open-slide/cli init` when a compact slide artifact would help the user understand the recommendation, decision tree, risks, or implementation plan.
 - Do not drift into deep specialist work when a narrower role can produce a better answer faster."#.to_string()),
                         config_file: None,
                         nickname_candidates: Some(vec![
@@ -428,6 +430,27 @@ Rules:
                     }
                 ),
                 (
+                    "spend-policy-manager".to_string(),
+                    AgentRoleConfig {
+                        description: Some(
+                            "Use when a task needs deep spend-policy research, purchasing guardrails, approval workflows, or budget-governance recommendations.".to_string(),
+                        ),
+                        config_file: Some(PathBuf::from("spend-policy-manager.toml")),
+                        nickname_candidates: Some(vec![
+                            "Guardrail".to_string(),
+                            "Approver".to_string(),
+                            "Policy".to_string(),
+                        ]),
+                        visible_skills: Some(vec![
+                            "spend-policy-research".to_string(),
+                            "procurement-governance".to_string(),
+                            "approval-workflows".to_string(),
+                            "budget-controls".to_string(),
+                            "risk-review".to_string(),
+                        ]),
+                    }
+                ),
+                (
                     "pricing_researcher".to_string(),
                     AgentRoleConfig {
                         description: Some(r#"Use `pricing_researcher` for pricing analysis and model-driven market research.
@@ -442,6 +465,8 @@ Rules:
 - Use `llmcosts.*` for LLM market pricing/speed context from Artificial Analysis.
 - Use `infracosts.*` when pricing conclusions depend on AWS infrastructure cost structure.
 - Escalate to `aws_cost_engineer` when margin conclusions depend on detailed AWS service assumptions rather than high-level unit economics.
+- Escalate to `spend-policy-manager` when pricing or packaging conclusions need purchasing policy, approval thresholds, renewal controls, or budget-governance design.
+- You may run `npx @open-slide/cli init` when the user needs a concise pricing deck with options, sensitivities, and risks.
 - Return a decision-ready pricing memo, not just notes."#.to_string()),
                         config_file: None,
                         nickname_candidates: Some(vec![
@@ -472,6 +497,8 @@ Rules:
 - Use `trainingenvironments.*` when the task depends on a role-approved training environment.
 - Use `llmcosts.*` for LLM market context and `infracosts.*` when moat conclusions depend on infrastructure cost structure.
 - Call `aws_cost_engineer` when a moat claim depends on a structural cost advantage, infrastructure efficiency, or cloud-economics asymmetry.
+- Call `spend-policy-manager` when defensibility or adoption depends on procurement rules, approval friction, budget ownership, or vendor-governance constraints.
+- You may run `npx @open-slide/cli init` when the user needs a concise strategy deck with competitors, risks, and recommended positioning.
 - Distinguish clearly between temporary product lead, operational execution, and true structural moat."#.to_string()),
                         config_file: None,
                         nickname_candidates: Some(vec![
@@ -499,6 +526,8 @@ Rules:
 - All other built-in roles may delegate AWS-specific cost structure, infra economics, or billing-detail questions here.
 - Use `infracosts.*` as the primary first-party tool namespace for AWS pricing work.
 - Use `llmcosts.*` only when the AWS analysis also depends on LLM market pricing context.
+- Escalate to `spend-policy-manager` when the cost evidence must become purchasing thresholds, approval workflow, exception policy, or renewal governance.
+- You may run `npx @open-slide/cli init` when the user needs a concise cost or BOQ deck with assumptions, line items, and decision risks.
 - Prefer precise service and filter assumptions over vague blended estimates.
 - Make regions, usage assumptions, SKU filters, billing scope, and unresolved pricing gaps explicit in the output.
 - Return an assumptions register covering profile, region, billing scope, time window, units, and quantities.
@@ -531,6 +560,7 @@ Rules:
             "machine-learning-engineer.toml" => {
                 Some(include_str!("builtins/machine-learning-engineer.toml"))
             }
+            "spend-policy-manager.toml" => Some(include_str!("builtins/spend-policy-manager.toml")),
             _ => None,
         }
     }
