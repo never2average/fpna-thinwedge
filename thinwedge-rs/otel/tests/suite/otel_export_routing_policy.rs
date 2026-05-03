@@ -83,7 +83,6 @@ fn find_span_event_by_name_attr<'a>(
 fn auth_env_metadata() -> AuthEnvTelemetryMetadata {
     AuthEnvTelemetryMetadata {
         thinwedge_api_key_env_present: true,
-        thinwedge_api_key_env_present: false,
         thinwedge_api_key_env_enabled: true,
         provider_env_key_name: Some("configured".to_string()),
         provider_env_key_present: Some(true),
