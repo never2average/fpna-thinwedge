@@ -59,7 +59,6 @@ jobs:
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               build-essential \
               curl \
-              musl-tools \
               pkg-config \
               libcap-dev
       - run:
@@ -68,15 +67,18 @@ jobs:
             set -euo pipefail
             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
             . "$HOME/.cargo/env"
-            rustup target add x86_64-unknown-linux-musl
+            rustup target add x86_64-unknown-linux-gnu
             cargo --version
       - run:
           name: Build Linux x64 release binaries
+          no_output_timeout: 60m
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
             cd thinwedge-rs
-            cargo build --target x86_64-unknown-linux-musl --release \
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            cargo build --target x86_64-unknown-linux-gnu --release \
               --bin thinwedge \
               --bin thinwedge-responses-api-proxy
       - run:
@@ -84,7 +86,7 @@ jobs:
           command: |
             set -euo pipefail
             base="/tmp/circleci-release"
-            target="x86_64-unknown-linux-musl"
+            target="x86_64-unknown-linux-gnu"
             release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
 
             mkdir -p "${base}/native/vendor/${target}/thinwedge"
@@ -106,7 +108,7 @@ jobs:
             - native
             - release-assets
 
-  build-macos:
+  build-macos-arm64:
     macos:
       xcode: 16.4.0
     resource_class: m4pro.medium
@@ -115,43 +117,102 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-cargo-macos-{{ checksum "thinwedge-rs/Cargo.lock" }}
-            - v1-cargo-macos-
+            - v1-cargo-macos-arm64-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v1-cargo-macos-arm64-
       - run:
           name: Install Rust toolchain
           command: |
             set -euo pipefail
             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
             . "$HOME/.cargo/env"
-            rustup target add aarch64-apple-darwin x86_64-apple-darwin
+            rustup target add aarch64-apple-darwin
             cargo --version
       - run:
-          name: Build macOS release binaries
+          name: Build macOS ARM64 release binaries
+          no_output_timeout: 60m
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
             cd thinwedge-rs
-            for target in aarch64-apple-darwin x86_64-apple-darwin; do
-              cargo build --target "${target}" --release \
-                --bin thinwedge \
-                --bin thinwedge-responses-api-proxy
-            done
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            cargo build --target aarch64-apple-darwin --release \
+              --bin thinwedge \
+              --bin thinwedge-responses-api-proxy
       - run:
-          name: Stage macOS release assets
+          name: Stage macOS ARM64 release assets
           command: |
             set -euo pipefail
             base="/tmp/circleci-release"
+            target="aarch64-apple-darwin"
+            release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
+
+            mkdir -p "${base}/native/vendor/${target}/thinwedge"
             mkdir -p "${base}/release-assets"
 
-            for target in aarch64-apple-darwin x86_64-apple-darwin; do
-              release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
-              mkdir -p "${base}/native/vendor/${target}/thinwedge"
-              cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
-              tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
-              tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
-            done
+            cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
       - save_cache:
-          key: v1-cargo-macos-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          key: v1-cargo-macos-arm64-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/thinwedge-rs/target
+      - persist_to_workspace:
+          root: /tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-macos-x64:
+    macos:
+      xcode: 16.4.0
+    resource_class: m4pro.medium
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v1-cargo-macos-x64-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v1-cargo-macos-x64-
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
+            . "$HOME/.cargo/env"
+            rustup target add x86_64-apple-darwin
+            cargo --version
+      - run:
+          name: Build macOS x64 release binaries
+          no_output_timeout: 60m
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            cd thinwedge-rs
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            cargo build --target x86_64-apple-darwin --release \
+              --bin thinwedge \
+              --bin thinwedge-responses-api-proxy
+      - run:
+          name: Stage macOS x64 release assets
+          command: |
+            set -euo pipefail
+            base="/tmp/circleci-release"
+            target="x86_64-apple-darwin"
+            release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
+
+            mkdir -p "${base}/native/vendor/${target}/thinwedge"
+            mkdir -p "${base}/release-assets"
+
+            cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
+      - save_cache:
+          key: v1-cargo-macos-x64-{{ checksum "thinwedge-rs/Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - ~/.cargo/git
@@ -341,7 +402,15 @@ workflows:
               ignore: /.*/
             tags:
               only: /^rust-v.*/
-      - build-macos:
+      - build-macos-arm64:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-macos-x64:
           requires:
             - tag-check
           filters:
@@ -352,7 +421,8 @@ workflows:
       - publish-release:
           requires:
             - build-linux-x64
-            - build-macos
+            - build-macos-arm64
+            - build-macos-x64
           filters:
             branches:
               ignore: /.*/
