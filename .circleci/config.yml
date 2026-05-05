@@ -43,7 +43,7 @@ jobs:
   build-linux-x64:
     machine:
       image: ubuntu-2204:current
-    resource_class: medium
+    resource_class: large
     working_directory: ~/project
     steps:
       - checkout
@@ -71,7 +71,7 @@ jobs:
             cargo --version
       - run:
           name: Build Linux x64 release binaries
-          no_output_timeout: 60m
+          no_output_timeout: 120m
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
