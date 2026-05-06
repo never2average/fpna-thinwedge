@@ -207,9 +207,27 @@ def check_npm_platform_targets() -> list[str]:
     return findings
 
 
+def check_release_workflow_npm_staging() -> list[str]:
+    workflow = Path(".github/workflows/rust-release.yml").read_text(encoding="utf-8")
+    expected = (
+        '--workflow-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/'
+        '${GITHUB_RUN_ID}"'
+    )
+    if expected in workflow:
+        return []
+    return [
+        "rust-release.yml must pass the current GitHub Actions run URL to "
+        "stage_npm_packages.py so release artifacts cannot be resolved from a "
+        "stale or unrelated workflow run."
+    ]
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
-    structural_findings = check_npm_platform_targets()
+    structural_findings = [
+        *check_npm_platform_targets(),
+        *check_release_workflow_npm_staging(),
+    ]
     checked = 0
 
     for path in tracked_files():

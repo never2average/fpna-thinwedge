@@ -44,6 +44,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] npm platform package target triples are checked against the native release targets hydrated by `install_native_deps.py`.
+- [x] npm package staging uses the current GitHub Actions run URL instead of searching for the first matching release workflow run.
 - [x] Repository Actions policy requires external actions to be pinned to full commit SHAs.
 - [x] Bazel CI no longer enables remote execution by default; private RBE container images are opt-in only.
 - [x] Default Bazel PR checks stay on Linux and run one at a time to avoid macOS/Windows hosted-runner spend and local macOS V8 timeouts.
