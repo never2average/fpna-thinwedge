@@ -344,6 +344,46 @@ def check_vendored_bwrap_opt_in() -> list[str]:
     return findings
 
 
+def check_license_and_notice_provenance() -> list[str]:
+    findings: list[str] = []
+    required_by_file = {
+        Path("LICENSE"): (
+            "Copyright 2025 OpenAI",
+            "Copyright 2025 ThinWedge",
+        ),
+        Path("NOTICE"): (
+            "ThinWedge",
+            "This product includes software derived from OpenAI Codex.",
+            "OpenAI Codex",
+            "Copyright 2025 OpenAI",
+            "THIRD_PARTY_NOTICES.md",
+        ),
+        Path("THIRD_PARTY_NOTICES.md"): (
+            "## OpenAI Codex",
+            "## Ratatui",
+            "## WezTerm",
+            "## ripgrep",
+            "## bubblewrap",
+            "LGPL-2.0-or-later",
+            "THINWEDGE_ENABLE_VENDORED_BWRAP=1",
+        ),
+    }
+
+    for path, snippets in required_by_file.items():
+        if not path.exists():
+            findings.append(f"{path}: required public release notice file is missing.")
+            continue
+
+        contents = path.read_text(encoding="utf-8")
+        for snippet in snippets:
+            if snippet not in contents:
+                findings.append(
+                    f"{path}: required public release provenance text missing: {snippet!r}."
+                )
+
+    return findings
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
@@ -353,6 +393,7 @@ def main() -> int:
         *check_github_actions_pinned(),
         *check_npm_trusted_publishing(),
         *check_vendored_bwrap_opt_in(),
+        *check_license_and_notice_provenance(),
     ]
     checked = 0
 
