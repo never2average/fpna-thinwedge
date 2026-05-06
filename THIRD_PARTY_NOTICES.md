@@ -28,7 +28,7 @@ This file summarizes third-party code and binary components that are intentional
 
 ## bubblewrap
 
-- Use: Vendored Linux sandbox source under `thinwedge-rs/vendor/bubblewrap/`.
+- Use: Vendored Linux sandbox source under `thinwedge-rs/vendor/bubblewrap/`. Default public release builds do not link this code into distributed binaries; they require system `bwrap` on PATH.
 - License: LGPL-2.0-or-later. The full license text is in `thinwedge-rs/vendor/bubblewrap/COPYING`.
 - Notice: Copyright (C) 2016 Alexander Larsson and other bubblewrap contributors.
-- Public release note: if vendored bubblewrap remains linked into distributed binaries, release packaging must satisfy the applicable LGPL obligations for those binaries.
+- Public release note: vendored bubblewrap embedding is opt-in via `THINWEDGE_ENABLE_VENDORED_BWRAP=1`; builds that enable it must satisfy the applicable LGPL obligations for those binaries.

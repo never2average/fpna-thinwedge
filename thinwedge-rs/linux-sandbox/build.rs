@@ -9,7 +9,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_ALLOW_CROSS");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_PATH");
     println!("cargo:rerun-if-env-changed=PKG_CONFIG_SYSROOT_DIR");
-    println!("cargo:rerun-if-env-changed=THINWEDGE_SKIP_VENDORED_BWRAP");
+    println!("cargo:rerun-if-env-changed=THINWEDGE_ENABLE_VENDORED_BWRAP");
 
     // Rebuild if the vendored bwrap sources change.
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_default());
@@ -32,7 +32,7 @@ fn main() {
     );
 
     let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
-    if target_os != "linux" || env::var_os("THINWEDGE_SKIP_VENDORED_BWRAP").is_some() {
+    if target_os != "linux" || env::var_os("THINWEDGE_ENABLE_VENDORED_BWRAP").is_none() {
         return;
     }
 
@@ -86,6 +86,9 @@ fn try_build_vendored_bwrap() -> Result<(), String> {
 /// Priority:
 /// 1. `THINWEDGE_BWRAP_SOURCE_DIR` points at an existing bubblewrap checkout.
 /// 2. The vendored bubblewrap tree under `thinwedge-rs/vendor/bubblewrap`.
+///
+/// This is used only when `THINWEDGE_ENABLE_VENDORED_BWRAP` opts into
+/// build-time bubblewrap embedding.
 fn resolve_bwrap_source_dir(manifest_dir: &Path) -> Result<PathBuf, String> {
     if let Ok(path) = env::var("THINWEDGE_BWRAP_SOURCE_DIR") {
         let src_dir = PathBuf::from(path);
