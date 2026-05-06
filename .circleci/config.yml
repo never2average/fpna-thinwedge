@@ -264,18 +264,18 @@ jobs:
             - native
             - release-assets
 
-  build-windows:
+  build-windows-x64:
     machine:
       image: windows-server-2022-gui:current
       shell: bash.exe -eo pipefail
-    resource_class: windows.large
+    resource_class: windows.xlarge
     working_directory: ~/project
     steps:
       - checkout
       - restore_cache:
           keys:
-            - v2-cargo-windows-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
-            - v2-cargo-windows-cli-
+            - v2-cargo-windows-x64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-windows-x64-cli-
       - run:
           name: Install Rust toolchain
           command: |
@@ -285,38 +285,96 @@ jobs:
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
             mkdir -p "$USERPROFILE/.cargo"
             printf '[net]\ngit-fetch-with-cli = true\n' > "$USERPROFILE/.cargo/config.toml"
-            rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+            rustup target add x86_64-pc-windows-msvc
             cargo --version
       - run:
-          name: Build Windows CLI and helpers
+          name: Build Windows x64 CLI and helpers
           no_output_timeout: 120m
           command: |
             set -euo pipefail
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
             cd thinwedge-rs
-            for target in x86_64-pc-windows-msvc aarch64-pc-windows-msvc; do
-              CARGO_PROFILE_RELEASE_LTO=thin \
-              cargo build --target "${target}" --release \
-                --bin thinwedge \
-                --bin thinwedge-windows-sandbox-setup \
-                --bin thinwedge-command-runner
-            done
+            target="x86_64-pc-windows-msvc"
+            CARGO_PROFILE_RELEASE_LTO=thin \
+            cargo build --target "${target}" --release \
+              --bin thinwedge \
+              --bin thinwedge-windows-sandbox-setup \
+              --bin thinwedge-command-runner
       - run:
-          name: Stage Windows CLI
+          name: Stage Windows x64 CLI
           command: |
             set -euo pipefail
             base="/tmp/circleci-release"
-            mkdir -p "${base}/release-assets"
-            for target in x86_64-pc-windows-msvc aarch64-pc-windows-msvc; do
-              release_dir="$PWD/thinwedge-rs/target/${target}/release"
-              mkdir -p "${base}/native/vendor/${target}/thinwedge"
-              cp "${release_dir}/thinwedge.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge.exe"
-              cp "${release_dir}/thinwedge-windows-sandbox-setup.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-windows-sandbox-setup.exe"
-              cp "${release_dir}/thinwedge-command-runner.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-command-runner.exe"
-              tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge.exe
-            done
+            target="x86_64-pc-windows-msvc"
+            release_dir="$PWD/thinwedge-rs/target/${target}/release"
+            mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
+            cp "${release_dir}/thinwedge.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge.exe"
+            cp "${release_dir}/thinwedge-windows-sandbox-setup.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-windows-sandbox-setup.exe"
+            cp "${release_dir}/thinwedge-command-runner.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-command-runner.exe"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge.exe
       - save_cache:
-          key: v2-cargo-windows-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          key: v2-cargo-windows-x64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/thinwedge-rs/target
+      - persist_to_workspace:
+          root: /tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-windows-arm64:
+    machine:
+      image: windows-server-2022-gui:current
+      shell: bash.exe -eo pipefail
+    resource_class: windows.xlarge
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v2-cargo-windows-arm64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-windows-arm64-cli-
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl.exe -sSf -o rustup-init.exe https://win.rustup.rs/x86_64
+            ./rustup-init.exe -y --profile minimal --default-toolchain 1.93.0
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            mkdir -p "$USERPROFILE/.cargo"
+            printf '[net]\ngit-fetch-with-cli = true\n' > "$USERPROFILE/.cargo/config.toml"
+            rustup target add aarch64-pc-windows-msvc
+            cargo --version
+      - run:
+          name: Build Windows ARM64 CLI and helpers
+          no_output_timeout: 120m
+          command: |
+            set -euo pipefail
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            cd thinwedge-rs
+            target="aarch64-pc-windows-msvc"
+            CARGO_PROFILE_RELEASE_LTO=thin \
+            cargo build --target "${target}" --release \
+              --bin thinwedge \
+              --bin thinwedge-windows-sandbox-setup \
+              --bin thinwedge-command-runner
+      - run:
+          name: Stage Windows ARM64 CLI
+          command: |
+            set -euo pipefail
+            base="/tmp/circleci-release"
+            target="aarch64-pc-windows-msvc"
+            release_dir="$PWD/thinwedge-rs/target/${target}/release"
+            mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
+            cp "${release_dir}/thinwedge.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge.exe"
+            cp "${release_dir}/thinwedge-windows-sandbox-setup.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-windows-sandbox-setup.exe"
+            cp "${release_dir}/thinwedge-command-runner.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-command-runner.exe"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge.exe
+      - save_cache:
+          key: v2-cargo-windows-arm64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - ~/.cargo/git
@@ -539,9 +597,17 @@ workflows:
               ignore: /.*/
             tags:
               only: /^rust-v.*/
-      - build-windows:
+      - build-windows-x64:
           requires:
             - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-windows-arm64:
+          requires:
+            - build-windows-x64
           filters:
             branches:
               ignore: /.*/
@@ -552,7 +618,8 @@ workflows:
             - build-linux-x64
             - build-linux-arm64
             - build-macos
-            - build-windows
+            - build-windows-x64
+            - build-windows-arm64
           filters:
             branches:
               ignore: /.*/
