@@ -40,8 +40,9 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] CircleCI release publishing is retired; CircleCI is smoke-only.
 - [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
+- [x] Repository Actions policy requires external actions to be pinned to full commit SHAs.
 - [ ] Prefer npm trusted publishing/OIDC over long-lived `NPM_TOKEN`, or explicitly accept the token risk.
-- [ ] Repository Actions policy is locked down for public operation, including allowed actions and SHA pinning.
+- [ ] After the repository is public, restrict allowed external actions/reusable workflows to an approved selected-actions list.
 
 ## Known external blockers
 
