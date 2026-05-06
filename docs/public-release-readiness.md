@@ -10,6 +10,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [ ] CircleCI is not a release authority.
 - [ ] Release tags are protected and `rust-v*` tags are created only from reviewed `main` commits.
 - [ ] The public-history decision is approved: either expose inherited history intentionally, or publish from a sanitized history branch.
+- [ ] Historical secret-scanner findings are resolved or explicitly accepted before public visibility is enabled.
 
 ## Product and data exposure
 
@@ -22,6 +23,8 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] Real-looking TUI fixture metadata is scrubbed.
 - [x] Current-tree scans do not contain live AWS/OpenAI/GitHub/npm/CircleCI credentials.
 - [x] Current-tree test fixtures avoid private-key PEM marker blocks that trigger secret scanners.
+- [ ] Full git history no longer contains historical test private-key PEM fixtures, or the release owner has explicitly accepted the inherited-history exposure.
+- [x] Full git history token-pattern review found fake/test `sk-...` strings but no evidence of live provider tokens.
 
 ## Licensing and provenance
 
@@ -44,3 +47,4 @@ Use this checklist before making the repository public or publishing an open-sou
 
 - GitHub Actions can fail before running any steps if account payments fail or the spending limit is too low. In that case the check annotation points at billing, and code changes cannot make CI green.
 - CircleCI smoke logs require a valid CircleCI token or project access outside this repository checkout.
+- Public GitHub history cannot hide old committed test private-key PEM fixtures without a history rewrite or sanitized publication branch.
