@@ -13,9 +13,9 @@ If the scan fails, choose one path before public visibility is enabled:
 1. Rewrite history or publish from a sanitized history branch, then rerun the scanner until it passes.
 2. Explicitly accept the inherited-history exposure in the release record.
 
-Known current blocker: full history still contains historical test private-key PEM fixtures and fake/test `sk-...` strings. No live CircleCI, GitHub, npm, AWS, Slack, Google, or Stripe token-shaped values were found in the latest manual scan, but this script is the repeatable repo-local gate for future checks.
+Current status: the public history rewrite has removed the historical test private-key PEM fixtures and fake/test `sk-...` strings from reachable branches and tags. No live CircleCI, GitHub, npm, AWS, Slack, Google, or Stripe token-shaped values were found in the latest manual scan. Keep this script as the repeatable repo-local gate for future checks.
 
-After any history rewrite, verify release refs again:
+After any future history rewrite, verify release refs again:
 
 ```bash
 git fetch --all --tags --force
