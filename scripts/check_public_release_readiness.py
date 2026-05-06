@@ -275,6 +275,38 @@ def check_github_actions_pinned() -> list[str]:
     return findings
 
 
+def check_npm_trusted_publishing() -> list[str]:
+    findings: list[str] = []
+    workflows_dir = Path(".github/workflows")
+    if not workflows_dir.exists():
+        return findings
+
+    forbidden_tokens = ("NPM_TOKEN", "NODE_AUTH_TOKEN")
+    for path in sorted(workflows_dir.glob("*.yml")) + sorted(workflows_dir.glob("*.yaml")):
+        contents = path.read_text(encoding="utf-8")
+        for token_name in forbidden_tokens:
+            if token_name in contents:
+                findings.append(
+                    f"{path}: npm publishing must use trusted publishing/OIDC, not {token_name}."
+                )
+
+    release_workflow = Path(".github/workflows/rust-release.yml")
+    if release_workflow.exists():
+        contents = release_workflow.read_text(encoding="utf-8")
+        required_snippets = (
+            "publish-npm:",
+            "id-token: write",
+            "npm publish",
+        )
+        for snippet in required_snippets:
+            if snippet not in contents:
+                findings.append(
+                    f"{release_workflow}: npm trusted publishing guard missing '{snippet}'."
+                )
+
+    return findings
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
@@ -282,6 +314,7 @@ def main() -> int:
         *check_release_workflow_npm_staging(),
         *check_circleci_filtered_out(),
         *check_github_actions_pinned(),
+        *check_npm_trusted_publishing(),
     ]
     checked = 0
 

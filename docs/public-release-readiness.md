@@ -52,6 +52,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] Default Bazel PR checks stay on Linux and run one at a time to avoid macOS/Windows hosted-runner spend and local macOS V8 timeouts.
 - [x] Release preparation workflows require an explicit `THINWEDGE_BASE_URL` instead of falling back to live ThinWedge or ChatGPT services.
 - [x] The npm publish workflow uses trusted publishing/OIDC instead of long-lived `NPM_TOKEN`.
+- [x] Public-readiness scanning fails if npm workflows regress to `NPM_TOKEN`/`NODE_AUTH_TOKEN` or drop the OIDC publish guard.
 - [ ] Configure npmjs.com trusted publishers for every package listed in `docs/npm-trusted-publishing.md`, then remove any obsolete publish token after a successful OIDC publish.
 - [ ] After the repository is public, restrict allowed external actions/reusable workflows to an approved selected-actions list.
 
