@@ -362,6 +362,7 @@ if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
       "--build_metadata=TAG_os=${ci_os_tag}"
       "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
       --remote_executor=
+      --remote_upload_local_results=false
     )
   fi
   if (( ${#post_config_bazel_args[@]} > 0 )); then

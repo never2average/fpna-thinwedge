@@ -45,6 +45,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] Repository Actions policy requires external actions to be pinned to full commit SHAs.
 - [x] Bazel CI no longer enables remote execution by default; private RBE container images are opt-in only.
+- [x] Default Bazel PR checks stay on Linux and run one at a time to avoid macOS/Windows hosted-runner spend and local macOS V8 timeouts.
 - [x] The npm publish workflow uses trusted publishing/OIDC instead of long-lived `NPM_TOKEN`.
 - [ ] Configure npmjs.com trusted publishers for every package listed in `docs/npm-trusted-publishing.md`, then remove any obsolete publish token after a successful OIDC publish.
 - [ ] After the repository is public, restrict allowed external actions/reusable workflows to an approved selected-actions list.
@@ -54,6 +55,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - GitHub Actions can fail before running any steps if account payments fail or the spending limit is too low. In that case the check annotation points at billing, and code changes cannot make CI green.
 - CircleCI smoke logs require a valid CircleCI token or project access outside this repository checkout.
 - Bazel remote execution remains available only when `THINWEDGE_BAZEL_REMOTE_EXECUTION=1`; the configured RBE container image must be public or otherwise pullable by BuildBuddy.
+- Authenticated BuildBuddy cache reads stay enabled, but local-output uploads are disabled by default when remote execution is off to avoid Bazel remote-cache upload crashes in hosted macOS runners.
 - Public GitHub history was rewritten for existing branches and tags; collaborators must reclone or reset local clones to the rewritten refs.
 - GitHub branch protection and repository rulesets return `403` while this private repository is on a plan that requires GitHub Pro or public visibility for those features.
 - npm trusted publishing requires npmjs.com package settings to trust `never2average/fpna-thinwedge` and `.github/workflows/rust-release.yml`; the repository workflow can request OIDC tokens, but npm-side trust must still be configured before the next publish.
