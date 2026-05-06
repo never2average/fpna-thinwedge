@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import subprocess
 import sys
@@ -171,8 +172,44 @@ def is_scannable(path: Path) -> bool:
     return True
 
 
+def load_python_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load module from {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_npm_platform_targets() -> list[str]:
+    build_module = load_python_module(
+        "thinwedge_build_npm_package",
+        Path("thinwedge-cli/scripts/build_npm_package.py"),
+    )
+    install_module = load_python_module(
+        "thinwedge_install_native_deps",
+        Path("thinwedge-cli/scripts/install_native_deps.py"),
+    )
+
+    platform_packages = getattr(build_module, "THINWEDGE_PLATFORM_PACKAGES", {})
+    binary_targets = set(getattr(install_module, "BINARY_TARGETS", ()))
+
+    findings: list[str] = []
+    for package, config in sorted(platform_packages.items()):
+        target = config.get("target_triple")
+        if target not in binary_targets:
+            findings.append(
+                f"{package} targets {target}, but install_native_deps.py only "
+                "hydrates release binaries for: "
+                + ", ".join(sorted(binary_targets))
+            )
+
+    return findings
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
+    structural_findings = check_npm_platform_targets()
     checked = 0
 
     for path in tracked_files():
@@ -192,11 +229,13 @@ def main() -> int:
             if match:
                 findings.append((path, line_number(contents, match.start()), blocked))
 
-    if not findings:
+    if not findings and not structural_findings:
         print(f"Public release readiness scan passed ({checked} tracked text files checked).")
         return 0
 
     print("Public release readiness scan failed:")
+    for finding in structural_findings:
+        print(f"- npm-platform-targets: {finding}")
     for path, line, blocked in findings:
         print(f"- {path}:{line}: {blocked.name}: {blocked.description}")
     return 1
