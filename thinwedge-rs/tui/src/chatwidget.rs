@@ -436,7 +436,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 const USER_SHELL_COMMAND_HELP_TITLE: &str = "Prefix a command with ! to run it locally";
 const USER_SHELL_COMMAND_HELP_HINT: &str = "Example: !ls";
-const DEFAULT_THINWEDGE_BASE_URL: &str = "https://api.thinwedge.com/v1";
+const DEFAULT_THINWEDGE_BASE_URL: &str = "https://api.example.invalid/v1";
 const DEFAULT_STATUS_LINE_ITEMS: [&str; 2] = ["model-with-reasoning", "current-dir"];
 // Track information about an in-flight exec command.
 struct RunningCommand {

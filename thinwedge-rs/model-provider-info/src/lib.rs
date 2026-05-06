@@ -237,9 +237,9 @@ impl ModelProviderInfo {
             auth_mode,
             Some(AuthMode::Chatgpt | AuthMode::ChatgptAuthTokens | AuthMode::AgentIdentity)
         ) {
-            "https://chatgpt.com/backend-api/thinwedge"
+            "https://example.invalid/backend-api/thinwedge"
         } else {
-            "https://api.thinwedge.com/v1"
+            "https://api.example.invalid/v1"
         };
         let base_url = self
             .base_url

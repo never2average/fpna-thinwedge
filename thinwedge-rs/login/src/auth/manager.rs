@@ -90,9 +90,9 @@ const REFRESH_TOKEN_INVALIDATED_MESSAGE: &str = "Your access token could not be 
 const REFRESH_TOKEN_UNKNOWN_MESSAGE: &str =
     "Your access token could not be refreshed. Please log out and sign in again.";
 const REFRESH_TOKEN_ACCOUNT_MISMATCH_MESSAGE: &str = "Your access token could not be refreshed because you have since logged out or signed in to another account. Please sign in again.";
-const DEFAULT_CHATGPT_BACKEND_BASE_URL: &str = "https://chatgpt.com/backend-api";
-const REFRESH_TOKEN_URL: &str = "https://auth.thinwedge.com/oauth/token";
-pub(super) const REVOKE_TOKEN_URL: &str = "https://auth.thinwedge.com/oauth/revoke";
+const DEFAULT_CHATGPT_BACKEND_BASE_URL: &str = "https://example.invalid/backend-api";
+const REFRESH_TOKEN_URL: &str = "https://auth.example.invalid/oauth/token";
+pub(super) const REVOKE_TOKEN_URL: &str = "https://auth.example.invalid/oauth/revoke";
 pub const REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR: &str = "THINWEDGE_REFRESH_TOKEN_URL_OVERRIDE";
 pub const REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR: &str = "THINWEDGE_REVOKE_TOKEN_URL_OVERRIDE";
 static NEXT_DUMMY_AUTH_ID: AtomicU64 = AtomicU64::new(1);
