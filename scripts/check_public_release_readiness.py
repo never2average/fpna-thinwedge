@@ -112,6 +112,11 @@ BLOCKED_PATTERNS = [
         re.compile(rb"A[SK]IA[0-9A-Z]{16}"),
         "AWS access keys must not be committed.",
     ),
+    BlockedPattern(
+        "openai-token-shape",
+        re.compile(rb"sk-[A-Za-z0-9]{20,}"),
+        "OpenAI-shaped tokens must not be committed, even as test fixtures.",
+    ),
 ]
 
 
