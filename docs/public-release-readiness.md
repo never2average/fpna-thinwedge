@@ -40,7 +40,7 @@ Use this checklist before making the repository public or publishing an open-sou
 
 ## CI and release safety
 
-- [x] CircleCI release publishing is retired; CircleCI is smoke-only.
+- [x] CircleCI release publishing is retired; the remaining smoke job is filtered out for all branches and tags so public readiness does not depend on CircleCI credits.
 - [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] npm platform package target triples are checked against the native release targets hydrated by `install_native_deps.py`.
@@ -56,7 +56,7 @@ Use this checklist before making the repository public or publishing an open-sou
 ## Known external blockers
 
 - GitHub Actions can fail before running any steps if account payments fail or the spending limit is too low. In that case the check annotation points at billing, and code changes cannot make CI green.
-- CircleCI smoke logs require a valid CircleCI token or project access outside this repository checkout.
+- CircleCI project-side statuses require account credits; the repo config filters out all CircleCI jobs, but any stale/required GitHub status must still be removed from repository settings.
 - Bazel remote execution remains available only when `THINWEDGE_BAZEL_REMOTE_EXECUTION=1`; the configured RBE container image must be public or otherwise pullable by BuildBuddy.
 - Authenticated BuildBuddy cache reads stay enabled, but local-output uploads are disabled by default when remote execution is off to avoid Bazel remote-cache upload crashes in hosted macOS runners.
 - The `rust-release-prepare` workflow requires `THINWEDGE_BASE_URL`; configure it deliberately before re-enabling automated model metadata refreshes.
