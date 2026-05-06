@@ -36,20 +36,46 @@ commands:
               printf '%s\n' '$nrconf{restart} = "a";' | sudo tee /etc/needrestart/conf.d/99-circleci.conf >/dev/null
             fi
             export TARGET="<< parameters.target >>"
-            export GITHUB_ENV="${BASH_ENV}"
+            env_file="$(mktemp)"
+            export GITHUB_ENV="${env_file}"
             export RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
             bash .github/scripts/install-musl-build-tools.sh
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              name="${line%%=*}"
+              value="${line#*=}"
+              case "${name}" in
+                ''|*[!A-Za-z0-9_]*|[0-9]*)
+                  echo "Skipping unsupported env name from ${GITHUB_ENV}: ${name}" >&2
+                  continue
+                  ;;
+              esac
+              printf 'export %s=%q\n' "${name}" "${value}" >> "${BASH_ENV}"
+            done < "${env_file}"
       - run:
           name: Configure musl rusty_v8 artifacts
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
             export TARGET="<< parameters.target >>"
-            export GITHUB_ENV="${BASH_ENV}"
+            env_file="$(mktemp)"
+            export GITHUB_ENV="${env_file}"
             export GITHUB_REPOSITORY="never2average/fpna-thinwedge"
             export GITHUB_WORKSPACE="${PWD}"
             export RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
             bash -eo pipefail -c "$(sed -n '/run: |/,$p' .github/actions/setup-rusty-v8-musl/action.yml | sed '1d; s/^        //')"
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              name="${line%%=*}"
+              value="${line#*=}"
+              case "${name}" in
+                ''|*[!A-Za-z0-9_]*|[0-9]*)
+                  echo "Skipping unsupported env name from ${GITHUB_ENV}: ${name}" >&2
+                  continue
+                  ;;
+              esac
+              printf 'export %s=%q\n' "${name}" "${value}" >> "${BASH_ENV}"
+            done < "${env_file}"
 
 jobs:
   smoke:
