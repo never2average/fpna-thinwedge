@@ -384,6 +384,51 @@ def check_license_and_notice_provenance() -> list[str]:
     return findings
 
 
+def check_public_repository_metadata() -> list[str]:
+    findings: list[str] = []
+    repo_url = "https://github.com/never2average/fpna-thinwedge"
+    git_repo_url = f"git+{repo_url}.git"
+    required_by_file = {
+        Path("thinwedge-cli/package.json"): (git_repo_url,),
+        Path("thinwedge-rs/responses-api-proxy/npm/package.json"): (git_repo_url,),
+        Path("sdk/typescript/package.json"): (git_repo_url,),
+        Path("sdk/python/pyproject.toml"): (
+            f'Homepage = "{repo_url}"',
+            f'Repository = "{repo_url}"',
+            f'Issues = "{repo_url}/issues"',
+        ),
+        Path("sdk/python-runtime/pyproject.toml"): (
+            f'Homepage = "{repo_url}"',
+            f'Repository = "{repo_url}"',
+            f'Issues = "{repo_url}/issues"',
+        ),
+        Path("sdk/python/_runtime_setup.py"): (
+            'REPO_SLUG = "never2average/fpna-thinwedge"',
+        ),
+        Path(".bazelrc"): (
+            "REPO_URL=https://github.com/never2average/fpna-thinwedge.git",
+        ),
+        Path("docs/install.md"): (
+            "git clone https://github.com/never2average/fpna-thinwedge.git",
+        ),
+        Path("CHANGELOG.md"): (
+            "https://github.com/never2average/fpna-thinwedge/releases",
+        ),
+    }
+
+    for path, snippets in required_by_file.items():
+        if not path.exists():
+            findings.append(f"{path}: public repository metadata file is missing.")
+            continue
+
+        contents = path.read_text(encoding="utf-8")
+        for snippet in snippets:
+            if snippet not in contents:
+                findings.append(f"{path}: required repository metadata missing: {snippet!r}.")
+
+    return findings
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
@@ -394,6 +439,7 @@ def main() -> int:
         *check_npm_trusted_publishing(),
         *check_vendored_bwrap_opt_in(),
         *check_license_and_notice_provenance(),
+        *check_public_repository_metadata(),
     ]
     checked = 0
 
