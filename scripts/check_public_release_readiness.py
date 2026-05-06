@@ -222,11 +222,31 @@ def check_release_workflow_npm_staging() -> list[str]:
     ]
 
 
+def check_circleci_filtered_out() -> list[str]:
+    config_path = Path(".circleci/config.yml")
+    if not config_path.exists():
+        return []
+
+    config = config_path.read_text(encoding="utf-8")
+    required_snippets = (
+        "branches:\n              ignore: /.*/",
+        "tags:\n              ignore: /.*/",
+    )
+    if all(snippet in config for snippet in required_snippets):
+        return []
+    return [
+        ".circleci/config.yml must keep the remaining smoke job filtered out "
+        "for all branches and tags so public readiness does not depend on "
+        "CircleCI credits or project-side status settings."
+    ]
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
         *check_npm_platform_targets(),
         *check_release_workflow_npm_staging(),
+        *check_circleci_filtered_out(),
     ]
     checked = 0
 
@@ -253,7 +273,7 @@ def main() -> int:
 
     print("Public release readiness scan failed:")
     for finding in structural_findings:
-        print(f"- npm-platform-targets: {finding}")
+        print(f"- structural-release-readiness: {finding}")
     for path, line, blocked in findings:
         print(f"- {path}:{line}: {blocked.name}: {blocked.description}")
     return 1

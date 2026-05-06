@@ -41,6 +41,7 @@ Use this checklist before making the repository public or publishing an open-sou
 ## CI and release safety
 
 - [x] CircleCI release publishing is retired; the remaining smoke job is filtered out for all branches and tags so public readiness does not depend on CircleCI credits.
+- [x] Public-readiness scanning fails if CircleCI jobs are accidentally re-enabled.
 - [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] npm platform package target triples are checked against the native release targets hydrated by `install_native_deps.py`.
