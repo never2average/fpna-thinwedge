@@ -361,6 +361,7 @@ jobs:
             CARGO_PROFILE_RELEASE_LTO=false \
             CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
             CARGO_PROFILE_RELEASE_DEBUG=0 \
+            AWS_LC_SYS_CMAKE_BUILDER_aarch64_pc_windows_msvc=1 \
             cargo build --target "${target}" --release \
               --bin thinwedge \
               --bin thinwedge-windows-sandbox-setup \
