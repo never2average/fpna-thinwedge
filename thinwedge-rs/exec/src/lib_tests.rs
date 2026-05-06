@@ -23,6 +23,14 @@ fn exec_defaults_analytics_to_disabled() {
 }
 
 #[test]
+fn exec_default_cloud_requirements_base_url_is_neutral() {
+    assert_eq!(
+        DEFAULT_CLOUD_REQUIREMENTS_BASE_URL,
+        "https://example.invalid/backend-api/"
+    );
+}
+
+#[test]
 fn exec_root_span_can_be_parented_from_trace_context() {
     let subscriber = test_tracing_subscriber();
     let _guard = tracing::subscriber::set_default(subscriber);
