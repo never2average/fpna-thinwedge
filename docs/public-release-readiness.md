@@ -23,6 +23,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] Real-looking TUI fixture metadata is scrubbed.
 - [x] Current-tree scans do not contain live AWS/OpenAI/GitHub/npm/CircleCI credentials.
 - [x] Current-tree test fixtures avoid private-key PEM marker blocks that trigger secret scanners.
+- [x] Current-tree and history scans block modern OpenAI-shaped keys including `sk-proj-` and `sk-svcacct-` forms.
 - [x] CI runs `scripts/check_public_release_readiness.py` against current-tree product/data exposure blockers.
 - [x] Current-tree redaction tests avoid provider-shaped fake secret literals.
 - [x] Full-history scanner and decision runbook are documented in `docs/public-history-sanitization.md`.

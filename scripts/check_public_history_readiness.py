@@ -55,7 +55,7 @@ PATTERNS = [
     ),
     HistoryPattern(
         "openai-token-shape",
-        re.compile(rb"sk-[A-Za-z0-9]{20,}"),
+        re.compile(rb"sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}"),
         "Historical blob contains an OpenAI-shaped token string.",
     ),
 ]

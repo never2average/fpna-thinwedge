@@ -356,13 +356,13 @@ mod tests {
 
     #[test]
     fn formats_long_key() {
-        let key = "REDACTED_OPENAI_KEY";
-        assert_eq!(safe_format_key(key), "sk-proj-***ABCDE");
+        let key = "testkey-1234567890ABCDE";
+        assert_eq!(safe_format_key(key), "testkey-***ABCDE");
     }
 
     #[test]
     fn short_key_returns_stars() {
-        let key = "sk-proj-12345";
+        let key = "testkey-12345";
         assert_eq!(safe_format_key(key), "***");
     }
 }

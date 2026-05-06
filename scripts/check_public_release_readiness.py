@@ -145,7 +145,7 @@ BLOCKED_PATTERNS = [
     ),
     BlockedPattern(
         "openai-token-shape",
-        re.compile(rb"sk-[A-Za-z0-9]{20,}"),
+        re.compile(rb"sk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{20,}"),
         "OpenAI-shaped tokens must not be committed, even as test fixtures.",
     ),
 ]
