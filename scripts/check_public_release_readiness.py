@@ -75,6 +75,11 @@ BLOCKED_PATTERNS = [
         "Runtime defaults must not fall back to live ChatGPT backend services.",
     ),
     BlockedPattern(
+        "release-prepare-live-base-url-default",
+        literal("THINWEDGE_BASE_URL:-https://chatgpt.com/backend-api/" + "thinwedge"),
+        "Release preparation workflows must not default to live ChatGPT backend services.",
+    ),
+    BlockedPattern(
         "devcontainer-live-domain-default",
         literal(
             'THINWEDGE_ALLOWED_DOMAINS="${THINWEDGE_ALLOWED_DOMAINS:-'
