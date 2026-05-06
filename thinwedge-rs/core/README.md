@@ -39,8 +39,10 @@ The Linux sandbox helper prefers the first `bwrap` found on `PATH` outside the
 current working directory whenever it is available. If `bwrap` is present but
 too old to support `--argv0`, the helper keeps using system bubblewrap and
 switches to a no-`--argv0` compatibility path for the inner re-exec. If
-`bwrap` is missing, it falls back to the vendored bubblewrap path compiled into
-the binary and ThinWedge surfaces a startup warning through its normal notification
+`bwrap` is missing, default public release builds fail closed and ask the user
+to install system bubblewrap. Vendored bubblewrap embedding is available only
+for explicit internal/compliance builds that set
+`THINWEDGE_ENABLE_VENDORED_BWRAP=1`. ThinWedge surfaces a startup warning through its normal notification
 path instead of printing directly from the sandbox helper. ThinWedge also surfaces
 a startup warning when bubblewrap cannot create user namespaces. WSL2 uses the
 normal Linux bubblewrap path. WSL1 is not supported for bubblewrap sandboxing

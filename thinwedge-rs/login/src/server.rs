@@ -48,7 +48,7 @@ use tracing::error;
 use tracing::info;
 use tracing::warn;
 
-const DEFAULT_ISSUER: &str = "https://auth.thinwedge.com";
+const DEFAULT_ISSUER: &str = "https://auth.example.invalid";
 const DEFAULT_PORT: u16 = 1455;
 static LOGIN_ERROR_PAGE_TEMPLATE: LazyLock<Template> = LazyLock::new(|| {
     Template::parse(include_str!("assets/error.html"))
@@ -1185,7 +1185,7 @@ mod tests {
     #[test]
     fn redact_sensitive_url_parts_preserves_safe_url_shape() {
         let mut url = url::Url::parse(
-            "https://user:pass@auth.thinwedge.com/oauth/token?code=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback#frag",
+            "https://user:pass@auth.example.invalid/oauth/token?code=abc123&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback#frag",
         )
         .expect("valid url");
 
@@ -1193,7 +1193,7 @@ mod tests {
 
         assert_eq!(
             url.as_str(),
-            "https://auth.thinwedge.com/oauth/token?code=%3Credacted%3E&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
+            "https://auth.example.invalid/oauth/token?code=%3Credacted%3E&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback"
         );
     }
 

@@ -110,7 +110,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
 fn test_deserialize_chat_wire_api_shows_helpful_error() {
     let provider_toml = r#"
 name = "ThinWedge using Chat Completions"
-base_url = "https://api.thinwedge.com/v1"
+base_url = "https://api.example.invalid/v1"
 env_key = "THINWEDGE_API_KEY"
 wire_api = "chat"
         "#;
@@ -123,7 +123,7 @@ wire_api = "chat"
 fn test_deserialize_websocket_connect_timeout() {
     let provider_toml = r#"
 name = "ThinWedge"
-base_url = "https://api.thinwedge.com/v1"
+base_url = "https://api.example.invalid/v1"
 websocket_connect_timeout_ms = 15000
 supports_websockets = true
         "#;

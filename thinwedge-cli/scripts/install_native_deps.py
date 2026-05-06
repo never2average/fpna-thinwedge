@@ -171,17 +171,15 @@ def main() -> int:
         workflow_url = DEFAULT_WORKFLOW_URL
 
     workflow_id = workflow_url.rstrip("/").split("/")[-1]
-    print(f"Downloading native artifacts from workflow {workflow_id}...")
+    binary_components = [BINARY_COMPONENTS[name] for name in components if name in BINARY_COMPONENTS]
+    if binary_components:
+        print(f"Downloading native artifacts from workflow {workflow_id}...")
 
-    with _gha_group(f"Download native artifacts from workflow {workflow_id}"):
-        with tempfile.TemporaryDirectory(prefix="thinwedge-native-artifacts-") as artifacts_dir_str:
-            artifacts_dir = Path(artifacts_dir_str)
-            _download_artifacts(workflow_id, artifacts_dir)
-            install_binary_components(
-                artifacts_dir,
-                vendor_dir,
-                [BINARY_COMPONENTS[name] for name in components if name in BINARY_COMPONENTS],
-            )
+        with _gha_group(f"Download native artifacts from workflow {workflow_id}"):
+            with tempfile.TemporaryDirectory(prefix="thinwedge-native-artifacts-") as artifacts_dir_str:
+                artifacts_dir = Path(artifacts_dir_str)
+                _download_artifacts(workflow_id, artifacts_dir)
+                install_binary_components(artifacts_dir, vendor_dir, binary_components)
 
     if "rg" in components:
         with _gha_group("Fetch ripgrep binaries"):
@@ -455,8 +453,17 @@ def extract_archive(
 
 
 def _load_manifest(manifest_path: Path) -> dict:
-    cmd = ["dotslash", "--", "parse", str(manifest_path)]
-    stdout = subprocess.check_output(cmd, text=True)
+    dotslash = shutil.which("dotslash")
+    if dotslash:
+        cmd = [dotslash, "--", "parse", str(manifest_path)]
+        stdout = subprocess.check_output(cmd, text=True)
+    else:
+        text = manifest_path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        if lines and lines[0].startswith("#!"):
+            text = "\n".join(lines[1:])
+        stdout = text
+
     try:
         manifest = json.loads(stdout)
     except json.JSONDecodeError as exc:

@@ -60,11 +60,8 @@ mod imp {
     ) -> libc::c_int {
         panic!(
             r#"build-time bubblewrap is not available in this build.
-thinwedge-linux-sandbox should always compile vendored bubblewrap on Linux targets.
-Notes:
-- ensure the target OS is Linux
-- libcap headers must be available via pkg-config
-- bubblewrap sources expected at thinwedge-rs/vendor/bubblewrap (default)"#
+Default public release builds require system bubblewrap (bwrap) on PATH.
+To opt into vendored bubblewrap embedding, build with THINWEDGE_ENABLE_VENDORED_BWRAP=1 and satisfy the applicable LGPL obligations."#
         );
     }
 

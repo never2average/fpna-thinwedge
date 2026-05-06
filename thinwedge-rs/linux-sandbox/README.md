@@ -12,8 +12,9 @@ outside the current working directory whenever it is available. If `bwrap` is
 present but too old to support
 `--argv0`, the helper keeps using system bubblewrap and switches to a
 no-`--argv0` compatibility path for the inner re-exec. If `bwrap` is missing,
-the helper falls back to the vendored bubblewrap path compiled into this
-binary.
+default public release builds fail closed and ask the user to install system
+bubblewrap. Vendored bubblewrap embedding is available only for explicit
+internal/compliance builds that set `THINWEDGE_ENABLE_VENDORED_BWRAP=1`.
 ThinWedge also surfaces a startup warning when `bwrap` is missing so users know it
 is falling back to the vendored helper. ThinWedge surfaces the same startup warning
 path when bubblewrap cannot create user namespaces. WSL2 follows the normal
@@ -28,8 +29,11 @@ commands that would enter the bubblewrap path.
   helper uses it.
 - If `bwrap` is present but too old to support `--argv0`, the helper uses a
   no-`--argv0` compatibility path for the inner re-exec.
-- If `bwrap` is missing, the helper falls back to the vendored bubblewrap
-  path.
+- If `bwrap` is missing, default public release builds fail closed and ask the
+  user to install system bubblewrap.
+- Vendored bubblewrap embedding is opt-in via
+  `THINWEDGE_ENABLE_VENDORED_BWRAP=1` for builds that intentionally satisfy the
+  applicable LGPL obligations.
 - If `bwrap` is missing, ThinWedge also surfaces a startup warning instead of
   printing directly from the sandbox helper.
 - If bubblewrap cannot create user namespaces, ThinWedge surfaces a startup warning

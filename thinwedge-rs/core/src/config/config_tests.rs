@@ -6107,7 +6107,7 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
             model_catalog: None,
             model_verbosity: None,
             personality: Some(Personality::Pragmatic),
-            chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
+            chatgpt_base_url: "https://example.invalid/backend-api/".to_string(),
             realtime_audio: RealtimeAudioConfig::default(),
             experimental_realtime_start_instructions: None,
             experimental_realtime_ws_base_url: None,
@@ -6164,7 +6164,7 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
 }
 
 #[tokio::test]
-async fn metrics_exporter_defaults_to_statsig_when_missing() -> std::io::Result<()> {
+async fn metrics_exporter_defaults_to_none_when_missing() -> std::io::Result<()> {
     let fixture = create_test_fixture()?;
 
     let config = Config::load_from_base_config_with_overrides(
@@ -6177,7 +6177,7 @@ async fn metrics_exporter_defaults_to_statsig_when_missing() -> std::io::Result<
     )
     .await?;
 
-    assert_eq!(config.otel.metrics_exporter, OtelExporterKind::Statsig);
+    assert_eq!(config.otel.metrics_exporter, OtelExporterKind::None);
     Ok(())
 }
 
@@ -6302,7 +6302,7 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
         model_catalog: None,
         model_verbosity: None,
         personality: Some(Personality::Pragmatic),
-        chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
+        chatgpt_base_url: "https://example.invalid/backend-api/".to_string(),
         realtime_audio: RealtimeAudioConfig::default(),
         experimental_realtime_start_instructions: None,
         experimental_realtime_ws_base_url: None,
@@ -6451,7 +6451,7 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
         model_catalog: None,
         model_verbosity: None,
         personality: Some(Personality::Pragmatic),
-        chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
+        chatgpt_base_url: "https://example.invalid/backend-api/".to_string(),
         realtime_audio: RealtimeAudioConfig::default(),
         experimental_realtime_start_instructions: None,
         experimental_realtime_ws_base_url: None,
@@ -6585,7 +6585,7 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
         model_catalog: None,
         model_verbosity: Some(Verbosity::High),
         personality: Some(Personality::Pragmatic),
-        chatgpt_base_url: "https://chatgpt.com/backend-api/".to_string(),
+        chatgpt_base_url: "https://example.invalid/backend-api/".to_string(),
         realtime_audio: RealtimeAudioConfig::default(),
         experimental_realtime_start_instructions: None,
         experimental_realtime_ws_base_url: None,

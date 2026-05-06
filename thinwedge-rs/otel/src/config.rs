@@ -3,33 +3,33 @@ use std::path::PathBuf;
 
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
-pub(crate) const STATSIG_OTLP_HTTP_ENDPOINT: &str = "https://ab.chatgpt.com/otlp/v1/metrics";
-pub(crate) const STATSIG_API_KEY_HEADER: &str = "statsig-api-key";
-pub(crate) const STATSIG_API_KEY: &str = "client-MkRuleRQBd6qakfnDYqJVR9JuXcY57Ljly3vi5JVUIO";
+const STATSIG_OTLP_HTTP_ENDPOINT_ENV: &str = "THINWEDGE_STATSIG_OTLP_HTTP_ENDPOINT";
+const STATSIG_API_KEY_ENV: &str = "THINWEDGE_STATSIG_API_KEY";
+const STATSIG_API_KEY_HEADER: &str = "statsig-api-key";
 
 pub(crate) fn resolve_exporter(exporter: &OtelExporter) -> OtelExporter {
     match exporter {
-        OtelExporter::Statsig => {
-            // Keep the built-in Statsig default off in debug builds so
-            // incremental local development and test runs do not emit
-            // best-effort OTEL traffic unless a test or binary opts into an
-            // explicit exporter configuration.
-            if cfg!(debug_assertions) {
-                return OtelExporter::None;
-            }
-
-            OtelExporter::OtlpHttp {
-                endpoint: STATSIG_OTLP_HTTP_ENDPOINT.to_string(),
-                headers: HashMap::from([(
-                    STATSIG_API_KEY_HEADER.to_string(),
-                    STATSIG_API_KEY.to_string(),
-                )]),
-                protocol: OtelHttpProtocol::Json,
-                tls: None,
-            }
-        }
+        OtelExporter::Statsig => statsig_exporter_from_env().unwrap_or(OtelExporter::None),
         _ => exporter.clone(),
     }
+}
+
+fn statsig_exporter_from_env() -> Option<OtelExporter> {
+    let endpoint = std::env::var(STATSIG_OTLP_HTTP_ENDPOINT_ENV)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())?;
+    let api_key = std::env::var(STATSIG_API_KEY_ENV)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())?;
+
+    Some(OtelExporter::OtlpHttp {
+        endpoint,
+        headers: [(STATSIG_API_KEY_HEADER.to_string(), api_key)].into(),
+        protocol: OtelHttpProtocol::Json,
+        tls: None,
+    })
 }
 
 #[derive(Clone, Debug)]
@@ -85,7 +85,7 @@ mod tests {
     use super::resolve_exporter;
 
     #[test]
-    fn statsig_default_metrics_exporter_is_disabled_in_debug_builds() {
+    fn statsig_exporter_is_disabled_without_env_config() {
         assert!(matches!(
             resolve_exporter(&OtelExporter::Statsig),
             OtelExporter::None

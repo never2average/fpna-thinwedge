@@ -4,7 +4,7 @@
   "description": "TypeScript SDK for ThinWedge APIs.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thinwedge/thinwedge.git",
+    "url": "git+https://github.com/never2average/fpna-thinwedge.git",
     "directory": "sdk/typescript"
   },
   "keywords": [
@@ -28,7 +28,10 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "sideEffects": false,
   "scripts": {

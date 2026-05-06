@@ -18,8 +18,8 @@ use thinwedge_login::default_client::build_reqwest_client;
 const GITHUB_API_BASE_URL: &str = "https://api.github.com";
 const GITHUB_API_ACCEPT_HEADER: &str = "application/vnd.github+json";
 const GITHUB_API_VERSION_HEADER: &str = "2022-11-28";
-const CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL: &str =
-    "https://chatgpt.com/backend-api/plugins/export/curated";
+const CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL_ENV: &str =
+    "THINWEDGE_CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL";
 const THINWEDGE_PLUGINS_OWNER: &str = "thinwedge";
 const THINWEDGE_PLUGINS_REPO: &str = "plugins";
 const CURATED_PLUGINS_RELATIVE_DIR: &str = ".tmp/plugins";
@@ -64,11 +64,14 @@ fn curated_plugins_sha_path(thinwedge_home: &Path) -> PathBuf {
 }
 
 pub fn sync_thinwedge_plugins_repo(thinwedge_home: &Path) -> Result<String, String> {
+    let backup_archive_api_url = std::env::var(CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL_ENV)
+        .ok()
+        .unwrap_or_default();
     sync_thinwedge_plugins_repo_with_transport_overrides(
         thinwedge_home,
         "git",
         GITHUB_API_BASE_URL,
-        CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL,
+        &backup_archive_api_url,
     )
 }
 
@@ -111,6 +114,16 @@ fn sync_thinwedge_plugins_repo_with_transport_overrides(
                     } else {
                         // The export archive is a lagging backup path. Only use it to bootstrap a
                         // missing local curated snapshot, never to refresh an existing one.
+                        if backup_archive_api_url.trim().is_empty() {
+                            emit_curated_plugins_startup_sync_final_metric(
+                                "export_archive",
+                                "disabled",
+                            );
+                            return Err(format!(
+                                "git sync failed for curated plugin sync: {err}; GitHub HTTP sync failed for curated plugin sync: {http_err}; export archive fallback disabled because {CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL_ENV} is not set"
+                            ));
+                        }
+
                         warn!(
                             error = %http_err,
                             backup_archive_api_url,

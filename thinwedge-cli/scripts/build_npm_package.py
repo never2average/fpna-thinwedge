@@ -22,7 +22,7 @@ THINWEDGE_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
     "thinwedge-linux-x64": {
         "npm_name": "@never2average-does-npm/cli-linux-x64",
         "npm_tag": "linux-x64",
-        "target_triple": "x86_64-unknown-linux-gnu",
+        "target_triple": "x86_64-unknown-linux-musl",
         "os": "linux",
         "cpu": "x64",
     },
@@ -85,6 +85,8 @@ PACKAGE_TARGET_FILTERS: dict[str, str] = {
 }
 
 PACKAGE_CHOICES = tuple(PACKAGE_NATIVE_COMPONENTS)
+
+RELEASE_NOTICE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")
 
 COMPONENT_DEST_DIR: dict[str, str] = {
     "thinwedge": "thinwedge",
@@ -233,6 +235,23 @@ def prepare_staging_dir(staging_dir: Path | None) -> tuple[Path, bool]:
     return temp_dir, True
 
 
+def copy_release_notice_files(staging_dir: Path) -> None:
+    for notice_file in RELEASE_NOTICE_FILES:
+        src = REPO_ROOT / notice_file
+        if src.exists():
+            shutil.copy2(src, staging_dir / notice_file)
+
+
+def include_release_notice_files(package_json: dict) -> None:
+    files = package_json.get("files")
+    if not isinstance(files, list):
+        return
+
+    for notice_file in RELEASE_NOTICE_FILES:
+        if notice_file not in files:
+            files.append(notice_file)
+
+
 def stage_sources(staging_dir: Path, version: str, package: str) -> None:
     package_json: dict
     package_json_path: Path | None = None
@@ -325,6 +344,9 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
             dependencies = {}
         dependencies[THINWEDGE_NPM_NAME] = version
         package_json["dependencies"] = dependencies
+
+    copy_release_notice_files(staging_dir)
+    include_release_notice_files(package_json)
 
     with open(staging_dir / "package.json", "w", encoding="utf-8") as out:
         json.dump(package_json, out, indent=2)

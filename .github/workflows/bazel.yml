@@ -27,15 +27,12 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
-          # macOS
-          - os: macos-15
-            target: aarch64-apple-darwin
-          - os: macos-15
-            target: x86_64-apple-darwin
-
-          # Linux
+          # Keep pull-request Bazel coverage on Linux by default. macOS and
+          # Windows release artifacts are built by the release workflows, while
+          # local macOS Bazel builds are too expensive without private RBE.
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
           - os: ubuntu-24.04
@@ -46,10 +43,6 @@ jobs:
           #   target: aarch64-unknown-linux-musl
           # - os: ubuntu-24.04-arm
           #   target: aarch64-unknown-linux-gnu
-
-          # Windows
-          - os: windows-latest
-            target: x86_64-pc-windows-gnullvm
     runs-on: ${{ matrix.os }}
 
     # Configure a human readable name for each job
@@ -134,18 +127,13 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
-          # Keep Linux lint coverage on x64 and add the arm64 macOS path that
-          # the Bazel test job already exercises. Add Windows gnullvm as well
-          # so PRs get Bazel-native lint signal on the same Windows toolchain
-          # that the Bazel test job uses.
+          # Keep Bazel-native lint signal on Linux without requiring macOS or
+          # Windows hosted runners for every public pull request.
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-          - os: macos-15
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-gnullvm
     runs-on: ${{ matrix.os }}
     name: Bazel clippy on ${{ matrix.os }} for ${{ matrix.target }}
 
@@ -218,14 +206,13 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
+          # This catches release-only Rust cfg drift without running the full
+          # cross-platform Bazel surface on every public pull request.
           - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
-          - os: macos-15
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-gnullvm
     runs-on: ${{ matrix.os }}
     name: Verify release build on ${{ matrix.os }} for ${{ matrix.target }}
 

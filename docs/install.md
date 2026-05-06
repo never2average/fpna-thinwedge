@@ -16,8 +16,8 @@ The GitHub Release also contains a [DotSlash](https://dotslash-cli.com/) file fo
 
 ```bash
 # Clone the repository and navigate to the root of the Cargo workspace.
-git clone https://github.com/thinwedge/thinwedge.git
-cd thinwedge/thinwedge-rs
+git clone https://github.com/never2average/fpna-thinwedge.git
+cd fpna-thinwedge/thinwedge-rs
 
 # Install the Rust toolchain, if necessary.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y

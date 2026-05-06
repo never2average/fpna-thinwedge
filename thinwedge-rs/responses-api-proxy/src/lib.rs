@@ -53,7 +53,7 @@ pub struct Args {
     pub http_shutdown: bool,
 
     /// Absolute URL the proxy should forward requests to (defaults to ThinWedge).
-    #[arg(long, default_value = "https://api.thinwedge.com/v1/responses")]
+    #[arg(long, default_value = "https://api.example.invalid/v1/responses")]
     pub upstream_url: String,
 
     /// Directory where request/response dumps should be written as JSON.

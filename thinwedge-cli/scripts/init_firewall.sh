@@ -11,9 +11,8 @@ if [ -f "$ALLOWED_DOMAINS_FILE" ]; then
     done < "$ALLOWED_DOMAINS_FILE"
     echo "Using domains from file: ${ALLOWED_DOMAINS[*]}"
 else
-    # Fallback to default domains
-    ALLOWED_DOMAINS=("api.thinwedge.com")
-    echo "Domains file not found, using default: ${ALLOWED_DOMAINS[*]}"
+    echo "ERROR: Allowed domains file not found: $ALLOWED_DOMAINS_FILE"
+    exit 1
 fi
 
 # Ensure we have at least one domain
@@ -106,10 +105,10 @@ else
     echo "Firewall verification passed - unable to reach https://example.com as expected"
 fi
 
-# Always verify ThinWedge API access is working
-if ! curl --connect-timeout 5 https://api.thinwedge.com >/dev/null 2>&1; then
-    echo "ERROR: Firewall verification failed - unable to reach https://api.thinwedge.com"
+VERIFY_DOMAIN="${ALLOWED_DOMAINS[0]}"
+if ! curl --connect-timeout 5 "https://${VERIFY_DOMAIN}" >/dev/null 2>&1; then
+    echo "ERROR: Firewall verification failed - unable to reach https://${VERIFY_DOMAIN}"
     exit 1
 else
-    echo "Firewall verification passed - able to reach https://api.thinwedge.com as expected"
+    echo "Firewall verification passed - able to reach https://${VERIFY_DOMAIN} as expected"
 fi
