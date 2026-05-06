@@ -93,6 +93,29 @@ BLOCKED_PATTERNS = [
         "Firewall verification must use the configured domain, not a live production domain.",
     ),
     BlockedPattern(
+        "bazel-ci-upstream-repo-url",
+        literal("REPO_URL=https://github.com/" + "thinwedge/thinwedge.git"),
+        "Bazel CI provenance metadata must point at this repository.",
+    ),
+    BlockedPattern(
+        "python-runtime-upstream-release-slug",
+        literal('REPO_SLUG = "' + "thinwedge/thinwedge" + '"'),
+        "Python runtime setup must resolve release artifacts from this repository.",
+    ),
+    BlockedPattern(
+        "install-doc-upstream-clone-url",
+        literal("git clone https://github.com/" + "thinwedge/thinwedge.git"),
+        "Install docs must clone this repository.",
+    ),
+    BlockedPattern(
+        "changelog-upstream-release-url",
+        literal(
+            "[releases page](https://github.com/"
+            + "thinwedge/thinwedge/releases)"
+        ),
+        "Release-facing docs must point at this repository's releases.",
+    ),
+    BlockedPattern(
         "circleci-pat",
         re.compile(rb"C" + rb"CIPAT_[A-Za-z0-9_]+"),
         "CircleCI personal access tokens must not be committed.",
