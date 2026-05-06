@@ -25,6 +25,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] Current-tree test fixtures avoid private-key PEM marker blocks that trigger secret scanners.
 - [x] CI runs `scripts/check_public_release_readiness.py` against current-tree product/data exposure blockers.
 - [x] Current-tree redaction tests avoid provider-shaped fake secret literals.
+- [x] Full-history scanner and decision runbook are documented in `docs/public-history-sanitization.md`.
 - [ ] Full git history no longer contains historical test private-key PEM fixtures, or the release owner has explicitly accepted the inherited-history exposure.
 - [x] Full git history token-pattern review found fake/test `sk-...` strings but no evidence of live provider tokens.
 
