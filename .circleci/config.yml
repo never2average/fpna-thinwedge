@@ -268,7 +268,7 @@ jobs:
     machine:
       image: windows-server-2022-gui:current
       shell: bash.exe -eo pipefail
-    resource_class: windows.xlarge
+    resource_class: windows.large
     working_directory: ~/project
     steps:
       - checkout
@@ -295,7 +295,9 @@ jobs:
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
             cd thinwedge-rs
             target="x86_64-pc-windows-msvc"
-            CARGO_PROFILE_RELEASE_LTO=thin \
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            CARGO_PROFILE_RELEASE_DEBUG=0 \
             cargo build --target "${target}" --release \
               --bin thinwedge \
               --bin thinwedge-windows-sandbox-setup \
@@ -329,7 +331,7 @@ jobs:
     machine:
       image: windows-server-2022-gui:current
       shell: bash.exe -eo pipefail
-    resource_class: windows.xlarge
+    resource_class: windows.large
     working_directory: ~/project
     steps:
       - checkout
@@ -356,7 +358,9 @@ jobs:
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
             cd thinwedge-rs
             target="aarch64-pc-windows-msvc"
-            CARGO_PROFILE_RELEASE_LTO=thin \
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            CARGO_PROFILE_RELEASE_DEBUG=0 \
             cargo build --target "${target}" --release \
               --bin thinwedge \
               --bin thinwedge-windows-sandbox-setup \
