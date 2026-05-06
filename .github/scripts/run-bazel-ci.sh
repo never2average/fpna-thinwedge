@@ -59,11 +59,14 @@ ci_config=ci-linux
 case "${RUNNER_OS:-}" in
   macOS)
     ci_config=ci-macos
+    ci_os_tag=macos
     ;;
   Windows)
     ci_config=ci-windows
+    ci_os_tag=windows
     ;;
 esac
+ci_os_tag="${ci_os_tag:-linux}"
 
 print_bazel_test_log_tails() {
   local console_log="$1"
@@ -80,10 +83,18 @@ print_bazel_test_log_tails() {
   # would point at `local_windows-fastbuild` even when the test ran with the
   # MSVC host platform under `local_windows_msvc-fastbuild`.
   if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
-    bazel_info_args+=(
-      "--config=${ci_config}"
-      "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
-    )
+    if [[ "${THINWEDGE_BAZEL_REMOTE_EXECUTION:-0}" == "1" ]]; then
+      bazel_info_args+=(
+        "--config=${ci_config}"
+        "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
+      )
+    else
+      bazel_info_args+=(
+        --config=ci-bazel
+        "--build_metadata=TAG_os=${ci_os_tag}"
+        "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
+      )
+    fi
   fi
   # Only pass flags that affect Bazel's output-root selection or repository
   # lookup. Test/build-only flags such as execution logs or remote download
@@ -329,16 +340,30 @@ if (( ${#bazel_startup_args[@]} > 0 )); then
 fi
 
 if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
-  echo "BuildBuddy API key is available; using remote Bazel configuration."
-  # Work around Bazel 9 remote repo contents cache / overlay materialization failures
-  # seen in CI (for example "is not a symlink" or permission errors while
-  # materializing external repos such as rules_perl). We still use BuildBuddy for
-  # remote execution/cache; this only disables the startup-level repo contents cache.
-  bazel_run_args=(
-    "${bazel_args[@]}"
-    "--config=${ci_config}"
-    "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
-  )
+  if [[ "${THINWEDGE_BAZEL_REMOTE_EXECUTION:-0}" == "1" ]]; then
+    echo "BuildBuddy API key is available; using remote Bazel execution."
+    # Work around Bazel 9 remote repo contents cache / overlay materialization failures
+    # seen in CI (for example "is not a symlink" or permission errors while
+    # materializing external repos such as rules_perl). We still use BuildBuddy for
+    # remote execution/cache; this only disables the startup-level repo contents cache.
+    bazel_run_args=(
+      "${bazel_args[@]}"
+      "--config=${ci_config}"
+      "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
+    )
+  else
+    echo "BuildBuddy API key is available; using authenticated remote cache/BES without remote execution."
+    # Public CI must not depend on a private remote-execution container image.
+    # Keep BuildBuddy cache/BES authentication, but avoid ci-linux/ci-macos
+    # configs because they select the RBE platform and remote execution.
+    bazel_run_args=(
+      "${bazel_args[@]}"
+      --config=ci-bazel
+      "--build_metadata=TAG_os=${ci_os_tag}"
+      "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
+      --remote_executor=
+    )
+  fi
   if (( ${#post_config_bazel_args[@]} > 0 )); then
     bazel_run_args+=("${post_config_bazel_args[@]}")
   fi
