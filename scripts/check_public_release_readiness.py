@@ -11,6 +11,8 @@ from pathlib import Path
 
 
 MAX_TEXT_BYTES = 2 * 1024 * 1024
+PINNED_ACTION_REF = re.compile(r"^[0-9a-f]{40}$")
+USES_LINE = re.compile(r"^\s*uses:\s*['\"]?([^'\"\s#]+)", re.MULTILINE)
 
 
 @dataclass(frozen=True)
@@ -241,12 +243,45 @@ def check_circleci_filtered_out() -> list[str]:
     ]
 
 
+def check_github_actions_pinned() -> list[str]:
+    findings: list[str] = []
+    github_dirs = (Path(".github/workflows"), Path(".github/actions"))
+
+    for github_dir in github_dirs:
+        if not github_dir.exists():
+            continue
+
+        for path in sorted(github_dir.rglob("*")):
+            if path.suffix not in {".yml", ".yaml"}:
+                continue
+
+            contents = path.read_text(encoding="utf-8")
+            for match in USES_LINE.finditer(contents):
+                uses_value = match.group(1)
+                if uses_value.startswith(("./", "docker://")):
+                    continue
+
+                if "@" not in uses_value:
+                    findings.append(f"{path}: external action '{uses_value}' is missing a ref.")
+                    continue
+
+                action_name, action_ref = uses_value.rsplit("@", 1)
+                if not PINNED_ACTION_REF.fullmatch(action_ref):
+                    findings.append(
+                        f"{path}: external action '{action_name}' must be pinned to a "
+                        f"40-character commit SHA instead of '{action_ref}'."
+                    )
+
+    return findings
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
         *check_npm_platform_targets(),
         *check_release_workflow_npm_staging(),
         *check_circleci_filtered_out(),
+        *check_github_actions_pinned(),
     ]
     checked = 0
 
