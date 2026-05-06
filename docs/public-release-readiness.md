@@ -23,6 +23,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] Real-looking TUI fixture metadata is scrubbed.
 - [x] Current-tree scans do not contain live AWS/OpenAI/GitHub/npm/CircleCI credentials.
 - [x] Current-tree test fixtures avoid private-key PEM marker blocks that trigger secret scanners.
+- [x] CI runs `scripts/check_public_release_readiness.py` against current-tree product/data exposure blockers.
 - [ ] Full git history no longer contains historical test private-key PEM fixtures, or the release owner has explicitly accepted the inherited-history exposure.
 - [x] Full git history token-pattern review found fake/test `sk-...` strings but no evidence of live provider tokens.
 
