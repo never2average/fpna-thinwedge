@@ -489,7 +489,8 @@ jobs:
           tag: ${{ github.ref_name }}
           config: .github/dotslash-argument-comment-lint-config.json
 
-  # Publish to npm using a repository-scoped npm access token.
+  # Publish to npm using trusted publishing/OIDC. Each package published here must
+  # configure this repository and workflow as its trusted publisher on npmjs.com.
   publish-npm:
     # Publish to npm for stable releases and alpha pre-releases with numeric suffixes.
     if: ${{ needs.release.outputs.should_publish_npm == 'true' }}
@@ -498,6 +499,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
 
     steps:
       - name: Setup Node.js
@@ -506,6 +508,18 @@ jobs:
           node-version: 24
           registry-url: "https://registry.npmjs.org"
           scope: "@never2average-does-npm"
+
+      - name: Verify npm trusted publishing support
+        run: |
+          set -euo pipefail
+          npm_version="$(npm --version)"
+          node -e '
+            const version = process.argv[1].split(".").map(Number);
+            const minimum = [11, 5, 1];
+            if (version[0] < minimum[0] || (version[0] === minimum[0] && (version[1] < minimum[1] || (version[1] === minimum[1] && version[2] < minimum[2])))) {
+              throw new Error(`npm ${process.argv[1]} is too old for trusted publishing; require >= 11.5.1`);
+            }
+          ' "$npm_version"
 
       - name: Download npm tarballs from release
         env:
@@ -534,7 +548,6 @@ jobs:
         env:
           VERSION: ${{ needs.release.outputs.version }}
           NPM_TAG: ${{ needs.release.outputs.npm_tag }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
           prefix=""
@@ -612,7 +625,7 @@ jobs:
                 ;;
             esac
 
-            publish_cmd=(npm publish "${GITHUB_WORKSPACE}/${tarball}")
+            publish_cmd=(npm publish "${GITHUB_WORKSPACE}/${tarball}" --access public)
             if [[ -n "${tag}" ]]; then
               publish_cmd+=(--tag "${tag}")
             fi

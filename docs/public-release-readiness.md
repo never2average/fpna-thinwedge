@@ -41,7 +41,8 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] Repository Actions policy requires external actions to be pinned to full commit SHAs.
-- [ ] Prefer npm trusted publishing/OIDC over long-lived `NPM_TOKEN`, or explicitly accept the token risk.
+- [x] The npm publish workflow uses trusted publishing/OIDC instead of long-lived `NPM_TOKEN`.
+- [ ] Configure npmjs.com trusted publishers for every published package in `@never2average-does-npm` that this workflow publishes, then remove any obsolete publish token.
 - [ ] After the repository is public, restrict allowed external actions/reusable workflows to an approved selected-actions list.
 
 ## Known external blockers
@@ -50,3 +51,4 @@ Use this checklist before making the repository public or publishing an open-sou
 - CircleCI smoke logs require a valid CircleCI token or project access outside this repository checkout.
 - Public GitHub history cannot hide old committed test private-key PEM fixtures without a history rewrite or sanitized publication branch.
 - GitHub branch protection and repository rulesets return `403` while this private repository is on a plan that requires GitHub Pro or public visibility for those features.
+- npm trusted publishing requires npmjs.com package settings to trust `never2average/fpna-thinwedge` and `.github/workflows/rust-release.yml`; the repository workflow can request OIDC tokens, but npm-side trust must still be configured before the next publish.
