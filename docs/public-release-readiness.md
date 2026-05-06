@@ -36,6 +36,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] npm package staging includes `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`.
 - [x] Public package metadata points at `never2average/fpna-thinwedge` where it is package provenance metadata.
 - [x] Default public Linux builds do not link vendored bubblewrap into distributed binaries.
+- [x] Public-readiness scanning fails if vendored bubblewrap embedding becomes the default again.
 - [ ] Any build that opts into vendored bubblewrap with `THINWEDGE_ENABLE_VENDORED_BWRAP=1` has an approved LGPL compliance plan and release artifact set.
 
 ## CI and release safety

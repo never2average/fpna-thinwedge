@@ -307,6 +307,43 @@ def check_npm_trusted_publishing() -> list[str]:
     return findings
 
 
+def check_vendored_bwrap_opt_in() -> list[str]:
+    findings: list[str] = []
+    build_rs = Path("thinwedge-rs/linux-sandbox/build.rs")
+    fallback_rs = Path("thinwedge-rs/linux-sandbox/src/vendored_bwrap.rs")
+
+    if build_rs.exists():
+        contents = build_rs.read_text(encoding="utf-8")
+        required_snippets = (
+            'env::var_os("THINWEDGE_ENABLE_VENDORED_BWRAP").is_none()',
+            "return;",
+        )
+        for snippet in required_snippets:
+            if snippet not in contents:
+                findings.append(
+                    f"{build_rs}: vendored bubblewrap must remain disabled unless "
+                    "THINWEDGE_ENABLE_VENDORED_BWRAP is explicitly set."
+                )
+                break
+
+    if fallback_rs.exists():
+        contents = fallback_rs.read_text(encoding="utf-8")
+        required_snippets = (
+            "Default public release builds require system bubblewrap",
+            "THINWEDGE_ENABLE_VENDORED_BWRAP=1",
+            "LGPL obligations",
+        )
+        for snippet in required_snippets:
+            if snippet not in contents:
+                findings.append(
+                    f"{fallback_rs}: non-vendored builds must fail closed with "
+                    "system-bwrap and LGPL opt-in guidance."
+                )
+                break
+
+    return findings
+
+
 def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
@@ -315,6 +352,7 @@ def main() -> int:
         *check_circleci_filtered_out(),
         *check_github_actions_pinned(),
         *check_npm_trusted_publishing(),
+        *check_vendored_bwrap_opt_in(),
     ]
     checked = 0
 
