@@ -42,7 +42,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] Repository Actions policy requires external actions to be pinned to full commit SHAs.
 - [x] The npm publish workflow uses trusted publishing/OIDC instead of long-lived `NPM_TOKEN`.
-- [ ] Configure npmjs.com trusted publishers for every published package in `@never2average-does-npm` that this workflow publishes, then remove any obsolete publish token.
+- [ ] Configure npmjs.com trusted publishers for every package listed in `docs/npm-trusted-publishing.md`, then remove any obsolete publish token after a successful OIDC publish.
 - [ ] After the repository is public, restrict allowed external actions/reusable workflows to an approved selected-actions list.
 
 ## Known external blockers
