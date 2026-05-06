@@ -306,7 +306,7 @@ jobs:
           name: Stage Windows x64 CLI
           command: |
             set -euo pipefail
-            base="/tmp/circleci-release"
+            base="$PWD/tmp/circleci-release"
             target="x86_64-pc-windows-msvc"
             release_dir="$PWD/thinwedge-rs/target/${target}/release"
             mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
@@ -322,7 +322,7 @@ jobs:
             - ~/.rustup
             - ~/project/thinwedge-rs/target
       - persist_to_workspace:
-          root: /tmp/circleci-release
+          root: tmp/circleci-release
           paths:
             - native
             - release-assets
@@ -369,7 +369,7 @@ jobs:
           name: Stage Windows ARM64 CLI
           command: |
             set -euo pipefail
-            base="/tmp/circleci-release"
+            base="$PWD/tmp/circleci-release"
             target="aarch64-pc-windows-msvc"
             release_dir="$PWD/thinwedge-rs/target/${target}/release"
             mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
@@ -385,7 +385,7 @@ jobs:
             - ~/.rustup
             - ~/project/thinwedge-rs/target
       - persist_to_workspace:
-          root: /tmp/circleci-release
+          root: tmp/circleci-release
           paths:
             - native
             - release-assets
