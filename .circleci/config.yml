@@ -24,9 +24,17 @@ commands:
     steps:
       - run:
           name: Install Linux musl build dependencies
+          no_output_timeout: 30m
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
+            export DEBIAN_FRONTEND=noninteractive
+            export NEEDRESTART_MODE=a
+            export NEEDRESTART_SUSPEND=1
+            export APT_LISTCHANGES_FRONTEND=none
+            if [ -d /etc/needrestart/conf.d ]; then
+              printf '%s\n' '$nrconf{restart} = "a";' | sudo tee /etc/needrestart/conf.d/99-circleci.conf >/dev/null
+            fi
             export TARGET="<< parameters.target >>"
             export GITHUB_ENV="${BASH_ENV}"
             export RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
