@@ -7,8 +7,8 @@ Use this checklist before making the repository public or publishing an open-sou
 - [ ] Repository visibility decision is approved.
 - [ ] GitHub Actions billing or spending limit is healthy enough for all required checks to start.
 - [ ] Required GitHub Actions checks pass on the release PR or release commit.
-- [ ] CircleCI is not a release authority.
-- [ ] Release tags are protected and `rust-v*` tags are created only from reviewed `main` commits.
+- [x] CircleCI is not a release authority.
+- [ ] Release tags are protected and `rust-v*` tags are created only from reviewed `main` commits; protection setup is blocked while the repo is private on the current GitHub plan.
 - [ ] The public-history decision is approved: either expose inherited history intentionally, or publish from a sanitized history branch.
 - [ ] Historical secret-scanner findings are resolved or explicitly accepted before public visibility is enabled.
 
@@ -49,3 +49,4 @@ Use this checklist before making the repository public or publishing an open-sou
 - GitHub Actions can fail before running any steps if account payments fail or the spending limit is too low. In that case the check annotation points at billing, and code changes cannot make CI green.
 - CircleCI smoke logs require a valid CircleCI token or project access outside this repository checkout.
 - Public GitHub history cannot hide old committed test private-key PEM fixtures without a history rewrite or sanitized publication branch.
+- GitHub branch protection and repository rulesets return `403` while this private repository is on a plan that requires GitHub Pro or public visibility for those features.
