@@ -22,14 +22,14 @@ THINWEDGE_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
     "thinwedge-linux-x64": {
         "npm_name": "@never2average-does-npm/cli-linux-x64",
         "npm_tag": "linux-x64",
-        "target_triple": "x86_64-unknown-linux-musl",
+        "target_triple": "x86_64-unknown-linux-gnu",
         "os": "linux",
         "cpu": "x64",
     },
     "thinwedge-linux-arm64": {
         "npm_name": "@never2average-does-npm/cli-linux-arm64",
         "npm_tag": "linux-arm64",
-        "target_triple": "aarch64-unknown-linux-musl",
+        "target_triple": "aarch64-unknown-linux-gnu",
         "os": "linux",
         "cpu": "arm64",
     },
