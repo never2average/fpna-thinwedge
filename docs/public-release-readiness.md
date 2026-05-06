@@ -47,6 +47,7 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] Public-readiness scanning fails if CircleCI jobs are accidentally re-enabled.
 - [x] Public-readiness scanning fails if external GitHub Actions are not pinned to full commit SHAs.
 - [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
+- [x] Public-readiness scanning fails if release tag validation stops requiring `origin/main` reachability.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] npm platform package target triples are checked against the native release targets hydrated by `install_native_deps.py`.
 - [x] npm package staging uses the current GitHub Actions run URL instead of searching for the first matching release workflow run.

@@ -224,6 +224,30 @@ def check_release_workflow_npm_staging() -> list[str]:
     ]
 
 
+def check_release_tag_main_reachability() -> list[str]:
+    workflow_path = Path(".github/workflows/rust-release.yml")
+    if not workflow_path.exists():
+        return [f"{workflow_path}: release workflow is missing."]
+
+    workflow = workflow_path.read_text(encoding="utf-8")
+    required_snippets = (
+        '[[ "${GITHUB_REF_TYPE}" == "tag" ]]',
+        '^rust-v[0-9]+\\.[0-9]+\\.[0-9]+',
+        'tag_commit="$(git rev-parse "${GITHUB_REF_NAME}^{commit}")"',
+        "git fetch --force origin main:refs/remotes/origin/main",
+        'git merge-base --is-ancestor "${tag_commit}" refs/remotes/origin/main',
+    )
+
+    findings: list[str] = []
+    for snippet in required_snippets:
+        if snippet not in workflow:
+            findings.append(
+                f"{workflow_path}: release tag validation missing required guard: {snippet!r}."
+            )
+
+    return findings
+
+
 def check_circleci_filtered_out() -> list[str]:
     config_path = Path(".circleci/config.yml")
     if not config_path.exists():
@@ -434,6 +458,7 @@ def main() -> int:
     structural_findings = [
         *check_npm_platform_targets(),
         *check_release_workflow_npm_staging(),
+        *check_release_tag_main_reachability(),
         *check_circleci_filtered_out(),
         *check_github_actions_pinned(),
         *check_npm_trusted_publishing(),
