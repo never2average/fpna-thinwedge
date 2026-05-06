@@ -248,23 +248,50 @@ def check_release_tag_main_reachability() -> list[str]:
     return findings
 
 
-def check_circleci_filtered_out() -> list[str]:
+def check_circleci_release_publisher() -> list[str]:
     config_path = Path(".circleci/config.yml")
     if not config_path.exists():
-        return []
+        return [f"{config_path}: CircleCI release publisher config is missing."]
 
     config = config_path.read_text(encoding="utf-8")
     required_snippets = (
-        "branches:\n              ignore: /.*/",
-        "tags:\n              ignore: /.*/",
+        "tag-check:",
+        "git merge-base --is-ancestor",
+        "refs/remotes/origin/main",
+        "build-linux-x64:",
+        "build-linux-arm64:",
+        "build-macos:",
+        "build-windows:",
+        "publish-cli:",
+        "test -n \"${GH_TOKEN:-}\"",
+        "test -n \"${NPM_TOKEN:-}\"",
+        "thinwedge-linux-x64",
+        "thinwedge-linux-arm64",
+        "thinwedge-darwin-x64",
+        "thinwedge-darwin-arm64",
+        "thinwedge-win32-x64",
+        "thinwedge-win32-arm64",
+        "npm publish",
+        "tags:\n              only: /^rust-v.*/",
     )
-    if all(snippet in config for snippet in required_snippets):
-        return []
-    return [
-        ".circleci/config.yml must keep the remaining smoke job filtered out "
-        "for all branches and tags so public readiness does not depend on "
-        "CircleCI credits or project-side status settings."
+    findings = [
+        f"{config_path}: CircleCI release publisher missing required guard or package path: {snippet!r}."
+        for snippet in required_snippets
+        if snippet not in config
     ]
+
+    if "branches:\n              ignore: /.*/" not in config:
+        findings.append(
+            f"{config_path}: release jobs must ignore branch pushes and publish only from rust-v* tags."
+        )
+
+    if re.search(r"npm_[A-Za-z0-9]{30,}", config):
+        findings.append(f"{config_path}: npm token values must never be committed.")
+
+    if findings:
+        return findings
+
+    return []
 
 
 def check_github_actions_pinned() -> list[str]:
@@ -459,7 +486,7 @@ def main() -> int:
         *check_npm_platform_targets(),
         *check_release_workflow_npm_staging(),
         *check_release_tag_main_reachability(),
-        *check_circleci_filtered_out(),
+        *check_circleci_release_publisher(),
         *check_github_actions_pinned(),
         *check_npm_trusted_publishing(),
         *check_vendored_bwrap_opt_in(),
