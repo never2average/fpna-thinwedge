@@ -51,7 +51,7 @@ pub use crate::thinwedge_tool_config::ThinWedgeToolCallReplyParam;
 /// is a balance between throughput and memory usage – 128 messages should be
 /// plenty for an interactive CLI.
 const CHANNEL_CAPACITY: usize = 128;
-const DEFAULT_ANALYTICS_ENABLED: bool = true;
+const DEFAULT_ANALYTICS_ENABLED: bool = false;
 const OTEL_SERVICE_NAME: &str = "thinwedge_mcp_server";
 
 type IncomingMessage = JsonRpcMessage<ClientRequest, Value, ClientNotification>;
@@ -201,8 +201,8 @@ mod tests {
     use thinwedge_core::config::ConfigBuilder;
 
     #[test]
-    fn mcp_server_defaults_analytics_to_enabled() {
-        assert_eq!(DEFAULT_ANALYTICS_ENABLED, true);
+    fn mcp_server_defaults_analytics_to_disabled() {
+        assert_eq!(DEFAULT_ANALYTICS_ENABLED, false);
     }
 
     #[tokio::test]

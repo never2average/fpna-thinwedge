@@ -8,7 +8,7 @@ fi
 
 echo "[devcontainer] Firewall mode: strict"
 
-domains_raw="${THINWEDGE_ALLOWED_DOMAINS:-api.thinwedge.com}"
+domains_raw="${THINWEDGE_ALLOWED_DOMAINS:-}"
 mapfile -t domains < <(printf '%s\n' "$domains_raw" | tr ', ' '\n\n' | sed '/^$/d' | sort -u)
 
 if [ "${#domains[@]}" -eq 0 ]; then

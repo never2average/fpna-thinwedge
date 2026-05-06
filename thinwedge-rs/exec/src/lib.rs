@@ -149,7 +149,7 @@ use uuid::Uuid;
 use crate::cli::Command as ExecCommand;
 use crate::event_processor::EventProcessor;
 
-const DEFAULT_ANALYTICS_ENABLED: bool = true;
+const DEFAULT_ANALYTICS_ENABLED: bool = false;
 
 enum InitialOperation {
     UserTurn {

@@ -41,7 +41,7 @@
     "THINWEDGE_UNSAFE_ALLOW_NO_SANDBOX": "1",
     "THINWEDGE_ENABLE_FIREWALL": "1",
     "THINWEDGE_INCLUDE_GITHUB_META_RANGES": "1",
-    "THINWEDGE_ALLOWED_DOMAINS": "api.thinwedge.com auth.thinwedge.com github.com api.github.com codeload.github.com raw.githubusercontent.com objects.githubusercontent.com crates.io index.crates.io static.crates.io static.rust-lang.org registry.npmjs.org pypi.org files.pythonhosted.org",
+    "THINWEDGE_ALLOWED_DOMAINS": "github.com api.github.com codeload.github.com raw.githubusercontent.com objects.githubusercontent.com crates.io index.crates.io static.crates.io static.rust-lang.org registry.npmjs.org pypi.org files.pythonhosted.org",
     "CARGO_TARGET_DIR": "/workspace/.cache/cargo-target",
     "GIT_CONFIG_GLOBAL": "/home/vscode/.gitconfig.local",
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",

@@ -18,8 +18,8 @@ fn test_tracing_subscriber() -> impl tracing::Subscriber + Send + Sync {
 }
 
 #[test]
-fn exec_defaults_analytics_to_enabled() {
-    assert_eq!(DEFAULT_ANALYTICS_ENABLED, true);
+fn exec_defaults_analytics_to_disabled() {
+    assert_eq!(DEFAULT_ANALYTICS_ENABLED, false);
 }
 
 #[test]

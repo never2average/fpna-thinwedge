@@ -616,15 +616,12 @@ fn is_allowed_remote_control_origin(target_origin: &str) -> bool {
     }
 }
 
-/// Accepts first-party chatgpt.com hosts and staging equivalents, including subdomains.
+/// Accepts first-party chatgpt.com hosts, including subdomains.
 fn is_allowed_chatgpt_host(host: &Option<Host<&str>>) -> bool {
     let Some(Host::Domain(host)) = *host else {
         return false;
     };
-    host == "chatgpt.com"
-        || host == "chatgpt-staging.com"
-        || host.ends_with(".chatgpt.com")
-        || host.ends_with(".chatgpt-staging.com")
+    host == "chatgpt.com" || host.ends_with(".chatgpt.com")
 }
 
 /// Allows local development endpoints without opening access to arbitrary private-network hosts.
@@ -1374,9 +1371,7 @@ mod tests {
     fn remote_control_origin_matches_remote_transport_allowlist() {
         for origin in [
             "https://chatgpt.com",
-            "https://chatgpt-staging.com",
             "https://ab.chatgpt.com",
-            "https://ab.chatgpt-staging.com",
             "http://localhost:8080",
             "https://localhost:8443",
             "http://127.0.0.1:8080",
@@ -1392,6 +1387,8 @@ mod tests {
             "http://chatgpt.com",
             "https://chat.thinwedge.com",
             "https://api.thinwedge.com",
+            "https://chatgpt.example",
+            "https://preview.chatgpt.example",
             "https://chatgpt.com.evil.com",
             "https://evilchatgpt.com",
             "https://foo.localhost",
