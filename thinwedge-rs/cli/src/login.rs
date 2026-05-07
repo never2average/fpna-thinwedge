@@ -7,9 +7,12 @@
 //! into a one-shot CLI command while still producing a durable `thinwedge-login.log` artifact that
 //! support can request from users.
 
+use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
 use std::io::Read;
+use std::io::Write;
+use std::path::Path;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_core::config::Config;
 use thinwedge_login::OPENROUTER_API_KEY_ENV_VAR;
@@ -110,14 +113,17 @@ fn print_api_token_login_help() {
     );
 }
 
-pub async fn run_login_with_api_key(
-    cli_config_overrides: CliConfigOverrides,
-    api_key: String,
-) -> ! {
-    let config = load_config_or_exit(cli_config_overrides).await;
-    let _login_log_guard = init_login_file_logging(&config);
-    tracing::info!("starting api key login flow");
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PromptOptionalConfig {
+    No,
+    IfInteractive,
+}
 
+fn finish_api_key_login(
+    config: &Config,
+    api_key: &str,
+    prompt_optional_config: PromptOptionalConfig,
+) -> ! {
     if matches!(config.forced_login_method, Some(ForcedLoginMethod::Chatgpt)) {
         eprintln!("{API_KEY_LOGIN_DISABLED_MESSAGE}");
         std::process::exit(1);
@@ -125,10 +131,13 @@ pub async fn run_login_with_api_key(
 
     match login_with_api_key(
         &config.thinwedge_home,
-        &api_key,
+        api_key,
         config.cli_auth_credentials_store_mode,
     ) {
         Ok(_) => {
+            if prompt_optional_config == PromptOptionalConfig::IfInteractive {
+                prompt_and_save_optional_capability_config(config.thinwedge_home.as_path());
+            }
             eprintln!("{LOGIN_SUCCESS_MESSAGE}");
             std::process::exit(0);
         }
@@ -139,24 +148,42 @@ pub async fn run_login_with_api_key(
     }
 }
 
+pub async fn run_login_with_api_key(
+    cli_config_overrides: CliConfigOverrides,
+    api_key: String,
+) -> ! {
+    let config = load_config_or_exit(cli_config_overrides).await;
+    let _login_log_guard = init_login_file_logging(&config);
+    tracing::info!("starting api key login flow");
+    finish_api_key_login(&config, &api_key, PromptOptionalConfig::No);
+}
+
 pub async fn run_login_with_preferred_api_key(cli_config_overrides: CliConfigOverrides) -> ! {
     match read_preferred_api_key_from_env() {
         Some(api_key) => {
             let env_var_name =
                 read_preferred_api_key_env_var_name().unwrap_or(OPENROUTER_API_KEY_ENV_VAR);
             eprintln!("Reading API key from {env_var_name}...");
-            run_login_with_api_key(cli_config_overrides, api_key).await;
+            let config = load_config_or_exit(cli_config_overrides).await;
+            let _login_log_guard = init_login_file_logging(&config);
+            tracing::info!("starting api key login flow from environment");
+            finish_api_key_login(&config, &api_key, PromptOptionalConfig::IfInteractive);
         }
         None => {
             let config = load_config_or_exit(cli_config_overrides).await;
             let _login_log_guard = init_login_file_logging(&config);
             tracing::info!("api token login requested without an API key env var");
+
+            if let Some(api_key) = read_api_key_from_interactive_prompt() {
+                tracing::info!("starting api key login flow from interactive prompt");
+                finish_api_key_login(&config, &api_key, PromptOptionalConfig::IfInteractive);
+            }
+
             print_api_token_login_help();
             std::process::exit(1);
         }
     }
 }
-
 pub async fn run_login_with_agent_identity(
     cli_config_overrides: CliConfigOverrides,
     agent_identity: String,
@@ -203,6 +230,158 @@ pub fn read_agent_identity_from_stdin() -> String {
         "Reading Agent Identity token from stdin...",
         "No Agent Identity token provided via stdin.",
     )
+}
+
+fn read_api_key_from_interactive_prompt() -> Option<String> {
+    let stdin = std::io::stdin();
+    if !stdin.is_terminal() {
+        return None;
+    }
+
+    eprint!("Enter OpenRouter-compatible API key: ");
+    let _ = std::io::stderr().flush();
+
+    let mut api_key = String::new();
+    if let Err(err) = stdin.read_line(&mut api_key) {
+        eprintln!("Failed to read API key: {err}");
+        std::process::exit(1);
+    }
+
+    let api_key = api_key.trim().to_string();
+    if api_key.is_empty() {
+        eprintln!("No API key provided.");
+        std::process::exit(1);
+    }
+
+    Some(api_key)
+}
+
+fn prompt_and_save_optional_capability_config(thinwedge_home: &Path) {
+    let stdin = std::io::stdin();
+    if !stdin.is_terminal() {
+        return;
+    }
+
+    let prompts = [
+        (
+            "ARTIFICIAL_ANALYSIS_API_KEY",
+            "LLM market data and model-cost context",
+        ),
+        ("RUNPOD_API_KEY", "GPU sandbox lifecycle commands"),
+        ("AWS_PROFILE", "AWS Bedrock and AWS cost tools profile"),
+        ("AWS_REGION", "AWS Bedrock and AWS cost tools region"),
+    ];
+
+    eprintln!(
+        "Optional capability setup. Press Enter to skip any value and keep your current environment."
+    );
+
+    let mut updates: Vec<(String, String)> = Vec::new();
+    for (name, description) in prompts {
+        eprint!("{name} ({description}) [optional]: ");
+        let _ = std::io::stderr().flush();
+
+        let mut value = String::new();
+        if let Err(err) = stdin.read_line(&mut value) {
+            eprintln!("Failed to read {name}: {err}");
+            std::process::exit(1);
+        }
+
+        let value = value.trim().to_string();
+        if !value.is_empty() {
+            updates.push((name.to_string(), value));
+        }
+    }
+
+    if updates.is_empty() {
+        return;
+    }
+
+    if let Err(err) = save_dotenv_updates(thinwedge_home, &updates) {
+        eprintln!("Error saving optional capability config: {err}");
+        std::process::exit(1);
+    }
+
+    eprintln!(
+        "Saved optional capability config to {}",
+        thinwedge_home.join(".env").display()
+    );
+}
+
+fn save_dotenv_updates(thinwedge_home: &Path, updates: &[(String, String)]) -> std::io::Result<()> {
+    std::fs::create_dir_all(thinwedge_home)?;
+    let dotenv_path = thinwedge_home.join(".env");
+    let existing = match std::fs::read_to_string(&dotenv_path) {
+        Ok(contents) => contents,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(err) => return Err(err),
+    };
+
+    let update_map: BTreeMap<&str, &str> = updates
+        .iter()
+        .map(|(name, value)| (name.as_str(), value.as_str()))
+        .collect();
+    let mut seen: BTreeMap<&str, bool> = update_map.keys().map(|key| (*key, false)).collect();
+    let mut output: Vec<String> = Vec::new();
+
+    for line in existing.lines() {
+        let trimmed = line.trim_start();
+        let mut replaced = false;
+        for (name, value) in &update_map {
+            if trimmed.starts_with(&format!("{name}=")) {
+                output.push(format!("{name}={}", dotenv_quote(value)));
+                seen.insert(name, true);
+                replaced = true;
+                break;
+            }
+        }
+        if !replaced {
+            output.push(line.to_string());
+        }
+    }
+
+    let missing_updates: Vec<(&str, &str)> = update_map
+        .iter()
+        .filter_map(|(name, value)| {
+            if !seen.get(name).copied().unwrap_or(false) {
+                Some((*name, *value))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if !missing_updates.is_empty() {
+        if !output.is_empty() && output.last().is_some_and(|line| !line.is_empty()) {
+            output.push(String::new());
+        }
+        output.push(
+            "# Optional ThinWedge capability config written by `thinwedge login`.".to_string(),
+        );
+        for (name, value) in missing_updates {
+            output.push(format!("{name}={}", dotenv_quote(value)));
+        }
+    }
+
+    let mut file_options = OpenOptions::new();
+    file_options.create(true).write(true).truncate(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        file_options.mode(0o600);
+    }
+    let mut file = file_options.open(dotenv_path)?;
+    file.write_all(output.join("\n").as_bytes())?;
+    file.write_all(b"\n")?;
+    Ok(())
+}
+
+fn dotenv_quote(value: &str) -> String {
+    let escaped = value
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n");
+    format!("\"{escaped}\"")
 }
 
 fn read_stdin_secret(terminal_message: &str, reading_message: &str, empty_message: &str) -> String {
@@ -352,7 +531,36 @@ fn safe_format_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::dotenv_quote;
     use super::safe_format_key;
+    use super::save_dotenv_updates;
+    use tempfile::TempDir;
+
+    #[test]
+    fn dotenv_quote_escapes_special_characters() {
+        assert_eq!(dotenv_quote(r#"abc"de\fg"#), r#""abc\"de\\fg""#);
+    }
+
+    #[test]
+    fn save_dotenv_updates_replaces_existing_and_appends_missing() {
+        let temp = TempDir::new().expect("temp dir");
+        std::fs::write(temp.path().join(".env"), "RUNPOD_API_KEY=old\nKEEP_ME=1\n")
+            .expect("write env");
+
+        save_dotenv_updates(
+            temp.path(),
+            &[
+                ("RUNPOD_API_KEY".to_string(), "new".to_string()),
+                ("AWS_REGION".to_string(), "us-east-1".to_string()),
+            ],
+        )
+        .expect("save updates");
+
+        let contents = std::fs::read_to_string(temp.path().join(".env")).expect("read env");
+        assert!(contents.contains(r#"RUNPOD_API_KEY="new""#));
+        assert!(contents.contains("KEEP_ME=1"));
+        assert!(contents.contains(r#"AWS_REGION="us-east-1""#));
+    }
 
     #[test]
     fn formats_long_key() {
