@@ -48,18 +48,14 @@ Use this checklist before making the repository public or publishing an open-sou
 - [x] CircleCI release publishing builds all CLI npm tarballs before publishing the root wrapper.
 - [x] Public-readiness scanning fails if the CircleCI release publisher loses tag reachability, required platform packages, or token hygiene guards.
 - [x] Public-readiness scanning fails if external GitHub Actions are not pinned to full commit SHAs.
-- [x] GitHub release tag validation requires `rust-v*` tags to be reachable from `origin/main`.
 - [x] Public-readiness scanning fails if release tag validation stops requiring `origin/main` reachability.
 - [x] npm package publishing checks that all platform tarballs exist before publishing the root wrapper.
 - [x] npm platform package target triples are checked against the native release targets hydrated by `install_native_deps.py`.
-- [x] npm package staging uses the current GitHub Actions run URL instead of searching for the first matching release workflow run.
 - [x] Repository Actions policy requires external actions to be pinned to full commit SHAs.
 - [x] Bazel CI no longer enables remote execution by default; private RBE container images are opt-in only.
 - [x] Default Bazel PR checks stay on Linux and run one at a time to avoid macOS/Windows hosted-runner spend and local macOS V8 timeouts.
 - [x] Release preparation workflows require an explicit `THINWEDGE_BASE_URL` instead of falling back to live ThinWedge or ChatGPT services.
-- [x] The GitHub Actions npm publish workflow uses trusted publishing/OIDC instead of long-lived `NPM_TOKEN`.
-- [x] Public-readiness scanning fails if GitHub Actions npm workflows regress to `NPM_TOKEN`/`NODE_AUTH_TOKEN` or drop the OIDC publish guard.
-- [ ] CircleCI uses a temporary `NPM_TOKEN` project environment variable for npm publishing until trusted publishing is proven.
+- [x] CircleCI uses a project `NPM_TOKEN` environment variable for npm publishing.
 - [ ] After the repository is public, restrict allowed external actions/reusable workflows to an approved selected-actions list.
 
 ## Known external blockers
@@ -70,4 +66,4 @@ Use this checklist before making the repository public or publishing an open-sou
 - Authenticated BuildBuddy cache reads stay enabled, but local-output uploads are disabled by default when remote execution is off to avoid Bazel remote-cache upload crashes in hosted macOS runners.
 - The `rust-release-prepare` workflow requires `THINWEDGE_BASE_URL`; configure it deliberately before re-enabling automated model metadata refreshes.
 - Public GitHub history was rewritten for existing branches and tags; collaborators must reclone or reset local clones to the rewritten refs.
-- npm trusted publishing requires npmjs.com package settings to trust `never2average/fpna-thinwedge` and `.github/workflows/rust-release.yml`; until that is proven, CircleCI publishes with a temporary npm token.
+- npm trusted publishing is not active; the old GitHub Actions release workflow was removed, and CircleCI is the current npm publisher.

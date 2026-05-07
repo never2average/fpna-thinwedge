@@ -121,6 +121,7 @@ ThinWedge includes finance-oriented tool surfaces for:
 - [Authentication](./docs/authentication.md)
 - [Contributing](./docs/contributing.md)
 - [Project logic](./docs/project-logic.md)
+- [CI and release flow](./docs/ci-release-flow.md)
 - [Governance](./GOVERNANCE.md)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [Open source fund](./docs/open-source-fund.md)
