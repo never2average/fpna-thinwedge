@@ -1,5 +1,9 @@
 version: 2.1
 
+# CircleCI is intentionally release-only. Pull-request merge gating lives in
+# GitHub Actions so public OSS PRs use GitHub's free standard hosted runners,
+# while CircleCI credits are reserved for rust-v* tag release and publish jobs.
+
 commands:
   install_rust:
     parameters:
@@ -78,27 +82,6 @@ commands:
             done < "${env_file}"
 
 jobs:
-  smoke:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-      - run:
-          name: Show repo and git context
-          command: |
-            set -euo pipefail
-            echo "repo: ${CIRCLE_PROJECT_REPONAME}"
-            echo "branch: ${CIRCLE_BRANCH:-}"
-            echo "tag: ${CIRCLE_TAG:-}"
-            git rev-parse --short HEAD
-      - run:
-          name: Show workspace contents
-          command: |
-            set -euo pipefail
-            pwd
-            ls -la
-            test -f thinwedge-rs/Cargo.toml
-
   tag-check:
     docker:
       - image: cimg/base:stable
@@ -576,13 +559,6 @@ jobs:
             done
 
 workflows:
-  ci:
-    jobs:
-      - smoke:
-          filters:
-            tags:
-              ignore: /.*/
-
   release:
     jobs:
       - tag-check:

@@ -1,11 +1,17 @@
-name: ci
+name: PR Gate
 
 on:
   pull_request: {}
-  push: { branches: [main] }
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build-test:
+  pr-gate:
+    name: PR Gate (required)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
