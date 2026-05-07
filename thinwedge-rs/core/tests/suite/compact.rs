@@ -10,6 +10,8 @@ use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
 use core_test_support::wait_for_event_match;
+use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use thinwedge_core::compact::SUMMARIZATION_PROMPT;
 use thinwedge_core::compact::SUMMARY_PREFIX;
@@ -23,6 +25,8 @@ use thinwedge_protocol::items::TurnItem;
 use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::HookEventName;
+use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::ItemCompletedEvent;
 use thinwedge_protocol::protocol::ItemStartedEvent;
 use thinwedge_protocol::protocol::Op;
@@ -106,6 +110,77 @@ fn summary_with_prefix(summary: &str) -> String {
 
 fn set_test_compact_prompt(config: &mut Config) {
     config.compact_prompt = Some(SUMMARIZATION_PROMPT.to_string());
+}
+
+fn write_compact_hook_fixture(home: &Path, mode: &str) {
+    let script_path = home.join(format!("compact_hook_{mode}.py"));
+    let log_path = home.join(format!("compact_hook_{mode}.jsonl"));
+    let mode_json = serde_json::to_string(mode).expect("serialize compact hook mode");
+    let script = format!(
+        r#"import json
+from pathlib import Path
+import sys
+
+payload = json.load(sys.stdin)
+log_path = Path(r"{log_path}")
+mode = {mode_json}
+
+with log_path.open("a", encoding="utf-8") as handle:
+    handle.write(json.dumps(payload) + "\n")
+
+event_name = payload.get("hook_event_name")
+if mode == "pre_stop" and event_name == "PreCompact":
+    print(json.dumps({{"continue": False, "stopReason": "pre compact blocked"}}))
+elif mode == "post_stop" and event_name == "PostCompact":
+    print(json.dumps({{"continue": False, "stopReason": "post compact paused"}}))
+else:
+    print(json.dumps({{}}))
+"#,
+        log_path = log_path.display(),
+        mode_json = mode_json,
+    );
+    let hooks = serde_json::json!({
+        "hooks": {
+            "PreCompact": [{
+                "hooks": [{
+                    "type": "command",
+                    "command": format!("python3 {}", script_path.display()),
+                    "statusMessage": "running pre compact hook",
+                }]
+            }],
+            "PostCompact": [{
+                "hooks": [{
+                    "type": "command",
+                    "command": format!("python3 {}", script_path.display()),
+                    "statusMessage": "running post compact hook",
+                }]
+            }]
+        }
+    });
+
+    fs::write(&script_path, script).expect("write compact hook script");
+    fs::write(home.join("hooks.json"), hooks.to_string()).expect("write compact hooks config");
+}
+
+fn read_compact_hook_events(home: &Path, mode: &str) -> Vec<String> {
+    let log_path = home.join(format!("compact_hook_{mode}.jsonl"));
+    if !log_path.exists() {
+        return Vec::new();
+    }
+
+    fs::read_to_string(&log_path)
+        .expect("read compact hook log")
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let value: serde_json::Value =
+                serde_json::from_str(line).expect("parse compact hook input");
+            value["hook_event_name"]
+                .as_str()
+                .expect("compact hook event name")
+                .to_string()
+        })
+        .collect()
 }
 
 fn body_contains_text(body: &str, text: &str) -> bool {
@@ -3377,5 +3452,143 @@ async fn snapshot_request_shape_manual_compact_without_previous_user_messages() 
                 ("Local Post-Compaction History Layout", &requests[1]),
             ]
         )
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn manual_compact_hooks_run_around_success() {
+    skip_if_no_network!();
+
+    let server = start_mock_server().await;
+    let compact_turn = sse(vec![
+        ev_assistant_message("m1", SUMMARY_TEXT),
+        ev_completed("r1"),
+    ]);
+    let request_log = mount_sse_once(&server, compact_turn).await;
+
+    let model_provider = non_thinwedge_model_provider(&server);
+    let test = test_thinwedge()
+        .with_pre_build_hook(|home| write_compact_hook_fixture(home, "continue"))
+        .with_config(move |config| {
+            config.model_provider = model_provider;
+            set_test_compact_prompt(config);
+            config
+                .features
+                .enable(Feature::ThinWedgeHooks)
+                .expect("enable compact hooks");
+        })
+        .build(&server)
+        .await
+        .expect("build thinwedge");
+    let thinwedge = test.thinwedge.clone();
+
+    thinwedge.submit(Op::Compact).await.expect("run /compact");
+    wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+
+    assert_eq!(
+        read_compact_hook_events(test.thinwedge_home_path(), "continue"),
+        vec!["PreCompact".to_string(), "PostCompact".to_string()]
+    );
+    assert_eq!(request_log.requests().len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn manual_pre_compact_hook_can_stop_before_model_call() {
+    skip_if_no_network!();
+
+    let server = start_mock_server().await;
+    let request_log = mount_sse_once(
+        &server,
+        sse(vec![
+            ev_assistant_message("m1", SUMMARY_TEXT),
+            ev_completed("r1"),
+        ]),
+    )
+    .await;
+
+    let model_provider = non_thinwedge_model_provider(&server);
+    let test = test_thinwedge()
+        .with_pre_build_hook(|home| write_compact_hook_fixture(home, "pre_stop"))
+        .with_config(move |config| {
+            config.model_provider = model_provider;
+            set_test_compact_prompt(config);
+            config
+                .features
+                .enable(Feature::ThinWedgeHooks)
+                .expect("enable compact hooks");
+        })
+        .build(&server)
+        .await
+        .expect("build thinwedge");
+    let thinwedge = test.thinwedge.clone();
+
+    thinwedge.submit(Op::Compact).await.expect("run /compact");
+    wait_for_event(&thinwedge, |ev| {
+        matches!(
+            ev,
+            EventMsg::HookCompleted(event)
+                if event.run.event_name == HookEventName::PreCompact
+                    && event.run.status == HookRunStatus::Stopped
+        )
+    })
+    .await;
+
+    assert_eq!(
+        read_compact_hook_events(test.thinwedge_home_path(), "pre_stop"),
+        vec!["PreCompact".to_string()]
+    );
+    assert_eq!(
+        request_log.requests().len(),
+        0,
+        "PreCompact stop should prevent the local compaction model call"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn manual_post_compact_hook_can_stop_after_success() {
+    skip_if_no_network!();
+
+    let server = start_mock_server().await;
+    let compact_turn = sse(vec![
+        ev_assistant_message("m1", SUMMARY_TEXT),
+        ev_completed("r1"),
+    ]);
+    let request_log = mount_sse_once(&server, compact_turn).await;
+
+    let model_provider = non_thinwedge_model_provider(&server);
+    let test = test_thinwedge()
+        .with_pre_build_hook(|home| write_compact_hook_fixture(home, "post_stop"))
+        .with_config(move |config| {
+            config.model_provider = model_provider;
+            set_test_compact_prompt(config);
+            config
+                .features
+                .enable(Feature::ThinWedgeHooks)
+                .expect("enable compact hooks");
+        })
+        .build(&server)
+        .await
+        .expect("build thinwedge");
+    let thinwedge = test.thinwedge.clone();
+
+    thinwedge.submit(Op::Compact).await.expect("run /compact");
+    wait_for_event(&thinwedge, |ev| {
+        matches!(
+            ev,
+            EventMsg::HookCompleted(event)
+                if event.run.event_name == HookEventName::PostCompact
+                    && event.run.status == HookRunStatus::Stopped
+        )
+    })
+    .await;
+
+    assert_eq!(
+        read_compact_hook_events(test.thinwedge_home_path(), "post_stop"),
+        vec!["PreCompact".to_string(), "PostCompact".to_string()]
+    );
+    assert_eq!(
+        request_log.requests().len(),
+        1,
+        "PostCompact stop should happen after the local compaction model call succeeds"
     );
 }

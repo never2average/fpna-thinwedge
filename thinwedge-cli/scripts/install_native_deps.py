@@ -42,6 +42,14 @@ class BinaryComponent:
 
 
 WINDOWS_TARGETS = tuple(target for target in BINARY_TARGETS if "windows" in target)
+LINUX_TARGETS = tuple(target for target in BINARY_TARGETS if "linux" in target)
+
+DEFAULT_COMPONENTS = [
+    "thinwedge",
+    "thinwedge-windows-sandbox-setup",
+    "thinwedge-command-runner",
+    "rg",
+]
 
 BINARY_COMPONENTS = {
     "thinwedge": BinaryComponent(
@@ -53,6 +61,12 @@ BINARY_COMPONENTS = {
         artifact_prefix="thinwedge-responses-api-proxy",
         dest_dir="thinwedge-responses-api-proxy",
         binary_basename="thinwedge-responses-api-proxy",
+    ),
+    "thinwedge-linux-sandbox": BinaryComponent(
+        artifact_prefix="thinwedge-linux-sandbox",
+        dest_dir="thinwedge",
+        binary_basename="thinwedge-linux-sandbox",
+        targets=LINUX_TARGETS,
     ),
     "thinwedge-windows-sandbox-setup": BinaryComponent(
         artifact_prefix="thinwedge-windows-sandbox-setup",
@@ -135,8 +149,9 @@ def parse_args() -> argparse.Namespace:
         choices=tuple(list(BINARY_COMPONENTS) + ["rg"]),
         help=(
             "Limit installation to the specified components."
-            " May be repeated. Defaults to thinwedge, thinwedge-windows-sandbox-setup,"
-            " thinwedge-command-runner, and rg."
+            " May be repeated. Defaults to thinwedge,"
+            " thinwedge-windows-sandbox-setup, thinwedge-command-runner, and rg."
+            " Release staging requests thinwedge-linux-sandbox explicitly when needed."
         ),
     )
     parser.add_argument(
@@ -158,12 +173,7 @@ def main() -> int:
     vendor_dir = thinwedge_cli_root / VENDOR_DIR_NAME
     vendor_dir.mkdir(parents=True, exist_ok=True)
 
-    components = args.components or [
-        "thinwedge",
-        "thinwedge-windows-sandbox-setup",
-        "thinwedge-command-runner",
-        "rg",
-    ]
+    components = args.components or DEFAULT_COMPONENTS
 
     workflow_url = (args.workflow_url or DEFAULT_WORKFLOW_URL).strip()
     if not workflow_url:

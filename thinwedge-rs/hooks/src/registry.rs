@@ -4,6 +4,10 @@ use tokio::process::Command;
 
 use crate::engine::ClaudeHooksEngine;
 use crate::engine::CommandShell;
+use crate::events::compact::PostCompactRequest;
+use crate::events::compact::PreCompactOutcome;
+use crate::events::compact::PreCompactRequest;
+use crate::events::compact::StatelessHookOutcome;
 use crate::events::permission_request::PermissionRequestOutcome;
 use crate::events::permission_request::PermissionRequestRequest;
 use crate::events::post_tool_use::PostToolUseOutcome;
@@ -124,6 +128,20 @@ impl Hooks {
         self.engine.preview_post_tool_use(request)
     }
 
+    pub fn preview_pre_compact(
+        &self,
+        request: &PreCompactRequest,
+    ) -> Vec<thinwedge_protocol::protocol::HookRunSummary> {
+        self.engine.preview_pre_compact(request)
+    }
+
+    pub fn preview_post_compact(
+        &self,
+        request: &PostCompactRequest,
+    ) -> Vec<thinwedge_protocol::protocol::HookRunSummary> {
+        self.engine.preview_post_compact(request)
+    }
+
     pub async fn run_session_start(
         &self,
         request: SessionStartRequest,
@@ -145,6 +163,14 @@ impl Hooks {
 
     pub async fn run_post_tool_use(&self, request: PostToolUseRequest) -> PostToolUseOutcome {
         self.engine.run_post_tool_use(request).await
+    }
+
+    pub async fn run_pre_compact(&self, request: PreCompactRequest) -> PreCompactOutcome {
+        self.engine.run_pre_compact(request).await
+    }
+
+    pub async fn run_post_compact(&self, request: PostCompactRequest) -> StatelessHookOutcome {
+        self.engine.run_post_compact(request).await
     }
 
     pub fn preview_user_prompt_submit(

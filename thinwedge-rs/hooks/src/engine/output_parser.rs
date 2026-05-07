@@ -33,6 +33,18 @@ pub(crate) struct PermissionRequestOutput {
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct PreCompactOutput {
+    pub universal: UniversalOutput,
+    pub invalid_reason: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct StatelessHookOutput {
+    pub universal: UniversalOutput,
+    pub invalid_reason: Option<String>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct PostToolUseOutput {
     pub universal: UniversalOutput,
     pub should_block: bool,
@@ -64,7 +76,9 @@ use crate::schema::HookUniversalOutputWire;
 use crate::schema::PermissionRequestBehaviorWire;
 use crate::schema::PermissionRequestCommandOutputWire;
 use crate::schema::PermissionRequestDecisionWire;
+use crate::schema::PostCompactCommandOutputWire;
 use crate::schema::PostToolUseCommandOutputWire;
+use crate::schema::PreCompactCommandOutputWire;
 use crate::schema::PreToolUseCommandOutputWire;
 use crate::schema::PreToolUseDecisionWire;
 use crate::schema::PreToolUsePermissionDecisionWire;
@@ -188,6 +202,22 @@ pub(crate) fn parse_post_tool_use(stdout: &str) -> Option<PostToolUseOutput> {
     })
 }
 
+pub(crate) fn parse_pre_compact(stdout: &str) -> Option<PreCompactOutput> {
+    let wire: PreCompactCommandOutputWire = parse_json(stdout)?;
+    Some(PreCompactOutput {
+        universal: UniversalOutput::from(wire.universal),
+        invalid_reason: None,
+    })
+}
+
+pub(crate) fn parse_post_compact(stdout: &str) -> Option<StatelessHookOutput> {
+    let wire: PostCompactCommandOutputWire = parse_json(stdout)?;
+    Some(StatelessHookOutput {
+        universal: UniversalOutput::from(wire.universal),
+        invalid_reason: None,
+    })
+}
+
 pub(crate) fn parse_user_prompt_submit(stdout: &str) -> Option<UserPromptSubmitOutput> {
     let wire: UserPromptSubmitCommandOutputWire = parse_json(stdout)?;
     let should_block = matches!(wire.decision, Some(BlockDecisionWire::Block));
@@ -241,6 +271,10 @@ impl From<HookUniversalOutputWire> for UniversalOutput {
             system_message: value.system_message,
         }
     }
+}
+
+pub(crate) fn looks_like_json(stdout: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(stdout.trim()).is_ok()
 }
 
 fn parse_json<T>(stdout: &str) -> Option<T>
