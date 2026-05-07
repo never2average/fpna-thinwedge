@@ -211,13 +211,15 @@ pub(crate) async fn maybe_emit_implicit_skill_invocation(
         return;
     }
 
-    turn_context
-        .session_telemetry
-        .counter("codex.skill.injected", /*inc*/ 1, &[
+    turn_context.session_telemetry.counter(
+        "codex.skill.injected",
+        /*inc*/ 1,
+        &[
             ("status", "ok"),
             ("skill", skill_name.as_str()),
             ("invoke_type", "implicit"),
-        ]);
+        ],
+    );
     sess.services
         .analytics_events_client
         .track_skill_invocations(
