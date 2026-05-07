@@ -361,6 +361,10 @@ jobs:
           command: |
             set -euo pipefail
             export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            export PATH="/c/Program Files/CMake/bin:/c/ProgramData/chocolatey/bin:$PATH"
+            export CMAKE="C:/Program Files/CMake/bin/cmake.exe"
+            export CMAKE_aarch64_pc_windows_msvc="$CMAKE"
+            cmake --version
             cd thinwedge-rs
             target="aarch64-pc-windows-msvc"
             CARGO_PROFILE_RELEASE_LTO=false \
