@@ -351,6 +351,7 @@ jobs:
             rustup target add aarch64-pc-windows-msvc
             choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
             choco install ninja -y
+            choco install llvm -y
             export PATH="/c/Program Files/CMake/bin:$PATH"
             cmake --version
             ninja --version
@@ -360,10 +361,12 @@ jobs:
           no_output_timeout: 120m
           command: |
             set -euo pipefail
-            export PATH="$USERPROFILE/.cargo/bin:/c/Program Files/CMake/bin:/c/ProgramData/chocolatey/bin:$PATH"
+            export PATH="$USERPROFILE/.cargo/bin:/c/Program Files/CMake/bin:/c/Program Files/LLVM/bin:/c/ProgramData/chocolatey/bin:$PATH"
             export CMAKE="C:/Program Files/CMake/bin/cmake.exe"
             export CMAKE_aarch64_pc_windows_msvc="$CMAKE"
+            export CC_aarch64_pc_windows_msvc=clang
             cmake --version
+            clang --version
             rustc --version
             cargo --version
             cd thinwedge-rs
