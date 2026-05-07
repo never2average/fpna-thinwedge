@@ -79,12 +79,15 @@ async fn apply_role_defaults_to_default_and_leaves_config_unchanged() {
         .expect("default role should apply");
 
     assert_config_matches_except_role_visible_skills(before, &config);
-    assert_eq!(config.role_visible_skills, vec![
-        "synthesis",
-        "finance-decision-framing",
-        "evidence-review",
-        "risk-review"
-    ]);
+    assert_eq!(
+        config.role_visible_skills,
+        vec![
+            "synthesis",
+            "finance-decision-framing",
+            "evidence-review",
+            "risk-review"
+        ]
+    );
 }
 
 #[tokio::test]
@@ -107,13 +110,16 @@ async fn apply_pricing_researcher_role_enables_slide_scaffolding() {
         .await
         .expect("pricing role should apply");
 
-    assert_eq!(config.role_visible_skills, vec![
-        "market-research",
-        "quant-analysis",
-        "pricing-packaging",
-        "cohort-analysis",
-        "willingness-to-pay"
-    ]);
+    assert_eq!(
+        config.role_visible_skills,
+        vec![
+            "market-research",
+            "quant-analysis",
+            "pricing-packaging",
+            "cohort-analysis",
+            "willingness-to-pay"
+        ]
+    );
     assert_workspace_write_network_enabled(&config);
     assert_eq!(session_flags_layer_count(&config), before_layers + 1);
 }
@@ -139,12 +145,15 @@ async fn apply_moat_researcher_role_preserves_current_model_and_reasoning_effort
 
     assert_eq!(config.model.as_deref(), Some("gpt-5.4-mini"));
     assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::High));
-    assert_eq!(config.role_visible_skills, vec![
-        "competitive-analysis",
-        "market-research",
-        "trend-analysis",
-        "benchmark-evidence-capture"
-    ]);
+    assert_eq!(
+        config.role_visible_skills,
+        vec![
+            "competitive-analysis",
+            "market-research",
+            "trend-analysis",
+            "benchmark-evidence-capture"
+        ]
+    );
     assert_workspace_write_network_enabled(&config);
     assert_eq!(session_flags_layer_count(&config), before_layers + 1);
 }
@@ -158,12 +167,15 @@ async fn apply_aws_cost_engineer_role_enables_slide_scaffolding() {
         .await
         .expect("aws cost engineer role should apply");
 
-    assert_eq!(config.role_visible_skills, vec![
-        "cloud-architecture",
-        "finops-aws-cost",
-        "infrastructure-pricing",
-        "terraform-iac-review"
-    ]);
+    assert_eq!(
+        config.role_visible_skills,
+        vec![
+            "cloud-architecture",
+            "finops-aws-cost",
+            "infrastructure-pricing",
+            "terraform-iac-review"
+        ]
+    );
     assert_workspace_write_network_enabled(&config);
     assert_eq!(session_flags_layer_count(&config), before_layers + 1);
 }
@@ -179,48 +191,53 @@ async fn apply_spend_policy_manager_role_sets_locked_research_config() {
     assert_eq!(config.model.as_deref(), Some("gpt-5.4"));
     assert_eq!(config.model_reasoning_effort, Some(ReasoningEffort::XHigh));
     assert_workspace_write_network_enabled(&config);
-    assert_eq!(config.role_visible_skills, vec![
-        "spend-policy-research",
-        "procurement-governance",
-        "approval-workflows",
-        "budget-controls",
-        "risk-review",
-    ]);
+    assert_eq!(
+        config.role_visible_skills,
+        vec![
+            "spend-policy-research",
+            "procurement-governance",
+            "approval-workflows",
+            "budget-controls",
+            "risk-review",
+        ]
+    );
 }
 
 #[tokio::test]
 async fn apply_role_records_user_visible_skills_in_session_config() {
     let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: Some("Custom role".to_string()),
             config_file: None,
             nickname_candidates: None,
             visible_skills: Some(vec!["market-research".to_string(), "pricing".to_string()]),
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
         .expect("custom role should apply");
 
-    assert_eq!(config.role_visible_skills, vec![
-        "market-research",
-        "pricing"
-    ]);
+    assert_eq!(
+        config.role_visible_skills,
+        vec!["market-research", "pricing"]
+    );
 }
 
 #[tokio::test]
 async fn apply_role_returns_unavailable_for_missing_user_role_file() {
     let (_home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(PathBuf::from("/path/does/not/exist.toml")),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     let err = apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -233,14 +250,15 @@ async fn apply_role_returns_unavailable_for_missing_user_role_file() {
 async fn apply_role_returns_unavailable_for_invalid_user_role_toml() {
     let (home, mut config) = test_config_with_cli_overrides(Vec::new()).await;
     let role_path = write_role_config(&home, "invalid-role.toml", "model = [").await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     let err = apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -264,14 +282,15 @@ model = "role-model"
 "#,
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -295,14 +314,15 @@ async fn apply_role_preserves_unspecified_keys() {
         "developer_instructions = \"Stay focused\"\nmodel_reasoning_effort = \"high\"",
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -354,14 +374,15 @@ model_provider = "test-provider"
         "developer_instructions = \"Stay focused\"",
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -408,14 +429,15 @@ model_verbosity = "high"
 "#,
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -474,14 +496,15 @@ model_provider = "role-provider"
         "developer_instructions = \"Stay focused\"\nprofile = \"role-profile\"",
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -532,14 +555,15 @@ model_provider = "base-provider"
         "developer_instructions = \"Stay focused\"\nmodel_provider = \"role-provider\"",
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -596,14 +620,15 @@ model_reasoning_effort = "high"
 "#,
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -640,14 +665,15 @@ writable_roots = ["./sandbox-root"]
 "#,
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -702,14 +728,15 @@ async fn apply_role_takes_precedence_over_existing_session_flags_for_same_key() 
         "developer_instructions = \"Stay focused\"\nmodel = \"role-model\"",
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -745,14 +772,15 @@ enabled = false
         ),
     )
     .await;
-    config
-        .agent_roles
-        .insert("custom".to_string(), AgentRoleConfig {
+    config.agent_roles.insert(
+        "custom".to_string(),
+        AgentRoleConfig {
             description: None,
             config_file: Some(role_path),
             nickname_candidates: None,
             visible_skills: None,
-        });
+        },
+    );
 
     apply_role_to_config(&mut config, Some("custom"))
         .await
@@ -782,12 +810,15 @@ enabled = false
 #[test]
 fn spawn_tool_spec_build_deduplicates_user_defined_built_in_roles() {
     let user_defined_roles = BTreeMap::from([
-        ("pricing_researcher".to_string(), AgentRoleConfig {
-            description: Some("user override".to_string()),
-            config_file: None,
-            nickname_candidates: None,
-            visible_skills: None,
-        }),
+        (
+            "pricing_researcher".to_string(),
+            AgentRoleConfig {
+                description: Some("user override".to_string()),
+                config_file: None,
+                nickname_candidates: None,
+                visible_skills: None,
+            },
+        ),
         ("researcher".to_string(), AgentRoleConfig::default()),
     ]);
 
@@ -811,12 +842,15 @@ fn spawn_tool_spec_build_deduplicates_user_defined_built_in_roles() {
 
 #[test]
 fn spawn_tool_spec_lists_user_defined_roles_before_built_ins() {
-    let user_defined_roles = BTreeMap::from([("aaa".to_string(), AgentRoleConfig {
-        description: Some("first".to_string()),
-        config_file: None,
-        nickname_candidates: None,
-        visible_skills: None,
-    })]);
+    let user_defined_roles = BTreeMap::from([(
+        "aaa".to_string(),
+        AgentRoleConfig {
+            description: Some("first".to_string()),
+            config_file: None,
+            nickname_candidates: None,
+            visible_skills: None,
+        },
+    )]);
 
     let spec = spawn_tool_spec::build(&user_defined_roles);
     let user_index = spec.find("aaa: {\nfirst\n}").expect("find user role");
@@ -989,12 +1023,15 @@ fn spawn_tool_spec_marks_role_locked_model_and_reasoning_effort() {
             "developer_instructions = \"Research carefully\"\nmodel = \"gpt-5\"\nmodel_reasoning_effort = \"high\"\n",
         )
         .expect("write role config");
-    let user_defined_roles = BTreeMap::from([("researcher".to_string(), AgentRoleConfig {
-        description: Some("Research carefully.".to_string()),
-        config_file: Some(role_path),
-        nickname_candidates: None,
-        visible_skills: None,
-    })]);
+    let user_defined_roles = BTreeMap::from([(
+        "researcher".to_string(),
+        AgentRoleConfig {
+            description: Some("Research carefully.".to_string()),
+            config_file: Some(role_path),
+            nickname_candidates: None,
+            visible_skills: None,
+        },
+    )]);
 
     let spec = spawn_tool_spec::build(&user_defined_roles);
 
@@ -1012,12 +1049,15 @@ fn spawn_tool_spec_marks_role_locked_reasoning_effort_only() {
         "developer_instructions = \"Review carefully\"\nmodel_reasoning_effort = \"medium\"\n",
     )
     .expect("write role config");
-    let user_defined_roles = BTreeMap::from([("reviewer".to_string(), AgentRoleConfig {
-        description: Some("Review carefully.".to_string()),
-        config_file: Some(role_path),
-        nickname_candidates: None,
-        visible_skills: None,
-    })]);
+    let user_defined_roles = BTreeMap::from([(
+        "reviewer".to_string(),
+        AgentRoleConfig {
+            description: Some("Review carefully.".to_string()),
+            config_file: Some(role_path),
+            nickname_candidates: None,
+            visible_skills: None,
+        },
+    )]);
 
     let spec = spawn_tool_spec::build(&user_defined_roles);
 
