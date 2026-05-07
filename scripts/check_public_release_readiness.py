@@ -6,6 +6,7 @@ import importlib.util
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -205,6 +206,112 @@ def check_npm_platform_targets() -> list[str]:
                 "hydrates release binaries for: "
                 + ", ".join(sorted(binary_targets))
             )
+
+    return findings
+
+
+def check_npm_native_binary_contract() -> list[str]:
+    build_module = load_python_module(
+        "thinwedge_build_npm_package_contract",
+        Path("thinwedge-cli/scripts/build_npm_package.py"),
+    )
+    install_module = load_python_module(
+        "thinwedge_install_native_deps_contract",
+        Path("thinwedge-cli/scripts/install_native_deps.py"),
+    )
+
+    package_components = getattr(build_module, "PACKAGE_NATIVE_COMPONENTS", {})
+    component_dest_dirs = getattr(build_module, "COMPONENT_DEST_DIR", {})
+    component_binaries = getattr(build_module, "COMPONENT_BINARY_BASENAMES", {})
+    default_components = set(getattr(install_module, "DEFAULT_COMPONENTS", ()))
+
+    findings: list[str] = []
+    all_components = {
+        component
+        for components in package_components.values()
+        for component in components
+        if component != "rg" or component in component_dest_dirs
+    }
+
+    missing_dest = sorted(all_components - set(component_dest_dirs))
+    if missing_dest:
+        findings.append(
+            "build_npm_package.py lacks destination directories for native components: "
+            + ", ".join(missing_dest)
+        )
+
+    missing_binary_contract = sorted(set(component_dest_dirs) - set(component_binaries))
+    if missing_binary_contract:
+        findings.append(
+            "build_npm_package.py lacks binary basenames for native components: "
+            + ", ".join(missing_binary_contract)
+        )
+
+    for linux_package in ("thinwedge-linux-x64", "thinwedge-linux-arm64"):
+        components = set(package_components.get(linux_package, ()))
+        for required in ("thinwedge", "thinwedge-linux-sandbox"):
+            if required not in components:
+                findings.append(
+                    f"{linux_package} must package native component {required!r}."
+                )
+
+    if "thinwedge-linux-sandbox" in default_components:
+        findings.append(
+            "install_native_deps.py default components must not require "
+            "thinwedge-linux-sandbox artifacts; release staging requests that helper explicitly."
+        )
+
+    if findings:
+        return findings
+
+    target = "x86_64-unknown-linux-gnu"
+    with tempfile.TemporaryDirectory(prefix="thinwedge-native-contract-") as tmp_dir:
+        root = Path(tmp_dir)
+        vendor_src = root / "native"
+        thinwedge_dir = vendor_src / target / "thinwedge"
+        rg_dir = vendor_src / target / "path"
+        thinwedge_dir.mkdir(parents=True)
+        rg_dir.mkdir(parents=True)
+        (thinwedge_dir / "thinwedge").write_text("binary", encoding="utf-8")
+        (rg_dir / "rg").write_text("binary", encoding="utf-8")
+
+        try:
+            build_module.copy_native_binaries(
+                vendor_src,
+                root / "stage-missing-sandbox",
+                ["thinwedge", "thinwedge-linux-sandbox", "rg"],
+                target_filter={target},
+            )
+        except RuntimeError as exc:
+            if "thinwedge-linux-sandbox" not in str(exc):
+                findings.append(
+                    "build_npm_package.py rejected missing Linux sandbox with an unclear error: "
+                    + str(exc)
+                )
+        else:
+            findings.append(
+                "build_npm_package.py accepted a Linux vendor tree missing thinwedge-linux-sandbox."
+            )
+
+        (thinwedge_dir / "thinwedge-linux-sandbox").write_text("binary", encoding="utf-8")
+        staging_dir = root / "stage-complete"
+        build_module.copy_native_binaries(
+            vendor_src,
+            staging_dir,
+            ["thinwedge", "thinwedge-linux-sandbox", "rg"],
+            target_filter={target},
+        )
+
+        for rel_path in (
+            Path("vendor") / target / "thinwedge" / "thinwedge",
+            Path("vendor") / target / "thinwedge" / "thinwedge-linux-sandbox",
+            Path("vendor") / target / "path" / "rg",
+        ):
+            if not (staging_dir / rel_path).is_file():
+                findings.append(
+                    "build_npm_package.py failed to stage expected native payload: "
+                    + str(rel_path)
+                )
 
     return findings
 
@@ -446,6 +553,7 @@ def main() -> int:
     findings: list[tuple[Path, int, BlockedPattern]] = []
     structural_findings = [
         *check_npm_platform_targets(),
+        *check_npm_native_binary_contract(),
         *check_circleci_release_publisher(),
         *check_github_actions_pinned(),
         *check_npm_trusted_publishing(),

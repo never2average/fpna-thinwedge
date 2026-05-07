@@ -46,6 +46,8 @@ pub(crate) fn select_handlers_for_matcher_inputs(
             HookEventName::PreToolUse
             | HookEventName::PermissionRequest
             | HookEventName::PostToolUse
+            | HookEventName::PreCompact
+            | HookEventName::PostCompact
             | HookEventName::SessionStart => {
                 if matcher_inputs.is_empty() {
                     matches_matcher(handler.matcher.as_deref(), /*input*/ None)
@@ -132,6 +134,8 @@ fn scope_for_event(event_name: HookEventName) -> HookScope {
         HookEventName::PreToolUse
         | HookEventName::PermissionRequest
         | HookEventName::PostToolUse
+        | HookEventName::PreCompact
+        | HookEventName::PostCompact
         | HookEventName::UserPromptSubmit
         | HookEventName::Stop => HookScope::Turn,
     }

@@ -103,6 +103,8 @@ pub(crate) fn matcher_pattern_for_event(
         HookEventName::PreToolUse
         | HookEventName::PermissionRequest
         | HookEventName::PostToolUse
+        | HookEventName::PreCompact
+        | HookEventName::PostCompact
         | HookEventName::SessionStart => matcher,
         HookEventName::UserPromptSubmit | HookEventName::Stop => None,
     }

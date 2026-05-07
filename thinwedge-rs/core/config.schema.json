@@ -27,6 +27,13 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "visible_skills": {
+          "description": "Skill names to show prominently for agents spawned with this role.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -370,12 +377,6 @@
             "code_mode_only": {
               "type": "boolean"
             },
-            "thinwedge_git_commit": {
-              "type": "boolean"
-            },
-            "thinwedge_hooks": {
-              "type": "boolean"
-            },
             "collab": {
               "type": "boolean"
             },
@@ -530,6 +531,12 @@
               "type": "boolean"
             },
             "terminal_resize_reflow": {
+              "type": "boolean"
+            },
+            "thinwedge_git_commit": {
+              "type": "boolean"
+            },
+            "thinwedge_hooks": {
               "type": "boolean"
             },
             "tool_call_mcp_elicitation": {
@@ -868,7 +875,21 @@
           },
           "type": "array"
         },
+        "PostCompact": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/MatcherGroup"
+          },
+          "type": "array"
+        },
         "PostToolUse": {
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/MatcherGroup"
+          },
+          "type": "array"
+        },
+        "PreCompact": {
           "default": [],
           "items": {
             "$ref": "#/definitions/MatcherGroup"
@@ -3312,12 +3333,6 @@
         "code_mode_only": {
           "type": "boolean"
         },
-        "thinwedge_git_commit": {
-          "type": "boolean"
-        },
-        "thinwedge_hooks": {
-          "type": "boolean"
-        },
         "collab": {
           "type": "boolean"
         },
@@ -3472,6 +3487,12 @@
           "type": "boolean"
         },
         "terminal_resize_reflow": {
+          "type": "boolean"
+        },
+        "thinwedge_git_commit": {
+          "type": "boolean"
+        },
+        "thinwedge_hooks": {
           "type": "boolean"
         },
         "tool_call_mcp_elicitation": {
@@ -3725,10 +3746,6 @@
       },
       "type": "array"
     },
-    "thinwedge_base_url": {
-      "description": "Base URL override for the built-in `thinwedge` model provider.",
-      "type": "string"
-    },
     "oss_provider": {
       "description": "Preferred OSS provider for local models, e.g. \"lmstudio\" or \"ollama\".",
       "type": "string"
@@ -3883,6 +3900,10 @@
     "suppress_unstable_features_warning": {
       "description": "Suppress warnings about unstable (under development) features.",
       "type": "boolean"
+    },
+    "thinwedge_base_url": {
+      "description": "Base URL override for the built-in `thinwedge` model provider.",
+      "type": "string"
     },
     "tool_output_token_limit": {
       "description": "Token budget applied when storing tool/function outputs in the context manager.",
