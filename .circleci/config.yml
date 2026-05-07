@@ -349,6 +349,11 @@ jobs:
             mkdir -p "$USERPROFILE/.cargo"
             printf '[net]\ngit-fetch-with-cli = true\n' > "$USERPROFILE/.cargo/config.toml"
             rustup target add aarch64-pc-windows-msvc
+            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+            choco install ninja -y
+            export PATH="/c/Program Files/CMake/bin:$PATH"
+            cmake --version
+            ninja --version
             cargo --version
       - run:
           name: Build Windows ARM64 CLI and helpers
