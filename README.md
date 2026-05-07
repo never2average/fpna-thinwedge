@@ -120,6 +120,9 @@ ThinWedge includes finance-oriented tool surfaces for:
 - [Configuration](./docs/config.md)
 - [Authentication](./docs/authentication.md)
 - [Contributing](./docs/contributing.md)
+- [Project logic](./docs/project-logic.md)
+- [Governance](./GOVERNANCE.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [Open source fund](./docs/open-source-fund.md)
 
 This repository is licensed under the [Apache-2.0 License](LICENSE).

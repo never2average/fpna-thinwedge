@@ -1,49 +1,57 @@
-# Individual Contributor License Agreement (v1.0, ThinWedge)
+# Individual Contributor License Agreement
 
-_Based on the Apache Software Foundation Individual CLA v 2.2._
+By commenting **"I have read the CLA Document and I hereby sign the CLA"** on a
+pull request, you ("Contributor") agree to the following terms for any past and
+future contributions submitted to the `never2average/fpna-thinwedge` project.
 
-By commenting **“I have read the CLA Document and I hereby sign the CLA”**
-on a Pull Request, **you (“Contributor”) agree to the following terms** for any
-past and future “Contributions” submitted to the **ThinWedge ThinWedge CLI project
-(the “Project”)**.
+## 1. Definitions
 
----
+- **Contribution** means any original work of authorship submitted to the
+  project, including code, documentation, tests, designs, configuration, or
+  issue/PR text intended for inclusion.
+- **You** means the individual or legal entity submitting the Contribution.
+- **Project** means the `never2average/fpna-thinwedge` repository and software
+  distributed from it.
 
-## 1. Definitions
+## 2. Copyright license
 
-- **“Contribution”** – any original work of authorship submitted to the Project
-  (code, documentation, designs, etc.).
-- **“You” / “Your”** – the individual (or legal entity) posting the acceptance
-  comment.
+You grant the project maintainers and all recipients of software distributed by
+the Project a perpetual, worldwide, non-exclusive, no-charge, royalty-free,
+irrevocable copyright license to reproduce, prepare derivative works of,
+publicly display, publicly perform, sublicense, and distribute your
+Contributions and derivative works.
 
-## 2. Copyright License
+## 3. Patent license
 
-You grant **ThinWedge, Inc.** and all recipients of software distributed by the
-Project a perpetual, worldwide, non‑exclusive, royalty‑free, irrevocable
-license to reproduce, prepare derivative works of, publicly display, publicly
-perform, sublicense, and distribute Your Contributions and derivative works.
-
-## 3. Patent License
-
-You grant **ThinWedge, Inc.** and all recipients of the Project a perpetual,
-worldwide, non‑exclusive, royalty‑free, irrevocable (except as below) patent
+You grant the project maintainers and all recipients of the Project a
+perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable patent
 license to make, have made, use, sell, offer to sell, import, and otherwise
-transfer Your Contributions alone or in combination with the Project.
+transfer your Contributions alone or in combination with the Project.
 
 If any entity brings patent litigation alleging that the Project or a
-Contribution infringes a patent, the patent licenses granted by You to that
-entity under this CLA terminate.
+Contribution infringes a patent, patent licenses granted by you to that entity
+under this CLA terminate.
 
-## 4. Representations
+## 4. Representations
+
+You represent that:
 
 1. You are legally entitled to grant the licenses above.
-2. Each Contribution is either Your original creation or You have authority to
-   submit it under this CLA.
-3. Your Contributions are provided **“AS IS”** without warranties of any kind.
-4. You will notify the Project if any statement above becomes inaccurate.
+2. Each Contribution is your original creation or you have authority to submit
+   it under this CLA.
+3. Your Contributions are provided "AS IS" without warranties or conditions of
+   any kind.
+4. You will notify the project maintainers if any statement above becomes
+   inaccurate.
 
-## 5. Miscellany
+## 5. Relationship to Apache-2.0
 
-This Agreement is governed by the laws of the **State of California**, USA,
-excluding its conflict‑of‑laws rules. If any provision is held unenforceable,
-the remaining provisions remain in force.
+This CLA is intended to make inbound contribution rights explicit. It does not
+change the outbound license of the Project, which remains Apache-2.0 unless the
+repository maintainers publish a different license in the future.
+
+## 6. Miscellany
+
+This agreement is governed by the laws of the State of California, USA,
+excluding conflict-of-laws rules. If any provision is held unenforceable, the
+remaining provisions remain in force.

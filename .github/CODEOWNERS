@@ -1,5 +1,8 @@
-# Core crate ownership.
-/thinwedge-rs/core/ @thinwedge/thinwedge-core-agent-team
+# Default maintainership for public contribution review.
+* @never2average
 
-# Keep ownership changes reviewed by the same team.
-/.github/CODEOWNERS @thinwedge/thinwedge-core-agent-team
+# Core agent/runtime changes require explicit maintainer review.
+/thinwedge-rs/core/ @never2average
+
+# Keep ownership changes reviewed by the repository owner.
+/.github/CODEOWNERS @never2average
