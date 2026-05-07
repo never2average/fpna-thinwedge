@@ -13,14 +13,27 @@ Install ThinWedge globally from npm:
 npm install -g @never2average-does-npm/cli
 ```
 
-Authenticate with an OpenRouter-compatible API token:
+Authenticate before starting interactive mode. In a real terminal, `thinwedge login`
+prompts for the required OpenRouter-compatible API token and optional capability
+config such as Artificial Analysis, RunPod, and AWS profile/region values:
+
+```shell
+thinwedge login
+# Enter OpenRouter-compatible API key: ...
+# ARTIFICIAL_ANALYSIS_API_KEY (...) [optional]: ...
+# RUNPOD_API_KEY (...) [optional]: ...
+# AWS_PROFILE (...) [optional]: ...
+# AWS_REGION (...) [optional]: ...
+```
+
+Or set the provider token in the environment first:
 
 ```shell
 export OPENROUTER_API_KEY=...
 thinwedge login
 ```
 
-Start the interactive terminal UI:
+Then start the interactive terminal UI:
 
 ```shell
 thinwedge
@@ -80,7 +93,24 @@ flowchart TB
 
 ## Authentication
 
-ThinWedge uses API-token authentication. The default setup path is:
+ThinWedge uses API-token authentication. Run `thinwedge login` before starting
+the interactive TUI so the agent can call the configured provider API. In a real
+terminal, `thinwedge login` behaves like an `aws configure`-style prompt: it asks
+for the required OpenRouter-compatible API token, then offers optional prompts for
+`ARTIFICIAL_ANALYSIS_API_KEY`, `RUNPOD_API_KEY`, `AWS_PROFILE`, and `AWS_REGION`.
+The required provider token is stored in ThinWedge auth storage; optional capability
+values are written to `THINWEDGE_HOME/.env`, which ThinWedge loads on startup.
+
+```shell
+thinwedge login
+# Enter OpenRouter-compatible API key: ...
+# ARTIFICIAL_ANALYSIS_API_KEY (...) [optional]: ...
+# RUNPOD_API_KEY (...) [optional]: ...
+# AWS_PROFILE (...) [optional]: ...
+# AWS_REGION (...) [optional]: ...
+```
+
+You can also provide the provider token through the environment:
 
 ```shell
 export OPENROUTER_API_KEY=...
