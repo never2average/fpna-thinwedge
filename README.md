@@ -5,11 +5,31 @@ statistical-model workflows, and cost research. It runs as a terminal UI and CLI
 your machine, keeps workspace state under your ThinWedge home directory, and connects
 to provider APIs with an OpenRouter-compatible API token.
 
-Install it globally:
+## Quick Start
+
+Install ThinWedge globally from npm:
 
 ```shell
 npm install -g @never2average-does-npm/cli
+```
+
+Authenticate with an OpenRouter-compatible API token:
+
+```shell
+export OPENROUTER_API_KEY=...
+thinwedge login
+```
+
+Start the interactive terminal UI:
+
+```shell
 thinwedge
+```
+
+Run a one-shot CLI task without opening the TUI:
+
+```shell
+thinwedge exec "summarize this repository"
 ```
 
 Or download a binary from the
@@ -29,6 +49,34 @@ The product surface is intentionally local-first:
 - `thinwedge exec` runs a single non-interactive agent task.
 - `thinwedge login` stores an OpenRouter-compatible API token locally.
 - `THINWEDGE_HOME` controls where config, auth, logs, thread history, and local state live.
+
+## System Components
+
+```mermaid
+flowchart TB
+    User[User terminal] --> CLI[ThinWedge CLI]
+    CLI --> TUI[Interactive TUI]
+    CLI --> Exec[One-shot exec mode]
+    CLI --> Auth[Local auth and config]
+
+    TUI --> Runtime[Agent runtime]
+    Exec --> Runtime
+    Auth --> Runtime
+
+    Runtime --> Tools[Tool router]
+    Runtime --> Store[Local state under THINWEDGE_HOME]
+    Runtime --> Provider[OpenRouter-compatible provider API]
+
+    Tools --> Shell[Shell and command execution]
+    Tools --> Files[Filesystem read, edit, and patch tools]
+    Tools --> MCP[MCP servers, plugins, and apps]
+    Tools --> Finance[FP&A, model, and cost-analysis tools]
+
+    Shell --> Sandbox[Sandbox and approval policy]
+    Files --> Sandbox
+    MCP --> Sandbox
+    Finance --> Sandbox
+```
 
 ## Authentication
 
