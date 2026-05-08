@@ -88,7 +88,7 @@ impl SlashCommand {
             SlashCommand::Fork => "fork the current chat",
             // SlashCommand::Undo => "ask ThinWedge to undo a turn",
             SlashCommand::Quit | SlashCommand::Exit => "exit ThinWedge",
-            SlashCommand::Copy => "copy last response as markdown",
+            SlashCommand::Copy => "export transcript as Excel and Word files",
             SlashCommand::Diff => "show git diff (including untracked files)",
             SlashCommand::Mention => "mention a file",
             SlashCommand::Skills => "use skills to improve how ThinWedge performs specific tasks",
