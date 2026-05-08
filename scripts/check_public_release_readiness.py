@@ -487,6 +487,17 @@ def check_license_and_notice_provenance() -> list[str]:
             "LGPL-2.0-or-later",
             "THINWEDGE_ENABLE_VENDORED_BWRAP=1",
         ),
+        Path("README.md"): (
+            "includes software derived from [OpenAI Codex](https://github.com/openai/codex)",
+            "ThinWedge is not affiliated with or endorsed by OpenAI.",
+            "does not grant OpenAI trademark rights",
+        ),
+        Path("docs/license.md"): (
+            "ThinWedge includes software derived from",
+            "Apache-2.0 permits ThinWedge to use, modify, distribute, sublicense, and publish",
+            "is not affiliated with or endorsed by",
+            "does not grant rights to use OpenAI trade names",
+        ),
     }
 
     for path, snippets in required_by_file.items():

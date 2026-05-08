@@ -204,4 +204,18 @@ ThinWedge includes finance-oriented tool surfaces for:
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [Open source fund](./docs/open-source-fund.md)
 
-This repository is licensed under the [Apache-2.0 License](LICENSE).
+## License and Attribution
+
+This repository is licensed under the [Apache-2.0 License](LICENSE). ThinWedge
+includes software derived from [OpenAI Codex](https://github.com/openai/codex),
+which is also licensed under Apache-2.0.
+
+Apache-2.0 allows use, modification, distribution, sublicensing, and publication
+of derivative works, including an open-source CLI distribution. ThinWedge preserves
+the required license and attribution notices in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and modified files are part of
+the ThinWedge derivative work.
+
+ThinWedge is not affiliated with or endorsed by OpenAI. The Apache-2.0 license
+does not grant OpenAI trademark rights; OpenAI and Codex are referenced only for
+factual attribution to the upstream project.
