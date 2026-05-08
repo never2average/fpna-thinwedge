@@ -108,10 +108,10 @@ mod audio_device {
 mod bottom_pane;
 mod chatwidget;
 mod cli;
-mod clipboard_copy;
 mod clipboard_paste;
 mod collaboration_modes;
 mod color;
+mod copy_export;
 pub(crate) mod custom_terminal;
 pub use custom_terminal::Terminal;
 mod auto_review_denials;

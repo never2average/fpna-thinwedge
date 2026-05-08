@@ -58,6 +58,8 @@ use crate::bottom_pane::StatusSurfacePreviewData;
 use crate::bottom_pane::StatusSurfacePreviewItem;
 use crate::bottom_pane::TerminalTitleItem;
 use crate::bottom_pane::TerminalTitleSetupView;
+use crate::copy_export::CopyExportEntry;
+use crate::copy_export::CopyExportRole;
 use crate::legacy_core::DEFAULT_AGENTS_MD_FILENAME;
 use crate::legacy_core::config::Config;
 use crate::legacy_core::config::Constrained;
@@ -513,6 +515,13 @@ struct AgentTurnMarkdown {
     markdown: String,
 }
 
+#[derive(Clone, Debug)]
+struct CopyExportCell {
+    user_turn_count: usize,
+    role: CopyExportRole,
+    content: String,
+}
+
 #[derive(Default)]
 struct RateLimitWarningState {
     secondary_index: usize,
@@ -845,8 +854,6 @@ pub(crate) struct ChatWidget {
     stream_controller: Option<StreamController>,
     // Stream lifecycle controller for proposed plan output.
     plan_stream_controller: Option<PlanStreamController>,
-    /// Holds the platform clipboard lease so copied text remains available while supported.
-    clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
     copy_last_response_binding: Vec<KeyBinding>,
     /// Raw markdown of the most recently completed agent response that
     /// survived any local thread rollback.
@@ -854,6 +861,8 @@ pub(crate) struct ChatWidget {
     /// Copyable agent responses keyed by the number of visible user turns at
     /// the time the response completed.
     agent_turn_markdowns: Vec<AgentTurnMarkdown>,
+    /// User and agent transcript cells exported by `/copy`.
+    copy_export_cells: Vec<CopyExportCell>,
     /// Number of user turns currently reflected in the visible transcript.
     visible_user_turn_count: usize,
     /// True when rollback discarded the requested copy source because it was
@@ -2321,12 +2330,94 @@ impl ChatWidget {
             }
         }
         self.last_agent_markdown = Some(markdown);
+        self.record_agent_export_cell(message);
         self.copy_history_evicted_by_rollback = false;
         self.saw_copy_source_this_turn = true;
     }
 
-    fn record_visible_user_turn_for_copy(&mut self) {
+    fn record_visible_user_turn_for_copy(&mut self, content: String) {
         self.visible_user_turn_count = self.visible_user_turn_count.saturating_add(1);
+        self.copy_export_cells.push(CopyExportCell {
+            user_turn_count: self.visible_user_turn_count,
+            role: CopyExportRole::User,
+            content,
+        });
+    }
+
+    fn record_agent_export_cell(&mut self, message: &str) {
+        if message.is_empty() {
+            return;
+        }
+        match self.copy_export_cells.last_mut() {
+            Some(entry)
+                if entry.user_turn_count == self.visible_user_turn_count
+                    && entry.role == CopyExportRole::Agent =>
+            {
+                entry.content = message.to_string();
+            }
+            _ => self.copy_export_cells.push(CopyExportCell {
+                user_turn_count: self.visible_user_turn_count,
+                role: CopyExportRole::Agent,
+                content: message.to_string(),
+            }),
+        }
+    }
+
+    fn record_history_cell_for_copy_export(&mut self, cell: &dyn HistoryCell) {
+        if Self::history_cell_has_dedicated_copy_source(cell) {
+            return;
+        }
+        let content = Self::history_cell_copy_export_content(cell);
+        if content.trim().is_empty() {
+            return;
+        }
+        self.copy_export_cells.push(CopyExportCell {
+            user_turn_count: self.visible_user_turn_count,
+            role: CopyExportRole::Cell,
+            content,
+        });
+    }
+
+    fn history_cell_has_dedicated_copy_source(cell: &dyn HistoryCell) -> bool {
+        cell.as_any().is::<history_cell::UserHistoryCell>()
+            || cell.as_any().is::<history_cell::AgentMessageCell>()
+            || cell.as_any().is::<history_cell::AgentMarkdownCell>()
+            || cell.as_any().is::<history_cell::ProposedPlanCell>()
+    }
+
+    fn history_cell_copy_export_content(cell: &dyn HistoryCell) -> String {
+        cell.transcript_lines(u16::MAX)
+            .into_iter()
+            .map(|line| {
+                line.spans
+                    .iter()
+                    .map(|span| span.content.as_ref())
+                    .collect::<String>()
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn user_copy_export_content(
+        message: &str,
+        local_image_paths: &[PathBuf],
+        remote_image_urls: &[String],
+    ) -> String {
+        let mut parts = Vec::new();
+        if !message.trim().is_empty() {
+            parts.push(message.to_string());
+        }
+        parts.extend(
+            local_image_paths
+                .iter()
+                .map(|path| format!("[local image: {}]", path.display())),
+        );
+        parts.extend(
+            remote_image_urls
+                .iter()
+                .map(|url| format!("[remote image: {url}]")),
+        );
+        parts.join("\n")
     }
 
     // --- Small event handlers ---
@@ -2350,6 +2441,7 @@ impl ChatWidget {
     ) {
         self.last_agent_markdown = None;
         self.agent_turn_markdowns.clear();
+        self.copy_export_cells.clear();
         self.visible_user_turn_count = 0;
         self.copy_history_evicted_by_rollback = false;
         self.saw_copy_source_this_turn = false;
@@ -5581,7 +5673,6 @@ impl ChatWidget {
             adaptive_chunking: AdaptiveChunkingPolicy::default(),
             stream_controller: None,
             plan_stream_controller: None,
-            clipboard_lease: None,
             copy_last_response_binding,
             running_commands: HashMap::new(),
             collab_agent_metadata: HashMap::new(),
@@ -5596,6 +5687,7 @@ impl ChatWidget {
             mcp_startup_status: None,
             last_agent_markdown: None,
             agent_turn_markdowns: Vec::new(),
+            copy_export_cells: Vec::new(),
             visible_user_turn_count: 0,
             copy_history_evicted_by_rollback: false,
             latest_proposed_plan_markdown: None,
@@ -6017,9 +6109,9 @@ impl ChatWidget {
         false
     }
 
-    /// Copy the last agent response (raw markdown) to the system clipboard.
+    /// Export the visible transcript cells to Excel and Word files.
     pub(crate) fn copy_last_agent_markdown(&mut self) {
-        self.copy_last_agent_markdown_with(crate::clipboard_copy::copy_to_clipboard);
+        self.export_copy_transcript();
     }
 
     pub(crate) fn truncate_agent_copy_history_to_user_turn_count(
@@ -6030,6 +6122,8 @@ impl ChatWidget {
         let had_copy_history = !self.agent_turn_markdowns.is_empty();
         self.agent_turn_markdowns
             .retain(|entry| entry.user_turn_count <= user_turn_count);
+        self.copy_export_cells
+            .retain(|entry| entry.user_turn_count <= user_turn_count);
         self.last_agent_markdown = self
             .agent_turn_markdowns
             .last()
@@ -6039,32 +6133,43 @@ impl ChatWidget {
         self.saw_copy_source_this_turn = false;
     }
 
-    /// Inner implementation with an injectable clipboard backend for testing.
-    fn copy_last_agent_markdown_with(
-        &mut self,
-        copy_fn: impl FnOnce(&str) -> Result<Option<crate::clipboard_copy::ClipboardLease>, String>,
-    ) {
-        match self.last_agent_markdown.clone() {
-            Some(markdown) if !markdown.is_empty() => match copy_fn(&markdown) {
-                Ok(lease) => {
-                    self.clipboard_lease = lease;
-                    self.add_to_history(history_cell::new_info_event(
-                        "Copied last message to clipboard".into(),
-                        /*hint*/ None,
-                    ));
-                }
-                Err(error) => self.add_to_history(history_cell::new_error_event(format!(
-                    "Copy failed: {error}"
-                ))),
-            },
-            _ if self.copy_history_evicted_by_rollback => {
-                self.add_to_history(history_cell::new_error_event(format!(
-                    "Cannot copy that response after rewinding. Only the most recent {MAX_AGENT_COPY_HISTORY} responses are available to /copy."
-                )));
-            }
-            _ => self.add_to_history(history_cell::new_error_event(
-                "No agent response to copy".into(),
+    fn export_copy_transcript(&mut self) {
+        let entries = self
+            .copy_export_cells
+            .iter()
+            .filter(|entry| !entry.content.trim().is_empty())
+            .map(|entry| CopyExportEntry {
+                user_turn_count: entry.user_turn_count,
+                role: entry.role,
+                content: entry.content.clone(),
+            })
+            .collect::<Vec<_>>();
+        if entries.is_empty() {
+            let message = if self.copy_history_evicted_by_rollback {
+                format!(
+                    "Cannot export that transcript after rewinding. Only retained visible cells are available to /copy."
+                )
+            } else {
+                "No transcript cells to export".to_string()
+            };
+            self.add_to_history(history_cell::new_error_event(message));
+            self.request_redraw();
+            return;
+        }
+
+        let folder = crate::copy_export::default_export_folder(&self.config.cwd);
+        match crate::copy_export::export_transcript(&entries, &folder) {
+            Ok(paths) => self.add_to_history(history_cell::new_info_event(
+                format!("Exported transcript to {}", paths.folder.display()),
+                Some(format!(
+                    "Created {} and {}",
+                    paths.xlsx.display(),
+                    paths.docx.display()
+                )),
             )),
+            Err(error) => self.add_to_history(history_cell::new_error_event(format!(
+                "Transcript export failed: {error}"
+            ))),
         }
         self.request_redraw();
     }
@@ -6141,6 +6246,7 @@ impl ChatWidget {
     fn flush_active_cell(&mut self) {
         if let Some(active) = self.active_cell.take() {
             self.needs_final_message_separator = true;
+            self.record_history_cell_for_copy_export(active.as_ref());
             self.app_event_tx.send(AppEvent::InsertHistoryCell(active));
         }
     }
@@ -6163,6 +6269,7 @@ impl ChatWidget {
             self.flush_active_cell();
             self.needs_final_message_separator = true;
         }
+        self.record_history_cell_for_copy_export(cell.as_ref());
         self.app_event_tx.send(AppEvent::InsertHistoryCell(cell));
     }
 
@@ -6582,12 +6689,16 @@ impl ChatWidget {
                         remote_image_urls.clone(),
                     ));
                 self.add_to_history(history_cell::new_user_prompt(
-                    text,
+                    text.clone(),
                     text_elements,
-                    local_image_paths,
-                    remote_image_urls,
+                    local_image_paths.clone(),
+                    remote_image_urls.clone(),
                 ));
-                self.record_visible_user_turn_for_copy();
+                self.record_visible_user_turn_for_copy(Self::user_copy_export_content(
+                    &text,
+                    &local_image_paths,
+                    &remote_image_urls,
+                ));
             } else if !remote_image_urls.is_empty() {
                 self.last_rendered_user_message_event =
                     Some(Self::rendered_user_message_event_from_parts(
@@ -6600,9 +6711,13 @@ impl ChatWidget {
                     String::new(),
                     Vec::new(),
                     Vec::new(),
-                    remote_image_urls,
+                    remote_image_urls.clone(),
                 ));
-                self.record_visible_user_turn_for_copy();
+                self.record_visible_user_turn_for_copy(Self::user_copy_export_content(
+                    "",
+                    &[],
+                    &remote_image_urls,
+                ));
             }
         }
 
@@ -8051,7 +8166,11 @@ impl ChatWidget {
             || !event.text_elements.is_empty()
             || !remote_image_urls.is_empty()
         {
-            self.record_visible_user_turn_for_copy();
+            self.record_visible_user_turn_for_copy(Self::user_copy_export_content(
+                &event.message,
+                &event.local_images,
+                &remote_image_urls,
+            ));
             self.add_to_history(history_cell::new_user_prompt(
                 event.message,
                 event.text_elements,

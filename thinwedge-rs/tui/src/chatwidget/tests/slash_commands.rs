@@ -1,5 +1,6 @@
 use super::*;
 use pretty_assertions::assert_eq;
+use std::io::Read;
 
 fn turn_complete_event(turn_id: &str, last_agent_message: Option<&str>) -> TurnCompleteEvent {
     serde_json::from_value(serde_json::json!({
@@ -41,6 +42,32 @@ fn next_add_to_history_op(op_rx: &mut tokio::sync::mpsc::UnboundedReceiver<Op>) 
             }
         }
     }
+}
+
+fn read_zip_member(path: &std::path::Path, member: &str) -> String {
+    let file = std::fs::File::open(path).expect("open zip");
+    let mut archive = zip::ZipArchive::new(file).expect("zip archive");
+    let mut file = archive.by_name(member).expect("zip member");
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).expect("read zip member");
+    contents
+}
+
+fn only_copy_export_dir(cwd: &std::path::Path) -> std::path::PathBuf {
+    let dirs = std::fs::read_dir(cwd)
+        .expect("read cwd")
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_dir()
+                && path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| name.starts_with("thinwedge-copy-export-"))
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(dirs.len(), 1, "expected one copy export dir, got {dirs:?}");
+    dirs.into_iter().next().unwrap()
 }
 
 #[tokio::test]
@@ -1330,7 +1357,7 @@ async fn slash_copy_reports_when_no_agent_response_exists() {
     let rendered = lines_to_single_string(&cells[0]);
     assert_chatwidget_snapshot!("slash_copy_no_output_info_message", rendered);
     assert!(
-        rendered.contains("No agent response to copy"),
+        rendered.contains("No transcript cells to export"),
         "expected no-output message, got {rendered:?}"
     );
 }
@@ -1345,7 +1372,7 @@ async fn ctrl_o_copy_reports_when_no_agent_response_exists() {
     assert_eq!(cells.len(), 1, "expected one info message");
     let rendered = lines_to_single_string(&cells[0]);
     assert!(
-        rendered.contains("No agent response to copy"),
+        rendered.contains("No transcript cells to export"),
         "expected no-output message, got {rendered:?}"
     );
 }
@@ -1404,43 +1431,63 @@ async fn copy_shortcut_can_be_remapped() {
     assert_eq!(cells.len(), 1, "expected one info message");
     let rendered = lines_to_single_string(&cells[0]);
     assert!(
-        rendered.contains("No agent response to copy"),
+        rendered.contains("No transcript cells to export"),
         "expected remapped copy shortcut to run, got {rendered:?}"
     );
 }
 
 #[tokio::test]
-async fn slash_copy_stores_clipboard_lease_and_preserves_it_on_failure() {
+async fn slash_copy_exports_transcript_xlsx_and_docx_files() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.last_agent_markdown = Some("copy me".to_string());
+    let tempdir = tempdir().unwrap();
+    chat.config.cwd = tempdir.path().to_path_buf().abs();
+    chat.add_to_history(crate::history_cell::PlainHistoryCell::new(vec![
+        Line::from("Scenario\tRevenue"),
+        Line::from("Base\t100"),
+    ]));
 
-    chat.copy_last_agent_markdown_with(|markdown| {
-        assert_eq!(markdown, "copy me");
-        Ok(Some(crate::clipboard_copy::ClipboardLease::test()))
+    chat.handle_thinwedge_event_replay(Event {
+        id: "user-1".into(),
+        msg: EventMsg::UserMessage(UserMessageEvent {
+            message: "Please build the Q4 model".to_string(),
+            images: None,
+            local_images: Vec::new(),
+            text_elements: Vec::new(),
+        }),
     });
+    chat.handle_thinwedge_event(Event {
+        id: "turn-1".into(),
+        msg: EventMsg::TurnComplete(turn_complete_event("turn-1", Some("Built **Q4** model"))),
+    });
+    let _ = drain_insert_history(&mut rx);
 
-    assert!(chat.clipboard_lease.is_some());
+    chat.dispatch_command(SlashCommand::Copy);
+
     let cells = drain_insert_history(&mut rx);
-    assert_eq!(cells.len(), 1, "expected one success message");
+    assert_eq!(cells.len(), 1, "expected one export message");
     let rendered = lines_to_single_string(&cells[0]);
     assert!(
-        rendered.contains("Copied last message to clipboard"),
-        "expected success message, got {rendered:?}"
+        rendered.contains("Exported transcript to"),
+        "expected export message, got {rendered:?}"
     );
 
-    chat.copy_last_agent_markdown_with(|markdown| {
-        assert_eq!(markdown, "copy me");
-        Err("blocked".into())
-    });
-
-    assert!(chat.clipboard_lease.is_some());
-    let cells = drain_insert_history(&mut rx);
-    assert_eq!(cells.len(), 1, "expected one failure message");
-    let rendered = lines_to_single_string(&cells[0]);
-    assert!(
-        rendered.contains("Copy failed: blocked"),
-        "expected failure message, got {rendered:?}"
-    );
+    let export_dir = only_copy_export_dir(tempdir.path());
+    let xlsx = export_dir.join("transcript.xlsx");
+    let docx = export_dir.join("transcript.docx");
+    assert!(xlsx.exists(), "missing xlsx export at {}", xlsx.display());
+    assert!(docx.exists(), "missing docx export at {}", docx.display());
+    let sheet = read_zip_member(&xlsx, "xl/worksheets/sheet1.xml");
+    assert!(sheet.contains("Scenario"));
+    assert!(sheet.contains("Please build the Q4 model"));
+    assert!(sheet.contains("Built **Q4** model"));
+    let table_sheet = read_zip_member(&xlsx, "xl/worksheets/sheet2.xml");
+    assert!(table_sheet.contains("Scenario"));
+    assert!(table_sheet.contains("Revenue"));
+    assert!(table_sheet.contains("Base"));
+    let doc = read_zip_member(&docx, "word/document.xml");
+    assert!(doc.contains("Cell 1 - Cell"));
+    assert!(doc.contains("Cell 2 - User"));
+    assert!(doc.contains("Cell 3 - Agent"));
 }
 
 #[tokio::test]
@@ -1690,10 +1737,8 @@ async fn slash_copy_uses_latest_surviving_response_after_rollback() {
     chat.truncate_agent_copy_history_to_user_turn_count(/*user_turn_count*/ 1);
 
     assert_eq!(chat.last_agent_markdown_text(), Some("foo response"));
-    chat.copy_last_agent_markdown_with(|markdown| {
-        assert_eq!(markdown, "foo response");
-        Ok(None)
-    });
+    assert_eq!(chat.copy_export_cells.len(), 2);
+    assert_eq!(chat.copy_export_cells[1].content, "foo response");
 }
 
 #[tokio::test]
@@ -1726,7 +1771,7 @@ async fn slash_copy_reports_when_rewind_exceeds_retained_copy_history() {
     let rendered = lines_to_single_string(&cells[0]);
     assert!(
         rendered.contains(
-            "Cannot copy that response after rewinding. Only the most recent 32 responses are available to /copy."
+            "Cannot export that transcript after rewinding. Only retained visible cells are available to /copy."
         ),
         "expected evicted-history message, got {rendered:?}"
     );

@@ -138,6 +138,9 @@ coordination model:
 - `/side` opens side conversations for scoped work.
 - `/review` switches into code-review behavior.
 - `/model` changes the active model.
+- `/copy` exports prior transcript cells to a timestamped folder with
+  `transcript.xlsx` and `transcript.docx`; markdown and pasted tables are split
+  into real workbook sheets.
 - `/status`, `/diff`, `/permissions`, `/mcp`, `/skills`, `/apps`, and `/plugins` expose runtime, workspace, and integration state.
 
 ## Logical Tool Tree

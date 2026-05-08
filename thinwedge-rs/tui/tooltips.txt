@@ -25,4 +25,4 @@ Press Tab to queue a message when a task is running; otherwise it sends immediat
 See the ThinWedge keymap documentation for supported actions and examples.
 Paste an image with Ctrl+V to attach it to your next message.
 You can resume a previous conversation by running `thinwedge resume`
-Use /copy or press Ctrl+O to copy the latest agent response as Markdown.
+Use /copy or press Ctrl+O to export prior transcript cells as Excel and Word files.

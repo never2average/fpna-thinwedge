@@ -34,7 +34,7 @@ const fn action(
 pub(super) const KEYMAP_ACTIONS: &[KeymapActionDescriptor] = &[
     action("global", "Global", "open_transcript", "Open the transcript overlay."),
     action("global", "Global", "open_external_editor", "Open the current draft in an external editor."),
-    action("global", "Global", "copy", "Copy the last agent response to the clipboard."),
+    action("global", "Global", "copy", "Export prior transcript cells as Excel and Word files."),
     action("global", "Global", "clear_terminal", "Clear the terminal UI."),
     action("chat", "Chat", "decrease_reasoning_effort", "Decrease reasoning effort."),
     action("chat", "Chat", "increase_reasoning_effort", "Increase reasoning effort."),
