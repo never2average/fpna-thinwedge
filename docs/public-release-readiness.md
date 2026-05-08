@@ -34,6 +34,7 @@ Use this checklist before making the repository public or publishing an open-sou
 
 - [x] OpenAI Codex attribution is preserved additively in `NOTICE` and `LICENSE`.
 - [x] Third-party notices cover OpenAI Codex, Ratatui, WezTerm, ripgrep, and bubblewrap.
+- [x] Public docs explain Apache-2.0 derivative-work permissions, attribution duties, and the no-endorsement/trademark boundary for OpenAI Codex-derived code.
 - [x] Public-readiness scanning fails if required license/provenance notices are removed.
 - [x] npm package staging includes `LICENSE`, `NOTICE`, and `THIRD_PARTY_NOTICES.md`.
 - [x] Public package metadata points at `never2average/fpna-thinwedge` where it is package provenance metadata.
