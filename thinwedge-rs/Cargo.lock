@@ -402,7 +402,7 @@ checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
 name = "app_test_support"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1975,7 +1975,7 @@ dependencies = [
 
 [[package]]
 name = "core_test_support"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -6119,7 +6119,7 @@ dependencies = [
 
 [[package]]
 name = "mcp_test_support"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "core_test_support",
@@ -10340,7 +10340,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-agent-identity"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -10359,7 +10359,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-analytics"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "os_info",
  "pretty_assertions",
@@ -10379,7 +10379,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-ansi-escape"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "ansi-to-tui",
  "ratatui",
@@ -10388,7 +10388,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-api"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "assert_matches",
@@ -10421,7 +10421,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-app-server"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "app_test_support",
@@ -10507,7 +10507,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-app-server-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "futures",
  "pretty_assertions",
@@ -10531,7 +10531,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-app-server-protocol"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -10558,7 +10558,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-app-server-test-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -10579,7 +10579,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-apply-patch"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -10598,7 +10598,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-arg0"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "dotenvy",
@@ -10615,7 +10615,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-async-utils"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "pretty_assertions",
@@ -10625,7 +10625,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-aws-auth"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "aws-config",
  "aws-credential-types",
@@ -10640,7 +10640,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-backend-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -10657,7 +10657,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-backend-openapi-models"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "serde",
  "serde_json",
@@ -10666,7 +10666,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-chatgpt"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -10687,7 +10687,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-cli"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -10744,7 +10744,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "bytes",
@@ -10774,7 +10774,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-cloud-requirements"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -10799,7 +10799,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-cloud-tasks"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10831,7 +10831,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-cloud-tasks-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10846,7 +10846,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-cloud-tasks-mock-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "chrono",
@@ -10856,7 +10856,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-code-mode"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-channel",
  "async-trait",
@@ -10873,11 +10873,11 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-collaboration-mode-templates"
-version = "0.1.26"
+version = "0.1.27"
 
 [[package]]
 name = "thinwedge-config"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10923,7 +10923,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-connectors"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -10935,7 +10935,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-core"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -11055,7 +11055,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-core-plugins"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "chrono",
@@ -11091,7 +11091,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-core-skills"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "dirs",
@@ -11122,7 +11122,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-debug-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -11134,7 +11134,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-device-key"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -11150,7 +11150,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-exec"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -11195,7 +11195,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-exec-server"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -11229,7 +11229,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-execpolicy"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -11246,7 +11246,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-execpolicy-legacy"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "allocative",
  "anyhow",
@@ -11266,7 +11266,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-experimental-api-macros"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -11275,7 +11275,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-external-agent-migration"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "serde_json",
@@ -11287,7 +11287,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-external-agent-sessions"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "chrono",
  "serde",
@@ -11301,7 +11301,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-features"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "schemars 0.8.22",
@@ -11314,7 +11314,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-feedback"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -11327,7 +11327,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-file-search"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -11343,7 +11343,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-file-system"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "serde",
@@ -11353,7 +11353,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-git-utils"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "chrono",
@@ -11377,7 +11377,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-hooks"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "chrono",
@@ -11397,7 +11397,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-install-context"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "tempfile",
@@ -11406,7 +11406,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-keyring-store"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "keyring",
  "tracing",
@@ -11414,7 +11414,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-linux-sandbox"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "cc",
  "clap",
@@ -11438,7 +11438,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-lmstudio"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "reqwest",
  "serde_json",
@@ -11452,7 +11452,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-login"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -11494,7 +11494,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-mcp"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-channel",
@@ -11526,7 +11526,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-mcp-server"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "core_test_support",
@@ -11559,7 +11559,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-memories-read"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "tempfile",
@@ -11573,7 +11573,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-memories-write"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "chrono",
@@ -11608,7 +11608,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-model-provider"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "http 1.4.0",
@@ -11633,7 +11633,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-model-provider-info"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "http 1.4.0",
  "maplit",
@@ -11650,7 +11650,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-models-manager"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "chrono",
@@ -11671,7 +11671,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-network-proxy"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -11702,7 +11702,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-ollama"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "assert_matches",
  "async-stream",
@@ -11721,7 +11721,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-otel"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "chrono",
  "eventsource-stream",
@@ -11753,7 +11753,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-plugin"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "thinwedge-config",
  "thinwedge-utils-absolute-path",
@@ -11763,7 +11763,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-process-hardening"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "libc",
  "pretty_assertions",
@@ -11771,7 +11771,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-protocol"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "chardetng",
@@ -11812,7 +11812,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-realtime-webrtc"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "libwebrtc",
  "thiserror 2.0.18",
@@ -11821,7 +11821,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-response-debug-context"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "base64 0.22.1",
  "http 1.4.0",
@@ -11832,7 +11832,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-responses-api-proxy"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "clap",
@@ -11849,7 +11849,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-rmcp-client"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "axum",
@@ -11886,7 +11886,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-rollout"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -11911,7 +11911,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-rollout-trace"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -11926,7 +11926,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-sandboxing"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -11947,7 +11947,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-secrets"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "age",
  "anyhow",
@@ -11968,7 +11968,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-shell-command"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -11988,7 +11988,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-shell-escalation"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12009,7 +12009,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-skills"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "include_dir",
  "thinwedge-utils-absolute-path",
@@ -12018,7 +12018,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-state"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "chrono",
@@ -12041,7 +12041,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-stdio-to-uds"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "pretty_assertions",
@@ -12053,7 +12053,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-terminal-detection"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "tracing",
@@ -12061,7 +12061,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-test-binary-support"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "tempfile",
  "thinwedge-arg0",
@@ -12069,7 +12069,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-thread-store"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-trait",
  "chrono",
@@ -12094,7 +12094,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-tools"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "rmcp",
@@ -12111,7 +12111,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-tui"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "arboard",
@@ -12220,7 +12220,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-uds"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "async-io",
  "pretty_assertions",
@@ -12232,7 +12232,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-absolute-path"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "dirs",
  "dunce",
@@ -12246,14 +12246,14 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-approval-presets"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "thinwedge-protocol",
 ]
 
 [[package]]
 name = "thinwedge-utils-cache"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "lru 0.16.3",
  "sha1",
@@ -12262,7 +12262,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-cargo-bin"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "assert_cmd",
  "runfiles",
@@ -12271,7 +12271,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-cli"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "clap",
  "pretty_assertions",
@@ -12282,15 +12282,15 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-elapsed"
-version = "0.1.26"
+version = "0.1.27"
 
 [[package]]
 name = "thinwedge-utils-fuzzy-match"
-version = "0.1.26"
+version = "0.1.27"
 
 [[package]]
 name = "thinwedge-utils-home-dir"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "dirs",
  "pretty_assertions",
@@ -12300,7 +12300,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-image"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "base64 0.22.1",
  "image",
@@ -12312,7 +12312,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-json-to-toml"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "serde_json",
@@ -12321,7 +12321,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-oss"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "thinwedge-core",
  "thinwedge-lmstudio",
@@ -12331,7 +12331,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-output-truncation"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "thinwedge-protocol",
@@ -12340,7 +12340,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-path"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "dunce",
  "pretty_assertions",
@@ -12350,7 +12350,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-plugins"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "serde",
  "serde_json",
@@ -12363,7 +12363,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-pty"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "filedescriptor",
@@ -12379,7 +12379,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-readiness"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -12390,14 +12390,14 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-rustls-provider"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "rustls",
 ]
 
 [[package]]
 name = "thinwedge-utils-sandbox-summary"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "thinwedge-core",
@@ -12408,7 +12408,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-sleep-inhibitor"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "core-foundation 0.9.4",
  "libc",
@@ -12418,14 +12418,14 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-stream-parser"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
 ]
 
 [[package]]
 name = "thinwedge-utils-string"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "regex-lite",
@@ -12433,14 +12433,14 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-utils-template"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
 ]
 
 [[package]]
 name = "thinwedge-v8-poc"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "pretty_assertions",
  "v8",
@@ -12448,7 +12448,7 @@ dependencies = [
 
 [[package]]
 name = "thinwedge-windows-sandbox"
-version = "0.1.26"
+version = "0.1.27"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
