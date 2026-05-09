@@ -16,7 +16,7 @@ scripts/probes/check-db-sandbox-readiness.sh --dry-run
 Live validation expects the shell to already have:
 
 - an AWS CLI on `PATH`
-- a billing AWS identity, via `THINWEDGE_BILLING_AWS_PROFILE` or `AWS_PROFILE`
+- a billing AWS identity with STS, Cost Explorer, CUR, Budgets, and IAM account-summary read access, via `THINWEDGE_BILLING_AWS_PROFILE` or `AWS_PROFILE`
 - a DB Ops AWS identity, via `THINWEDGE_DB_OPS_AWS_PROFILE` or `AWS_PROFILE`
 - an authenticated Ardent CLI from `ardent login`
 - a selected Ardent project from `ardent project switch <name>`

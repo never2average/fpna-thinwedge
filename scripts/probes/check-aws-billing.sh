@@ -9,7 +9,8 @@ usage() {
 Usage: check-aws-billing.sh [--profile NAME] [--region REGION] [--dry-run] [--verbose]
 
 Validates the billing AWS identity for finance agents. The live check verifies
-STS identity and Cost Explorer read access. It does not mutate AWS resources.
+STS identity, Cost Explorer, CUR, Budgets, and account metadata read access. It
+does not mutate AWS resources.
 
 Environment fallbacks:
   THINWEDGE_BILLING_AWS_PROFILE
@@ -37,14 +38,30 @@ aws_args=()
 [[ -n "${region}" ]] && aws_args+=(--region "${region}")
 
 probe_info "checking AWS billing identity${profile:+ profile=${profile}} region=${region}"
-probe_maybe_dry_run aws sts get-caller-identity "${aws_args[@]}" --output json >/dev/null
+if [[ "${TW_PROBE_DRY_RUN}" == "1" ]]; then
+  probe_maybe_dry_run aws sts get-caller-identity "${aws_args[@]}" --output json >/dev/null
+  account_id="000000000000"
+else
+  account_id="$(aws sts get-caller-identity "${aws_args[@]}" --query Account --output text)"
+fi
 
 start_date="$(date -u -d '3 days ago' +%Y-%m-%d)"
 end_date="$(date -u -d '2 days ago' +%Y-%m-%d)"
+probe_info "checking Cost Explorer read access"
 probe_maybe_dry_run aws ce get-cost-and-usage \
   "${aws_args[@]}" \
   --time-period "Start=${start_date},End=${end_date}" \
   --granularity DAILY \
   --metrics UnblendedCost \
   --output json >/dev/null
+probe_info "checking CUR read access"
+probe_maybe_dry_run aws cur describe-report-definitions "${aws_args[@]}" --output json >/dev/null
+probe_info "checking Budgets read access"
+probe_maybe_dry_run aws budgets describe-budgets \
+  "${aws_args[@]}" \
+  --account-id "${account_id}" \
+  --max-results 5 \
+  --output json >/dev/null
+probe_info "checking account metadata read access"
+probe_maybe_dry_run aws iam get-account-summary "${aws_args[@]}" --output json >/dev/null
 probe_info "AWS billing probe passed"
