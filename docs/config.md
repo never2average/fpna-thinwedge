@@ -119,6 +119,9 @@ thinwedge ardent branch delete thinwedge-agent-test --connector fpna-prod --dry-
 because it attaches a production source database to Ardent. Pass
 `--allow-mutation` only after that blast radius is approved. The source URL is
 read from the named environment variable and is never printed by ThinWedge.
+Choosing `managed` versus `byoc` for `ardent.data_plane` is also an explicit
+deployment-boundary decision; record that choice during setup instead of treating
+it as an automatic default.
 
 Validate the external contracts bottom-up before trusting the integration. Start
 with dry-run wiring:
