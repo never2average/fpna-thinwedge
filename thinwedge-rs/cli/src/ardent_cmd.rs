@@ -311,18 +311,36 @@ async fn run_status(
         settings.default_connector.as_deref().unwrap_or("<unset>")
     );
 
-    let plan = ArdentCommandPlan::new(settings.cli_path, vec!["status".to_string()]);
+    let status_plan = ArdentCommandPlan::new(settings.cli_path.clone(), vec!["status".to_string()]);
+    let connector_list_plan = connector_list_plan(&settings.cli_path);
     if cmd.dry_run {
-        println!("dry-run: {}", plan.display());
+        println!("dry-run: {}", status_plan.display());
+        println!("dry-run: {}", connector_list_plan.display());
         return Ok(());
     }
-    let output = run_plan_capture_combined(&plan).context("Ardent status check failed")?;
+    let output = run_plan_capture_combined(&status_plan).context("Ardent status check failed")?;
     if !output.trim().is_empty() {
         eprintln!("{}", output.trim());
     }
     if ardent_status_indicates_unauthenticated(&output) {
         bail!("Ardent CLI is installed but not authenticated; run `thinwedge ardent login`");
     }
+
+    let connector_output =
+        run_plan_capture_combined(&connector_list_plan).context("Ardent connector check failed")?;
+    if ardent_connector_list_indicates_empty(&connector_output) {
+        bail!(
+            "Ardent CLI is authenticated but no connectors exist; create one with `thinwedge ardent connector create --allow-mutation` after approval"
+        );
+    }
+    if let Some(connector) = settings.default_connector.as_deref() {
+        if !connector_output.contains(connector) {
+            bail!(
+                "configured Ardent connector `{connector}` was not found; run `thinwedge ardent configure --connector <name>`"
+            );
+        }
+    }
+    println!("  ardent.connector_ready: true");
     Ok(())
 }
 
@@ -686,6 +704,10 @@ fn connector_create_plan(cli_path: &str, source_url: &str) -> ArdentCommandPlan 
     ])
 }
 
+fn connector_list_plan(cli_path: &str) -> ArdentCommandPlan {
+    ArdentCommandPlan::new(cli_path, vec!["connector".to_string(), "list".to_string()])
+}
+
 fn branch_create_plan(cli_path: &str, branch: &str, connector: Option<&str>) -> ArdentCommandPlan {
     let mut args = vec![
         "branch".to_string(),
@@ -760,6 +782,10 @@ fn ardent_status_indicates_unauthenticated(output: &str) -> bool {
     lower.contains("not authenticated")
         || lower.contains("no organization found")
         || lower.contains("run: ardent login")
+}
+
+fn ardent_connector_list_indicates_empty(output: &str) -> bool {
+    output.to_ascii_lowercase().contains("no connectors found")
 }
 
 fn extract_database_url(output: &str) -> Option<String> {
@@ -860,6 +886,13 @@ mod tests {
     fn status_output_detects_unauthenticated_ardent_cli() {
         let output = "✗ No organization found. Run: ardent login\n✗ Not authenticated\n";
         assert!(ardent_status_indicates_unauthenticated(output));
+    }
+
+    #[test]
+    fn connector_list_output_detects_empty_ardent_project() {
+        let output =
+            "No connectors found\n  Create one with: ardent connector create postgresql <url>";
+        assert!(ardent_connector_list_indicates_empty(output));
     }
 
     #[test]
