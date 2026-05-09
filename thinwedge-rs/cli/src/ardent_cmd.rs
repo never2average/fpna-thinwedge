@@ -316,7 +316,14 @@ async fn run_status(
         println!("dry-run: {}", plan.display());
         return Ok(());
     }
-    run_plan_inherit(&plan).context("Ardent status check failed")
+    let output = run_plan_capture_combined(&plan).context("Ardent status check failed")?;
+    if !output.trim().is_empty() {
+        eprintln!("{}", output.trim());
+    }
+    if ardent_status_indicates_unauthenticated(&output) {
+        bail!("Ardent CLI is installed but not authenticated; run `thinwedge ardent login`");
+    }
+    Ok(())
 }
 
 async fn run_login(
@@ -737,6 +744,24 @@ fn run_plan_capture(plan: &ArdentCommandPlan) -> anyhow::Result<String> {
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+fn run_plan_capture_combined(plan: &ArdentCommandPlan) -> anyhow::Result<String> {
+    let output = Command::new(&plan.program).args(&plan.args).output()?;
+    let mut combined = String::new();
+    combined.push_str(&String::from_utf8_lossy(&output.stdout));
+    combined.push_str(&String::from_utf8_lossy(&output.stderr));
+    if !output.status.success() {
+        bail!("command failed: {}\n{}", plan.display(), combined.trim());
+    }
+    Ok(combined)
+}
+
+fn ardent_status_indicates_unauthenticated(output: &str) -> bool {
+    let lower = output.to_ascii_lowercase();
+    lower.contains("not authenticated")
+        || lower.contains("no organization found")
+        || lower.contains("run: ardent login")
+}
+
 fn extract_database_url(output: &str) -> Option<String> {
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(output) {
         if let Some(url) = extract_database_url_from_json(&json) {
@@ -829,6 +854,12 @@ mod tests {
             extract_database_url(output).as_deref(),
             Some("postgres://agent:token@example.com/branch")
         );
+    }
+
+    #[test]
+    fn status_output_detects_unauthenticated_ardent_cli() {
+        let output = "✗ No organization found. Run: ardent login\n✗ Not authenticated\n";
+        assert!(ardent_status_indicates_unauthenticated(output));
     }
 
     #[test]
