@@ -134,11 +134,11 @@ Then run the non-mutating live readiness suite from a shell with AWS, Ardent,
 `nc`, `psql`, and the DB setup role URL configured:
 
 ```bash
-export THINWEDGE_BILLING_AWS_PROFILE=fpna-billing
-export THINWEDGE_DB_OPS_AWS_PROFILE=fpna-db-ops
-export THINWEDGE_RDS_DB_INSTANCE=<postgres-rds-instance>
-export THINWEDGE_DB_ROLE_DATABASE_URL=<setup-role-postgres-url>
-export THINWEDGE_ARDENT_CONNECTOR=<ardent-connector-name>
+cp scripts/probes/db-sandbox-readiness.env.example scripts/probes/db-sandbox-readiness.env
+# Fill scripts/probes/db-sandbox-readiness.env locally, then load it:
+set -a
+. scripts/probes/db-sandbox-readiness.env
+set +a
 
 scripts/probes/check-db-sandbox-readiness.sh
 ```
