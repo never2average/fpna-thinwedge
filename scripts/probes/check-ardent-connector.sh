@@ -43,8 +43,11 @@ if [[ "${TW_PROBE_DRY_RUN}" != "1" ]]; then
 fi
 
 if [[ "${create}" == "1" ]]; then
+  create_args=(connector create)
+  [[ -n "${connector}" ]] && create_args+=(--name "${connector}")
+  create_args+=(postgresql)
   if [[ "${TW_PROBE_DRY_RUN}" == "1" ]]; then
-    probe_info "dry-run: ${ardent} connector create postgresql <redacted-source-url>"
+    probe_info "dry-run: ${ardent} ${create_args[*]} <redacted-source-url>"
     probe_info "Ardent connector probe passed"
     exit 0
   fi
@@ -52,7 +55,7 @@ if [[ "${create}" == "1" ]]; then
   source_url="${!connection_string_env:-}"
   [[ -n "${source_url}" ]] || probe_fail "${connection_string_env} must contain the source database URL"
   probe_info "creating Ardent Postgres connector without printing source URL"
-  "${ardent}" connector create postgresql "${source_url}" >/dev/null
+  "${ardent}" "${create_args[@]}" "${source_url}" >/dev/null
 else
   probe_info "listing Ardent connectors"
   if ! listing="$(probe_maybe_dry_run "${ardent}" connector list 2>&1)"; then
