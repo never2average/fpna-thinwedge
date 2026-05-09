@@ -54,7 +54,16 @@ if [[ "${create}" == "1" ]]; then
   "${ardent}" connector create postgresql "${source_url}" >/dev/null
 else
   probe_info "listing Ardent connectors"
-  listing="$(probe_maybe_dry_run "${ardent}" connector list)"
+  if ! listing="$(probe_maybe_dry_run "${ardent}" connector list 2>&1)"; then
+    printf '%s\n' "${listing}" >&2
+    if grep -Eiq 'not authenticated|ardent login|no organization found' <<<"${listing}"; then
+      probe_fail "Ardent CLI is not authenticated; run ardent login"
+    fi
+    if grep -Eiq 'no current project set|project switch' <<<"${listing}"; then
+      probe_fail "Ardent has no current project; run ardent project list and ardent project switch <name>"
+    fi
+    probe_fail "failed to list Ardent connectors"
+  fi
   if [[ -n "${connector}" ]]; then
     grep -F -- "${connector}" <<<"${listing}" >/dev/null || probe_fail "connector not found in Ardent connector list: ${connector}"
     probe_info "connector found: ${connector}"

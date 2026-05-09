@@ -36,8 +36,14 @@ fi
 probe_info "checking Ardent CLI auth using ${ardent}"
 probe_maybe_dry_run "${ardent}" --version >/dev/null || probe_warn "Ardent CLI did not support --version; continuing"
 if [[ -n "${THINWEDGE_ARDENT_STATUS_COMMAND:-}" ]]; then
-  probe_maybe_dry_run bash -lc "${THINWEDGE_ARDENT_STATUS_COMMAND}" >/dev/null
+  status_output="$(probe_maybe_dry_run bash -lc "${THINWEDGE_ARDENT_STATUS_COMMAND}" 2>&1)"
 else
-  probe_maybe_dry_run "${ardent}" status >/dev/null
+  status_output="$(probe_maybe_dry_run "${ardent}" status 2>&1)"
+fi
+if [[ "${TW_PROBE_DRY_RUN}" != "1" ]]; then
+  if grep -Eiq 'not authenticated|run:[[:space:]]*ardent login|no organization found' <<<"${status_output}"; then
+    printf '%s\n' "${status_output}" >&2
+    probe_fail "Ardent CLI is installed but not authenticated; run ardent login"
+  fi
 fi
 probe_info "Ardent auth probe passed"
