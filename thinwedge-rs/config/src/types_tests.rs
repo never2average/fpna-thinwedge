@@ -86,3 +86,49 @@ fn memories_config_clamps_rate_limit_remaining_threshold() {
         }
     );
 }
+
+#[test]
+fn deserialize_finance_sandbox_config() {
+    let cfg: crate::config_toml::ConfigToml = toml::from_str(
+        r#"
+            [billing]
+            aws_profile = "fpna-billing"
+            region = "us-east-1"
+
+            [db_ops]
+            aws_profile = "fpna-db-ops"
+            role_arn = "arn:aws:iam::123456789012:role/fpna-db-ops"
+            region = "us-west-2"
+
+            [ardent]
+            enabled = true
+            cli_path = "ardent"
+            default_connector = "fpna-prod"
+            branch_name_prefix = "thinwedge-agent"
+            branch_ttl_minutes = 60
+            data_plane = "byoc"
+        "#,
+    )
+    .expect("finance sandbox config should deserialize");
+
+    let billing = cfg.billing.expect("billing config");
+    assert_eq!(billing.aws_profile.as_deref(), Some("fpna-billing"));
+    assert_eq!(billing.region.as_deref(), Some("us-east-1"));
+
+    let db_ops = cfg.db_ops.expect("db ops config");
+    assert_eq!(db_ops.aws_profile.as_deref(), Some("fpna-db-ops"));
+    assert_eq!(
+        db_ops.role_arn.as_deref(),
+        Some("arn:aws:iam::123456789012:role/fpna-db-ops")
+    );
+
+    let ardent = cfg.ardent.expect("ardent config");
+    assert_eq!(ardent.enabled, Some(true));
+    assert_eq!(ardent.default_connector.as_deref(), Some("fpna-prod"));
+    assert_eq!(
+        ardent.branch_name_prefix.as_deref(),
+        Some("thinwedge-agent")
+    );
+    assert_eq!(ardent.branch_ttl_minutes, Some(60));
+    assert_eq!(ardent.data_plane, Some(ArdentDataPlaneToml::Byoc));
+}

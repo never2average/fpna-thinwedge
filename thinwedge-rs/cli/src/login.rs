@@ -7,6 +7,7 @@
 //! into a one-shot CLI command while still producing a durable `thinwedge-login.log` artifact that
 //! support can request from users.
 
+use crate::ardent_cmd::prompt_database_sandbox_config_edits;
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
@@ -15,6 +16,7 @@ use std::io::Write;
 use std::path::Path;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_core::config::Config;
+use thinwedge_core::config::edit::ConfigEditsBuilder;
 use thinwedge_login::OPENROUTER_API_KEY_ENV_VAR;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::login_with_agent_identity;
@@ -293,19 +295,42 @@ fn prompt_and_save_optional_capability_config(thinwedge_home: &Path) {
         }
     }
 
-    if updates.is_empty() {
-        return;
+    if !updates.is_empty() {
+        if let Err(err) = save_dotenv_updates(thinwedge_home, &updates) {
+            eprintln!("Error saving optional capability config: {err}");
+            std::process::exit(1);
+        }
+
+        eprintln!(
+            "Saved optional capability config to {}",
+            thinwedge_home.join(".env").display()
+        );
     }
 
-    if let Err(err) = save_dotenv_updates(thinwedge_home, &updates) {
-        eprintln!("Error saving optional capability config: {err}");
-        std::process::exit(1);
-    }
+    prompt_and_save_database_sandbox_config(thinwedge_home);
+}
 
-    eprintln!(
-        "Saved optional capability config to {}",
-        thinwedge_home.join(".env").display()
-    );
+fn prompt_and_save_database_sandbox_config(thinwedge_home: &Path) {
+    match prompt_database_sandbox_config_edits() {
+        Ok(edits) if !edits.is_empty() => {
+            if let Err(err) = ConfigEditsBuilder::new(thinwedge_home)
+                .with_edits(edits)
+                .apply_blocking()
+            {
+                eprintln!("Error saving database sandbox config: {err}");
+                std::process::exit(1);
+            }
+            eprintln!(
+                "Saved database sandbox config to {}",
+                thinwedge_home.join("config.toml").display()
+            );
+        }
+        Ok(_) => {}
+        Err(err) => {
+            eprintln!("Error reading database sandbox config: {err}");
+            std::process::exit(1);
+        }
+    }
 }
 
 fn save_dotenv_updates(thinwedge_home: &Path, updates: &[(String, String)]) -> std::io::Result<()> {

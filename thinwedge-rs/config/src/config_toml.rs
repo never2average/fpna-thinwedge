@@ -10,7 +10,9 @@ use crate::profile_toml::ConfigProfile;
 use crate::types::AnalyticsConfigToml;
 use crate::types::ApprovalsReviewer;
 use crate::types::AppsConfigToml;
+use crate::types::ArdentConfigToml;
 use crate::types::AuthCredentialsStoreMode;
+use crate::types::AwsIdentityConfigToml;
 use crate::types::FeedbackConfigToml;
 use crate::types::History;
 use crate::types::MarketplaceConfig;
@@ -392,6 +394,18 @@ pub struct ConfigToml {
     /// When `false`, disables feedback collection across ThinWedge product surfaces.
     /// Defaults to `true`.
     pub feedback: Option<FeedbackConfigToml>,
+
+    /// AWS identity used for billing and cost-management integrations.
+    #[serde(default)]
+    pub billing: Option<AwsIdentityConfigToml>,
+
+    /// AWS identity used for database operations such as RDS and Secrets Manager checks.
+    #[serde(default)]
+    pub db_ops: Option<AwsIdentityConfigToml>,
+
+    /// Optional Ardent database sandbox integration.
+    #[serde(default)]
+    pub ardent: Option<ArdentConfigToml>,
 
     /// Settings for app-specific controls.
     #[serde(default)]
