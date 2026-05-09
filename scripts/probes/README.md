@@ -13,6 +13,25 @@ scripts/probes/check-ardent-connector.sh --dry-run
 scripts/probes/check-db-sandbox-readiness.sh --dry-run
 ```
 
+Live validation expects the shell to already have:
+
+- an AWS CLI on `PATH`
+- a billing AWS identity, via `THINWEDGE_BILLING_AWS_PROFILE` or `AWS_PROFILE`
+- a DB Ops AWS identity, via `THINWEDGE_DB_OPS_AWS_PROFILE` or `AWS_PROFILE`
+- an authenticated Ardent CLI from `ardent login`
+- a selected Ardent project from `ardent project switch <name>`
+
+Run the non-mutating live checks before trusting a finance DB sandbox setup:
+
+```bash
+scripts/probes/check-aws-billing.sh
+scripts/probes/check-aws-db-ops.sh
+scripts/probes/check-rds-postgres-readiness.sh --db-instance <rds-postgres-instance>
+scripts/probes/check-ardent-auth.sh
+scripts/probes/check-ardent-connector.sh --connector <ardent-connector-name>
+scripts/probes/check-db-sandbox-readiness.sh
+```
+
 Mutation-gated checks require explicit opt-in:
 
 ```bash

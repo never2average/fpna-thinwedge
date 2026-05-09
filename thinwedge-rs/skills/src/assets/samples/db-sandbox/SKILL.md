@@ -46,4 +46,4 @@ thinwedge ardent branch create
 thinwedge ardent branch delete
 ```
 
-Until wrapper commands are wired, use the scripts under `scripts/probes/` to prove auth, connector readiness, and branch lifecycle behavior.
+Use `thinwedge ardent status`, `thinwedge ardent configure`, and the scripts under `scripts/probes/` to prove auth, connector readiness, and branch lifecycle behavior before production use.
