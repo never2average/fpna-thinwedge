@@ -40,15 +40,18 @@ if [[ "${TW_PROBE_DRY_RUN}" != "1" ]]; then
 fi
 
 [[ "${TW_PROBE_DRY_RUN}" == "1" ]] || probe_require_mutation_allowed "creating and deleting an Ardent branch"
-branch_args=()
-[[ -n "${connector}" ]] && branch_args+=(--connector "${connector}")
+
+if [[ -n "${connector}" ]]; then
+  probe_info "selecting Ardent connector ${connector}"
+  probe_maybe_dry_run "${ardent}" connector switch "${connector}"
+fi
 
 probe_info "creating Ardent branch ${branch}${connector:+ connector=${connector}}"
-probe_maybe_dry_run "${ardent}" branch create "${branch}" "${branch_args[@]}"
+probe_maybe_dry_run "${ardent}" branch create "${branch}"
 cleanup() {
   probe_info "deleting Ardent branch ${branch}"
-  probe_maybe_dry_run "${ardent}" branch delete "${branch}" "${branch_args[@]}" || true
+  probe_maybe_dry_run "${ardent}" branch delete "${branch}" || true
 }
 trap cleanup EXIT
-probe_maybe_dry_run "${ardent}" branch info "${branch}" "${branch_args[@]}"
+probe_maybe_dry_run "${ardent}" branch info "${branch}"
 probe_info "Ardent branch lifecycle probe passed"

@@ -406,7 +406,11 @@ async fn run_connector_create(
         .unwrap_or_else(|| "postgres".to_string());
 
     if cmd.dry_run {
-        let plan = connector_create_plan(&settings.cli_path, "<redacted-source-url>");
+        let plan = connector_create_plan(
+            &settings.cli_path,
+            "<redacted-source-url>",
+            Some(connector.as_str()),
+        );
         println!("dry-run: {}", plan.display());
         println!("connector: {connector}");
         return Ok(());
@@ -424,7 +428,7 @@ async fn run_connector_create(
             cmd.source_url_env
         )
     })?;
-    let plan = connector_create_plan(&settings.cli_path, &source_url);
+    let plan = connector_create_plan(&settings.cli_path, &source_url, Some(connector.as_str()));
     eprintln!("Creating Ardent Postgres connector without printing source URL.");
     run_plan_inherit(&plan).context("Ardent connector creation failed")
 }
@@ -439,22 +443,31 @@ async fn run_branch_create(
     let branch = cmd
         .name
         .unwrap_or_else(|| default_branch_name(&settings.branch_prefix));
-    let create_plan = branch_create_plan(&settings.cli_path, &branch, connector.as_deref());
+    let switch_plan = connector
+        .as_deref()
+        .map(|connector| connector_switch_plan(&settings.cli_path, connector));
+    let create_plan = branch_create_plan(&settings.cli_path, &branch);
 
     if cmd.dry_run {
+        if let Some(switch_plan) = &switch_plan {
+            println!("dry-run: {}", switch_plan.display());
+        }
         println!("dry-run: {}", create_plan.display());
         if cmd.print_env {
-            let info_plan = branch_info_plan(&settings.cli_path, &branch, connector.as_deref());
+            let info_plan = branch_info_plan(&settings.cli_path, &branch);
             println!("dry-run: {}", info_plan.display());
         }
         return Ok(());
     }
 
+    if let Some(switch_plan) = &switch_plan {
+        run_plan_inherit(switch_plan).context("Ardent connector switch failed")?;
+    }
     run_plan_inherit(&create_plan).context("Ardent branch creation failed")?;
     println!("Created Ardent branch: {branch}");
 
     if cmd.print_env {
-        let info_plan = branch_info_plan(&settings.cli_path, &branch, connector.as_deref());
+        let info_plan = branch_info_plan(&settings.cli_path, &branch);
         let output = run_plan_capture(&info_plan).context("failed to inspect Ardent branch")?;
         match extract_database_url(&output) {
             Some(database_url) => println!("DATABASE_URL={database_url}"),
@@ -472,13 +485,22 @@ async fn run_branch_delete(
     let loaded = load_finance_config(cli_overrides).await?;
     let settings = ArdentSettings::from_config(loaded.ardent.as_ref());
     let connector = cmd.connector.or(settings.default_connector);
-    let plan = branch_delete_plan(&settings.cli_path, &cmd.name, connector.as_deref());
+    let switch_plan = connector
+        .as_deref()
+        .map(|connector| connector_switch_plan(&settings.cli_path, connector));
+    let plan = branch_delete_plan(&settings.cli_path, &cmd.name);
 
     if cmd.dry_run {
+        if let Some(switch_plan) = &switch_plan {
+            println!("dry-run: {}", switch_plan.display());
+        }
         println!("dry-run: {}", plan.display());
         return Ok(());
     }
 
+    if let Some(switch_plan) = &switch_plan {
+        run_plan_inherit(switch_plan).context("Ardent connector switch failed")?;
+    }
     run_plan_inherit(&plan).context("Ardent branch deletion failed")
 }
 
@@ -694,59 +716,63 @@ fn push_set_path_edit(edits: &mut Vec<ConfigEdit>, segments: &[&str], value: Tom
     });
 }
 
-fn connector_create_plan(cli_path: &str, source_url: &str) -> ArdentCommandPlan {
-    ArdentCommandPlan::new(
-        cli_path,
-        vec![
-            "connector".to_string(),
-            "create".to_string(),
-            "postgresql".to_string(),
-            source_url.to_string(),
-        ],
-    )
-    .with_display_args(vec![
-        "connector".to_string(),
-        "create".to_string(),
-        "postgresql".to_string(),
-        "<redacted-source-url>".to_string(),
-    ])
+fn connector_create_plan(
+    cli_path: &str,
+    source_url: &str,
+    connector: Option<&str>,
+) -> ArdentCommandPlan {
+    let mut args = vec!["connector".to_string(), "create".to_string()];
+    if let Some(connector) = connector.filter(|connector| !connector.is_empty()) {
+        args.push("--name".to_string());
+        args.push(connector.to_string());
+    }
+    args.push("postgresql".to_string());
+    args.push(source_url.to_string());
+
+    let mut display_args = args.clone();
+    if let Some(last) = display_args.last_mut() {
+        *last = "<redacted-source-url>".to_string();
+    }
+
+    ArdentCommandPlan::new(cli_path, args).with_display_args(display_args)
 }
 
 fn connector_list_plan(cli_path: &str) -> ArdentCommandPlan {
     ArdentCommandPlan::new(cli_path, vec!["connector".to_string(), "list".to_string()])
 }
 
-fn branch_create_plan(cli_path: &str, branch: &str, connector: Option<&str>) -> ArdentCommandPlan {
-    let mut args = vec![
+fn connector_switch_plan(cli_path: &str, connector: &str) -> ArdentCommandPlan {
+    ArdentCommandPlan::new(
+        cli_path,
+        vec![
+            "connector".to_string(),
+            "switch".to_string(),
+            connector.to_string(),
+        ],
+    )
+}
+
+fn branch_create_plan(cli_path: &str, branch: &str) -> ArdentCommandPlan {
+    let args = vec![
         "branch".to_string(),
         "create".to_string(),
         branch.to_string(),
     ];
-    push_connector_args(&mut args, connector);
     ArdentCommandPlan::new(cli_path, args)
 }
 
-fn branch_info_plan(cli_path: &str, branch: &str, connector: Option<&str>) -> ArdentCommandPlan {
-    let mut args = vec!["branch".to_string(), "info".to_string(), branch.to_string()];
-    push_connector_args(&mut args, connector);
+fn branch_info_plan(cli_path: &str, branch: &str) -> ArdentCommandPlan {
+    let args = vec!["branch".to_string(), "info".to_string(), branch.to_string()];
     ArdentCommandPlan::new(cli_path, args)
 }
 
-fn branch_delete_plan(cli_path: &str, branch: &str, connector: Option<&str>) -> ArdentCommandPlan {
-    let mut args = vec![
+fn branch_delete_plan(cli_path: &str, branch: &str) -> ArdentCommandPlan {
+    let args = vec![
         "branch".to_string(),
         "delete".to_string(),
         branch.to_string(),
     ];
-    push_connector_args(&mut args, connector);
     ArdentCommandPlan::new(cli_path, args)
-}
-
-fn push_connector_args(args: &mut Vec<String>, connector: Option<&str>) {
-    if let Some(connector) = connector.filter(|connector| !connector.is_empty()) {
-        args.push("--connector".to_string());
-        args.push(connector.to_string());
-    }
 }
 
 fn default_branch_name(prefix: &str) -> String {
@@ -851,25 +877,33 @@ mod tests {
     #[test]
     fn connector_create_plan_redacts_source_url_in_display() {
         let source_url = "postgres://source-user:secret@example.com/prod";
-        let plan = connector_create_plan("ardent", source_url);
+        let plan = connector_create_plan("ardent", source_url, Some("fpna-prod"));
         assert!(plan.args.contains(&source_url.to_string()));
         assert!(!plan.display().contains(source_url));
         assert!(plan.display().contains("<redacted-source-url>"));
-    }
-
-    #[test]
-    fn branch_create_plan_includes_connector_when_set() {
-        let plan = branch_create_plan("ardent", "thinwedge-agent-1", Some("fpna-prod"));
         assert_eq!(
             plan.args,
             vec![
-                "branch",
+                "connector",
                 "create",
-                "thinwedge-agent-1",
-                "--connector",
-                "fpna-prod"
+                "--name",
+                "fpna-prod",
+                "postgresql",
+                source_url
             ]
         );
+    }
+
+    #[test]
+    fn connector_switch_plan_selects_named_connector() {
+        let plan = connector_switch_plan("ardent", "fpna-prod");
+        assert_eq!(plan.args, vec!["connector", "switch", "fpna-prod"]);
+    }
+
+    #[test]
+    fn branch_create_plan_uses_current_connector() {
+        let plan = branch_create_plan("ardent", "thinwedge-agent-1");
+        assert_eq!(plan.args, vec!["branch", "create", "thinwedge-agent-1"]);
     }
 
     #[test]
