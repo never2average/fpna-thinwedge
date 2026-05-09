@@ -24,7 +24,7 @@ Use an Ardent branch for:
 
 - Never request, print, store, or pass the source database URL to an agent.
 - Agents receive only `DATABASE_URL` for the Ardent branch.
-- Treat connector creation, production source wiring, RDS parameter changes, security-group changes, DB reboots, and DB user creation as approval-gated operations.
+- Treat connector creation, production source wiring, managed-vs-BYOC data-plane selection, RDS parameter changes, security-group changes, DB reboots, and DB user creation as approval-gated operations.
 - Branch create, branch info, branch health checks, and branch delete can run without repeated prompts after the Ardent connector is configured.
 - Delete task branches when the task is done unless the user asks to keep one for review.
 
