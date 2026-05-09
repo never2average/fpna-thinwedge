@@ -120,10 +120,24 @@ because it attaches a production source database to Ardent. Pass
 `--allow-mutation` only after that blast radius is approved. The source URL is
 read from the named environment variable and is never printed by ThinWedge.
 
-Before wiring new CLI code, validate the external contracts bottom-up with:
+Validate the external contracts bottom-up before trusting the integration. Start
+with dry-run wiring:
 
 ```bash
 scripts/probes/check-db-sandbox-readiness.sh --dry-run
+```
+
+Then run the non-mutating live readiness suite from a shell with AWS, Ardent,
+`nc`, `psql`, and the DB setup role URL configured:
+
+```bash
+export THINWEDGE_BILLING_AWS_PROFILE=fpna-billing
+export THINWEDGE_DB_OPS_AWS_PROFILE=fpna-db-ops
+export THINWEDGE_RDS_DB_INSTANCE=<postgres-rds-instance>
+export THINWEDGE_DB_ROLE_DATABASE_URL=<setup-role-postgres-url>
+export THINWEDGE_ARDENT_CONNECTOR=<ardent-connector-name>
+
+scripts/probes/check-db-sandbox-readiness.sh
 ```
 
 Live branch creation/deletion is mutation-gated and requires explicit opt-in:
