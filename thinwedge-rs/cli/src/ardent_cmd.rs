@@ -91,6 +91,10 @@ struct ArdentConfigureCommand {
     #[arg(long)]
     billing_profile: Option<String>,
 
+    /// Optional billing role ARN for production credential providers.
+    #[arg(long)]
+    billing_role_arn: Option<String>,
+
     /// AWS region used with the billing identity when needed.
     #[arg(long)]
     billing_region: Option<String>,
@@ -538,6 +542,7 @@ fn config_edits_from_configure_args(cmd: &ArdentConfigureCommand) -> Vec<ConfigE
         updates.ardent_enabled = Some(false);
     }
     updates.billing_profile = cmd.billing_profile.clone();
+    updates.billing_role_arn = cmd.billing_role_arn.clone();
     updates.billing_region = cmd.billing_region.clone();
     updates.db_ops_profile = cmd.db_ops_profile.clone();
     updates.db_ops_role_arn = cmd.db_ops_role_arn.clone();
@@ -557,6 +562,7 @@ fn config_edits_from_configure_args(cmd: &ArdentConfigureCommand) -> Vec<ConfigE
 struct DatabaseSandboxConfigUpdates {
     ardent_enabled: Option<bool>,
     billing_profile: Option<String>,
+    billing_role_arn: Option<String>,
     billing_region: Option<String>,
     db_ops_profile: Option<String>,
     db_ops_role_arn: Option<String>,
@@ -577,6 +583,7 @@ impl DatabaseSandboxConfigUpdates {
             &["billing", "aws_profile"],
             self.billing_profile,
         );
+        push_string_edit(&mut edits, &["billing", "role_arn"], self.billing_role_arn);
         push_string_edit(&mut edits, &["billing", "region"], self.billing_region);
         push_string_edit(&mut edits, &["db_ops", "aws_profile"], self.db_ops_profile);
         push_string_edit(&mut edits, &["db_ops", "role_arn"], self.db_ops_role_arn);
@@ -613,6 +620,7 @@ pub(crate) fn prompt_database_sandbox_config_edits() -> anyhow::Result<Vec<Confi
         ..Default::default()
     };
     updates.billing_profile = prompt_value("Billing AWS profile [optional]")?;
+    updates.billing_role_arn = prompt_value("Billing role ARN for production [optional]")?;
     updates.billing_region = prompt_value("Billing AWS region [optional]")?;
     updates.db_ops_profile = prompt_value("DB Ops AWS profile [optional]")?;
     updates.db_ops_role_arn = prompt_value("DB Ops role ARN for production [optional]")?;
@@ -900,12 +908,13 @@ mod tests {
         let cmd = ArdentConfigureCommand {
             enable: true,
             billing_profile: Some("fpna-billing".to_string()),
+            billing_role_arn: Some("arn:aws:iam::123456789012:role/fpna-billing".to_string()),
             db_ops_profile: Some("fpna-db-ops".to_string()),
             connector: Some("fpna-prod".to_string()),
             data_plane: Some(ArdentDataPlaneArg::Byoc),
             ..Default::default()
         };
         let edits = config_edits_from_configure_args(&cmd);
-        assert_eq!(edits.len(), 5);
+        assert_eq!(edits.len(), 6);
     }
 }

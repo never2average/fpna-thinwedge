@@ -93,6 +93,7 @@ fn deserialize_finance_sandbox_config() {
         r#"
             [billing]
             aws_profile = "fpna-billing"
+            role_arn = "arn:aws:iam::123456789012:role/fpna-billing"
             region = "us-east-1"
 
             [db_ops]
@@ -113,6 +114,10 @@ fn deserialize_finance_sandbox_config() {
 
     let billing = cfg.billing.expect("billing config");
     assert_eq!(billing.aws_profile.as_deref(), Some("fpna-billing"));
+    assert_eq!(
+        billing.role_arn.as_deref(),
+        Some("arn:aws:iam::123456789012:role/fpna-billing")
+    );
     assert_eq!(billing.region.as_deref(), Some("us-east-1"));
 
     let db_ops = cfg.db_ops.expect("db ops config");
