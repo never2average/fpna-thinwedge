@@ -82,6 +82,7 @@ The non-secret configuration shape is:
 ```toml
 [billing]
 aws_profile = "fpna-billing"
+role_arn = "arn:aws:iam::123456789012:role/fpna-billing"
 region = "us-east-1"
 
 [db_ops]
@@ -109,7 +110,7 @@ Useful CLI entry points:
 ```bash
 thinwedge ardent status --dry-run
 thinwedge ardent login --dry-run
-thinwedge ardent configure --enabled --billing-profile fpna-billing --db-ops-profile fpna-db-ops --connector fpna-prod --data-plane byoc --dry-run --no-prompt
+thinwedge ardent configure --enabled --billing-profile fpna-billing --billing-role-arn arn:aws:iam::123456789012:role/fpna-billing --db-ops-profile fpna-db-ops --db-ops-role-arn arn:aws:iam::123456789012:role/fpna-db-ops --connector fpna-prod --data-plane byoc --dry-run --no-prompt
 thinwedge ardent connector create --connector fpna-prod --source-url-env THINWEDGE_ARDENT_SOURCE_DATABASE_URL --dry-run
 thinwedge ardent branch create --connector fpna-prod --name thinwedge-agent-test --print-env --dry-run
 thinwedge ardent branch delete thinwedge-agent-test --connector fpna-prod --dry-run
