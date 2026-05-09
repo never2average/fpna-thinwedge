@@ -9,9 +9,11 @@ usage() {
 Usage: check-rds-postgres-readiness.sh [--profile NAME] [--region REGION] [--db-instance IDENTIFIER] [--dry-run] [--verbose]
 
 Checks whether an RDS Postgres instance is ready for Ardent-style branching. It
-reads engine metadata, endpoint, VPC security group ids, parameter groups, and
-rds.logical_replication. If DATABASE_URL is set and psql is available, it also
-checks the current DB role's replication flags. It does not mutate AWS or DB state.
+reads engine metadata, endpoint, VPC security group ids, security-group rules,
+parameter groups, and rds.logical_replication. If THINWEDGE_CHECK_DB_NETWORK=1
+is set and nc is available, it also checks TCP reachability from the current host.
+If DATABASE_URL is set and psql is available, it checks the current DB role's
+replication flags. It does not mutate AWS or DB state.
 EOF
 }
 
@@ -36,7 +38,7 @@ aws_args=()
 [[ -n "${region}" ]] && aws_args+=(--region "${region}")
 
 if [[ "${TW_PROBE_DRY_RUN}" == "1" ]]; then
-  probe_info "dry-run: would discover RDS Postgres instance and inspect rds.logical_replication"
+  probe_info "dry-run: would discover RDS Postgres instance, inspect security groups, and inspect rds.logical_replication"
   probe_info "RDS Postgres readiness probe passed"
   exit 0
 fi
@@ -57,6 +59,22 @@ port="$(aws rds describe-db-instances "${aws_args[@]}" --db-instance-identifier 
 sgs="$(aws rds describe-db-instances "${aws_args[@]}" --db-instance-identifier "${db_instance}" --query 'DBInstances[0].VpcSecurityGroups[].VpcSecurityGroupId' --output text)"
 parameter_groups="$(aws rds describe-db-instances "${aws_args[@]}" --db-instance-identifier "${db_instance}" --query 'DBInstances[0].DBParameterGroups[].DBParameterGroupName' --output text)"
 probe_info "endpoint=${endpoint}:${port} security_groups=${sgs:-none} parameter_groups=${parameter_groups:-none}"
+
+if [[ -n "${sgs}" ]]; then
+  probe_info "checking RDS security-group rules"
+  aws ec2 describe-security-groups "${aws_args[@]}" --group-ids ${sgs} --query 'SecurityGroups[].{GroupId:GroupId,Ingress:IpPermissions[].FromPort,Egress:IpPermissionsEgress[].IpProtocol}' --output json >/dev/null
+fi
+
+if [[ "${THINWEDGE_CHECK_DB_NETWORK:-0}" == "1" ]]; then
+  if command -v nc >/dev/null 2>&1; then
+    probe_info "checking TCP reachability to ${endpoint}:${port}"
+    nc -vz -w 5 "${endpoint}" "${port}" >/dev/null
+  else
+    probe_warn "THINWEDGE_CHECK_DB_NETWORK=1 but nc is missing; skipping TCP reachability check"
+  fi
+else
+  probe_warn "set THINWEDGE_CHECK_DB_NETWORK=1 to validate TCP reachability from this host"
+fi
 
 ready=1
 for group in ${parameter_groups}; do
