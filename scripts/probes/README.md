@@ -2,7 +2,7 @@
 
 These scripts validate external integration contracts before the Rust CLI is rebuilt. They are intentionally bottom-up so AWS billing, AWS DB Ops, RDS readiness, Ardent auth, connector readiness, and branch lifecycle can be tested independently.
 
-All probes support `--dry-run` for cheap syntax and wiring checks. Live runs require the relevant AWS and Ardent credentials in the current shell. Set `THINWEDGE_DB_SECRET_ID` or `THINWEDGE_DB_SSM_PARAMETER` to verify a specific DB connection secret. Set `THINWEDGE_CHECK_DB_NETWORK=1` to test TCP reachability from the current host to the selected RDS endpoint.
+All probes support `--dry-run` for cheap syntax and wiring checks. Live runs require the relevant AWS and Ardent credentials in the current shell. Set `THINWEDGE_DB_SECRET_ID` or `THINWEDGE_DB_SSM_PARAMETER` to verify a specific DB connection secret. RDS readiness live runs require TCP reachability from the current host and `THINWEDGE_DB_ROLE_DATABASE_URL` for the DB setup role check.
 
 ```bash
 scripts/probes/check-aws-billing.sh --dry-run
