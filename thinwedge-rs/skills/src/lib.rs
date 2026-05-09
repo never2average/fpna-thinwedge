@@ -172,6 +172,11 @@ mod tests {
         );
         assert!(
             paths
+                .binary_search_by(|probe| probe.as_str().cmp("db-sandbox/SKILL.md"))
+                .is_ok()
+        );
+        assert!(
+            paths
                 .binary_search_by(|probe| {
                     probe
                         .as_str()

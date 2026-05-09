@@ -171,6 +171,50 @@ pub struct FeedbackConfigToml {
     pub enabled: Option<bool>,
 }
 
+/// AWS identity settings used by finance integrations. Local CLI setups may use
+/// `aws_profile`; production deployments should prefer a role or an AWS
+/// credential provider chain that resolves to narrowly scoped credentials.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct AwsIdentityConfigToml {
+    /// Optional local AWS CLI profile name. Intended for workstation setup.
+    pub aws_profile: Option<String>,
+    /// Optional IAM role ARN for production or managed runtime use.
+    pub role_arn: Option<String>,
+    /// Optional AWS region override for this identity.
+    pub region: Option<String>,
+}
+
+/// Data plane placement for Ardent-managed database sandboxes.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ArdentDataPlaneToml {
+    /// Ardent-managed infrastructure.
+    Managed,
+    /// Customer-managed or bring-your-own-cloud deployment.
+    Byoc,
+}
+
+/// Ardent database sandbox settings. These are intentionally non-secret; source
+/// database URLs and branch URLs should come from secure stores or command output.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ArdentConfigToml {
+    /// Enables the optional login/configure prompt and Ardent command surface.
+    pub enabled: Option<bool>,
+    /// Optional Ardent CLI path. Defaults to `ardent` on PATH.
+    pub cli_path: Option<String>,
+    /// Default Ardent connector name or id to use for branch lifecycle commands.
+    pub default_connector: Option<String>,
+    /// Prefix for ephemeral branch names created for agent tasks.
+    pub branch_name_prefix: Option<String>,
+    /// Optional requested branch TTL in minutes when the Ardent CLI supports it.
+    #[schemars(range(min = 1))]
+    pub branch_ttl_minutes: Option<u32>,
+    /// Whether Ardent runs in managed infrastructure or customer cloud.
+    pub data_plane: Option<ArdentDataPlaneToml>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolSuggestDiscoverableType {

@@ -70,6 +70,68 @@ When ThinWedge knows which client started the turn, the legacy notify JSON paylo
 
 The generated JSON Schema for `config.toml` lives at `thinwedge-rs/core/config.schema.json`.
 
+## Finance DB sandboxing
+
+ThinWedge can keep finance/database agents away from production state by using an
+Ardent Postgres branch as the task database. The CLI integration is optional:
+`thinwedge login` can offer to configure it, and explicit `thinwedge ardent ...`
+commands can manage it directly.
+
+The non-secret configuration shape is:
+
+```toml
+[billing]
+aws_profile = "fpna-billing"
+region = "us-east-1"
+
+[db_ops]
+aws_profile = "fpna-db-ops"
+role_arn = "arn:aws:iam::123456789012:role/fpna-db-ops"
+region = "us-west-2"
+
+[ardent]
+enabled = true
+cli_path = "ardent"
+default_connector = "fpna-prod"
+branch_name_prefix = "thinwedge-agent"
+branch_ttl_minutes = 60
+data_plane = "byoc"
+```
+
+Use `aws_profile` for local workstation setup. Production deployments should
+prefer role-based or managed credential providers that resolve to narrowly scoped
+AWS credentials. Source database URLs and Ardent branch URLs are not config
+values; source credentials should come from secure stores, and agents should only
+receive a branch `DATABASE_URL`.
+
+Useful CLI entry points:
+
+```bash
+thinwedge ardent status --dry-run
+thinwedge ardent login --dry-run
+thinwedge ardent configure --enabled --billing-profile fpna-billing --db-ops-profile fpna-db-ops --connector fpna-prod --data-plane byoc --dry-run --no-prompt
+thinwedge ardent connector create --connector fpna-prod --source-url-env THINWEDGE_ARDENT_SOURCE_DATABASE_URL --dry-run
+thinwedge ardent branch create --connector fpna-prod --name thinwedge-agent-test --print-env --dry-run
+thinwedge ardent branch delete thinwedge-agent-test --connector fpna-prod --dry-run
+```
+
+`thinwedge ardent connector create` is intentionally mutation-gated for live runs
+because it attaches a production source database to Ardent. Pass
+`--allow-mutation` only after that blast radius is approved. The source URL is
+read from the named environment variable and is never printed by ThinWedge.
+
+Before wiring new CLI code, validate the external contracts bottom-up with:
+
+```bash
+scripts/probes/check-db-sandbox-readiness.sh --dry-run
+```
+
+Live branch creation/deletion is mutation-gated and requires explicit opt-in:
+
+```bash
+TW_PROBE_ALLOW_MUTATION=1 scripts/probes/check-ardent-branch-lifecycle.sh
+```
+
 ## SQLite State DB
 
 ThinWedge stores the SQLite-backed state DB under `sqlite_home` (config key) or the

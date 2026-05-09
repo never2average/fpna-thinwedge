@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib.sh
+source "${SCRIPT_DIR}/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: check-aws-billing.sh [--profile NAME] [--region REGION] [--dry-run] [--verbose]
+
+Validates the billing AWS identity for finance agents. The live check verifies
+STS identity and Cost Explorer read access. It does not mutate AWS resources.
+
+Environment fallbacks:
+  THINWEDGE_BILLING_AWS_PROFILE
+  AWS_PROFILE
+  AWS_REGION / AWS_DEFAULT_REGION
+EOF
+}
+
+profile="${THINWEDGE_BILLING_AWS_PROFILE:-${AWS_PROFILE:-}}"
+region="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --profile) profile="${2:?missing profile}"; shift 2 ;;
+    --region) region="${2:?missing region}"; shift 2 ;;
+    --dry-run) TW_PROBE_DRY_RUN=1; shift ;;
+    --verbose) TW_PROBE_VERBOSE=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) probe_fail "unknown argument: $1" ;;
+  esac
+done
+
+[[ "${TW_PROBE_DRY_RUN}" == "1" ]] || probe_require_cmd aws
+aws_args=()
+[[ -n "${profile}" ]] && aws_args+=(--profile "${profile}")
+[[ -n "${region}" ]] && aws_args+=(--region "${region}")
+
+probe_info "checking AWS billing identity${profile:+ profile=${profile}} region=${region}"
+probe_maybe_dry_run aws sts get-caller-identity "${aws_args[@]}" --output json >/dev/null
+
+start_date="$(date -u -d '3 days ago' +%Y-%m-%d)"
+end_date="$(date -u -d '2 days ago' +%Y-%m-%d)"
+probe_maybe_dry_run aws ce get-cost-and-usage \
+  "${aws_args[@]}" \
+  --time-period "Start=${start_date},End=${end_date}" \
+  --granularity DAILY \
+  --metrics UnblendedCost \
+  --output json >/dev/null
+probe_info "AWS billing probe passed"

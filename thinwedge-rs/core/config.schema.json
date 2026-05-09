@@ -225,6 +225,62 @@
       },
       "type": "object"
     },
+    "ArdentConfigToml": {
+      "additionalProperties": false,
+      "description": "Ardent database sandbox settings. These are intentionally non-secret; source database URLs and branch URLs should come from secure stores or command output.",
+      "properties": {
+        "branch_name_prefix": {
+          "description": "Prefix for ephemeral branch names created for agent tasks.",
+          "type": "string"
+        },
+        "branch_ttl_minutes": {
+          "description": "Optional requested branch TTL in minutes when the Ardent CLI supports it.",
+          "format": "uint32",
+          "minimum": 1.0,
+          "type": "integer"
+        },
+        "cli_path": {
+          "description": "Optional Ardent CLI path. Defaults to `ardent` on PATH.",
+          "type": "string"
+        },
+        "data_plane": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ArdentDataPlaneToml"
+            }
+          ],
+          "description": "Whether Ardent runs in managed infrastructure or customer cloud."
+        },
+        "default_connector": {
+          "description": "Default Ardent connector name or id to use for branch lifecycle commands.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Enables the optional login/configure prompt and Ardent command surface.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ArdentDataPlaneToml": {
+      "description": "Data plane placement for Ardent-managed database sandboxes.",
+      "oneOf": [
+        {
+          "description": "Ardent-managed infrastructure.",
+          "enum": [
+            "managed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Customer-managed or bring-your-own-cloud deployment.",
+          "enum": [
+            "byoc"
+          ],
+          "type": "string"
+        }
+      ]
+    },
     "AskForApproval": {
       "description": "Determines the conditions under which the user is consulted to approve running the command proposed by ThinWedge.",
       "oneOf": [
@@ -308,6 +364,25 @@
       "properties": {
         "policy": {
           "description": "Additional policy instructions inserted into the guardian prompt.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "AwsIdentityConfigToml": {
+      "additionalProperties": false,
+      "description": "AWS identity settings used by finance integrations. Local CLI setups may use `aws_profile`; production deployments should prefer a role or an AWS credential provider chain that resolves to narrowly scoped credentials.",
+      "properties": {
+        "aws_profile": {
+          "description": "Optional local AWS CLI profile name. Intended for workstation setup.",
+          "type": "string"
+        },
+        "region": {
+          "description": "Optional AWS region override for this identity.",
+          "type": "string"
+        },
+        "role_arn": {
+          "description": "Optional IAM role ARN for production or managed runtime use.",
           "type": "string"
         }
       },
@@ -3197,6 +3272,15 @@
       "default": null,
       "description": "Settings for app-specific controls."
     },
+    "ardent": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ArdentConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "Optional Ardent database sandbox integration."
+    },
     "audio": {
       "allOf": [
         {
@@ -3220,6 +3304,15 @@
       "format": "uint64",
       "minimum": 0.0,
       "type": "integer"
+    },
+    "billing": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AwsIdentityConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "AWS identity used for billing and cost-management integrations."
     },
     "chatgpt_base_url": {
       "description": "Base URL for requests to ChatGPT (as opposed to the ThinWedge API).",
@@ -3245,6 +3338,15 @@
     "compact_prompt": {
       "description": "Compact prompt used for history compaction.",
       "type": "string"
+    },
+    "db_ops": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AwsIdentityConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "AWS identity used for database operations such as RDS and Secrets Manager checks."
     },
     "default_permissions": {
       "description": "Default permissions profile to apply. Names starting with `:` refer to built-in profiles; other names are resolved from the `[permissions]` table.",

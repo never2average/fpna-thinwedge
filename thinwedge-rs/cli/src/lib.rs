@@ -1,3 +1,4 @@
+pub(crate) mod ardent_cmd;
 pub(crate) mod debug_sandbox;
 mod exit_status;
 pub(crate) mod login;
@@ -7,6 +8,8 @@ use std::path::PathBuf;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_cli::CliConfigOverrides;
 
+pub use ardent_cmd::ArdentCli;
+pub use ardent_cmd::run_ardent_cli;
 pub use debug_sandbox::run_command_under_landlock;
 pub use debug_sandbox::run_command_under_seatbelt;
 pub use debug_sandbox::run_command_under_windows;

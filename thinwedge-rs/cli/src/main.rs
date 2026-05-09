@@ -11,11 +11,13 @@ use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_arg0::arg0_dispatch_or_else;
 use thinwedge_chatgpt::apply_command::ApplyCommand;
 use thinwedge_chatgpt::apply_command::run_apply_command;
+use thinwedge_cli::ArdentCli;
 use thinwedge_cli::LandlockCommand;
 use thinwedge_cli::SeatbeltCommand;
 use thinwedge_cli::WindowsCommand;
 use thinwedge_cli::read_agent_identity_from_stdin;
 use thinwedge_cli::read_api_key_from_stdin;
+use thinwedge_cli::run_ardent_cli;
 use thinwedge_cli::run_login_status;
 use thinwedge_cli::run_login_with_agent_identity;
 use thinwedge_cli::run_login_with_api_key;
@@ -112,6 +114,9 @@ enum Subcommand {
 
     /// Remove stored authentication credentials.
     Logout(LogoutCommand),
+
+    /// Manage optional Ardent database sandboxes for finance agents.
+    Ardent(ArdentCli),
 
     /// Manage external MCP servers for ThinWedge.
     Mcp(McpCli),
@@ -1021,6 +1026,18 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_config_overrides.clone(),
             );
             run_logout(logout_cli.config_overrides).await;
+        }
+        Some(Subcommand::Ardent(mut ardent_cli)) => {
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "ardent",
+            )?;
+            prepend_config_flags(
+                &mut ardent_cli.config_overrides,
+                root_config_overrides.clone(),
+            );
+            run_ardent_cli(ardent_cli).await?;
         }
         Some(Subcommand::Completion(completion_cli)) => {
             reject_remote_mode_for_subcommand(
