@@ -18,6 +18,8 @@ Live validation expects the shell to already have:
 - an AWS CLI on `PATH`
 - a billing AWS identity with STS, Cost Explorer, CUR, Budgets, and IAM account-summary read access, via `THINWEDGE_BILLING_AWS_PROFILE` or `AWS_PROFILE`
 - a DB Ops AWS identity, via `THINWEDGE_DB_OPS_AWS_PROFILE` or `AWS_PROFILE`
+- `nc` for RDS TCP reachability checks
+- `psql` plus `THINWEDGE_DB_ROLE_DATABASE_URL` for DB setup role validation
 - an authenticated Ardent CLI from `ardent login`
 - a selected Ardent project from `ardent project switch <name>`
 
@@ -31,6 +33,11 @@ scripts/probes/check-ardent-auth.sh
 scripts/probes/check-ardent-connector.sh --connector <ardent-connector-name>
 scripts/probes/check-db-sandbox-readiness.sh
 ```
+
+The RDS readiness probe fails live unless it can prove network reachability and
+that the DB setup role has `rolreplication` or superuser capability. Use
+`--skip-network-check` or `--skip-db-role-check` only for a narrow metadata-only
+inspection, not for production readiness sign-off.
 
 Mutation-gated checks require explicit opt-in:
 

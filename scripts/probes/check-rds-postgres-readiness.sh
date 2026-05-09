@@ -6,25 +6,40 @@ source "${SCRIPT_DIR}/lib.sh"
 
 usage() {
   cat <<'EOF'
-Usage: check-rds-postgres-readiness.sh [--profile NAME] [--region REGION] [--db-instance IDENTIFIER] [--dry-run] [--verbose]
+Usage: check-rds-postgres-readiness.sh [--profile NAME] [--region REGION] [--db-instance IDENTIFIER] [--dry-run] [--verbose] [--skip-network-check] [--skip-db-role-check]
 
 Checks whether an RDS Postgres instance is ready for Ardent-style branching. It
 reads engine metadata, endpoint, VPC security group ids, security-group rules,
-parameter groups, and rds.logical_replication. If THINWEDGE_CHECK_DB_NETWORK=1
-is set and nc is available, it also checks TCP reachability from the current host.
-If DATABASE_URL is set and psql is available, it checks the current DB role's
-replication flags. It does not mutate AWS or DB state.
+parameter groups, rds.logical_replication, TCP reachability from the current
+host, and the DB setup role's replication capability. It does not mutate AWS or
+DB state.
+
+Environment:
+  THINWEDGE_RDS_DB_INSTANCE
+  THINWEDGE_DB_ROLE_DATABASE_URL
+  THINWEDGE_SKIP_DB_NETWORK_CHECK=1
+  THINWEDGE_SKIP_DB_ROLE_CHECK=1
 EOF
 }
 
 profile="${THINWEDGE_DB_OPS_AWS_PROFILE:-${AWS_PROFILE:-}}"
 region="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
 db_instance="${THINWEDGE_RDS_DB_INSTANCE:-}"
+db_role_database_url="${THINWEDGE_DB_ROLE_DATABASE_URL:-}"
+skip_network_check="${THINWEDGE_SKIP_DB_NETWORK_CHECK:-0}"
+skip_db_role_check="${THINWEDGE_SKIP_DB_ROLE_CHECK:-0}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --profile) profile="${2:?missing profile}"; shift 2 ;;
     --region) region="${2:?missing region}"; shift 2 ;;
     --db-instance) db_instance="${2:?missing db instance}"; shift 2 ;;
+    --db-role-database-url-env)
+      env_name="${2:?missing env var}"
+      db_role_database_url="${!env_name:-}"
+      shift 2
+      ;;
+    --skip-network-check) skip_network_check=1; shift ;;
+    --skip-db-role-check) skip_db_role_check=1; shift ;;
     --dry-run) TW_PROBE_DRY_RUN=1; shift ;;
     --verbose) TW_PROBE_VERBOSE=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -38,7 +53,7 @@ aws_args=()
 [[ -n "${region}" ]] && aws_args+=(--region "${region}")
 
 if [[ "${TW_PROBE_DRY_RUN}" == "1" ]]; then
-  probe_info "dry-run: would discover RDS Postgres instance, inspect security groups, and inspect rds.logical_replication"
+  probe_info "dry-run: would discover RDS Postgres instance, inspect security groups, inspect rds.logical_replication, check TCP reachability, and validate DB setup role"
   probe_info "RDS Postgres readiness probe passed"
   exit 0
 fi
@@ -65,15 +80,12 @@ if [[ -n "${sgs}" ]]; then
   aws ec2 describe-security-groups "${aws_args[@]}" --group-ids ${sgs} --query 'SecurityGroups[].{GroupId:GroupId,Ingress:IpPermissions[].FromPort,Egress:IpPermissionsEgress[].IpProtocol}' --output json >/dev/null
 fi
 
-if [[ "${THINWEDGE_CHECK_DB_NETWORK:-0}" == "1" ]]; then
-  if command -v nc >/dev/null 2>&1; then
-    probe_info "checking TCP reachability to ${endpoint}:${port}"
-    nc -vz -w 5 "${endpoint}" "${port}" >/dev/null
-  else
-    probe_warn "THINWEDGE_CHECK_DB_NETWORK=1 but nc is missing; skipping TCP reachability check"
-  fi
+if [[ "${skip_network_check}" == "1" ]]; then
+  probe_warn "skipping TCP reachability check by explicit request"
 else
-  probe_warn "set THINWEDGE_CHECK_DB_NETWORK=1 to validate TCP reachability from this host"
+  probe_require_cmd nc
+  probe_info "checking TCP reachability to ${endpoint}:${port}"
+  nc -vz -w 5 "${endpoint}" "${port}" >/dev/null || probe_fail "cannot reach ${endpoint}:${port} from this host"
 fi
 
 ready=1
@@ -88,15 +100,15 @@ for group in ${parameter_groups}; do
   fi
 done
 
-if [[ -n "${DATABASE_URL:-}" ]]; then
-  if command -v psql >/dev/null 2>&1; then
-    probe_info "checking current database role replication flags via psql"
-    psql "${DATABASE_URL}" -Atc "select current_user || ' rolsuper=' || rolsuper || ' rolreplication=' || rolreplication from pg_roles where rolname = current_user;"
-  else
-    probe_warn "DATABASE_URL is set but psql is missing; skipping DB role replication check"
-  fi
+if [[ "${skip_db_role_check}" == "1" ]]; then
+  probe_warn "skipping DB setup role replication check by explicit request"
 else
-  probe_warn "DATABASE_URL is not set; skipping DB role replication check"
+  probe_require_cmd psql
+  [[ -n "${db_role_database_url}" ]] || probe_fail "THINWEDGE_DB_ROLE_DATABASE_URL must contain the DB setup role connection URL"
+  probe_info "checking DB setup role replication capability via psql"
+  role_status="$(psql "${db_role_database_url}" -Atc "select case when rolsuper or rolreplication then 'ready' else 'not_ready' end || ' current_user=' || current_user || ' rolsuper=' || rolsuper || ' rolreplication=' || rolreplication from pg_roles where rolname = current_user;")"
+  printf '%s\n' "${role_status}"
+  [[ "${role_status}" == ready\ * ]] || probe_fail "DB setup role must have rolreplication=true or rolsuper=true"
 fi
 
 [[ "${ready}" == "1" ]] || probe_fail "rds.logical_replication must be 1 before Ardent source branching can be production-ready"
