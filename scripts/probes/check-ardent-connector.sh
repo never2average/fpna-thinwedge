@@ -9,7 +9,8 @@ usage() {
 Usage: check-ardent-connector.sh [--ardent PATH] [--connector NAME] [--create --connection-string-env VAR] [--dry-run] [--allow-mutation]
 
 Checks Ardent connector readiness without exposing the source DB URL. By default
-it lists connectors and optionally verifies that NAME appears in the listing.
+it lists connectors, fails if no connectors exist, and optionally verifies that
+NAME appears in the listing.
 Connector creation is mutation-gated and reads the source URL only from the named
 environment variable.
 EOF
@@ -63,6 +64,10 @@ else
       probe_fail "Ardent has no current project; run ardent project list and ardent project switch <name>"
     fi
     probe_fail "failed to list Ardent connectors"
+  fi
+  if grep -Eiq 'no connectors found' <<<"${listing}"; then
+    printf '%s\n' "${listing}" >&2
+    probe_fail "no Ardent connectors found; create one with check-ardent-connector.sh --create --allow-mutation after approval"
   fi
   if [[ -n "${connector}" ]]; then
     grep -F -- "${connector}" <<<"${listing}" >/dev/null || probe_fail "connector not found in Ardent connector list: ${connector}"

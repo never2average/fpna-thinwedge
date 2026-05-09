@@ -22,6 +22,7 @@ Live validation expects the shell to already have:
 - `psql` plus `THINWEDGE_DB_ROLE_DATABASE_URL` for DB setup role validation
 - an authenticated Ardent CLI from `ardent login`
 - a selected Ardent project from `ardent project switch <name>`
+- at least one Ardent connector; set `THINWEDGE_ARDENT_CONNECTOR` to verify the intended connector
 
 Run the non-mutating live checks before trusting a finance DB sandbox setup:
 
