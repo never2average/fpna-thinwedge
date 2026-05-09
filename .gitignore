@@ -52,6 +52,7 @@ yarn-error.log*
 # env
 .env*
 !.env.example
+scripts/probes/db-sandbox-readiness.env
 .venv/
 
 # package

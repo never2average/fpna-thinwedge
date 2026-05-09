@@ -26,6 +26,12 @@ Live validation expects the shell to already have:
 Run the non-mutating live checks before trusting a finance DB sandbox setup:
 
 ```bash
+cp scripts/probes/db-sandbox-readiness.env.example scripts/probes/db-sandbox-readiness.env
+# Fill scripts/probes/db-sandbox-readiness.env with local values.
+set -a
+. scripts/probes/db-sandbox-readiness.env
+set +a
+
 scripts/probes/check-aws-billing.sh
 scripts/probes/check-aws-db-ops.sh
 scripts/probes/check-rds-postgres-readiness.sh --db-instance <rds-postgres-instance>
