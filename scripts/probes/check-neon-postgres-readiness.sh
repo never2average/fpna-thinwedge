@@ -144,6 +144,8 @@ def request(path, method="GET", body=None):
 def wait_operations(operations):
     for operation in operations or []:
         operation_id = operation.get("id")
+        if not operation_id:
+            raise SystemExit("Neon operation response did not include an operation id")
         for _ in range(60):
             _, payload = request(f"/projects/{project_id}/operations/{operation_id}")
             status = (payload.get("operation") or {}).get("status")
@@ -153,6 +155,8 @@ def wait_operations(operations):
             if status in {"failed", "error"}:
                 raise SystemExit(f"Neon operation {operation_id} failed with status={status}")
             time.sleep(2)
+        else:
+            raise SystemExit(f"Neon operation {operation_id} did not finish within 120 seconds")
 
 branch_name = "thinwedge-api-smoke-" + str(int(time.time()))
 _, created = request(f"/projects/{project_id}/branches", "POST", {"branch": {"name": branch_name}})

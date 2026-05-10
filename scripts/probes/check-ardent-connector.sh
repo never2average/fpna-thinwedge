@@ -49,6 +49,20 @@ if [[ "${TW_PROBE_DRY_RUN}" != "1" ]]; then
   fi
 fi
 
+redact_secret() {
+  local secret="$1"
+  local replacement="$2"
+  if [[ -z "${secret}" ]]; then
+    cat
+  elif command -v python3 >/dev/null 2>&1; then
+    SECRET="${secret}" REPLACEMENT="${replacement}" python3 -c 'import os, sys; sys.stdout.write(sys.stdin.read().replace(os.environ["SECRET"], os.environ["REPLACEMENT"]))'
+  else
+    local input
+    input="$(cat)"
+    printf '%s' "${input//${secret}/${replacement}}"
+  fi
+}
+
 if [[ "${create}" == "1" ]]; then
   create_args=(connector create)
   [[ -n "${connector}" ]] && create_args+=(--name "${connector}")
@@ -90,7 +104,8 @@ if [[ "${create}" == "1" ]]; then
       neon_args+=(--byoc neon --api-key "${neon_api_key}" --project-id "${neon_project_id}" postgresql)
       probe_info "creating Ardent BYOC Neon connector without printing API key"
       if ! create_output="$("${ardent}" "${neon_args[@]}" 2>&1)"; then
-        printf '%s\n' "${create_output}" >&2
+        redacted_output="$(printf '%s' "${create_output}" | redact_secret "${neon_api_key}" "<redacted-neon-api-key>")"
+        printf '%s\n' "${redacted_output}" >&2
         if grep -Fq "snapshot_max_connections" <<<"${create_output}"; then
           probe_fail "Ardent BYOC Neon setup hit the known server-side snapshot_max_connections failure; keep the connector deleted/clean and retry after Ardent fixes BYOC Neon"
         fi
