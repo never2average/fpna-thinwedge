@@ -581,6 +581,10 @@ jobs:
 
 workflows:
   release:
+    # Release builds are expensive. If a transient runner or network failure
+    # breaks one leg, CircleCI reruns only the failed job and blocked downstream
+    # publish job instead of rebuilding every successful platform artifact.
+    max_auto_reruns: 2
     jobs:
       - pr-status:
           filters:
