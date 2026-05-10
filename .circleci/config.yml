@@ -82,6 +82,17 @@ commands:
             done < "${env_file}"
 
 jobs:
+  pr-status:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: CircleCI is release-only
+          command: |
+            set -euo pipefail
+            echo "CircleCI release jobs run only on rust-v* tags."
+            echo "Pull-request merge gating lives in GitHub Actions."
+
   tag-check:
     docker:
       - image: cimg/base:stable
@@ -112,13 +123,7 @@ jobs:
             scripts/probes/check-db-sandbox-readiness.sh --dry-run
             scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none --include-branch-lifecycle --dry-run
             scripts/probes/check-db-sandbox-readiness.sh --source-provider planetscale --branch-backend none --dry-run
-            python3 - <<'PY'
-            import json
-            schema = json.load(open("thinwedge-rs/core/config.schema.json", encoding="utf-8"))
-            props = schema.get("properties", {})
-            assert "db_sandbox" in props, "config schema must expose db_sandbox"
-            assert "ardent" in props, "config schema must keep optional Ardent settings"
-            PY
+            python3 -c 'import json; schema = json.load(open("thinwedge-rs/core/config.schema.json", encoding="utf-8")); props = schema.get("properties", {}); assert "db_sandbox" in props, "config schema must expose db_sandbox"; assert "ardent" in props, "config schema must keep optional Ardent settings"'
 
   build-linux-x64:
     machine:
@@ -577,6 +582,10 @@ jobs:
 workflows:
   release:
     jobs:
+      - pr-status:
+          filters:
+            tags:
+              ignore: /.*/
       - tag-check:
           filters:
             branches:
