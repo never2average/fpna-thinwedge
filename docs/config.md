@@ -72,10 +72,11 @@ The generated JSON Schema for `config.toml` lives at `thinwedge-rs/core/config.s
 
 ## Finance DB sandboxing
 
-ThinWedge can keep finance/database agents away from production state by using an
-Ardent Postgres branch as the task database. The CLI integration is optional:
-`thinwedge login` can offer to configure it, and explicit `thinwedge ardent ...`
-commands can manage it directly.
+ThinWedge can keep finance/database agents away from production state by first
+validating a source provider, then handing agents only disposable sandbox
+database state. Neon is the default provider path because it can be checked from
+a Postgres URL plus Neon API metadata. Ardent remains optional: use it when you
+want an external branch backend after the source provider is proven.
 
 The non-secret configuration shape is:
 
@@ -90,6 +91,15 @@ aws_profile = "fpna-db-ops"
 role_arn = "arn:aws:iam::123456789012:role/fpna-db-ops"
 region = "us-west-2"
 
+[db_sandbox]
+enabled = true
+provider = "neon"
+source_url_env = "THINWEDGE_ARDENT_SOURCE_DATABASE_URL"
+neon_api_key_env = "THINWEDGE_NEON_API_KEY"
+neon_project_id_env = "THINWEDGE_NEON_PROJECT_ID"
+neon_project_id = "twilight-lab-63846303"
+branch_backend = "none"
+
 [ardent]
 enabled = true
 cli_path = "ardent"
@@ -101,13 +111,17 @@ data_plane = "byoc"
 
 Use `aws_profile` for local workstation setup. Production deployments should
 prefer role-based or managed credential providers that resolve to narrowly scoped
-AWS credentials. Source database URLs and Ardent branch URLs are not config
-values; source credentials should come from secure stores, and agents should only
-receive a branch `DATABASE_URL`.
+AWS credentials. Source database URLs, API keys, and branch URLs are not config
+values; they should come from secure stores or environment variables. Agents
+should only receive disposable branch or sandbox `DATABASE_URL` values.
 
 Useful CLI entry points:
 
 ```bash
+thinwedge db-sandbox status
+thinwedge db-sandbox configure --enabled --provider neon --neon-project-id <neon-project-id> --branch-backend none --dry-run
+thinwedge db-sandbox preflight --dry-run
+thinwedge db-sandbox preflight --provider neon
 thinwedge ardent status --dry-run
 thinwedge ardent login --dry-run
 thinwedge ardent configure --enabled --billing-profile fpna-billing --billing-role-arn arn:aws:iam::123456789012:role/fpna-billing --db-ops-profile fpna-db-ops --db-ops-role-arn arn:aws:iam::123456789012:role/fpna-db-ops --connector fpna-prod --data-plane byoc --dry-run --no-prompt
@@ -116,6 +130,12 @@ thinwedge ardent connector create --source-provider neon --connector fpna-neon -
 thinwedge ardent branch create --connector fpna-prod --name thinwedge-agent-test --print-env --dry-run
 thinwedge ardent branch delete thinwedge-agent-test --connector fpna-prod --dry-run
 ```
+
+`thinwedge db-sandbox configure` stores only non-secret provider metadata. The
+interactive `thinwedge login` flow offers the same setup after the OpenRouter API
+token and optional capability prompts. `branch_backend = "none"` is the default
+for provider-only validation; switch it to `"ardent"` only after deciding Ardent
+should manage disposable database branches.
 
 `thinwedge ardent connector create` is intentionally mutation-gated for live runs
 because it attaches a production source database to Ardent. Pass
@@ -128,8 +148,10 @@ Choosing `managed` versus `byoc` for `ardent.data_plane` is also an explicit
 deployment-boundary decision; record that choice during setup instead of treating
 it as an automatic default.
 
-Validate the external contracts bottom-up before trusting the integration. Start
-with dry-run wiring:
+Validate the external contracts bottom-up before trusting the integration. This
+is the production-scale workflow for a technical CFO/operator: bring a source DB
+URL/API key, run preflight, and only then allow agents to use disposable DB
+state. Start with dry-run wiring:
 
 ```bash
 scripts/probes/check-db-sandbox-readiness.sh --dry-run
@@ -145,13 +167,14 @@ set -a
 . scripts/probes/db-sandbox-readiness.env
 set +a
 
-scripts/probes/check-db-sandbox-readiness.sh
+scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none
 ```
 
-Live branch creation/deletion is mutation-gated and requires explicit opt-in:
+Live branch creation/deletion is mutation-gated and requires explicit opt-in.
+Use this only when `branch_backend = "ardent"` is part of the deployment:
 
 ```bash
-TW_PROBE_ALLOW_MUTATION=1 scripts/probes/check-ardent-branch-lifecycle.sh
+TW_PROBE_ALLOW_MUTATION=1 scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend ardent --include-branch-lifecycle --allow-mutation
 ```
 
 For Neon, validate the source and Neon API before attempting Ardent BYOC setup:

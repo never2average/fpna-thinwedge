@@ -1,8 +1,8 @@
 # ThinWedge Probe Scripts
 
-These scripts validate external integration contracts before the Rust CLI is rebuilt. They are intentionally bottom-up so AWS billing, AWS DB Ops, source database readiness, Ardent auth, connector readiness, and branch lifecycle can be tested independently.
+These scripts validate external integration contracts before the Rust CLI is rebuilt. They are intentionally bottom-up so provider readiness, optional AWS billing, optional AWS DB Ops, optional Ardent auth, connector readiness, and branch lifecycle can be tested independently.
 
-All probes support `--dry-run` for cheap syntax and wiring checks. Live runs require the relevant AWS, Neon, database, and Ardent credentials in the current shell. Set `THINWEDGE_DB_SECRET_ID` or `THINWEDGE_DB_SSM_PARAMETER` to verify a specific DB connection secret. RDS readiness live runs require TCP reachability from the current host and `THINWEDGE_DB_ROLE_DATABASE_URL` for the DB setup role check. Generic Postgres, Supabase, and Neon readiness live runs require `THINWEDGE_ARDENT_SOURCE_DATABASE_URL`.
+All probes support `--dry-run` for cheap syntax and wiring checks. Live runs require the relevant provider credentials in the current shell. Neon is the default provider path; Ardent is checked only when `--branch-backend ardent` or `THINWEDGE_DB_SANDBOX_BRANCH_BACKEND=ardent` is set. Set `THINWEDGE_DB_SECRET_ID` or `THINWEDGE_DB_SSM_PARAMETER` to verify a specific DB connection secret. RDS readiness live runs require TCP reachability from the current host and `THINWEDGE_DB_ROLE_DATABASE_URL` for the DB setup role check. Generic Postgres, Supabase, and Neon readiness live runs require `THINWEDGE_ARDENT_SOURCE_DATABASE_URL`.
 
 ```bash
 scripts/probes/check-aws-billing.sh --dry-run
@@ -18,15 +18,15 @@ scripts/probes/check-db-sandbox-readiness.sh --dry-run
 Live validation expects the shell to already have:
 
 - an AWS CLI on `PATH`
-- a billing AWS identity with STS, Cost Explorer, CUR, Budgets, and IAM account-summary read access, via `THINWEDGE_BILLING_AWS_PROFILE` or `AWS_PROFILE`
-- a DB Ops AWS identity, via `THINWEDGE_DB_OPS_AWS_PROFILE` or `AWS_PROFILE`
+- a billing AWS identity with STS, Cost Explorer, CUR, Budgets, and IAM account-summary read access, via `THINWEDGE_BILLING_AWS_PROFILE` or `AWS_PROFILE`, when running billing checks
+- a DB Ops AWS identity, via `THINWEDGE_DB_OPS_AWS_PROFILE` or `AWS_PROFILE`, when running RDS or DB Ops checks
 - `nc` for RDS TCP reachability checks
 - `psql` plus `THINWEDGE_DB_ROLE_DATABASE_URL` for RDS DB setup role validation
 - `psql` plus `THINWEDGE_ARDENT_SOURCE_DATABASE_URL` for generic Postgres, Supabase, and Neon source validation
 - a Neon API key and project id in `THINWEDGE_NEON_API_KEY` and `THINWEDGE_NEON_PROJECT_ID` when `THINWEDGE_DB_SOURCE_PROVIDER=neon`
-- an authenticated Ardent CLI from `ardent login`
-- a selected Ardent project from `ardent project switch <name>`
-- at least one Ardent connector; set `THINWEDGE_ARDENT_CONNECTOR` to verify the intended connector
+- an authenticated Ardent CLI from `ardent login`, only when using `--branch-backend ardent`
+- a selected Ardent project from `ardent project switch <name>`, only when using `--branch-backend ardent`
+- at least one Ardent connector; set `THINWEDGE_ARDENT_CONNECTOR` to verify the intended connector, only when using `--branch-backend ardent`
 
 Run the non-mutating live checks before trusting a finance DB sandbox setup:
 
@@ -37,6 +37,7 @@ set -a
 . scripts/probes/db-sandbox-readiness.env
 set +a
 
+scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none
 scripts/probes/check-aws-billing.sh
 scripts/probes/check-aws-db-ops.sh
 scripts/probes/check-rds-postgres-readiness.sh --db-instance <rds-postgres-instance>
@@ -44,7 +45,7 @@ THINWEDGE_DB_SOURCE_PROVIDER=postgresql scripts/probes/check-postgres-source-rea
 THINWEDGE_DB_SOURCE_PROVIDER=neon scripts/probes/check-neon-postgres-readiness.sh
 scripts/probes/check-ardent-auth.sh
 scripts/probes/check-ardent-connector.sh --connector <ardent-connector-name>
-scripts/probes/check-db-sandbox-readiness.sh
+scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend ardent
 ```
 
 The RDS readiness probe fails live unless it can prove network reachability and

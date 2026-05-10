@@ -12,12 +12,14 @@ use thinwedge_arg0::arg0_dispatch_or_else;
 use thinwedge_chatgpt::apply_command::ApplyCommand;
 use thinwedge_chatgpt::apply_command::run_apply_command;
 use thinwedge_cli::ArdentCli;
+use thinwedge_cli::DbSandboxCli;
 use thinwedge_cli::LandlockCommand;
 use thinwedge_cli::SeatbeltCommand;
 use thinwedge_cli::WindowsCommand;
 use thinwedge_cli::read_agent_identity_from_stdin;
 use thinwedge_cli::read_api_key_from_stdin;
 use thinwedge_cli::run_ardent_cli;
+use thinwedge_cli::run_db_sandbox_cli;
 use thinwedge_cli::run_login_status;
 use thinwedge_cli::run_login_with_agent_identity;
 use thinwedge_cli::run_login_with_api_key;
@@ -117,6 +119,10 @@ enum Subcommand {
 
     /// Manage optional Ardent database sandboxes for finance agents.
     Ardent(ArdentCli),
+
+    /// Configure and preflight DB sandbox providers for finance agents.
+    #[clap(name = "db-sandbox")]
+    DbSandbox(DbSandboxCli),
 
     /// Manage external MCP servers for ThinWedge.
     Mcp(McpCli),
@@ -1038,6 +1044,18 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_config_overrides.clone(),
             );
             run_ardent_cli(ardent_cli).await?;
+        }
+        Some(Subcommand::DbSandbox(mut db_sandbox_cli)) => {
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "db-sandbox",
+            )?;
+            prepend_config_flags(
+                &mut db_sandbox_cli.config_overrides,
+                root_config_overrides.clone(),
+            );
+            run_db_sandbox_cli(db_sandbox_cli).await?;
         }
         Some(Subcommand::Completion(completion_cli)) => {
             reject_remote_mode_for_subcommand(

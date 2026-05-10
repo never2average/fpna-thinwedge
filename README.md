@@ -15,7 +15,8 @@ npm install -g @never2average-does-npm/cli
 
 Authenticate before starting interactive mode. In a real terminal, `thinwedge login`
 prompts for the required OpenRouter-compatible API token and optional capability
-config such as Artificial Analysis, RunPod, and AWS profile/region values:
+config such as Artificial Analysis, RunPod, AWS profile/region values, and Neon
+DB sandbox metadata:
 
 ```shell
 thinwedge login
@@ -24,6 +25,8 @@ thinwedge login
 # RUNPOD_API_KEY (...) [optional]: ...
 # AWS_PROFILE (...) [optional]: ...
 # AWS_REGION (...) [optional]: ...
+# THINWEDGE_NEON_API_KEY (...) [optional]: ...
+# THINWEDGE_NEON_PROJECT_ID (...) [optional]: ...
 ```
 
 Or set the provider token in the environment first:
@@ -61,6 +64,7 @@ The product surface is intentionally local-first:
 - `thinwedge` starts the interactive terminal UI.
 - `thinwedge exec` runs a single non-interactive agent task.
 - `thinwedge login` stores an OpenRouter-compatible API token locally.
+- `thinwedge db-sandbox` configures and preflights DB sandbox providers.
 - `THINWEDGE_HOME` controls where config, auth, logs, thread history, and local state live.
 
 ## System Components
@@ -97,7 +101,8 @@ ThinWedge uses API-token authentication. Run `thinwedge login` before starting
 the interactive TUI so the agent can call the configured provider API. In a real
 terminal, `thinwedge login` behaves like an `aws configure`-style prompt: it asks
 for the required OpenRouter-compatible API token, then offers optional prompts for
-`ARTIFICIAL_ANALYSIS_API_KEY`, `RUNPOD_API_KEY`, `AWS_PROFILE`, and `AWS_REGION`.
+`ARTIFICIAL_ANALYSIS_API_KEY`, `RUNPOD_API_KEY`, `AWS_PROFILE`, `AWS_REGION`,
+`THINWEDGE_NEON_API_KEY`, and `THINWEDGE_NEON_PROJECT_ID`.
 The required provider token is stored in ThinWedge auth storage; optional capability
 values are written to `THINWEDGE_HOME/.env`, which ThinWedge loads on startup.
 
@@ -108,6 +113,8 @@ thinwedge login
 # RUNPOD_API_KEY (...) [optional]: ...
 # AWS_PROFILE (...) [optional]: ...
 # AWS_REGION (...) [optional]: ...
+# THINWEDGE_NEON_API_KEY (...) [optional]: ...
+# THINWEDGE_NEON_PROJECT_ID (...) [optional]: ...
 ```
 
 You can also provide the provider token through the environment:
@@ -142,6 +149,34 @@ coordination model:
   `transcript.xlsx` and `transcript.docx`; markdown and pasted tables are split
   into real workbook sheets.
 - `/status`, `/diff`, `/permissions`, `/mcp`, `/skills`, `/apps`, and `/plugins` expose runtime, workspace, and integration state.
+
+## DB Sandbox Setup
+
+Finance agents should not run migrations or experiments directly against
+production state. ThinWedge models this as a provider-first setup: validate a
+source provider, then hand agents only disposable database state.
+
+Neon is the default path:
+
+```shell
+thinwedge db-sandbox configure --enabled --provider neon --neon-project-id <project-id> --branch-backend none
+thinwedge db-sandbox preflight --dry-run
+thinwedge db-sandbox preflight --provider neon
+```
+
+Ardent is optional. Use it as the branch backend only after the Neon or Postgres
+source checks pass:
+
+```shell
+thinwedge db-sandbox configure --branch-backend ardent
+thinwedge ardent status --dry-run
+```
+
+The bottom-up source of truth is still the probe scripts:
+
+```shell
+scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none
+```
 
 ## Logical Tool Tree
 
