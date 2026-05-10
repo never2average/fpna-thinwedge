@@ -13,6 +13,7 @@ use crate::types::AppsConfigToml;
 use crate::types::ArdentConfigToml;
 use crate::types::AuthCredentialsStoreMode;
 use crate::types::AwsIdentityConfigToml;
+use crate::types::DbSandboxConfigToml;
 use crate::types::FeedbackConfigToml;
 use crate::types::History;
 use crate::types::MarketplaceConfig;
@@ -402,6 +403,10 @@ pub struct ConfigToml {
     /// AWS identity used for database operations such as RDS and Secrets Manager checks.
     #[serde(default)]
     pub db_ops: Option<AwsIdentityConfigToml>,
+
+    /// Generic finance DB sandbox setup. Secrets are referenced by env var name.
+    #[serde(default)]
+    pub db_sandbox: Option<DbSandboxConfigToml>,
 
     /// Optional Ardent database sandbox integration.
     #[serde(default)]

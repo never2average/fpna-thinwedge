@@ -32,6 +32,20 @@ jobs:
       - name: Check public release readiness blockers
         run: python3 scripts/check_public_release_readiness.py
 
+      - name: DB sandbox release smoke
+        run: |
+          set -euo pipefail
+          scripts/probes/check-db-sandbox-readiness.sh --dry-run
+          scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none --include-branch-lifecycle --dry-run
+          scripts/probes/check-db-sandbox-readiness.sh --source-provider planetscale --branch-backend none --dry-run
+          python3 - <<'PY'
+          import json
+          schema = json.load(open("thinwedge-rs/core/config.schema.json", encoding="utf-8"))
+          props = schema.get("properties", {})
+          assert "db_sandbox" in props, "config schema must expose db_sandbox"
+          assert "ardent" in props, "config schema must keep optional Ardent settings"
+          PY
+
       - name: Setup pnpm
         uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288 # v5
         with:

@@ -101,6 +101,15 @@ fn deserialize_finance_sandbox_config() {
             role_arn = "arn:aws:iam::123456789012:role/fpna-db-ops"
             region = "us-west-2"
 
+            [db_sandbox]
+            enabled = true
+            provider = "neon"
+            source_url_env = "THINWEDGE_ARDENT_SOURCE_DATABASE_URL"
+            neon_api_key_env = "THINWEDGE_NEON_API_KEY"
+            neon_project_id_env = "THINWEDGE_NEON_PROJECT_ID"
+            neon_project_id = "twilight-lab-63846303"
+            branch_backend = "ardent"
+
             [ardent]
             enabled = true
             cli_path = "ardent"
@@ -125,6 +134,20 @@ fn deserialize_finance_sandbox_config() {
     assert_eq!(
         db_ops.role_arn.as_deref(),
         Some("arn:aws:iam::123456789012:role/fpna-db-ops")
+    );
+
+    let db_sandbox = cfg.db_sandbox.expect("db sandbox config");
+    assert_eq!(
+        db_sandbox.provider,
+        Some(crate::types::DbSandboxProviderToml::Neon)
+    );
+    assert_eq!(
+        db_sandbox.branch_backend,
+        Some(crate::types::DbSandboxBackendToml::Ardent)
+    );
+    assert_eq!(
+        db_sandbox.neon_project_id.as_deref(),
+        Some("twilight-lab-63846303")
     );
 
     let ardent = cfg.ardent.expect("ardent config");

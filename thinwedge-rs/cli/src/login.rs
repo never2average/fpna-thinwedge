@@ -7,7 +7,7 @@
 //! into a one-shot CLI command while still producing a durable `thinwedge-login.log` artifact that
 //! support can request from users.
 
-use crate::ardent_cmd::prompt_database_sandbox_config_edits;
+use crate::db_sandbox_cmd::prompt_database_sandbox_config_edits;
 use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
@@ -111,7 +111,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
 
 fn print_api_token_login_help() {
     eprintln!(
-        "ThinWedge uses OpenRouter-compatible API-token authentication.\n\nRequired for chat:\n\n    export OPENROUTER_API_KEY=...\n    thinwedge login\n\nOr pipe the token directly:\n\n    printenv OPENROUTER_API_KEY | thinwedge login --with-api-key\n\nOptional capability keys:\n\n    ARTIFICIAL_ANALYSIS_API_KEY  LLM market data and cost context\n    RUNPOD_API_KEY               GPU sandbox lifecycle commands\n    AWS_PROFILE/AWS_REGION       AWS Bedrock and cost tools\n\nThe token is stored locally in ThinWedge auth storage."
+        "ThinWedge uses OpenRouter-compatible API-token authentication.\n\nRequired for chat:\n\n    export OPENROUTER_API_KEY=...\n    thinwedge login\n\nOr pipe the token directly:\n\n    printenv OPENROUTER_API_KEY | thinwedge login --with-api-key\n\nOptional capability keys:\n\n    ARTIFICIAL_ANALYSIS_API_KEY  LLM market data and cost context\n    RUNPOD_API_KEY               GPU sandbox lifecycle commands\n    AWS_PROFILE/AWS_REGION       AWS Bedrock and cost tools\n    THINWEDGE_NEON_API_KEY       Neon DB sandbox provider checks\n    THINWEDGE_NEON_PROJECT_ID    Neon DB sandbox project id\n\nThe token is stored locally in ThinWedge auth storage."
     );
 }
 
@@ -272,6 +272,8 @@ fn prompt_and_save_optional_capability_config(thinwedge_home: &Path) {
         ("RUNPOD_API_KEY", "GPU sandbox lifecycle commands"),
         ("AWS_PROFILE", "AWS Bedrock and AWS cost tools profile"),
         ("AWS_REGION", "AWS Bedrock and AWS cost tools region"),
+        ("THINWEDGE_NEON_API_KEY", "Neon DB sandbox provider checks"),
+        ("THINWEDGE_NEON_PROJECT_ID", "Neon DB sandbox project id"),
     ];
 
     eprintln!(
