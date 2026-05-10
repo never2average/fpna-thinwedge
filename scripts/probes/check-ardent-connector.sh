@@ -91,7 +91,8 @@ if [[ "${create}" == "1" ]]; then
       [[ -n "${source_url}" ]] || probe_fail "${connection_string_env} must contain the source database URL"
       probe_info "creating Ardent Postgres connector without printing source URL"
       if ! create_output="$("${ardent}" "${create_args[@]}" "${source_url}" 2>&1)"; then
-        printf '%s\n' "${create_output}" >&2
+        redacted_output="$(printf '%s' "${create_output}" | redact_secret "${source_url}" "<redacted-source-url>")"
+        printf '%s\n' "${redacted_output}" >&2
         probe_fail "Ardent connector creation failed"
       fi
       ;;

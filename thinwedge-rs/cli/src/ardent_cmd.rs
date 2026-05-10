@@ -489,7 +489,14 @@ async fn run_connector_create(
             eprintln!("Creating Ardent BYOC Neon connector without printing API key.");
         }
     }
-    run_plan_inherit(&plan).context("Ardent connector creation failed")
+    run_connector_create_plan_redacted(
+        &plan,
+        &[
+            source_url.as_deref().unwrap_or(""),
+            neon_api_key.as_deref().unwrap_or(""),
+        ],
+    )
+    .context("Ardent connector creation failed")
 }
 
 async fn run_branch_create(
@@ -909,6 +916,37 @@ fn run_plan_inherit(plan: &ArdentCommandPlan) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn run_connector_create_plan_redacted(
+    plan: &ArdentCommandPlan,
+    sensitive_values: &[&str],
+) -> anyhow::Result<()> {
+    let output = Command::new(&plan.program).args(&plan.args).output()?;
+    let stdout = redact_sensitive_values(String::from_utf8_lossy(&output.stdout), sensitive_values);
+    let stderr = redact_sensitive_values(String::from_utf8_lossy(&output.stderr), sensitive_values);
+    if !stdout.is_empty() {
+        print!("{stdout}");
+    }
+    if !stderr.is_empty() {
+        eprint!("{stderr}");
+    }
+    if !output.status.success() {
+        bail!("command failed: {}", plan.display());
+    }
+    Ok(())
+}
+
+fn redact_sensitive_values(text: impl AsRef<str>, sensitive_values: &[&str]) -> String {
+    let mut redacted = text.as_ref().to_string();
+    for sensitive in sensitive_values
+        .iter()
+        .copied()
+        .filter(|sensitive| !sensitive.is_empty())
+    {
+        redacted = redacted.replace(sensitive, "<redacted-secret>");
+    }
+    redacted
+}
+
 fn run_plan_capture(plan: &ArdentCommandPlan) -> anyhow::Result<String> {
     let output = Command::new(&plan.program).args(&plan.args).output()?;
     if !output.status.success() {
@@ -1038,6 +1076,18 @@ mod tests {
                 "twilight-lab-63846303",
                 "postgresql",
             ]
+        );
+    }
+
+    #[test]
+    fn connector_create_failure_redaction_replaces_sensitive_values() {
+        let output = redact_sensitive_values(
+            "failed argv: postgresql://user:pass@example.com/db --api-key napi_secret",
+            &["postgresql://user:pass@example.com/db", "napi_secret", ""],
+        );
+        assert_eq!(
+            output,
+            "failed argv: <redacted-secret> --api-key <redacted-secret>"
         );
     }
 
