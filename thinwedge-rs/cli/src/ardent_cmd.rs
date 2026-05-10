@@ -21,6 +21,7 @@ use toml_edit::value;
 
 const DEFAULT_ARDENT_CLI: &str = "ardent";
 const DEFAULT_SOURCE_URL_ENV: &str = "THINWEDGE_ARDENT_SOURCE_DATABASE_URL";
+const DEFAULT_NEON_API_KEY_ENV: &str = "THINWEDGE_NEON_API_KEY";
 const DEFAULT_BRANCH_PREFIX: &str = "thinwedge-agent";
 
 #[derive(Debug, Parser)]
@@ -146,6 +147,10 @@ enum ArdentConnectorSubcommand {
 
 #[derive(Debug, Parser)]
 struct ArdentConnectorCreateCommand {
+    /// Source provider passed to Ardent.
+    #[arg(long, default_value = "postgresql", value_enum)]
+    source_provider: ArdentSourceProviderArg,
+
     /// Connector name used for display and later branch lifecycle commands.
     #[arg(long)]
     connector: Option<String>,
@@ -153,6 +158,14 @@ struct ArdentConnectorCreateCommand {
     /// Env var that contains the production source database URL.
     #[arg(long, default_value = DEFAULT_SOURCE_URL_ENV)]
     source_url_env: String,
+
+    /// Env var that contains a Neon API key for BYOC Neon setup.
+    #[arg(long, default_value = DEFAULT_NEON_API_KEY_ENV)]
+    neon_api_key_env: String,
+
+    /// Neon project id for BYOC Neon setup. Defaults to THINWEDGE_NEON_PROJECT_ID.
+    #[arg(long)]
+    neon_project_id: Option<String>,
 
     /// Required acknowledgement for connecting a production source DB to Ardent.
     #[arg(long, alias = "yes")]
@@ -223,6 +236,12 @@ impl ArdentDataPlaneArg {
             Self::Byoc => "byoc",
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+enum ArdentSourceProviderArg {
+    Postgresql,
+    Neon,
 }
 
 #[derive(Debug)]
@@ -402,15 +421,21 @@ async fn run_connector_create(
     let settings = ArdentSettings::from_config(loaded.ardent.as_ref());
     let connector = cmd
         .connector
+        .clone()
         .or(settings.default_connector)
         .unwrap_or_else(|| "postgres".to_string());
 
     if cmd.dry_run {
-        let plan = connector_create_plan(
+        let plan = connector_create_plan_from_command(
+            &cmd,
             &settings.cli_path,
             "<redacted-source-url>",
+            "<redacted-neon-api-key>",
+            cmd.neon_project_id
+                .as_deref()
+                .unwrap_or("<neon-project-id>"),
             Some(connector.as_str()),
-        );
+        )?;
         println!("dry-run: {}", plan.display());
         println!("connector: {connector}");
         return Ok(());
@@ -422,15 +447,56 @@ async fn run_connector_create(
         );
     }
 
-    let source_url = env::var(&cmd.source_url_env).with_context(|| {
-        format!(
-            "{} must contain the source database URL",
-            cmd.source_url_env
-        )
-    })?;
-    let plan = connector_create_plan(&settings.cli_path, &source_url, Some(connector.as_str()));
-    eprintln!("Creating Ardent Postgres connector without printing source URL.");
-    run_plan_inherit(&plan).context("Ardent connector creation failed")
+    let source_url = match cmd.source_provider {
+        ArdentSourceProviderArg::Postgresql => {
+            Some(env::var(&cmd.source_url_env).with_context(|| {
+                format!(
+                    "{} must contain the source database URL",
+                    cmd.source_url_env
+                )
+            })?)
+        }
+        ArdentSourceProviderArg::Neon => None,
+    };
+    let neon_api_key = match cmd.source_provider {
+        ArdentSourceProviderArg::Postgresql => None,
+        ArdentSourceProviderArg::Neon => Some(
+            env::var(&cmd.neon_api_key_env)
+                .with_context(|| format!("{} must contain a Neon API key", cmd.neon_api_key_env))?,
+        ),
+    };
+    let neon_project_id = match cmd.source_provider {
+        ArdentSourceProviderArg::Postgresql => None,
+        ArdentSourceProviderArg::Neon => Some(cmd.neon_project_id.clone().or_else(|| {
+            env::var("THINWEDGE_NEON_PROJECT_ID")
+                .ok()
+                .filter(|value| !value.trim().is_empty())
+        }).context("THINWEDGE_NEON_PROJECT_ID or --neon-project-id must contain the Neon project id")?),
+    };
+    let plan = connector_create_plan_from_command(
+        &cmd,
+        &settings.cli_path,
+        source_url.as_deref().unwrap_or(""),
+        neon_api_key.as_deref().unwrap_or(""),
+        neon_project_id.as_deref().unwrap_or(""),
+        Some(connector.as_str()),
+    )?;
+    match cmd.source_provider {
+        ArdentSourceProviderArg::Postgresql => {
+            eprintln!("Creating Ardent Postgres connector without printing source URL.");
+        }
+        ArdentSourceProviderArg::Neon => {
+            eprintln!("Creating Ardent BYOC Neon connector without printing API key.");
+        }
+    }
+    run_connector_create_plan_redacted(
+        &plan,
+        &[
+            source_url.as_deref().unwrap_or(""),
+            neon_api_key.as_deref().unwrap_or(""),
+        ],
+    )
+    .context("Ardent connector creation failed")
 }
 
 async fn run_branch_create(
@@ -737,6 +803,65 @@ fn connector_create_plan(
     ArdentCommandPlan::new(cli_path, args).with_display_args(display_args)
 }
 
+fn neon_connector_create_plan(
+    cli_path: &str,
+    neon_api_key: &str,
+    neon_project_id: &str,
+    connector: Option<&str>,
+) -> ArdentCommandPlan {
+    let mut args = vec!["connector".to_string(), "create".to_string()];
+    if let Some(connector) = connector.filter(|connector| !connector.is_empty()) {
+        args.push("--name".to_string());
+        args.push(connector.to_string());
+    }
+    args.extend([
+        "--byoc".to_string(),
+        "neon".to_string(),
+        "--api-key".to_string(),
+        neon_api_key.to_string(),
+        "--project-id".to_string(),
+        neon_project_id.to_string(),
+        "postgresql".to_string(),
+    ]);
+
+    let mut display_args = args.clone();
+    if let Some(index) = display_args.iter().position(|arg| arg == "--api-key") {
+        if let Some(value) = display_args.get_mut(index + 1) {
+            *value = "<redacted-neon-api-key>".to_string();
+        }
+    }
+
+    ArdentCommandPlan::new(cli_path, args).with_display_args(display_args)
+}
+
+fn connector_create_plan_from_command(
+    cmd: &ArdentConnectorCreateCommand,
+    cli_path: &str,
+    source_url: &str,
+    neon_api_key: &str,
+    neon_project_id: &str,
+    connector: Option<&str>,
+) -> anyhow::Result<ArdentCommandPlan> {
+    match cmd.source_provider {
+        ArdentSourceProviderArg::Postgresql => {
+            Ok(connector_create_plan(cli_path, source_url, connector))
+        }
+        ArdentSourceProviderArg::Neon => {
+            if neon_project_id.trim().is_empty() {
+                bail!(
+                    "Neon connector creation requires --neon-project-id or THINWEDGE_NEON_PROJECT_ID"
+                );
+            }
+            Ok(neon_connector_create_plan(
+                cli_path,
+                neon_api_key,
+                neon_project_id,
+                connector,
+            ))
+        }
+    }
+}
+
 fn connector_list_plan(cli_path: &str) -> ArdentCommandPlan {
     ArdentCommandPlan::new(cli_path, vec!["connector".to_string(), "list".to_string()])
 }
@@ -789,6 +914,37 @@ fn run_plan_inherit(plan: &ArdentCommandPlan) -> anyhow::Result<()> {
         bail!("command failed: {}", plan.display());
     }
     Ok(())
+}
+
+fn run_connector_create_plan_redacted(
+    plan: &ArdentCommandPlan,
+    sensitive_values: &[&str],
+) -> anyhow::Result<()> {
+    let output = Command::new(&plan.program).args(&plan.args).output()?;
+    let stdout = redact_sensitive_values(String::from_utf8_lossy(&output.stdout), sensitive_values);
+    let stderr = redact_sensitive_values(String::from_utf8_lossy(&output.stderr), sensitive_values);
+    if !stdout.is_empty() {
+        print!("{stdout}");
+    }
+    if !stderr.is_empty() {
+        eprint!("{stderr}");
+    }
+    if !output.status.success() {
+        bail!("command failed: {}", plan.display());
+    }
+    Ok(())
+}
+
+fn redact_sensitive_values(text: impl AsRef<str>, sensitive_values: &[&str]) -> String {
+    let mut redacted = text.as_ref().to_string();
+    for sensitive in sensitive_values
+        .iter()
+        .copied()
+        .filter(|sensitive| !sensitive.is_empty())
+    {
+        redacted = redacted.replace(sensitive, "<redacted-secret>");
+    }
+    redacted
 }
 
 fn run_plan_capture(plan: &ArdentCommandPlan) -> anyhow::Result<String> {
@@ -891,6 +1047,47 @@ mod tests {
                 "postgresql",
                 source_url
             ]
+        );
+    }
+
+    #[test]
+    fn neon_connector_create_plan_redacts_api_key_in_display() {
+        let plan = neon_connector_create_plan(
+            "ardent",
+            "napi_secret",
+            "twilight-lab-63846303",
+            Some("fpna-neon"),
+        );
+        assert!(plan.args.contains(&"napi_secret".to_string()));
+        assert!(!plan.display().contains("napi_secret"));
+        assert!(plan.display().contains("<redacted-neon-api-key>"));
+        assert_eq!(
+            plan.args,
+            vec![
+                "connector",
+                "create",
+                "--name",
+                "fpna-neon",
+                "--byoc",
+                "neon",
+                "--api-key",
+                "napi_secret",
+                "--project-id",
+                "twilight-lab-63846303",
+                "postgresql",
+            ]
+        );
+    }
+
+    #[test]
+    fn connector_create_failure_redaction_replaces_sensitive_values() {
+        let output = redact_sensitive_values(
+            "failed argv: postgresql://user:pass@example.com/db --api-key napi_secret",
+            &["postgresql://user:pass@example.com/db", "napi_secret", ""],
+        );
+        assert_eq!(
+            output,
+            "failed argv: <redacted-secret> --api-key <redacted-secret>"
         );
     }
 

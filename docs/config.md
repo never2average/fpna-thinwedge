@@ -112,6 +112,7 @@ thinwedge ardent status --dry-run
 thinwedge ardent login --dry-run
 thinwedge ardent configure --enabled --billing-profile fpna-billing --billing-role-arn arn:aws:iam::123456789012:role/fpna-billing --db-ops-profile fpna-db-ops --db-ops-role-arn arn:aws:iam::123456789012:role/fpna-db-ops --connector fpna-prod --data-plane byoc --dry-run --no-prompt
 thinwedge ardent connector create --connector fpna-prod --source-url-env THINWEDGE_ARDENT_SOURCE_DATABASE_URL --dry-run
+thinwedge ardent connector create --source-provider neon --connector fpna-neon --neon-project-id <neon-project-id> --dry-run
 thinwedge ardent branch create --connector fpna-prod --name thinwedge-agent-test --print-env --dry-run
 thinwedge ardent branch delete thinwedge-agent-test --connector fpna-prod --dry-run
 ```
@@ -119,7 +120,10 @@ thinwedge ardent branch delete thinwedge-agent-test --connector fpna-prod --dry-
 `thinwedge ardent connector create` is intentionally mutation-gated for live runs
 because it attaches a production source database to Ardent. Pass
 `--allow-mutation` only after that blast radius is approved. The source URL is
-read from the named environment variable and is never printed by ThinWedge.
+read from the named environment variable and is never printed by ThinWedge. For
+Neon BYOC, set `THINWEDGE_NEON_API_KEY` and `THINWEDGE_NEON_PROJECT_ID` or pass
+`--neon-project-id`; ThinWedge redacts the API key in dry-runs and error
+context.
 Choosing `managed` versus `byoc` for `ardent.data_plane` is also an explicit
 deployment-boundary decision; record that choice during setup instead of treating
 it as an automatic default.
@@ -149,6 +153,19 @@ Live branch creation/deletion is mutation-gated and requires explicit opt-in:
 ```bash
 TW_PROBE_ALLOW_MUTATION=1 scripts/probes/check-ardent-branch-lifecycle.sh
 ```
+
+For Neon, validate the source and Neon API before attempting Ardent BYOC setup:
+
+```bash
+THINWEDGE_DB_SOURCE_PROVIDER=neon scripts/probes/check-db-sandbox-readiness.sh
+TW_PROBE_ALLOW_MUTATION=1 scripts/probes/check-neon-postgres-readiness.sh --include-api-branch-smoke
+TW_PROBE_ALLOW_MUTATION=1 scripts/probes/check-ardent-connector.sh --create --source-provider neon
+```
+
+If Ardent BYOC Neon returns `snapshot_max_connections` during connector setup,
+the local Neon project may still be correctly configured. That error is from
+Ardent's BYOC setup path; clean up the failed connector and retry after Ardent
+fixes Neon BYOC.
 
 ## SQLite State DB
 

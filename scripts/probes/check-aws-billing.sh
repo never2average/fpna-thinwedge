@@ -37,6 +37,15 @@ aws_args=()
 [[ -n "${profile}" ]] && aws_args+=(--profile "${profile}")
 [[ -n "${region}" ]] && aws_args+=(--region "${region}")
 
+portable_utc_days_ago() {
+  local days="$1"
+  if date -u -d "${days} days ago" +%Y-%m-%d >/dev/null 2>&1; then
+    date -u -d "${days} days ago" +%Y-%m-%d
+  else
+    date -u -v-"${days}"d +%Y-%m-%d
+  fi
+}
+
 probe_info "checking AWS billing identity${profile:+ profile=${profile}} region=${region}"
 if [[ "${TW_PROBE_DRY_RUN}" == "1" ]]; then
   probe_maybe_dry_run aws sts get-caller-identity "${aws_args[@]}" --output json >/dev/null
@@ -45,8 +54,8 @@ else
   account_id="$(aws sts get-caller-identity "${aws_args[@]}" --query Account --output text)"
 fi
 
-start_date="$(date -u -d '3 days ago' +%Y-%m-%d)"
-end_date="$(date -u -d '2 days ago' +%Y-%m-%d)"
+start_date="$(portable_utc_days_ago 3)"
+end_date="$(portable_utc_days_ago 2)"
 probe_info "checking Cost Explorer read access"
 probe_maybe_dry_run aws ce get-cost-and-usage \
   "${aws_args[@]}" \
