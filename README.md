@@ -240,6 +240,7 @@ ThinWedge includes finance-oriented tool surfaces for:
 - [CI and release flow](./docs/ci-release-flow.md)
 - [Governance](./GOVERNANCE.md)
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Why open source](./docs/why-open-source.md)
 - [Open source fund](./docs/open-source-fund.md)
 
 ## License and Attribution
