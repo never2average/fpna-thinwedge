@@ -8,6 +8,7 @@ use anyhow::bail;
 use clap::ArgGroup;
 use thinwedge_config::types::AppToolApproval;
 use thinwedge_config::types::McpServerConfig;
+use thinwedge_config::types::McpServerOAuthConfig;
 use thinwedge_config::types::McpServerTransportConfig;
 use thinwedge_core::McpManager;
 use thinwedge_core::config::Config;
@@ -79,6 +80,10 @@ pub struct AddArgs {
 
     #[command(flatten)]
     pub transport_args: AddMcpTransportArgs,
+
+    /// Optional MCP environment selector for where ThinWedge should start this server.
+    #[arg(long = "experimental-environment", value_name = "ENVIRONMENT")]
+    pub experimental_environment: Option<String>,
 }
 
 #[derive(Debug, clap::Args)]
@@ -132,6 +137,14 @@ pub struct AddMcpStreamableHttpArgs {
         requires = "url"
     )]
     pub bearer_token_env_var: Option<String>,
+
+    /// Optional OAuth client identifier to use for this MCP server.
+    #[arg(long = "oauth-client-id", value_name = "CLIENT_ID", requires = "url")]
+    pub oauth_client_id: Option<String>,
+
+    /// Optional OAuth resource parameter to include during MCP login.
+    #[arg(long = "oauth-resource", value_name = "RESOURCE", requires = "url")]
+    pub oauth_resource: Option<String>,
 }
 
 #[derive(Debug, clap::Parser)]
@@ -199,6 +212,7 @@ async fn perform_oauth_login_retry_without_scopes(
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     resolved_scopes: &ResolvedMcpOAuthScopes,
+    oauth_client_id: Option<&str>,
     oauth_resource: Option<&str>,
     callback_port: Option<u16>,
     callback_url: Option<&str>,
@@ -210,6 +224,7 @@ async fn perform_oauth_login_retry_without_scopes(
         http_headers.clone(),
         env_http_headers.clone(),
         &resolved_scopes.scopes,
+        oauth_client_id,
         oauth_resource,
         callback_port,
         callback_url,
@@ -226,6 +241,7 @@ async fn perform_oauth_login_retry_without_scopes(
                 http_headers,
                 env_http_headers,
                 &[],
+                oauth_client_id,
                 oauth_resource,
                 callback_port,
                 callback_url,
@@ -248,6 +264,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
     let AddArgs {
         name,
         transport_args,
+        experimental_environment,
     } = add_args;
 
     validate_server_name(&name)?;
@@ -262,7 +279,7 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
             )
         })?;
 
-    let transport = match transport_args {
+    let (transport, oauth_client_id, oauth_resource) = match transport_args {
         AddMcpTransportArgs {
             stdio: Some(stdio), ..
         } => {
@@ -277,33 +294,44 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
             } else {
                 Some(stdio.env.into_iter().collect::<HashMap<_, _>>())
             };
-            McpServerTransportConfig::Stdio {
-                command: command_bin,
-                args: command_args,
-                env: env_map,
-                env_vars: Vec::new(),
-                cwd: None,
-            }
+            (
+                McpServerTransportConfig::Stdio {
+                    command: command_bin,
+                    args: command_args,
+                    env: env_map,
+                    env_vars: Vec::new(),
+                    cwd: None,
+                },
+                None,
+                None,
+            )
         }
         AddMcpTransportArgs {
             streamable_http:
                 Some(AddMcpStreamableHttpArgs {
                     url,
                     bearer_token_env_var,
+                    oauth_client_id,
+                    oauth_resource,
                 }),
             ..
-        } => McpServerTransportConfig::StreamableHttp {
-            url,
-            bearer_token_env_var,
-            http_headers: None,
-            env_http_headers: None,
-        },
+        } => (
+            McpServerTransportConfig::StreamableHttp {
+                url,
+                bearer_token_env_var,
+                http_headers: None,
+                env_http_headers: None,
+            },
+            oauth_client_id,
+            oauth_resource,
+        ),
         AddMcpTransportArgs { .. } => bail!("exactly one of --command or --url must be provided"),
     };
+    let configured_oauth_resource = oauth_resource.clone();
 
     let new_entry = McpServerConfig {
         transport: transport.clone(),
-        experimental_environment: None,
+        experimental_environment,
         enabled: true,
         required: false,
         supports_parallel_tool_calls: false,
@@ -314,7 +342,10 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
         enabled_tools: None,
         disabled_tools: None,
         scopes: None,
-        oauth_resource: None,
+        oauth: oauth_client_id.clone().map(|client_id| McpServerOAuthConfig {
+            client_id: Some(client_id),
+        }),
+        oauth_resource: configured_oauth_resource.clone(),
         tools: HashMap::new(),
     };
 
@@ -348,7 +379,8 @@ async fn run_add(config_overrides: &CliConfigOverrides, add_args: AddArgs) -> Re
                 oauth_config.http_headers,
                 oauth_config.env_http_headers,
                 &resolved_scopes,
-                /*oauth_resource*/ None,
+                oauth_client_id.as_deref(),
+                configured_oauth_resource.as_deref(),
                 config.mcp_oauth_callback_port,
                 config.mcp_oauth_callback_url.as_deref(),
             )
@@ -451,6 +483,7 @@ async fn run_login(config_overrides: &CliConfigOverrides, login_args: LoginArgs)
         http_headers,
         env_http_headers,
         &resolved_scopes,
+        server.oauth_client_id(),
         server.oauth_resource.as_deref(),
         config.mcp_oauth_callback_port,
         config.mcp_oauth_callback_url.as_deref(),
