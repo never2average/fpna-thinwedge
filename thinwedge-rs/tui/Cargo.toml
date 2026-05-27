@@ -119,6 +119,7 @@ url = { workspace = true }
 urlencoding = { workspace = true }
 webbrowser = { workspace = true }
 uuid = { workspace = true }
+zip = { workspace = true }
 
 thinwedge-windows-sandbox = { workspace = true }
 tokio-util = { workspace = true, features = ["time"] }

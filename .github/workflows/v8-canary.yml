@@ -62,6 +62,8 @@ jobs:
     permissions:
       contents: read
       actions: read
+    env:
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -76,7 +78,13 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
+      - name: Skip V8 canary without BuildBuddy
+        if: ${{ env.BUILDBUDDY_API_KEY == '' }}
+        shell: bash
+        run: echo "Skipping V8 canary because BUILDBUDDY_API_KEY is not configured."
+
       - name: Set up Bazel
+        if: ${{ env.BUILDBUDDY_API_KEY != '' }}
         uses: ./.github/actions/setup-bazel-ci
         with:
           target: ${{ matrix.target }}
@@ -87,8 +95,8 @@ jobs:
           python-version: "3.12"
 
       - name: Build Bazel V8 release pair
+        if: ${{ env.BUILDBUDDY_API_KEY != '' }}
         env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
           PLATFORM: ${{ matrix.platform }}
           TARGET: ${{ matrix.target }}
         shell: bash
@@ -117,6 +125,7 @@ jobs:
             "--remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}"
 
       - name: Stage release pair
+        if: ${{ env.BUILDBUDDY_API_KEY != '' }}
         env:
           PLATFORM: ${{ matrix.platform }}
           TARGET: ${{ matrix.target }}
@@ -130,6 +139,7 @@ jobs:
             --output-dir "dist/${TARGET}"
 
       - name: Upload staged musl artifacts
+        if: ${{ env.BUILDBUDDY_API_KEY != '' }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: v8-canary-${{ needs.metadata.outputs.v8_version }}-${{ matrix.target }}

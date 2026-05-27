@@ -82,7 +82,7 @@ Modes:
 - In-memory: records via `opentelemetry_sdk::metrics::InMemoryMetricExporter` for tests/assertions; call `shutdown()` to flush.
 
 `thinwedge-otel` also provides `OtelExporter::Statsig`, a shorthand for exporting OTLP/HTTP JSON metrics
-to Statsig using ThinWedge-internal defaults.
+to Statsig when `THINWEDGE_STATSIG_OTLP_HTTP_ENDPOINT` and `THINWEDGE_STATSIG_API_KEY` are set. Without those environment variables, the shorthand resolves to no exporter.
 
 Statsig ingestion (OTLP/HTTP JSON) example:
 

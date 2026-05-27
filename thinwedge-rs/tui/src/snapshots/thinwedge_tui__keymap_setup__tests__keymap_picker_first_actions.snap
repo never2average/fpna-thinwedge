@@ -1,5 +1,6 @@
 ---
 source: tui/src/keymap_setup.rs
+assertion_line: 951
 expression: snapshot
 ---
 tab: All (50 selectable)
@@ -13,7 +14,7 @@ tab: Navigation (14 selectable)
 tab: Approval (8 selectable)
 Open Transcript | ctrl-t | Global open_transcript Open Transcript Open the transcript overlay. ctrl-t Default
 Open External Editor | ctrl-g | Global open_external_editor Open External Editor Open the current draft in an external editor. ctrl-g Default
-Copy | ctrl-o | Global copy Copy Copy the last agent response to the clipboard. ctrl-o Default
+Copy | ctrl-o | Global copy Copy Export prior transcript cells as Excel and Word files. ctrl-o Default
 Clear Terminal | ctrl-l | Global clear_terminal Clear Terminal Clear the terminal UI. ctrl-l Default
 Decrease Reasoning Effort | alt-, | Chat decrease_reasoning_effort Decrease Reasoning Effort Decrease reasoning effort. alt-, Default
 Increase Reasoning Effort | alt-. | Chat increase_reasoning_effort Increase Reasoning Effort Increase reasoning effort. alt-. Default

@@ -24,8 +24,8 @@ DEFAULT_WORKFLOW_URL = "https://github.com/never2average/fpna-thinwedge/actions/
 VENDOR_DIR_NAME = "vendor"
 RG_MANIFEST = THINWEDGE_CLI_ROOT / "bin" / "rg"
 BINARY_TARGETS = (
-    "x86_64-unknown-linux-musl",
-    "aarch64-unknown-linux-musl",
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
     "x86_64-pc-windows-msvc",
@@ -42,6 +42,14 @@ class BinaryComponent:
 
 
 WINDOWS_TARGETS = tuple(target for target in BINARY_TARGETS if "windows" in target)
+LINUX_TARGETS = tuple(target for target in BINARY_TARGETS if "linux" in target)
+
+DEFAULT_COMPONENTS = [
+    "thinwedge",
+    "thinwedge-windows-sandbox-setup",
+    "thinwedge-command-runner",
+    "rg",
+]
 
 BINARY_COMPONENTS = {
     "thinwedge": BinaryComponent(
@@ -53,6 +61,12 @@ BINARY_COMPONENTS = {
         artifact_prefix="thinwedge-responses-api-proxy",
         dest_dir="thinwedge-responses-api-proxy",
         binary_basename="thinwedge-responses-api-proxy",
+    ),
+    "thinwedge-linux-sandbox": BinaryComponent(
+        artifact_prefix="thinwedge-linux-sandbox",
+        dest_dir="thinwedge",
+        binary_basename="thinwedge-linux-sandbox",
+        targets=LINUX_TARGETS,
     ),
     "thinwedge-windows-sandbox-setup": BinaryComponent(
         artifact_prefix="thinwedge-windows-sandbox-setup",
@@ -69,8 +83,8 @@ BINARY_COMPONENTS = {
 }
 
 RG_TARGET_PLATFORM_PAIRS: list[tuple[str, str]] = [
-    ("x86_64-unknown-linux-musl", "linux-x86_64"),
-    ("aarch64-unknown-linux-musl", "linux-aarch64"),
+    ("x86_64-unknown-linux-gnu", "linux-x86_64"),
+    ("aarch64-unknown-linux-gnu", "linux-aarch64"),
     ("x86_64-apple-darwin", "macos-x86_64"),
     ("aarch64-apple-darwin", "macos-aarch64"),
     ("x86_64-pc-windows-msvc", "windows-x86_64"),
@@ -135,8 +149,9 @@ def parse_args() -> argparse.Namespace:
         choices=tuple(list(BINARY_COMPONENTS) + ["rg"]),
         help=(
             "Limit installation to the specified components."
-            " May be repeated. Defaults to thinwedge, thinwedge-windows-sandbox-setup,"
-            " thinwedge-command-runner, and rg."
+            " May be repeated. Defaults to thinwedge,"
+            " thinwedge-windows-sandbox-setup, thinwedge-command-runner, and rg."
+            " Release staging requests thinwedge-linux-sandbox explicitly when needed."
         ),
     )
     parser.add_argument(
@@ -158,29 +173,22 @@ def main() -> int:
     vendor_dir = thinwedge_cli_root / VENDOR_DIR_NAME
     vendor_dir.mkdir(parents=True, exist_ok=True)
 
-    components = args.components or [
-        "thinwedge",
-        "thinwedge-windows-sandbox-setup",
-        "thinwedge-command-runner",
-        "rg",
-    ]
+    components = args.components or DEFAULT_COMPONENTS
 
     workflow_url = (args.workflow_url or DEFAULT_WORKFLOW_URL).strip()
     if not workflow_url:
         workflow_url = DEFAULT_WORKFLOW_URL
 
     workflow_id = workflow_url.rstrip("/").split("/")[-1]
-    print(f"Downloading native artifacts from workflow {workflow_id}...")
+    binary_components = [BINARY_COMPONENTS[name] for name in components if name in BINARY_COMPONENTS]
+    if binary_components:
+        print(f"Downloading native artifacts from workflow {workflow_id}...")
 
-    with _gha_group(f"Download native artifacts from workflow {workflow_id}"):
-        with tempfile.TemporaryDirectory(prefix="thinwedge-native-artifacts-") as artifacts_dir_str:
-            artifacts_dir = Path(artifacts_dir_str)
-            _download_artifacts(workflow_id, artifacts_dir)
-            install_binary_components(
-                artifacts_dir,
-                vendor_dir,
-                [BINARY_COMPONENTS[name] for name in components if name in BINARY_COMPONENTS],
-            )
+        with _gha_group(f"Download native artifacts from workflow {workflow_id}"):
+            with tempfile.TemporaryDirectory(prefix="thinwedge-native-artifacts-") as artifacts_dir_str:
+                artifacts_dir = Path(artifacts_dir_str)
+                _download_artifacts(workflow_id, artifacts_dir)
+                install_binary_components(artifacts_dir, vendor_dir, binary_components)
 
     if "rg" in components:
         with _gha_group("Fetch ripgrep binaries"):
@@ -454,8 +462,17 @@ def extract_archive(
 
 
 def _load_manifest(manifest_path: Path) -> dict:
-    cmd = ["dotslash", "--", "parse", str(manifest_path)]
-    stdout = subprocess.check_output(cmd, text=True)
+    dotslash = shutil.which("dotslash")
+    if dotslash:
+        cmd = [dotslash, "--", "parse", str(manifest_path)]
+        stdout = subprocess.check_output(cmd, text=True)
+    else:
+        text = manifest_path.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        if lines and lines[0].startswith("#!"):
+            text = "\n".join(lines[1:])
+        stdout = text
+
     try:
         manifest = json.loads(stdout)
     except json.JSONDecodeError as exc:

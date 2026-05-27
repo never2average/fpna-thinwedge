@@ -1370,6 +1370,9 @@ impl App {
             AppEvent::UpdateFeatureFlags { updates } => {
                 self.update_feature_flags(updates).await;
             }
+            AppEvent::EnablePowerUserPermissions => {
+                self.enable_power_user_permissions().await;
+            }
             AppEvent::UpdateMemorySettings {
                 use_memories,
                 generate_memories,

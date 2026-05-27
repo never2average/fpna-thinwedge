@@ -12,8 +12,8 @@ const __dirname = path.dirname(__filename);
 const require = createRequire(import.meta.url);
 
 const PLATFORM_PACKAGE_BY_TARGET = {
-  "x86_64-unknown-linux-musl": "@never2average-does-npm/cli-linux-x64",
-  "aarch64-unknown-linux-musl": "@never2average-does-npm/cli-linux-arm64",
+  "x86_64-unknown-linux-gnu": "@never2average-does-npm/cli-linux-x64",
+  "aarch64-unknown-linux-gnu": "@never2average-does-npm/cli-linux-arm64",
   "x86_64-apple-darwin": "@never2average-does-npm/cli-darwin-x64",
   "aarch64-apple-darwin": "@never2average-does-npm/cli-darwin-arm64",
   "x86_64-pc-windows-msvc": "@never2average-does-npm/cli-win32-x64",
@@ -28,10 +28,10 @@ switch (platform) {
   case "android":
     switch (arch) {
       case "x64":
-        targetTriple = "x86_64-unknown-linux-musl";
+        targetTriple = "x86_64-unknown-linux-gnu";
         break;
       case "arm64":
-        targetTriple = "aarch64-unknown-linux-musl";
+        targetTriple = "aarch64-unknown-linux-gnu";
         break;
       default:
         break;

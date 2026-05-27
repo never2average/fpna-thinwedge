@@ -717,7 +717,8 @@ mod tests {
                     call_id: "call_123".to_string(),
                     output: thinwedge_protocol::models::FunctionCallOutputPayload {
                         body: thinwedge_protocol::models::FunctionCallOutputBody::Text(
-                            r#"{"token":"thinwedge-redaction-test-token"}"#.to_string(),
+                            r#"{"authorization":"Bearer thinwedgeRedactionToken123456"}"#
+                                .to_string(),
                         ),
                         success: Some(true),
                     },
@@ -725,7 +726,7 @@ mod tests {
             )])
             .expect("serialize");
 
-        assert!(!serialized.contains("thinwedge-redaction-test-token"));
+        assert!(!serialized.contains("thinwedgeRedactionToken123456"));
         assert!(serialized.contains("[REDACTED_SECRET]"));
     }
 

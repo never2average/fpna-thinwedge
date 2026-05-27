@@ -307,6 +307,8 @@ fn map_hooks_requirements_to_api(hooks: ManagedHooksRequirementsToml) -> Managed
         pre_tool_use,
         permission_request,
         post_tool_use,
+        pre_compact,
+        post_compact,
         session_start,
         user_prompt_submit,
         stop,
@@ -318,6 +320,8 @@ fn map_hooks_requirements_to_api(hooks: ManagedHooksRequirementsToml) -> Managed
         pre_tool_use: map_hook_matcher_groups_to_api(pre_tool_use),
         permission_request: map_hook_matcher_groups_to_api(permission_request),
         post_tool_use: map_hook_matcher_groups_to_api(post_tool_use),
+        pre_compact: map_hook_matcher_groups_to_api(pre_compact),
+        post_compact: map_hook_matcher_groups_to_api(post_compact),
         session_start: map_hook_matcher_groups_to_api(session_start),
         user_prompt_submit: map_hook_matcher_groups_to_api(user_prompt_submit),
         stop: map_hook_matcher_groups_to_api(stop),
@@ -546,6 +550,24 @@ mod tests {
                             status_message: Some("checking".to_string()),
                         }],
                     }],
+                    pre_compact: vec![CoreMatcherGroup {
+                        matcher: None,
+                        hooks: vec![CoreHookHandlerConfig::Command {
+                            command: "python3 /enterprise/hooks/pre-compact.py".to_string(),
+                            timeout_sec: Some(5),
+                            r#async: false,
+                            status_message: None,
+                        }],
+                    }],
+                    post_compact: vec![CoreMatcherGroup {
+                        matcher: None,
+                        hooks: vec![CoreHookHandlerConfig::Command {
+                            command: "python3 /enterprise/hooks/post-compact.py".to_string(),
+                            timeout_sec: Some(5),
+                            r#async: false,
+                            status_message: None,
+                        }],
+                    }],
                     ..Default::default()
                 },
             }),
@@ -631,6 +653,24 @@ mod tests {
                 }],
                 permission_request: Vec::new(),
                 post_tool_use: Vec::new(),
+                pre_compact: vec![ConfiguredHookMatcherGroup {
+                    matcher: None,
+                    hooks: vec![ConfiguredHookHandler::Command {
+                        command: "python3 /enterprise/hooks/pre-compact.py".to_string(),
+                        timeout_sec: Some(5),
+                        r#async: false,
+                        status_message: None,
+                    }],
+                }],
+                post_compact: vec![ConfiguredHookMatcherGroup {
+                    matcher: None,
+                    hooks: vec![ConfiguredHookHandler::Command {
+                        command: "python3 /enterprise/hooks/post-compact.py".to_string(),
+                        timeout_sec: Some(5),
+                        r#async: false,
+                        status_message: None,
+                    }],
+                }],
                 session_start: Vec::new(),
                 user_prompt_submit: Vec::new(),
                 stop: Vec::new(),

@@ -32,7 +32,11 @@ jobs:
           client_version="99.99.99"
           terminal_info="github-actions"
           user_agent="thinwedge_cli_rs/99.99.99 (Linux $(uname -r); $(uname -m)) ${terminal_info}"
-          base_url="${THINWEDGE_BASE_URL:-https://chatgpt.com/backend-api/thinwedge}"
+          if [[ -z "${THINWEDGE_BASE_URL:-}" ]]; then
+            echo "THINWEDGE_BASE_URL must be configured explicitly." >&2
+            exit 1
+          fi
+          base_url="${THINWEDGE_BASE_URL}"
 
           headers=(
             -H "Authorization: Bearer ${THINWEDGE_API_KEY}"

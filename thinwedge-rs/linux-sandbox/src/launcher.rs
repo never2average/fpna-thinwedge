@@ -14,6 +14,7 @@ use thinwedge_utils_absolute_path::AbsolutePathBuf;
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum BubblewrapLauncher {
     System(SystemBwrapLauncher),
+    #[cfg_attr(not(vendored_bwrap_available), allow(dead_code))]
     Vendored,
 }
 
@@ -37,9 +38,22 @@ fn preferred_bwrap_launcher() -> BubblewrapLauncher {
     LAUNCHER
         .get_or_init(|| match find_system_bwrap_in_path() {
             Some(path) => preferred_bwrap_launcher_for_path(&path),
-            None => BubblewrapLauncher::Vendored,
+            None => vendored_bwrap_launcher(),
         })
         .clone()
+}
+
+fn vendored_bwrap_launcher() -> BubblewrapLauncher {
+    #[cfg(vendored_bwrap_available)]
+    {
+        BubblewrapLauncher::Vendored
+    }
+    #[cfg(not(vendored_bwrap_available))]
+    {
+        panic!(
+            "system bubblewrap is required for Linux sandboxing; install bwrap on PATH or build with THINWEDGE_ENABLE_VENDORED_BWRAP=1 to opt into vendored bubblewrap embedding"
+        )
+    }
 }
 
 fn preferred_bwrap_launcher_for_path(system_bwrap_path: &Path) -> BubblewrapLauncher {
@@ -51,7 +65,7 @@ fn preferred_bwrap_launcher_for_path_with_probe(
     system_bwrap_supports_argv0: impl FnOnce(&Path) -> bool,
 ) -> BubblewrapLauncher {
     if !system_bwrap_path.is_file() {
-        return BubblewrapLauncher::Vendored;
+        return vendored_bwrap_launcher();
     }
 
     let supports_argv0 = system_bwrap_supports_argv0(system_bwrap_path);
@@ -186,12 +200,20 @@ mod tests {
         );
     }
 
+    #[cfg(vendored_bwrap_available)]
     #[test]
     fn falls_back_to_vendored_when_system_bwrap_is_missing() {
         assert_eq!(
             preferred_bwrap_launcher_for_path(Path::new("/definitely/not/a/bwrap")),
             BubblewrapLauncher::Vendored
         );
+    }
+
+    #[cfg(not(vendored_bwrap_available))]
+    #[test]
+    #[should_panic(expected = "system bubblewrap is required")]
+    fn requires_system_bwrap_when_vendored_support_is_not_built() {
+        let _ = preferred_bwrap_launcher_for_path(Path::new("/definitely/not/a/bwrap"));
     }
 
     #[test]

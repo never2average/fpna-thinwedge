@@ -22,14 +22,14 @@ THINWEDGE_PLATFORM_PACKAGES: dict[str, dict[str, str]] = {
     "thinwedge-linux-x64": {
         "npm_name": "@never2average-does-npm/cli-linux-x64",
         "npm_tag": "linux-x64",
-        "target_triple": "x86_64-unknown-linux-musl",
+        "target_triple": "x86_64-unknown-linux-gnu",
         "os": "linux",
         "cpu": "x64",
     },
     "thinwedge-linux-arm64": {
         "npm_name": "@never2average-does-npm/cli-linux-arm64",
         "npm_tag": "linux-arm64",
-        "target_triple": "aarch64-unknown-linux-musl",
+        "target_triple": "aarch64-unknown-linux-gnu",
         "os": "linux",
         "cpu": "arm64",
     },
@@ -69,8 +69,8 @@ PACKAGE_EXPANSIONS: dict[str, list[str]] = {
 
 PACKAGE_NATIVE_COMPONENTS: dict[str, list[str]] = {
     "thinwedge": [],
-    "thinwedge-linux-x64": ["thinwedge", "rg"],
-    "thinwedge-linux-arm64": ["thinwedge", "rg"],
+    "thinwedge-linux-x64": ["thinwedge", "thinwedge-linux-sandbox", "rg"],
+    "thinwedge-linux-arm64": ["thinwedge", "thinwedge-linux-sandbox", "rg"],
     "thinwedge-darwin-x64": ["thinwedge", "rg"],
     "thinwedge-darwin-arm64": ["thinwedge", "rg"],
     "thinwedge-win32-x64": ["thinwedge", "rg", "thinwedge-windows-sandbox-setup", "thinwedge-command-runner"],
@@ -86,13 +86,32 @@ PACKAGE_TARGET_FILTERS: dict[str, str] = {
 
 PACKAGE_CHOICES = tuple(PACKAGE_NATIVE_COMPONENTS)
 
+RELEASE_NOTICE_FILES = ("LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md")
+
 COMPONENT_DEST_DIR: dict[str, str] = {
     "thinwedge": "thinwedge",
     "thinwedge-responses-api-proxy": "thinwedge-responses-api-proxy",
+    "thinwedge-linux-sandbox": "thinwedge",
     "thinwedge-windows-sandbox-setup": "thinwedge",
     "thinwedge-command-runner": "thinwedge",
     "rg": "path",
 }
+
+COMPONENT_BINARY_BASENAMES: dict[str, str] = {
+    "thinwedge": "thinwedge",
+    "thinwedge-responses-api-proxy": "thinwedge-responses-api-proxy",
+    "thinwedge-linux-sandbox": "thinwedge-linux-sandbox",
+    "thinwedge-windows-sandbox-setup": "thinwedge-windows-sandbox-setup",
+    "thinwedge-command-runner": "thinwedge-command-runner",
+    "rg": "rg",
+}
+
+
+def native_binary_name(component: str, target: str) -> str:
+    basename = COMPONENT_BINARY_BASENAMES[component]
+    if target.endswith("pc-windows-msvc"):
+        return f"{basename}.exe"
+    return basename
 
 
 def parse_args() -> argparse.Namespace:
@@ -233,6 +252,23 @@ def prepare_staging_dir(staging_dir: Path | None) -> tuple[Path, bool]:
     return temp_dir, True
 
 
+def copy_release_notice_files(staging_dir: Path) -> None:
+    for notice_file in RELEASE_NOTICE_FILES:
+        src = REPO_ROOT / notice_file
+        if src.exists():
+            shutil.copy2(src, staging_dir / notice_file)
+
+
+def include_release_notice_files(package_json: dict) -> None:
+    files = package_json.get("files")
+    if not isinstance(files, list):
+        return
+
+    for notice_file in RELEASE_NOTICE_FILES:
+        if notice_file not in files:
+            files.append(notice_file)
+
+
 def stage_sources(staging_dir: Path, version: str, package: str) -> None:
     package_json: dict
     package_json_path: Path | None = None
@@ -326,6 +362,9 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         dependencies[THINWEDGE_NPM_NAME] = version
         package_json["dependencies"] = dependencies
 
+    copy_release_notice_files(staging_dir)
+    include_release_notice_files(package_json)
+
     with open(staging_dir / "package.json", "w", encoding="utf-8") as out:
         json.dump(package_json, out, indent=2)
         out.write("\n")
@@ -382,6 +421,10 @@ def copy_native_binaries(
         shutil.rmtree(vendor_dest)
     vendor_dest.mkdir(parents=True, exist_ok=True)
 
+    components_by_dest: dict[str, set[str]] = {}
+    for component in components_set:
+        components_by_dest.setdefault(COMPONENT_DEST_DIR[component], set()).add(component)
+
     copied_targets: set[str] = set()
 
     for target_dir in vendor_src.iterdir():
@@ -395,21 +438,24 @@ def copy_native_binaries(
         dest_target_dir.mkdir(parents=True, exist_ok=True)
         copied_targets.add(target_dir.name)
 
-        for component in components_set:
-            dest_dir_name = COMPONENT_DEST_DIR.get(component)
-            if dest_dir_name is None:
-                continue
-
+        for dest_dir_name, dest_components in sorted(components_by_dest.items()):
             src_component_dir = target_dir / dest_dir_name
             if not src_component_dir.exists():
+                components_list = ", ".join(sorted(dest_components))
                 raise RuntimeError(
-                    f"Missing native component '{component}' in vendor source: {src_component_dir}"
+                    f"Missing native component directory for {components_list} in vendor source: {src_component_dir}"
                 )
+
+            for component in sorted(dest_components):
+                validate_native_component_binary(src_component_dir, component, target_dir.name)
 
             dest_component_dir = dest_target_dir / dest_dir_name
             if dest_component_dir.exists():
                 shutil.rmtree(dest_component_dir)
             shutil.copytree(src_component_dir, dest_component_dir)
+
+            for component in sorted(dest_components):
+                validate_native_component_binary(dest_component_dir, component, target_dir.name)
 
     if target_filter is not None:
         missing_targets = sorted(target_filter - copied_targets)
@@ -417,6 +463,18 @@ def copy_native_binaries(
             missing_list = ", ".join(missing_targets)
             raise RuntimeError(f"Missing target directories in vendor source: {missing_list}")
 
+
+def validate_native_component_binary(component_dir: Path, component: str, target: str) -> None:
+    try:
+        binary_name = native_binary_name(component, target)
+    except KeyError as exc:
+        raise RuntimeError(f"Unknown native component '{component}'.") from exc
+
+    binary_path = component_dir / binary_name
+    if not binary_path.is_file():
+        raise RuntimeError(
+            f"Missing native binary for component '{component}' and target '{target}': {binary_path}"
+        )
 
 def run_npm_pack(staging_dir: Path, output_path: Path) -> Path:
     output_path = output_path.resolve()

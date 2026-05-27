@@ -9,7 +9,7 @@ body:
         Before submitting a new issue, please search for existing issues to see if your issue has already been reported.
         If it has, please add a 👍 reaction (no need to leave a comment) to the existing issue instead of creating a new one.
 
-        If you need help or support using ThinWedge and are not reporting a bug, please post in repository discussions, where you can ask questions or engage with others on ideas for how to improve ThinWedge.
+        If you need help or support using ThinWedge and are not reporting a bug, please open a question issue and label it clearly as a question.
 
   - type: textarea
     id: actual

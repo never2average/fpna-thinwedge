@@ -18,8 +18,16 @@ fn test_tracing_subscriber() -> impl tracing::Subscriber + Send + Sync {
 }
 
 #[test]
-fn exec_defaults_analytics_to_enabled() {
-    assert_eq!(DEFAULT_ANALYTICS_ENABLED, true);
+fn exec_defaults_analytics_to_disabled() {
+    assert_eq!(DEFAULT_ANALYTICS_ENABLED, false);
+}
+
+#[test]
+fn exec_default_cloud_requirements_base_url_is_neutral() {
+    assert_eq!(
+        DEFAULT_CLOUD_REQUIREMENTS_BASE_URL,
+        "https://example.invalid/backend-api/"
+    );
 }
 
 #[test]

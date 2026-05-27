@@ -10,8 +10,8 @@ set -e
 
 # Default the work directory to WORKSPACE_ROOT_DIR if not provided.
 WORK_DIR="${WORKSPACE_ROOT_DIR:-$(pwd)}"
-# Default allowed domains - can be overridden with THINWEDGE_ALLOWED_DOMAINS env var
-THINWEDGE_ALLOWED_DOMAINS="${THINWEDGE_ALLOWED_DOMAINS:-api.thinwedge.com}"
+# Allowed domains must be provided explicitly for public builds.
+THINWEDGE_ALLOWED_DOMAINS="${THINWEDGE_ALLOWED_DOMAINS:-}"
 
 # Parse optional flag.
 if [ "$1" = "--work_dir" ]; then
@@ -49,7 +49,7 @@ fi
 
 # Verify that THINWEDGE_ALLOWED_DOMAINS is not empty
 if [ -z "$THINWEDGE_ALLOWED_DOMAINS" ]; then
-  echo "Error: THINWEDGE_ALLOWED_DOMAINS is empty."
+  echo "Error: THINWEDGE_ALLOWED_DOMAINS must be set."
   exit 1
 fi
 

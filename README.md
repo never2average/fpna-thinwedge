@@ -5,11 +5,47 @@ statistical-model workflows, and cost research. It runs as a terminal UI and CLI
 your machine, keeps workspace state under your ThinWedge home directory, and connects
 to provider APIs with an OpenRouter-compatible API token.
 
-Install it globally:
+## Quick Start
+
+Install ThinWedge globally from npm:
 
 ```shell
 npm install -g @never2average-does-npm/cli
+```
+
+Authenticate before starting interactive mode. In a real terminal, `thinwedge login`
+prompts for the required OpenRouter-compatible API token and optional capability
+config such as Artificial Analysis, RunPod, AWS profile/region values, and Neon
+DB sandbox metadata:
+
+```shell
+thinwedge login
+# Enter OpenRouter-compatible API key: ...
+# ARTIFICIAL_ANALYSIS_API_KEY (...) [optional]: ...
+# RUNPOD_API_KEY (...) [optional]: ...
+# AWS_PROFILE (...) [optional]: ...
+# AWS_REGION (...) [optional]: ...
+# THINWEDGE_NEON_API_KEY (...) [optional]: ...
+# THINWEDGE_NEON_PROJECT_ID (...) [optional]: ...
+```
+
+Or set the provider token in the environment first:
+
+```shell
+export OPENROUTER_API_KEY=...
+thinwedge login
+```
+
+Then start the interactive terminal UI:
+
+```shell
 thinwedge
+```
+
+Run a one-shot CLI task without opening the TUI:
+
+```shell
+thinwedge exec "summarize this repository"
 ```
 
 Or download a binary from the
@@ -28,11 +64,60 @@ The product surface is intentionally local-first:
 - `thinwedge` starts the interactive terminal UI.
 - `thinwedge exec` runs a single non-interactive agent task.
 - `thinwedge login` stores an OpenRouter-compatible API token locally.
+- `thinwedge db-sandbox` configures and preflights DB sandbox providers.
 - `THINWEDGE_HOME` controls where config, auth, logs, thread history, and local state live.
+
+## System Components
+
+```mermaid
+flowchart TB
+    User[User terminal] --> CLI[ThinWedge CLI]
+    CLI --> TUI[Interactive TUI]
+    CLI --> Exec[One-shot exec mode]
+    CLI --> Auth[Local auth and config]
+
+    TUI --> Runtime[Agent runtime]
+    Exec --> Runtime
+    Auth --> Runtime
+
+    Runtime --> Tools[Tool router]
+    Runtime --> Store[Local state under THINWEDGE_HOME]
+    Runtime --> Provider[OpenRouter-compatible provider API]
+
+    Tools --> Shell[Shell and command execution]
+    Tools --> Files[Filesystem read, edit, and patch tools]
+    Tools --> MCP[MCP servers, plugins, and apps]
+    Tools --> Finance[FP&A, model, and cost-analysis tools]
+
+    Shell --> Sandbox[Sandbox and approval policy]
+    Files --> Sandbox
+    MCP --> Sandbox
+    Finance --> Sandbox
+```
 
 ## Authentication
 
-ThinWedge uses API-token authentication. The default setup path is:
+ThinWedge uses API-token authentication. Run `thinwedge login` before starting
+the interactive TUI so the agent can call the configured provider API. In a real
+terminal, `thinwedge login` behaves like an `aws configure`-style prompt: it asks
+for the required OpenRouter-compatible API token, then offers optional prompts for
+`ARTIFICIAL_ANALYSIS_API_KEY`, `RUNPOD_API_KEY`, `AWS_PROFILE`, `AWS_REGION`,
+`THINWEDGE_NEON_API_KEY`, and `THINWEDGE_NEON_PROJECT_ID`.
+The required provider token is stored in ThinWedge auth storage; optional capability
+values are written to `THINWEDGE_HOME/.env`, which ThinWedge loads on startup.
+
+```shell
+thinwedge login
+# Enter OpenRouter-compatible API key: ...
+# ARTIFICIAL_ANALYSIS_API_KEY (...) [optional]: ...
+# RUNPOD_API_KEY (...) [optional]: ...
+# AWS_PROFILE (...) [optional]: ...
+# AWS_REGION (...) [optional]: ...
+# THINWEDGE_NEON_API_KEY (...) [optional]: ...
+# THINWEDGE_NEON_PROJECT_ID (...) [optional]: ...
+```
+
+You can also provide the provider token through the environment:
 
 ```shell
 export OPENROUTER_API_KEY=...
@@ -60,7 +145,38 @@ coordination model:
 - `/side` opens side conversations for scoped work.
 - `/review` switches into code-review behavior.
 - `/model` changes the active model.
+- `/copy` exports prior transcript cells to a timestamped folder with
+  `transcript.xlsx` and `transcript.docx`; markdown and pasted tables are split
+  into real workbook sheets.
 - `/status`, `/diff`, `/permissions`, `/mcp`, `/skills`, `/apps`, and `/plugins` expose runtime, workspace, and integration state.
+
+## DB Sandbox Setup
+
+Finance agents should not run migrations or experiments directly against
+production state. ThinWedge models this as a provider-first setup: validate a
+source provider, then hand agents only disposable database state.
+
+Neon is the default path:
+
+```shell
+thinwedge db-sandbox configure --enabled --provider neon --neon-project-id <project-id> --branch-backend none
+thinwedge db-sandbox preflight --dry-run
+thinwedge db-sandbox preflight --provider neon
+```
+
+Ardent is optional. Use it as the branch backend only after the Neon or Postgres
+source checks pass:
+
+```shell
+thinwedge db-sandbox configure --branch-backend ardent
+thinwedge ardent status --dry-run
+```
+
+The bottom-up source of truth is still the probe scripts:
+
+```shell
+scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none
+```
 
 ## Logical Tool Tree
 
@@ -120,6 +236,25 @@ ThinWedge includes finance-oriented tool surfaces for:
 - [Configuration](./docs/config.md)
 - [Authentication](./docs/authentication.md)
 - [Contributing](./docs/contributing.md)
+- [Project logic](./docs/project-logic.md)
+- [CI and release flow](./docs/ci-release-flow.md)
+- [Governance](./GOVERNANCE.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Why open source](./docs/why-open-source.md)
 - [Open source fund](./docs/open-source-fund.md)
 
-This repository is licensed under the [Apache-2.0 License](LICENSE).
+## License and Attribution
+
+This repository is licensed under the [Apache-2.0 License](LICENSE). ThinWedge
+includes software derived from [OpenAI Codex](https://github.com/openai/codex),
+which is also licensed under Apache-2.0.
+
+Apache-2.0 allows use, modification, distribution, sublicensing, and publication
+of derivative works, including an open-source CLI distribution. ThinWedge preserves
+the required license and attribution notices in [NOTICE](NOTICE) and
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and modified files are part of
+the ThinWedge derivative work.
+
+ThinWedge is not affiliated with or endorsed by OpenAI. The Apache-2.0 license
+does not grant OpenAI trademark rights; OpenAI and Codex are referenced only for
+factual attribution to the upstream project.

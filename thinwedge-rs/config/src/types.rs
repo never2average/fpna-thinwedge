@@ -171,6 +171,99 @@ pub struct FeedbackConfigToml {
     pub enabled: Option<bool>,
 }
 
+/// AWS identity settings used by finance integrations. Local CLI setups may use
+/// `aws_profile`; production deployments should prefer a role or an AWS
+/// credential provider chain that resolves to narrowly scoped credentials.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct AwsIdentityConfigToml {
+    /// Optional local AWS CLI profile name. Intended for workstation setup.
+    pub aws_profile: Option<String>,
+    /// Optional IAM role ARN for production or managed runtime use.
+    pub role_arn: Option<String>,
+    /// Optional AWS region override for this identity.
+    pub region: Option<String>,
+}
+
+/// Source database provider used by the finance DB sandbox preflight path.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DbSandboxProviderToml {
+    /// Neon Postgres. This is the default first-class provider for ThinWedge's
+    /// DB sandbox setup flow.
+    Neon,
+    /// Generic PostgreSQL-compatible source URL.
+    Postgresql,
+    /// AWS RDS Postgres checked through the DB Ops AWS identity.
+    Rds,
+    /// Supabase direct Postgres endpoint.
+    Supabase,
+    /// PlanetScale source. Preflight currently records intent and skips live checks.
+    Planetscale,
+}
+
+/// Branch/sandbox backend that receives a verified source DB connection.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum DbSandboxBackendToml {
+    /// Do not configure a branch backend yet; only validate provider readiness.
+    None,
+    /// Use Ardent to create isolated branch databases.
+    Ardent,
+}
+
+/// Generic DB sandbox settings. These are intentionally non-secret; API keys and
+/// source URLs are referenced by environment-variable name instead of being
+/// stored in config.toml.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct DbSandboxConfigToml {
+    /// Enables DB sandbox setup for finance/database agents.
+    pub enabled: Option<bool>,
+    /// Source database provider. Defaults to `neon` in CLI setup flows.
+    pub provider: Option<DbSandboxProviderToml>,
+    /// Env var containing a source Postgres URL for generic/Postgres-like providers.
+    pub source_url_env: Option<String>,
+    /// Env var containing the Neon API key.
+    pub neon_api_key_env: Option<String>,
+    /// Env var containing the Neon project id.
+    pub neon_project_id_env: Option<String>,
+    /// Optional non-secret Neon project id. API keys must still stay in env/secrets.
+    pub neon_project_id: Option<String>,
+    /// Optional branch backend. Defaults to `none` unless the user opts into Ardent.
+    pub branch_backend: Option<DbSandboxBackendToml>,
+}
+
+/// Data plane placement for Ardent-managed database sandboxes.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ArdentDataPlaneToml {
+    /// Ardent-managed infrastructure.
+    Managed,
+    /// Customer-managed or bring-your-own-cloud deployment.
+    Byoc,
+}
+
+/// Ardent database sandbox settings. These are intentionally non-secret; source
+/// database URLs and branch URLs should come from secure stores or command output.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ArdentConfigToml {
+    /// Enables the optional login/configure prompt and Ardent command surface.
+    pub enabled: Option<bool>,
+    /// Optional Ardent CLI path. Defaults to `ardent` on PATH.
+    pub cli_path: Option<String>,
+    /// Default Ardent connector name or id to use for branch lifecycle commands.
+    pub default_connector: Option<String>,
+    /// Prefix for ephemeral branch names created for agent tasks.
+    pub branch_name_prefix: Option<String>,
+    /// Optional requested branch TTL in minutes when the Ardent CLI supports it.
+    #[schemars(range(min = 1))]
+    pub branch_ttl_minutes: Option<u32>,
+    /// Whether Ardent runs in managed infrastructure or customer cloud.
+    pub data_plane: Option<ArdentDataPlaneToml>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolSuggestDiscoverableType {
@@ -506,7 +599,7 @@ impl Default for OtelConfig {
             environment: DEFAULT_OTEL_ENVIRONMENT.to_owned(),
             exporter: OtelExporterKind::None,
             trace_exporter: OtelExporterKind::None,
-            metrics_exporter: OtelExporterKind::Statsig,
+            metrics_exporter: OtelExporterKind::None,
         }
     }
 }

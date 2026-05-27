@@ -287,9 +287,8 @@ mod tests {
         let state_db = remote_control_state_runtime(&thinwedge_home).await;
         let first_target = normalize_remote_control_url("https://chatgpt.com/remote/control")
             .expect("first target should parse");
-        let second_target =
-            normalize_remote_control_url("https://api.chatgpt-staging.com/other/control")
-                .expect("second target should parse");
+        let second_target = normalize_remote_control_url("https://api.chatgpt.com/other/control")
+            .expect("second target should parse");
         let first_enrollment = RemoteControlEnrollment {
             account_id: "account-a".to_string(),
             environment_id: "env_first".to_string(),
@@ -363,9 +362,8 @@ mod tests {
         let state_db = remote_control_state_runtime(&thinwedge_home).await;
         let first_target = normalize_remote_control_url("https://chatgpt.com/remote/control")
             .expect("first target should parse");
-        let second_target =
-            normalize_remote_control_url("https://api.chatgpt-staging.com/other/control")
-                .expect("second target should parse");
+        let second_target = normalize_remote_control_url("https://api.chatgpt.com/other/control")
+            .expect("second target should parse");
         let first_enrollment = RemoteControlEnrollment {
             account_id: "account-a".to_string(),
             environment_id: "env_first".to_string(),

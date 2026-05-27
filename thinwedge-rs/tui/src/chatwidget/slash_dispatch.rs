@@ -243,6 +243,9 @@ impl ChatWidget {
             SlashCommand::Permissions => {
                 self.open_permissions_popup();
             }
+            SlashCommand::PowerUser => {
+                self.app_event_tx.send(AppEvent::EnablePowerUserPermissions);
+            }
             SlashCommand::Keymap => {
                 self.open_keymap_picker();
             }
@@ -868,6 +871,7 @@ impl ChatWidget {
             | SlashCommand::MultiAgents
             | SlashCommand::Approvals
             | SlashCommand::Permissions
+            | SlashCommand::PowerUser
             | SlashCommand::ElevateSandbox
             | SlashCommand::SandboxReadRoot
             | SlashCommand::Experimental

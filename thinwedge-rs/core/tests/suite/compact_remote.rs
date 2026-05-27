@@ -1,6 +1,7 @@
 #![allow(clippy::expect_used)]
 
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -22,6 +23,7 @@ use pretty_assertions::assert_eq;
 use serde_json::Value;
 use serde_json::json;
 use thinwedge_core::compact::SUMMARY_PREFIX;
+use thinwedge_features::Feature;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_protocol::dynamic_tools::DynamicToolSpec;
 use thinwedge_protocol::items::TurnItem;
@@ -30,6 +32,8 @@ use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::ConversationStartParams;
 use thinwedge_protocol::protocol::ErrorEvent;
 use thinwedge_protocol::protocol::EventMsg;
+use thinwedge_protocol::protocol::HookEventName;
+use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::ItemCompletedEvent;
 use thinwedge_protocol::protocol::ItemStartedEvent;
 use thinwedge_protocol::protocol::Op;
@@ -110,6 +114,77 @@ const REMOTE_COMPACT_TURN_COMPLETE_TIMEOUT: Duration = Duration::from_secs(30);
 
 fn summary_with_prefix(summary: &str) -> String {
     format!("{SUMMARY_PREFIX}\n{summary}")
+}
+
+fn write_compact_hook_fixture(home: &Path, mode: &str) {
+    let script_path = home.join(format!("compact_hook_{mode}.py"));
+    let log_path = home.join(format!("compact_hook_{mode}.jsonl"));
+    let mode_json = serde_json::to_string(mode).expect("serialize compact hook mode");
+    let script = format!(
+        r#"import json
+from pathlib import Path
+import sys
+
+payload = json.load(sys.stdin)
+log_path = Path(r"{log_path}")
+mode = {mode_json}
+
+with log_path.open("a", encoding="utf-8") as handle:
+    handle.write(json.dumps(payload) + "\n")
+
+event_name = payload.get("hook_event_name")
+if mode == "pre_stop" and event_name == "PreCompact":
+    print(json.dumps({{"continue": False, "stopReason": "pre compact blocked"}}))
+elif mode == "post_stop" and event_name == "PostCompact":
+    print(json.dumps({{"continue": False, "stopReason": "post compact paused"}}))
+else:
+    print(json.dumps({{}}))
+"#,
+        log_path = log_path.display(),
+        mode_json = mode_json,
+    );
+    let hooks = serde_json::json!({
+        "hooks": {
+            "PreCompact": [{
+                "hooks": [{
+                    "type": "command",
+                    "command": format!("python3 {}", script_path.display()),
+                    "statusMessage": "running pre compact hook",
+                }]
+            }],
+            "PostCompact": [{
+                "hooks": [{
+                    "type": "command",
+                    "command": format!("python3 {}", script_path.display()),
+                    "statusMessage": "running post compact hook",
+                }]
+            }]
+        }
+    });
+
+    fs::write(&script_path, script).expect("write compact hook script");
+    fs::write(home.join("hooks.json"), hooks.to_string()).expect("write compact hooks config");
+}
+
+fn read_compact_hook_events(home: &Path, mode: &str) -> Vec<String> {
+    let log_path = home.join(format!("compact_hook_{mode}.jsonl"));
+    if !log_path.exists() {
+        return Vec::new();
+    }
+
+    fs::read_to_string(&log_path)
+        .expect("read compact hook log")
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let value: serde_json::Value =
+                serde_json::from_str(line).expect("parse compact hook input");
+            value["hook_event_name"]
+                .as_str()
+                .expect("compact hook event name")
+                .to_string()
+        })
+        .collect()
 }
 
 fn context_snapshot_options() -> ContextSnapshotOptions {
@@ -2969,6 +3044,132 @@ async fn snapshot_request_shape_remote_manual_compact_without_previous_user_mess
             "Remote manual /compact with no prior user turn skips the remote compact request; the follow-up turn carries canonical context and new user message.",
             &[("Remote Post-Compaction History Layout", &follow_up_request)]
         )
+    );
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn remote_compact_hooks_run_around_success() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = TestThinWedgeHarness::with_builder(
+        test_thinwedge()
+            .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
+            .with_pre_build_hook(|home| write_compact_hook_fixture(home, "continue"))
+            .with_config(|config| {
+                config
+                    .features
+                    .enable(Feature::ThinWedgeHooks)
+                    .expect("enable compact hooks");
+            }),
+    )
+    .await?;
+    let thinwedge = harness.test().thinwedge.clone();
+    let responses_mock = responses::mount_sse_once(
+        harness.server(),
+        responses::sse(vec![
+            responses::ev_assistant_message("m1", "REMOTE_HOOK_SETUP"),
+            responses::ev_completed("resp-setup"),
+        ]),
+    )
+    .await;
+    let compact_mock = responses::mount_compact_json_once(
+        harness.server(),
+        serde_json::json!({ "output": compacted_summary_only_output("REMOTE_HOOK_SUMMARY") }),
+    )
+    .await;
+
+    thinwedge
+        .submit(Op::UserInput {
+            environments: None,
+            items: vec![UserInput::Text {
+                text: "seed remote compact".into(),
+                text_elements: Vec::new(),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+        })
+        .await?;
+    wait_for_turn_complete(&thinwedge).await;
+
+    thinwedge.submit(Op::Compact).await?;
+    wait_for_turn_complete(&thinwedge).await;
+    assert_eq!(responses_mock.requests().len(), 1);
+
+    assert_eq!(
+        read_compact_hook_events(harness.test().thinwedge_home_path(), "continue"),
+        vec!["PreCompact".to_string(), "PostCompact".to_string()]
+    );
+    assert_eq!(compact_mock.requests().len(), 1);
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn remote_pre_compact_hook_can_stop_before_compact_endpoint() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let harness = TestThinWedgeHarness::with_builder(
+        test_thinwedge()
+            .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
+            .with_pre_build_hook(|home| write_compact_hook_fixture(home, "pre_stop"))
+            .with_config(|config| {
+                config
+                    .features
+                    .enable(Feature::ThinWedgeHooks)
+                    .expect("enable compact hooks");
+            }),
+    )
+    .await?;
+    let thinwedge = harness.test().thinwedge.clone();
+    let responses_mock = responses::mount_sse_once(
+        harness.server(),
+        responses::sse(vec![
+            responses::ev_assistant_message("m1", "REMOTE_HOOK_SETUP"),
+            responses::ev_completed("resp-setup"),
+        ]),
+    )
+    .await;
+    let compact_mock = responses::mount_compact_json_once(
+        harness.server(),
+        serde_json::json!({ "output": compacted_summary_only_output("REMOTE_HOOK_SUMMARY") }),
+    )
+    .await;
+
+    thinwedge
+        .submit(Op::UserInput {
+            environments: None,
+            items: vec![UserInput::Text {
+                text: "seed remote compact".into(),
+                text_elements: Vec::new(),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+        })
+        .await?;
+    wait_for_turn_complete(&thinwedge).await;
+
+    thinwedge.submit(Op::Compact).await?;
+    wait_for_event(&thinwedge, |ev| {
+        matches!(
+            ev,
+            EventMsg::HookCompleted(event)
+                if event.run.event_name == HookEventName::PreCompact
+                    && event.run.status == HookRunStatus::Stopped
+        )
+    })
+    .await;
+    assert_eq!(responses_mock.requests().len(), 1);
+
+    assert_eq!(
+        read_compact_hook_events(harness.test().thinwedge_home_path(), "pre_stop"),
+        vec!["PreCompact".to_string()]
+    );
+    assert_eq!(
+        compact_mock.requests().len(),
+        0,
+        "PreCompact stop should prevent the remote compact endpoint call"
     );
 
     Ok(())

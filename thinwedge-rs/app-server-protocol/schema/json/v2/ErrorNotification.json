@@ -1,6 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
+    "NonSteerableTurnKind": {
+      "enum": [
+        "review",
+        "compact"
+      ],
+      "type": "string"
+    },
     "ThinWedgeErrorInfo": {
       "description": "This translation layer make sure that we expose thinwedge error code in camel case.\n\nWhen an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `thinwedgeErrorInfo` variant.",
       "oneOf": [
@@ -138,13 +145,6 @@
         }
       ]
     },
-    "NonSteerableTurnKind": {
-      "enum": [
-        "review",
-        "compact"
-      ],
-      "type": "string"
-    },
     "TurnError": {
       "properties": {
         "additionalDetails": {
@@ -153,6 +153,9 @@
             "string",
             "null"
           ]
+        },
+        "message": {
+          "type": "string"
         },
         "thinwedgeErrorInfo": {
           "anyOf": [
@@ -163,9 +166,6 @@
               "type": "null"
             }
           ]
-        },
-        "message": {
-          "type": "string"
         }
       },
       "required": [

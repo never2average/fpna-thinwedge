@@ -1,26 +1,97 @@
 version: 2.1
 
+# CircleCI is intentionally release-only. Pull-request merge gating lives in
+# GitHub Actions so public OSS PRs use GitHub's free standard hosted runners,
+# while CircleCI credits are reserved for rust-v* tag release and publish jobs.
+
+commands:
+  install_rust:
+    parameters:
+      targets:
+        type: string
+    steps:
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
+            . "$HOME/.cargo/env"
+            mkdir -p "$HOME/.cargo"
+            printf '[net]\ngit-fetch-with-cli = true\n' > "$HOME/.cargo/config.toml"
+            rustup target add << parameters.targets >>
+            cargo --version
+
+  setup_musl_release_env:
+    parameters:
+      target:
+        type: string
+    steps:
+      - run:
+          name: Install Linux musl build dependencies
+          no_output_timeout: 30m
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            export DEBIAN_FRONTEND=noninteractive
+            export NEEDRESTART_MODE=a
+            export NEEDRESTART_SUSPEND=1
+            export APT_LISTCHANGES_FRONTEND=none
+            if [ -d /etc/needrestart/conf.d ]; then
+              printf '%s\n' '$nrconf{restart} = "a";' | sudo tee /etc/needrestart/conf.d/99-circleci.conf >/dev/null
+            fi
+            export TARGET="<< parameters.target >>"
+            env_file="$(mktemp)"
+            export GITHUB_ENV="${env_file}"
+            export RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
+            bash .github/scripts/install-musl-build-tools.sh
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              name="${line%%=*}"
+              value="${line#*=}"
+              case "${name}" in
+                ''|*[!A-Za-z0-9_]*|[0-9]*)
+                  echo "Skipping unsupported env name from ${GITHUB_ENV}: ${name}" >&2
+                  continue
+                  ;;
+              esac
+              printf 'export %s=%q\n' "${name}" "${value}" >> "${BASH_ENV}"
+            done < "${env_file}"
+      - run:
+          name: Configure musl rusty_v8 artifacts
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            export TARGET="<< parameters.target >>"
+            env_file="$(mktemp)"
+            export GITHUB_ENV="${env_file}"
+            export GITHUB_REPOSITORY="never2average/fpna-thinwedge"
+            export GITHUB_WORKSPACE="${PWD}"
+            export RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
+            bash -eo pipefail -c "$(sed -n '/run: |/,$p' .github/actions/setup-rusty-v8-musl/action.yml | sed '1d; s/^        //')"
+            while IFS= read -r line; do
+              [ -n "${line}" ] || continue
+              name="${line%%=*}"
+              value="${line#*=}"
+              case "${name}" in
+                ''|*[!A-Za-z0-9_]*|[0-9]*)
+                  echo "Skipping unsupported env name from ${GITHUB_ENV}: ${name}" >&2
+                  continue
+                  ;;
+              esac
+              printf 'export %s=%q\n' "${name}" "${value}" >> "${BASH_ENV}"
+            done < "${env_file}"
+
 jobs:
-  smoke:
+  pr-status:
     docker:
       - image: cimg/base:stable
     steps:
-      - checkout
       - run:
-          name: Show repo and git context
+          name: CircleCI is release-only
           command: |
             set -euo pipefail
-            echo "repo: ${CIRCLE_PROJECT_REPONAME}"
-            echo "branch: ${CIRCLE_BRANCH:-}"
-            echo "tag: ${CIRCLE_TAG:-}"
-            git rev-parse --short HEAD
-      - run:
-          name: Show workspace contents
-          command: |
-            set -euo pipefail
-            pwd
-            ls -la
-            test -f thinwedge-rs/Cargo.toml
+            echo "CircleCI release jobs run only on rust-v* tags."
+            echo "Pull-request merge gating lives in GitHub Actions."
 
   tag-check:
     docker:
@@ -33,68 +104,110 @@ jobs:
             set -euo pipefail
             test -n "${CIRCLE_TAG:-}"
             [[ "${CIRCLE_TAG}" =~ ^rust-v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)(\.[0-9]+)?)?$ ]]
+
+            tag_commit="$(git rev-parse "${CIRCLE_TAG}^{commit}")"
+            git fetch --force origin main:refs/remotes/origin/main
+            git merge-base --is-ancestor "${tag_commit}" refs/remotes/origin/main \
+              || { echo "Tag ${CIRCLE_TAG} (${tag_commit}) is not reachable from origin/main"; exit 1; }
+
             tag_ver="${CIRCLE_TAG#rust-v}"
             cargo_ver="$(grep -m1 '^version' thinwedge-rs/Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')"
             if [ "${tag_ver}" != "${cargo_ver}" ]; then
               echo "tag ${tag_ver} does not match Cargo.toml ${cargo_ver}"
               exit 1
             fi
+      - run:
+          name: DB sandbox release smoke
+          command: |
+            set -euo pipefail
+            scripts/probes/check-db-sandbox-readiness.sh --dry-run
+            scripts/probes/check-db-sandbox-readiness.sh --source-provider neon --branch-backend none --include-branch-lifecycle --dry-run
+            scripts/probes/check-db-sandbox-readiness.sh --source-provider planetscale --branch-backend none --dry-run
+            python3 -c 'import json; schema = json.load(open("thinwedge-rs/core/config.schema.json", encoding="utf-8")); props = schema.get("properties", {}); assert "db_sandbox" in props, "config schema must expose db_sandbox"; assert "ardent" in props, "config schema must keep optional Ardent settings"'
 
   build-linux-x64:
     machine:
       image: ubuntu-2204:current
-    resource_class: medium
+    resource_class: large
     working_directory: ~/project
     steps:
       - checkout
       - restore_cache:
           keys:
-            - v1-cargo-linux-x64-{{ checksum "thinwedge-rs/Cargo.lock" }}
-            - v1-cargo-linux-x64-
+            - v2-cargo-linux-x64-gnu-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-linux-x64-gnu-
+      - install_rust:
+          targets: x86_64-unknown-linux-gnu
       - run:
-          name: Install Linux build dependencies
-          command: |
-            set -euo pipefail
-            sudo apt-get update
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              build-essential \
-              curl \
-              musl-tools \
-              pkg-config \
-              libcap-dev
-      - run:
-          name: Install Rust toolchain
-          command: |
-            set -euo pipefail
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
-            . "$HOME/.cargo/env"
-            rustup target add x86_64-unknown-linux-musl
-            cargo --version
-      - run:
-          name: Build Linux x64 release binaries
+          name: Build Linux x64 CLI
+          no_output_timeout: 120m
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
             cd thinwedge-rs
-            cargo build --target x86_64-unknown-linux-musl --release \
-              --bin thinwedge \
-              --bin thinwedge-responses-api-proxy
+            CARGO_PROFILE_RELEASE_LTO=thin \
+            AWS_LC_SYS_NO_JITTER_ENTROPY=1 \
+            cargo build --target x86_64-unknown-linux-gnu --release --bin thinwedge --bin thinwedge-linux-sandbox
       - run:
-          name: Stage Linux x64 release assets
+          name: Stage Linux x64 CLI
           command: |
             set -euo pipefail
             base="/tmp/circleci-release"
-            target="x86_64-unknown-linux-musl"
+            target="x86_64-unknown-linux-gnu"
             release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
-
-            mkdir -p "${base}/native/vendor/${target}/thinwedge"
-            mkdir -p "${base}/release-assets"
-
+            mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
             cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
-            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
-            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
+            cp "${release_dir}/thinwedge-linux-sandbox" "${base}/native/vendor/${target}/thinwedge/thinwedge-linux-sandbox"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge thinwedge-linux-sandbox
       - save_cache:
-          key: v1-cargo-linux-x64-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          key: v2-cargo-linux-x64-gnu-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/thinwedge-rs/target
+      - persist_to_workspace:
+          root: /tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-linux-arm64:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: arm.large
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v2-cargo-linux-arm64-gnu-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-linux-arm64-gnu-
+      - install_rust:
+          targets: aarch64-unknown-linux-gnu
+      - run:
+          name: Build Linux ARM64 CLI
+          no_output_timeout: 120m
+          command: |
+            set -euo pipefail
+            . "$HOME/.cargo/env"
+            cd thinwedge-rs
+            CARGO_PROFILE_RELEASE_LTO=thin \
+            AWS_LC_SYS_NO_JITTER_ENTROPY=1 \
+            cargo build --target aarch64-unknown-linux-gnu --release --bin thinwedge --bin thinwedge-linux-sandbox
+      - run:
+          name: Stage Linux ARM64 CLI
+          command: |
+            set -euo pipefail
+            base="/tmp/circleci-release"
+            target="aarch64-unknown-linux-gnu"
+            release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
+            mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
+            cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
+            cp "${release_dir}/thinwedge-linux-sandbox" "${base}/native/vendor/${target}/thinwedge/thinwedge-linux-sandbox"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge thinwedge-linux-sandbox
+      - save_cache:
+          key: v2-cargo-linux-arm64-gnu-{{ checksum "thinwedge-rs/Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - ~/.cargo/git
@@ -115,43 +228,35 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-cargo-macos-{{ checksum "thinwedge-rs/Cargo.lock" }}
-            - v1-cargo-macos-
+            - v2-cargo-macos-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-macos-cli-
+      - install_rust:
+          targets: aarch64-apple-darwin x86_64-apple-darwin
       - run:
-          name: Install Rust toolchain
-          command: |
-            set -euo pipefail
-            curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain 1.93.0
-            . "$HOME/.cargo/env"
-            rustup target add aarch64-apple-darwin x86_64-apple-darwin
-            cargo --version
-      - run:
-          name: Build macOS release binaries
+          name: Build macOS CLI
+          no_output_timeout: 90m
           command: |
             set -euo pipefail
             . "$HOME/.cargo/env"
             cd thinwedge-rs
             for target in aarch64-apple-darwin x86_64-apple-darwin; do
-              cargo build --target "${target}" --release \
-                --bin thinwedge \
-                --bin thinwedge-responses-api-proxy
+              CARGO_PROFILE_RELEASE_LTO=thin \
+              cargo build --target "${target}" --release --bin thinwedge
             done
       - run:
-          name: Stage macOS release assets
+          name: Stage macOS CLI
           command: |
             set -euo pipefail
             base="/tmp/circleci-release"
             mkdir -p "${base}/release-assets"
-
             for target in aarch64-apple-darwin x86_64-apple-darwin; do
               release_dir="$HOME/project/thinwedge-rs/target/${target}/release"
               mkdir -p "${base}/native/vendor/${target}/thinwedge"
               cp "${release_dir}/thinwedge" "${base}/native/vendor/${target}/thinwedge/thinwedge"
               tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge
-              tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-responses-api-proxy-${target}.tar.gz" thinwedge-responses-api-proxy
             done
       - save_cache:
-          key: v1-cargo-macos-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          key: v2-cargo-macos-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
           paths:
             - ~/.cargo/registry
             - ~/.cargo/git
@@ -163,7 +268,147 @@ jobs:
             - native
             - release-assets
 
-  publish-release:
+  build-windows-x64:
+    machine:
+      image: windows-server-2022-gui:current
+      shell: bash.exe -eo pipefail
+    resource_class: windows.large
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v2-cargo-windows-x64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-windows-x64-cli-
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl.exe -sSf -o rustup-init.exe https://win.rustup.rs/x86_64
+            ./rustup-init.exe -y --profile minimal --default-toolchain 1.93.0
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            mkdir -p "$USERPROFILE/.cargo"
+            printf '[net]\ngit-fetch-with-cli = true\n' > "$USERPROFILE/.cargo/config.toml"
+            rustup target add x86_64-pc-windows-msvc
+            cargo --version
+      - run:
+          name: Build Windows x64 CLI and helpers
+          no_output_timeout: 120m
+          command: |
+            set -euo pipefail
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            cd thinwedge-rs
+            target="x86_64-pc-windows-msvc"
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            CARGO_PROFILE_RELEASE_DEBUG=0 \
+            cargo build --target "${target}" --release \
+              --bin thinwedge \
+              --bin thinwedge-windows-sandbox-setup \
+              --bin thinwedge-command-runner
+      - run:
+          name: Stage Windows x64 CLI
+          command: |
+            set -euo pipefail
+            base="$PWD/tmp/circleci-release"
+            target="x86_64-pc-windows-msvc"
+            release_dir="$PWD/thinwedge-rs/target/${target}/release"
+            mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
+            cp "${release_dir}/thinwedge.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge.exe"
+            cp "${release_dir}/thinwedge-windows-sandbox-setup.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-windows-sandbox-setup.exe"
+            cp "${release_dir}/thinwedge-command-runner.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-command-runner.exe"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge.exe
+      - save_cache:
+          key: v2-cargo-windows-x64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/thinwedge-rs/target
+      - persist_to_workspace:
+          root: tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  build-windows-arm64:
+    machine:
+      image: windows-server-2022-gui:current
+      shell: bash.exe -eo pipefail
+    resource_class: windows.large
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - v2-cargo-windows-arm64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+            - v2-cargo-windows-arm64-cli-
+      - run:
+          name: Install Rust toolchain
+          command: |
+            set -euo pipefail
+            curl.exe -sSf -o rustup-init.exe https://win.rustup.rs/x86_64
+            ./rustup-init.exe -y --profile minimal --default-toolchain 1.93.0
+            export PATH="$USERPROFILE/.cargo/bin:$PATH"
+            mkdir -p "$USERPROFILE/.cargo"
+            printf '[net]\ngit-fetch-with-cli = true\n' > "$USERPROFILE/.cargo/config.toml"
+            rustup target add aarch64-pc-windows-msvc
+            choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+            choco install ninja -y
+            choco install llvm -y
+            export PATH="/c/Program Files/CMake/bin:$PATH"
+            cmake --version
+            ninja --version
+            cargo --version
+      - run:
+          name: Build Windows ARM64 CLI and helpers
+          no_output_timeout: 120m
+          command: |
+            set -euo pipefail
+            export PATH="$USERPROFILE/.cargo/bin:/c/Program Files/CMake/bin:/c/Program Files/LLVM/bin:/c/ProgramData/chocolatey/bin:$PATH"
+            export CMAKE="C:/Program Files/CMake/bin/cmake.exe"
+            export CMAKE_aarch64_pc_windows_msvc="$CMAKE"
+            export CC_aarch64_pc_windows_msvc=clang
+            cmake --version
+            clang --version
+            rustc --version
+            cargo --version
+            cd thinwedge-rs
+            target="aarch64-pc-windows-msvc"
+            CARGO_PROFILE_RELEASE_LTO=false \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            CARGO_PROFILE_RELEASE_DEBUG=0 \
+            AWS_LC_SYS_CMAKE_BUILDER_aarch64_pc_windows_msvc=1 \
+            cargo build --target "${target}" --release \
+              --bin thinwedge \
+              --bin thinwedge-windows-sandbox-setup \
+              --bin thinwedge-command-runner
+      - run:
+          name: Stage Windows ARM64 CLI
+          command: |
+            set -euo pipefail
+            base="$PWD/tmp/circleci-release"
+            target="aarch64-pc-windows-msvc"
+            release_dir="$PWD/thinwedge-rs/target/${target}/release"
+            mkdir -p "${base}/native/vendor/${target}/thinwedge" "${base}/release-assets"
+            cp "${release_dir}/thinwedge.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge.exe"
+            cp "${release_dir}/thinwedge-windows-sandbox-setup.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-windows-sandbox-setup.exe"
+            cp "${release_dir}/thinwedge-command-runner.exe" "${base}/native/vendor/${target}/thinwedge/thinwedge-command-runner.exe"
+            tar -C "${release_dir}" -czf "${base}/release-assets/thinwedge-${target}.tar.gz" thinwedge.exe
+      - save_cache:
+          key: v2-cargo-windows-arm64-cli-{{ checksum "thinwedge-rs/Cargo.lock" }}
+          paths:
+            - ~/.cargo/registry
+            - ~/.cargo/git
+            - ~/.rustup
+            - ~/project/thinwedge-rs/target
+      - persist_to_workspace:
+          root: tmp/circleci-release
+          paths:
+            - native
+            - release-assets
+
+  publish-cli:
     docker:
       - image: cimg/node:24.11
     working_directory: ~/project
@@ -185,25 +430,28 @@ jobs:
             set -euo pipefail
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y gh python3 jq
+            npm --version
       - run:
           name: Prepare npm vendor tree
           command: |
             set -euo pipefail
             python3 thinwedge-cli/scripts/install_native_deps.py --component rg "${CIRCLECI_RELEASE_ROOT}/native"
+            find "${CIRCLECI_RELEASE_ROOT}/native/vendor" -maxdepth 3 -type f | sort
       - run:
           name: Build npm tarballs
-          environment:
-            VERSION: << pipeline.git.tag >>
           command: |
             set -euo pipefail
             version="${CIRCLE_TAG#rust-v}"
             vendor_src="${CIRCLECI_RELEASE_ROOT}/native/vendor"
             mkdir -p dist/npm
             packages=(
-              thinwedge
               thinwedge-linux-x64
+              thinwedge-linux-arm64
               thinwedge-darwin-x64
               thinwedge-darwin-arm64
+              thinwedge-win32-x64
+              thinwedge-win32-arm64
+              thinwedge
             )
 
             for package in "${packages[@]}"; do
@@ -228,6 +476,7 @@ jobs:
           name: Stage GitHub release assets
           command: |
             set -euo pipefail
+            mkdir -p dist
             cp scripts/install/install.sh dist/install.sh
             cp scripts/install/install.ps1 dist/install.ps1
             cp thinwedge-rs/core/config.schema.json dist/config-schema.json
@@ -257,6 +506,8 @@ jobs:
           name: Publish npm packages
           command: |
             set -euo pipefail
+            npm config set //registry.npmjs.org/:_authToken "${NPM_TOKEN}"
+
             version="${CIRCLE_TAG#rust-v}"
             prefix=""
             if [[ "${version}" == *-alpha.* ]]; then
@@ -269,9 +520,19 @@ jobs:
             root_tarball="dist/npm/thinwedge-cli-npm-${version}.tgz"
             platform_tarballs=(
               "dist/npm/thinwedge-cli-npm-linux-x64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-linux-arm64-${version}.tgz"
               "dist/npm/thinwedge-cli-npm-darwin-x64-${version}.tgz"
               "dist/npm/thinwedge-cli-npm-darwin-arm64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-win32-x64-${version}.tgz"
+              "dist/npm/thinwedge-cli-npm-win32-arm64-${version}.tgz"
             )
+
+            for required_tarball in "${platform_tarballs[@]}" "${root_tarball}"; do
+              if [[ ! -f "${required_tarball}" ]]; then
+                echo "Missing npm tarball: ${required_tarball}"
+                exit 1
+              fi
+            done
 
             tarballs=(
               "${platform_tarballs[@]}"
@@ -283,7 +544,7 @@ jobs:
               tag=""
 
               case "${filename}" in
-                thinwedge-cli-npm-linux-*-"${version}".tgz|thinwedge-cli-npm-darwin-*-"${version}".tgz)
+                thinwedge-cli-npm-linux-*-"${version}".tgz|thinwedge-cli-npm-darwin-*-"${version}".tgz|thinwedge-cli-npm-win32-*-"${version}".tgz)
                   platform="${filename#thinwedge-cli-npm-}"
                   platform="${platform%-${version}.tgz}"
                   tag="${prefix}${platform}"
@@ -291,14 +552,15 @@ jobs:
                 thinwedge-cli-npm-"${version}".tgz)
                   tag="${npm_tag}"
                   ;;
+                *)
+                  echo "Unexpected npm tarball: ${filename}"
+                  exit 1
+                  ;;
               esac
 
-              publish_cmd=(npm publish "${PWD}/${tarball}")
+              publish_cmd=(npm publish "${PWD}/${tarball}" --access public)
               if [[ -n "${tag}" ]]; then
                 publish_cmd+=(--tag "${tag}")
-              fi
-              if [[ -z "${tag}" ]]; then
-                publish_cmd+=(--access public)
               fi
 
               echo "+ ${publish_cmd[*]}"
@@ -318,15 +580,16 @@ jobs:
             done
 
 workflows:
-  ci:
+  release:
+    # Release builds are expensive. If a transient runner or network failure
+    # breaks one leg, CircleCI reruns only the failed job and blocked downstream
+    # publish job instead of rebuilding every successful platform artifact.
+    max_auto_reruns: 2
     jobs:
-      - smoke:
+      - pr-status:
           filters:
             tags:
               ignore: /.*/
-
-  release:
-    jobs:
       - tag-check:
           filters:
             branches:
@@ -334,6 +597,14 @@ workflows:
             tags:
               only: /^rust-v.*/
       - build-linux-x64:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-linux-arm64:
           requires:
             - tag-check
           filters:
@@ -349,10 +620,29 @@ workflows:
               ignore: /.*/
             tags:
               only: /^rust-v.*/
-      - publish-release:
+      - build-windows-x64:
+          requires:
+            - tag-check
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - build-windows-arm64:
+          requires:
+            - build-windows-x64
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^rust-v.*/
+      - publish-cli:
           requires:
             - build-linux-x64
+            - build-linux-arm64
             - build-macos
+            - build-windows-x64
+            - build-windows-arm64
           filters:
             branches:
               ignore: /.*/

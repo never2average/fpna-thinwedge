@@ -28,7 +28,6 @@ export type { AppsListResponse } from "./AppsListResponse";
 export type { AskForApproval } from "./AskForApproval";
 export type { AutoReviewDecisionSource } from "./AutoReviewDecisionSource";
 export type { ByteRange } from "./ByteRange";
-export type { ThinWedgeErrorInfo } from "./ThinWedgeErrorInfo";
 export type { CollabAgentState } from "./CollabAgentState";
 export type { CollabAgentStatus } from "./CollabAgentStatus";
 export type { CollabAgentTool } from "./CollabAgentTool";
@@ -317,6 +316,7 @@ export type { TerminalInteractionNotification } from "./TerminalInteractionNotif
 export type { TextElement } from "./TextElement";
 export type { TextPosition } from "./TextPosition";
 export type { TextRange } from "./TextRange";
+export type { ThinWedgeErrorInfo } from "./ThinWedgeErrorInfo";
 export type { Thread } from "./Thread";
 export type { ThreadActiveFlag } from "./ThreadActiveFlag";
 export type { ThreadApproveGuardianDeniedActionParams } from "./ThreadApproveGuardianDeniedActionParams";

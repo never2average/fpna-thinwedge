@@ -567,6 +567,29 @@ async fn sync_thinwedge_plugins_repo_skips_archive_download_when_sha_matches() {
 }
 
 #[tokio::test]
+async fn sync_thinwedge_plugins_repo_disables_export_archive_without_url() {
+    let tmp = tempdir().expect("tempdir");
+    let server = MockServer::start().await;
+
+    Mock::given(method("GET"))
+        .and(path("/repos/thinwedge/plugins"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("github repo lookup failed"))
+        .mount(&server)
+        .await;
+
+    let err = run_sync_with_transport_overrides(
+        tmp.path().to_path_buf(),
+        "missing-git-for-test",
+        server.uri(),
+        "",
+    )
+    .await
+    .expect_err("missing export fallback URL should fail closed");
+
+    assert!(err.contains(CURATED_PLUGINS_BACKUP_ARCHIVE_API_URL_ENV));
+}
+
+#[tokio::test]
 async fn sync_thinwedge_plugins_repo_falls_back_to_export_archive_when_no_snapshot_exists() {
     let tmp = tempdir().expect("tempdir");
     let server = MockServer::start().await;

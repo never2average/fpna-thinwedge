@@ -11,11 +11,15 @@ use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_arg0::arg0_dispatch_or_else;
 use thinwedge_chatgpt::apply_command::ApplyCommand;
 use thinwedge_chatgpt::apply_command::run_apply_command;
+use thinwedge_cli::ArdentCli;
+use thinwedge_cli::DbSandboxCli;
 use thinwedge_cli::LandlockCommand;
 use thinwedge_cli::SeatbeltCommand;
 use thinwedge_cli::WindowsCommand;
 use thinwedge_cli::read_agent_identity_from_stdin;
 use thinwedge_cli::read_api_key_from_stdin;
+use thinwedge_cli::run_ardent_cli;
+use thinwedge_cli::run_db_sandbox_cli;
 use thinwedge_cli::run_login_status;
 use thinwedge_cli::run_login_with_agent_identity;
 use thinwedge_cli::run_login_with_api_key;
@@ -56,6 +60,7 @@ use thinwedge_features::FEATURES;
 use thinwedge_features::Stage;
 use thinwedge_features::is_known_feature_key;
 use thinwedge_login::AuthManager;
+use thinwedge_login::read_preferred_api_key_from_env;
 use thinwedge_memories_write::clear_memory_roots_contents;
 use thinwedge_models_manager::bundled_models_response;
 use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
@@ -111,6 +116,13 @@ enum Subcommand {
 
     /// Remove stored authentication credentials.
     Logout(LogoutCommand),
+
+    /// Manage optional Ardent database sandboxes for finance agents.
+    Ardent(ArdentCli),
+
+    /// Configure and preflight DB sandbox providers for finance agents.
+    #[clap(name = "db-sandbox")]
+    DbSandbox(DbSandboxCli),
 
     /// Manage external MCP servers for ThinWedge.
     Mcp(McpCli),
@@ -983,6 +995,26 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                         let agent_identity = read_agent_identity_from_stdin();
                         run_login_with_agent_identity(login_cli.config_overrides, agent_identity)
                             .await;
+                    } else if read_preferred_api_key_from_env().is_none()
+                        && std::io::stdin().is_terminal()
+                        && std::io::stderr().is_terminal()
+                    {
+                        eprintln!(
+                            "OPENROUTER_API_KEY is not set. Opening ThinWedge's interactive login."
+                        );
+                        let mut login_interactive = TuiCli::parse_from(["thinwedge"]);
+                        prepend_config_flags(
+                            &mut login_interactive.config_overrides,
+                            login_cli.config_overrides,
+                        );
+                        let exit_info = run_interactive_tui(
+                            login_interactive,
+                            root_remote.clone(),
+                            root_remote_auth_token_env.clone(),
+                            arg0_paths.clone(),
+                        )
+                        .await?;
+                        handle_app_exit(exit_info)?;
                     } else {
                         run_login_with_preferred_api_key(login_cli.config_overrides).await;
                     }
@@ -1000,6 +1032,30 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_config_overrides.clone(),
             );
             run_logout(logout_cli.config_overrides).await;
+        }
+        Some(Subcommand::Ardent(mut ardent_cli)) => {
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "ardent",
+            )?;
+            prepend_config_flags(
+                &mut ardent_cli.config_overrides,
+                root_config_overrides.clone(),
+            );
+            run_ardent_cli(ardent_cli).await?;
+        }
+        Some(Subcommand::DbSandbox(mut db_sandbox_cli)) => {
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "db-sandbox",
+            )?;
+            prepend_config_flags(
+                &mut db_sandbox_cli.config_overrides,
+                root_config_overrides.clone(),
+            );
+            run_db_sandbox_cli(db_sandbox_cli).await?;
         }
         Some(Subcommand::Completion(completion_cli)) => {
             reject_remote_mode_for_subcommand(

@@ -12,6 +12,10 @@ use thinwedge_protocol::protocol::HookRunSummary;
 use thinwedge_protocol::protocol::HookSource;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
+use crate::events::compact::PostCompactRequest;
+use crate::events::compact::PreCompactOutcome;
+use crate::events::compact::PreCompactRequest;
+use crate::events::compact::StatelessHookOutcome;
 use crate::events::permission_request::PermissionRequestOutcome;
 use crate::events::permission_request::PermissionRequestRequest;
 use crate::events::post_tool_use::PostToolUseOutcome;
@@ -60,6 +64,8 @@ impl ConfiguredHandler {
             thinwedge_protocol::protocol::HookEventName::PreToolUse => "pre-tool-use",
             thinwedge_protocol::protocol::HookEventName::PermissionRequest => "permission-request",
             thinwedge_protocol::protocol::HookEventName::PostToolUse => "post-tool-use",
+            thinwedge_protocol::protocol::HookEventName::PreCompact => "pre-compact",
+            thinwedge_protocol::protocol::HookEventName::PostCompact => "post-compact",
             thinwedge_protocol::protocol::HookEventName::SessionStart => "session-start",
             thinwedge_protocol::protocol::HookEventName::UserPromptSubmit => "user-prompt-submit",
             thinwedge_protocol::protocol::HookEventName::Stop => "stop",
@@ -132,6 +138,14 @@ impl ClaudeHooksEngine {
         crate::events::post_tool_use::preview(&self.handlers, request)
     }
 
+    pub(crate) fn preview_pre_compact(&self, request: &PreCompactRequest) -> Vec<HookRunSummary> {
+        crate::events::compact::preview_pre(&self.handlers, request)
+    }
+
+    pub(crate) fn preview_post_compact(&self, request: &PostCompactRequest) -> Vec<HookRunSummary> {
+        crate::events::compact::preview_post(&self.handlers, request)
+    }
+
     pub(crate) async fn run_session_start(
         &self,
         request: SessionStartRequest,
@@ -156,6 +170,17 @@ impl ClaudeHooksEngine {
         request: PostToolUseRequest,
     ) -> PostToolUseOutcome {
         crate::events::post_tool_use::run(&self.handlers, &self.shell, request).await
+    }
+
+    pub(crate) async fn run_pre_compact(&self, request: PreCompactRequest) -> PreCompactOutcome {
+        crate::events::compact::run_pre(&self.handlers, &self.shell, request).await
+    }
+
+    pub(crate) async fn run_post_compact(
+        &self,
+        request: PostCompactRequest,
+    ) -> StatelessHookOutcome {
+        crate::events::compact::run_post(&self.handlers, &self.shell, request).await
     }
 
     pub(crate) fn preview_user_prompt_submit(

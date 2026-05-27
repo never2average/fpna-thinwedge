@@ -2489,14 +2489,6 @@
     "InitializeResponse": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
-        "thinwedgeHome": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/v2/AbsolutePathBuf"
-            }
-          ],
-          "description": "Absolute path to the server's $THINWEDGE_HOME directory."
-        },
         "platformFamily": {
           "description": "Platform family for the running app-server target, for example `\"unix\"` or `\"windows\"`.",
           "type": "string"
@@ -2505,14 +2497,22 @@
           "description": "Operating system for the running app-server target, for example `\"macos\"`, `\"linux\"`, or `\"windows\"`.",
           "type": "string"
         },
+        "thinwedgeHome": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/v2/AbsolutePathBuf"
+            }
+          ],
+          "description": "Absolute path to the server's $THINWEDGE_HOME directory."
+        },
         "userAgent": {
           "type": "string"
         }
       },
       "required": [
-        "thinwedgeHome",
         "platformFamily",
         "platformOs",
+        "thinwedgeHome",
         "userAgent"
       ],
       "title": "InitializeResponse",
@@ -5989,143 +5989,6 @@
         ],
         "type": "object"
       },
-      "ThinWedgeErrorInfo": {
-        "description": "This translation layer make sure that we expose thinwedge error code in camel case.\n\nWhen an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `thinwedgeErrorInfo` variant.",
-        "oneOf": [
-          {
-            "enum": [
-              "contextWindowExceeded",
-              "usageLimitExceeded",
-              "serverOverloaded",
-              "cyberPolicy",
-              "internalServerError",
-              "unauthorized",
-              "badRequest",
-              "threadRollbackFailed",
-              "sandboxError",
-              "other"
-            ],
-            "type": "string"
-          },
-          {
-            "additionalProperties": false,
-            "properties": {
-              "httpConnectionFailed": {
-                "properties": {
-                  "httpStatusCode": {
-                    "format": "uint16",
-                    "minimum": 0.0,
-                    "type": [
-                      "integer",
-                      "null"
-                    ]
-                  }
-                },
-                "type": "object"
-              }
-            },
-            "required": [
-              "httpConnectionFailed"
-            ],
-            "title": "HttpConnectionFailedThinWedgeErrorInfo",
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "Failed to connect to the response SSE stream.",
-            "properties": {
-              "responseStreamConnectionFailed": {
-                "properties": {
-                  "httpStatusCode": {
-                    "format": "uint16",
-                    "minimum": 0.0,
-                    "type": [
-                      "integer",
-                      "null"
-                    ]
-                  }
-                },
-                "type": "object"
-              }
-            },
-            "required": [
-              "responseStreamConnectionFailed"
-            ],
-            "title": "ResponseStreamConnectionFailedThinWedgeErrorInfo",
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "The response SSE stream disconnected in the middle of a turn before completion.",
-            "properties": {
-              "responseStreamDisconnected": {
-                "properties": {
-                  "httpStatusCode": {
-                    "format": "uint16",
-                    "minimum": 0.0,
-                    "type": [
-                      "integer",
-                      "null"
-                    ]
-                  }
-                },
-                "type": "object"
-              }
-            },
-            "required": [
-              "responseStreamDisconnected"
-            ],
-            "title": "ResponseStreamDisconnectedThinWedgeErrorInfo",
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "Reached the retry limit for responses.",
-            "properties": {
-              "responseTooManyFailedAttempts": {
-                "properties": {
-                  "httpStatusCode": {
-                    "format": "uint16",
-                    "minimum": 0.0,
-                    "type": [
-                      "integer",
-                      "null"
-                    ]
-                  }
-                },
-                "type": "object"
-              }
-            },
-            "required": [
-              "responseTooManyFailedAttempts"
-            ],
-            "title": "ResponseTooManyFailedAttemptsThinWedgeErrorInfo",
-            "type": "object"
-          },
-          {
-            "additionalProperties": false,
-            "description": "Returned when `turn/start` or `turn/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
-            "properties": {
-              "activeTurnNotSteerable": {
-                "properties": {
-                  "turnKind": {
-                    "$ref": "#/definitions/v2/NonSteerableTurnKind"
-                  }
-                },
-                "required": [
-                  "turnKind"
-                ],
-                "type": "object"
-              }
-            },
-            "required": [
-              "activeTurnNotSteerable"
-            ],
-            "title": "ActiveTurnNotSteerableThinWedgeErrorInfo",
-            "type": "object"
-          }
-        ]
-      },
       "CollabAgentState": {
         "properties": {
           "message": {
@@ -7052,7 +6915,7 @@
           {
             "description": "Path to a .thinwedge/ folder within a project. There could be multiple of these between `cwd` and the project/repo root.",
             "properties": {
-              "dotThinWedgeFolder": {
+              "dotThinwedgeFolder": {
                 "$ref": "#/definitions/v2/AbsolutePathBuf"
               },
               "type": {
@@ -7064,7 +6927,7 @@
               }
             },
             "required": [
-              "dotThinWedgeFolder",
+              "dotThinwedgeFolder",
               "type"
             ],
             "title": "ProjectConfigLayerSource",
@@ -9438,6 +9301,8 @@
           "preToolUse",
           "permissionRequest",
           "postToolUse",
+          "preCompact",
+          "postCompact",
           "sessionStart",
           "userPromptSubmit",
           "stop"
@@ -9976,7 +9841,19 @@
             },
             "type": "array"
           },
+          "PostCompact": {
+            "items": {
+              "$ref": "#/definitions/v2/ConfiguredHookMatcherGroup"
+            },
+            "type": "array"
+          },
           "PostToolUse": {
+            "items": {
+              "$ref": "#/definitions/v2/ConfiguredHookMatcherGroup"
+            },
+            "type": "array"
+          },
+          "PreCompact": {
             "items": {
               "$ref": "#/definitions/v2/ConfiguredHookMatcherGroup"
             },
@@ -10021,7 +9898,9 @@
         },
         "required": [
           "PermissionRequest",
+          "PostCompact",
           "PostToolUse",
+          "PreCompact",
           "PreToolUse",
           "SessionStart",
           "Stop",
@@ -14077,6 +13956,143 @@
         ],
         "type": "object"
       },
+      "ThinWedgeErrorInfo": {
+        "description": "This translation layer make sure that we expose thinwedge error code in camel case.\n\nWhen an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `thinwedgeErrorInfo` variant.",
+        "oneOf": [
+          {
+            "enum": [
+              "contextWindowExceeded",
+              "usageLimitExceeded",
+              "serverOverloaded",
+              "cyberPolicy",
+              "internalServerError",
+              "unauthorized",
+              "badRequest",
+              "threadRollbackFailed",
+              "sandboxError",
+              "other"
+            ],
+            "type": "string"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "httpConnectionFailed": {
+                "properties": {
+                  "httpStatusCode": {
+                    "format": "uint16",
+                    "minimum": 0.0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "httpConnectionFailed"
+            ],
+            "title": "HttpConnectionFailedThinWedgeErrorInfo",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Failed to connect to the response SSE stream.",
+            "properties": {
+              "responseStreamConnectionFailed": {
+                "properties": {
+                  "httpStatusCode": {
+                    "format": "uint16",
+                    "minimum": 0.0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "responseStreamConnectionFailed"
+            ],
+            "title": "ResponseStreamConnectionFailedThinWedgeErrorInfo",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The response SSE stream disconnected in the middle of a turn before completion.",
+            "properties": {
+              "responseStreamDisconnected": {
+                "properties": {
+                  "httpStatusCode": {
+                    "format": "uint16",
+                    "minimum": 0.0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "responseStreamDisconnected"
+            ],
+            "title": "ResponseStreamDisconnectedThinWedgeErrorInfo",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Reached the retry limit for responses.",
+            "properties": {
+              "responseTooManyFailedAttempts": {
+                "properties": {
+                  "httpStatusCode": {
+                    "format": "uint16",
+                    "minimum": 0.0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "required": [
+              "responseTooManyFailedAttempts"
+            ],
+            "title": "ResponseTooManyFailedAttemptsThinWedgeErrorInfo",
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Returned when `turn/start` or `turn/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
+            "properties": {
+              "activeTurnNotSteerable": {
+                "properties": {
+                  "turnKind": {
+                    "$ref": "#/definitions/v2/NonSteerableTurnKind"
+                  }
+                },
+                "required": [
+                  "turnKind"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "activeTurnNotSteerable"
+            ],
+            "title": "ActiveTurnNotSteerableThinWedgeErrorInfo",
+            "type": "object"
+          }
+        ]
+      },
       "Thread": {
         "properties": {
           "agentNickname": {
@@ -16797,6 +16813,9 @@
               "null"
             ]
           },
+          "message": {
+            "type": "string"
+          },
           "thinwedgeErrorInfo": {
             "anyOf": [
               {
@@ -16806,9 +16825,6 @@
                 "type": "null"
               }
             ]
-          },
-          "message": {
-            "type": "string"
           }
         },
         "required": [
