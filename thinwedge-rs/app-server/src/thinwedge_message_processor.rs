@@ -5028,6 +5028,7 @@ impl ThinWedgeMessageProcessor {
             http_headers,
             env_http_headers,
             &resolved_scopes.scopes,
+            server.oauth_client_id(),
             server.oauth_resource.as_deref(),
             timeout_secs,
             config.mcp_oauth_callback_port,

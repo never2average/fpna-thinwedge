@@ -256,6 +256,7 @@ async fn historical_unavailable_mcp_call_is_exposed_as_placeholder_tool() -> Res
                     enabled_tools: None,
                     disabled_tools: None,
                     scopes: None,
+                    oauth: None,
                     oauth_resource: None,
                     tools: HashMap::new(),
                 },

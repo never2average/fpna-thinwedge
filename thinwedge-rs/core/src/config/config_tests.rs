@@ -37,6 +37,7 @@ use thinwedge_config::types::BundledSkillsConfig;
 use thinwedge_config::types::FeedbackConfigToml;
 use thinwedge_config::types::HistoryPersistence;
 use thinwedge_config::types::McpServerEnvVar;
+use thinwedge_config::types::McpServerOAuthConfig;
 use thinwedge_config::types::McpServerToolConfig;
 use thinwedge_config::types::McpServerTransportConfig;
 use thinwedge_config::types::MemoriesConfig;
@@ -108,6 +109,7 @@ fn stdio_mcp(command: &str) -> McpServerConfig {
         enabled_tools: None,
         disabled_tools: None,
         scopes: None,
+        oauth: None,
         oauth_resource: None,
         tools: HashMap::new(),
     }
@@ -132,6 +134,7 @@ fn http_mcp(url: &str) -> McpServerConfig {
         enabled_tools: None,
         disabled_tools: None,
         scopes: None,
+        oauth: None,
         oauth_resource: None,
         tools: HashMap::new(),
     }
@@ -3108,6 +3111,7 @@ async fn replace_mcp_servers_round_trips_entries() -> anyhow::Result<()> {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3368,6 +3372,7 @@ async fn replace_mcp_servers_serializes_env_sorted() -> anyhow::Result<()> {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3444,6 +3449,7 @@ async fn replace_mcp_servers_serializes_env_vars() -> anyhow::Result<()> {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3505,6 +3511,7 @@ async fn replace_mcp_servers_serializes_sourced_env_vars() -> anyhow::Result<()>
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3556,6 +3563,7 @@ async fn replace_mcp_servers_serializes_cwd() -> anyhow::Result<()> {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3610,6 +3618,7 @@ async fn replace_mcp_servers_streamable_http_serializes_bearer_token() -> anyhow
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3680,6 +3689,7 @@ async fn replace_mcp_servers_streamable_http_serializes_custom_headers() -> anyh
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3762,6 +3772,7 @@ async fn replace_mcp_servers_streamable_http_removes_optional_sections() -> anyh
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3797,6 +3808,7 @@ async fn replace_mcp_servers_streamable_http_removes_optional_sections() -> anyh
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -3867,6 +3879,7 @@ async fn replace_mcp_servers_streamable_http_isolates_headers_between_servers() 
                 enabled_tools: None,
                 disabled_tools: None,
                 scopes: None,
+                oauth: None,
                 oauth_resource: None,
                 tools: HashMap::new(),
             },
@@ -3892,6 +3905,7 @@ async fn replace_mcp_servers_streamable_http_isolates_headers_between_servers() 
                 enabled_tools: None,
                 disabled_tools: None,
                 scopes: None,
+                oauth: None,
                 oauth_resource: None,
                 tools: HashMap::new(),
             },
@@ -3980,6 +3994,7 @@ async fn replace_mcp_servers_serializes_disabled_flag() -> anyhow::Result<()> {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -4030,6 +4045,7 @@ async fn replace_mcp_servers_serializes_required_flag() -> anyhow::Result<()> {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -4080,6 +4096,7 @@ async fn replace_mcp_servers_serializes_tool_filters() -> anyhow::Result<()> {
             enabled_tools: Some(vec!["allowed".to_string()]),
             disabled_tools: Some(vec!["blocked".to_string()]),
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         },
@@ -4134,6 +4151,7 @@ async fn replace_mcp_servers_streamable_http_serializes_oauth_resource() -> anyh
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: Some("https://resource.example.com".to_string()),
             tools: HashMap::new(),
         },
@@ -4155,6 +4173,56 @@ async fn replace_mcp_servers_streamable_http_serializes_oauth_resource() -> anyh
         docs.oauth_resource.as_deref(),
         Some("https://resource.example.com")
     );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn replace_mcp_servers_streamable_http_serializes_oauth_client_id() -> anyhow::Result<()> {
+    let thinwedge_home = TempDir::new()?;
+
+    let servers = BTreeMap::from([(
+        "docs".to_string(),
+        McpServerConfig {
+            transport: McpServerTransportConfig::StreamableHttp {
+                url: "https://example.com/mcp".to_string(),
+                bearer_token_env_var: None,
+                http_headers: None,
+                env_http_headers: None,
+            },
+            experimental_environment: None,
+            enabled: true,
+            required: false,
+            supports_parallel_tool_calls: false,
+            disabled_reason: None,
+            startup_timeout_sec: None,
+            tool_timeout_sec: None,
+            default_tools_approval_mode: None,
+            enabled_tools: None,
+            disabled_tools: None,
+            scopes: None,
+            oauth: Some(McpServerOAuthConfig {
+                client_id: Some("eci-prd-pub-thinwedge-123".to_string()),
+            }),
+            oauth_resource: None,
+            tools: HashMap::new(),
+        },
+    )]);
+
+    apply_blocking(
+        thinwedge_home.path(),
+        /*profile*/ None,
+        &[ConfigEdit::ReplaceMcpServers(servers.clone())],
+    )?;
+
+    let config_path = thinwedge_home.path().join(CONFIG_TOML_FILE);
+    let serialized = std::fs::read_to_string(&config_path)?;
+    assert!(serialized.contains("[mcp_servers.docs.oauth]"));
+    assert!(serialized.contains(r#"client_id = "eci-prd-pub-thinwedge-123""#));
+
+    let loaded = load_global_mcp_servers(thinwedge_home.path()).await?;
+    let docs = loaded.get("docs").expect("docs entry");
+    assert_eq!(docs.oauth_client_id(), Some("eci-prd-pub-thinwedge-123"));
 
     Ok(())
 }

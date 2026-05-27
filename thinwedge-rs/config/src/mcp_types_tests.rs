@@ -284,6 +284,24 @@ fn deserialize_streamable_http_server_config_with_oauth_resource() {
 }
 
 #[test]
+fn deserialize_streamable_http_server_config_with_oauth_client_id() {
+    let cfg: McpServerConfig = toml::from_str(
+        r#"
+            url = "https://example.com/mcp"
+
+            [oauth]
+            client_id = "eci-prd-pub-thinwedge-123"
+        "#,
+    )
+    .expect("should deserialize http config with oauth client id");
+
+    assert_eq!(
+        cfg.oauth_client_id(),
+        Some("eci-prd-pub-thinwedge-123")
+    );
+}
+
+#[test]
 fn deserialize_server_config_with_tool_filters() {
     let cfg: McpServerConfig = toml::from_str(
         r#"
@@ -393,6 +411,7 @@ fn deserialize_ignores_unknown_server_fields() {
             enabled_tools: None,
             disabled_tools: None,
             scopes: None,
+            oauth: None,
             oauth_resource: None,
             tools: HashMap::new(),
         }
@@ -450,6 +469,21 @@ fn deserialize_rejects_headers_for_stdio() {
     assert!(
         err.to_string()
             .contains("oauth_resource is not supported for stdio"),
+        "unexpected error: {err}"
+    );
+
+    let err = toml::from_str::<McpServerConfig>(
+        r#"
+            command = "echo"
+
+            [oauth]
+            client_id = "eci-prd-pub-thinwedge-123"
+        "#,
+    )
+    .expect_err("should reject oauth config for stdio transport");
+
+    assert!(
+        err.to_string().contains("oauth is not supported for stdio"),
         "unexpected error: {err}"
     );
 }
