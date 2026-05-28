@@ -581,6 +581,73 @@ jobs:
               exit "${publish_status}"
             done
 
+  publish-npm-root:
+    docker:
+      - image: cimg/node:24.11
+    working_directory: ~/project
+    steps:
+      - checkout
+      - run:
+          name: Verify npm credentials
+          command: |
+            set -euo pipefail
+            test -n "${NPM_TOKEN:-}" || { echo "NPM_TOKEN is required"; exit 1; }
+      - run:
+          name: Install metadata release tooling
+          command: |
+            set -euo pipefail
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3
+            npm --version
+            python3 --version
+      - run:
+          name: Publish root npm package without rebuilding native binaries
+          command: |
+            set -euo pipefail
+            npm config set //registry.npmjs.org/:_authToken "${NPM_TOKEN}"
+
+            version="${CIRCLE_TAG#npm-v}"
+            native_version="${THINWEDGE_NATIVE_PACKAGE_VERSION:-}"
+            if [[ -z "${native_version}" ]]; then
+              native_version="$(
+                npm view @never2average-does-npm/cli@latest optionalDependencies --json \
+                  | node -e '
+                    let input = "";
+                    process.stdin.on("data", chunk => input += chunk);
+                    process.stdin.on("end", () => {
+                      const deps = JSON.parse(input || "{}");
+                      const dep = Object.values(deps)[0] || "";
+                      const match = dep.match(/@([0-9]+\.[0-9]+\.[0-9]+)/);
+                      if (!match) {
+                        throw new Error(`Could not infer native package version from ${dep}`);
+                      }
+                      process.stdout.write(match[1]);
+                    });
+                  '
+              )"
+            fi
+
+            mkdir -p dist/npm
+            python3 thinwedge-cli/scripts/build_npm_package.py \
+              --package thinwedge \
+              --release-version "${version}" \
+              --native-package-version "${native_version}" \
+              --pack-output "dist/npm/thinwedge-cli-npm-${version}.tgz"
+
+            set +e
+            publish_output="$(npm publish "${PWD}/dist/npm/thinwedge-cli-npm-${version}.tgz" --access public 2>&1)"
+            publish_status=$?
+            set -e
+            echo "${publish_output}"
+            if [[ ${publish_status} -eq 0 ]]; then
+              exit 0
+            fi
+            if printf '%s\n' "${publish_output}" | grep -qiE "previously published|cannot publish over|version already exists"; then
+              echo "Skipping already-published package version for ${version}"
+              exit 0
+            fi
+            exit "${publish_status}"
+
 workflows:
   release:
     # Release builds are expensive. If a transient runner or network failure
@@ -650,3 +717,12 @@ workflows:
               ignore: /.*/
             tags:
               only: /^rust-v.*/
+
+  npm-metadata-release:
+    jobs:
+      - publish-npm-root:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^npm-v.*/

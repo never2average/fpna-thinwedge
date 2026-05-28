@@ -36,6 +36,14 @@ reachable from `origin/main` and must match the version in `thinwedge-rs/Cargo.t
 CircleCI then builds the platform binaries, stages release assets, publishes the
 GitHub release, and publishes the npm packages.
 
+Use `rust-v*` only when the native CLI binaries need to change. It rebuilds the
+full Linux, macOS, and Windows matrix.
+
+For README, package metadata, npm-page, or install-copy changes that do not touch
+native binaries, use an `npm-v*` tag instead. The `npm-v*` path publishes only the
+root npm package and reuses the latest already-published platform packages through
+`optionalDependencies`, so it avoids the expensive native Rust matrix.
+
 The old GitHub Actions release workflow has been removed. Do not add an
 automatic GitHub tag-release workflow unless CircleCI publishing is retired in
 the same PR.

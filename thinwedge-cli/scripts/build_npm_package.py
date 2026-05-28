@@ -156,6 +156,13 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Directory containing pre-installed native binaries to bundle (vendor root).",
     )
+    parser.add_argument(
+        "--native-package-version",
+        help=(
+            "Version of already-published native platform packages to reference from "
+            "the root thinwedge npm package. Defaults to the release version."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -176,7 +183,7 @@ def main() -> int:
     staging_dir, created_temp = prepare_staging_dir(args.staging_dir)
 
     try:
-        stage_sources(staging_dir, version, package)
+        stage_sources(staging_dir, version, package, native_package_version=args.native_package_version)
 
         vendor_src = args.vendor_src.resolve() if args.vendor_src else None
         native_components = PACKAGE_NATIVE_COMPONENTS.get(package, [])
@@ -269,7 +276,12 @@ def include_release_notice_files(package_json: dict) -> None:
             files.append(notice_file)
 
 
-def stage_sources(staging_dir: Path, version: str, package: str) -> None:
+def stage_sources(
+    staging_dir: Path,
+    version: str,
+    package: str,
+    native_package_version: str | None = None,
+) -> None:
     package_json: dict
     package_json_path: Path | None = None
 
@@ -346,12 +358,16 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         package_json["publishConfig"] = {"access": "public"}
 
     if package == "thinwedge":
+        platform_version_base = native_package_version or version
         package_json["files"] = ["bin"]
         package_json["optionalDependencies"] = {
-            THINWEDGE_PLATFORM_PACKAGES[platform_package]["npm_name"]: (
-                f"npm:{THINWEDGE_NPM_NAME}@"
-                f"{compute_platform_package_version(version, THINWEDGE_PLATFORM_PACKAGES[platform_package]['npm_tag'])}"
-            )
+            THINWEDGE_PLATFORM_PACKAGES[platform_package]["npm_name"]: "npm:"
+            + THINWEDGE_NPM_NAME
+            + "@"
+            + compute_platform_package_version(
+                    platform_version_base,
+                    THINWEDGE_PLATFORM_PACKAGES[platform_package]['npm_tag'],
+                )
             for platform_package in PACKAGE_EXPANSIONS["thinwedge"]
             if platform_package != "thinwedge"
         }
