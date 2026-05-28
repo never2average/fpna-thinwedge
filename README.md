@@ -1,13 +1,66 @@
 # ThinWedge
 
-ThinWedge is a local FP&A agent terminal for financial modeling, planning analysis,
-statistical-model workflows, and cost research. It runs as a terminal UI and CLI on
-your machine, keeps workspace state under your ThinWedge home directory, and connects
-to provider APIs with an OpenRouter-compatible API token.
+ThinWedge is an open-source CLI for technical finance workflows.
+
+It is built for finance engineers, data engineers, infra engineers, and technical
+FP&A teams who work across spreadsheets, repositories, Postgres, cloud cost data,
+DB sandboxes, approvals, and agent-assisted analysis.
+
+ThinWedge runs locally as a terminal UI and CLI. It keeps workspace state under
+your ThinWedge home directory, connects to provider APIs with an OpenRouter-compatible
+API token, and gives agents controlled access to files, shell commands, local state,
+MCP tools, and finance-specific workflows.
+
+## Try It In 5 Minutes
+
+Install the published npm package:
+
+```shell
+npm install -g @never2average-does-npm/cli
+```
+
+Confirm the CLI resolves:
+
+```shell
+thinwedge --version
+```
+
+Authenticate before starting interactive mode:
+
+```shell
+thinwedge login
+```
+
+Then run one of the smallest useful workflows:
+
+```shell
+thinwedge exec "summarize this repository and identify the finance or data workflows it contains"
+```
+
+Or open the interactive terminal UI:
+
+```shell
+thinwedge
+```
+
+If install fails, open an issue with your OS, CPU architecture, Node version, and
+the exact terminal output:
+
+https://github.com/never2average/fpna-thinwedge/issues
+
+## Current Release
+
+The current public release is available from npm and GitHub:
+
+- npm: `@never2average-does-npm/cli`
+- GitHub Release: https://github.com/never2average/fpna-thinwedge/releases/latest
+- Supported package targets: Linux x64, Linux ARM64, macOS x64, macOS ARM64,
+  Windows x64, and Windows ARM64
+- Linux packages include the separate `thinwedge-linux-sandbox` binary
 
 ## Quick Start
 
-Install ThinWedge globally from npm:
+Install ThinWedge globally from npm if you have not already:
 
 ```shell
 npm install -g @never2average-does-npm/cli
@@ -50,6 +103,21 @@ thinwedge exec "summarize this repository"
 
 Or download a binary from the
 [latest GitHub Release](https://github.com/never2average/fpna-thinwedge/releases/latest).
+
+## Who Should Try It
+
+ThinWedge is most useful if you are close to both finance work and technical
+systems:
+
+- FP&A operators building repeatable spreadsheet, planning, or cost workflows.
+- Finance engineers connecting models, repositories, databases, and approvals.
+- Data engineers supporting finance teams on Postgres or warehouse-backed workflows.
+- Infra engineers who need cost research, usage review, or sandboxed experiments.
+- OSS contributors interested in local-first agent tooling for finance workflows.
+
+ThinWedge is early. The best first feedback is concrete: install output, unclear
+README steps, broken platform behavior, missing connector requests, or one finance
+workflow you want the CLI to handle next.
 
 ## What It Is
 
@@ -231,6 +299,7 @@ ThinWedge includes finance-oriented tool surfaces for:
 
 ## Useful Docs
 
+- [Getting started](./docs/getting-started.md)
 - [Rust workspace](./thinwedge-rs/README.md)
 - [Install and build](./docs/install.md)
 - [Configuration](./docs/config.md)
@@ -242,6 +311,28 @@ ThinWedge includes finance-oriented tool surfaces for:
 - [Code of Conduct](./CODE_OF_CONDUCT.md)
 - [Why open source](./docs/why-open-source.md)
 - [Open source fund](./docs/open-source-fund.md)
+
+## Feedback And Contributions
+
+The fastest way to help is to try the install path and file a precise issue:
+
+```shell
+npm install -g @never2average-does-npm/cli
+thinwedge --version
+thinwedge login
+```
+
+Useful reports include:
+
+- your OS and CPU architecture,
+- your Node and npm versions,
+- the exact command that failed,
+- what you expected ThinWedge to do next,
+- which FP&A, data, infra, or DB-sandbox workflow you want supported.
+
+Open issues here:
+
+https://github.com/never2average/fpna-thinwedge/issues
 
 ## License and Attribution
 

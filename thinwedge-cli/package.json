@@ -1,7 +1,24 @@
 {
   "name": "@never2average-does-npm/cli",
   "version": "0.0.0-dev",
+  "description": "Open-source CLI for technical finance workflows across FP&A, repositories, DB sandboxes, cloud cost analysis, and local agent tooling.",
   "license": "Apache-2.0",
+  "keywords": [
+    "fp&a",
+    "finance",
+    "financial-modeling",
+    "cli",
+    "agent",
+    "db-sandbox",
+    "postgres",
+    "openrouter",
+    "cloud-cost",
+    "terminal-ui"
+  ],
+  "homepage": "https://github.com/never2average/fpna-thinwedge#readme",
+  "bugs": {
+    "url": "https://github.com/never2average/fpna-thinwedge/issues"
+  },
   "bin": {
     "thinwedge": "bin/thinwedge.js"
   },

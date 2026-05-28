@@ -302,13 +302,18 @@ def stage_sources(staging_dir: Path, version: str, package: str) -> None:
         package_json = {
             "name": THINWEDGE_NPM_NAME,
             "version": platform_version,
+            "description": thinwedge_package_json.get("description"),
             "license": thinwedge_package_json.get("license", "Apache-2.0"),
             "os": [platform_package["os"]],
             "cpu": [platform_package["cpu"]],
             "files": ["vendor"],
+            "keywords": thinwedge_package_json.get("keywords"),
+            "homepage": thinwedge_package_json.get("homepage"),
+            "bugs": thinwedge_package_json.get("bugs"),
             "repository": thinwedge_package_json.get("repository"),
             "publishConfig": {"access": "public"},
         }
+        package_json = {key: value for key, value in package_json.items() if value is not None}
 
         engines = thinwedge_package_json.get("engines")
         if isinstance(engines, dict):
