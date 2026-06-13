@@ -491,6 +491,7 @@ jobs:
           command: |
             set -euo pipefail
             version="${CIRCLE_TAG#rust-v}"
+            repo="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
             assets=(
               "${CIRCLECI_RELEASE_ROOT}/release-assets/"*
               dist/npm/*
@@ -499,10 +500,11 @@ jobs:
               dist/config-schema.json
             )
 
-            if gh release view "${CIRCLE_TAG}" >/dev/null 2>&1; then
-              gh release upload "${CIRCLE_TAG}" "${assets[@]}" --clobber
+            if gh release view "${CIRCLE_TAG}" --repo "${repo}" >/dev/null 2>&1; then
+              gh release upload "${CIRCLE_TAG}" "${assets[@]}" --repo "${repo}" --clobber
             else
               gh release create "${CIRCLE_TAG}" "${assets[@]}" \
+                --repo "${repo}" \
                 --title "${version}" \
                 --notes-file /tmp/release-notes.md
             fi
