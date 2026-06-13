@@ -338,7 +338,7 @@ jobs:
     machine:
       image: windows-server-2022-gui:current
       shell: bash.exe -eo pipefail
-    resource_class: windows.xlarge
+    resource_class: windows.large
     working_directory: ~/project
     steps:
       - checkout
@@ -379,7 +379,8 @@ jobs:
             cd thinwedge-rs
             target="aarch64-pc-windows-msvc"
             CARGO_PROFILE_RELEASE_LTO=false \
-            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=16 \
+            CARGO_PROFILE_RELEASE_OPT_LEVEL=1 \
+            CARGO_PROFILE_RELEASE_CODEGEN_UNITS=256 \
             CARGO_PROFILE_RELEASE_DEBUG=0 \
             AWS_LC_SYS_CMAKE_BUILDER_aarch64_pc_windows_msvc=1 \
             cargo build --target "${target}" --release \
