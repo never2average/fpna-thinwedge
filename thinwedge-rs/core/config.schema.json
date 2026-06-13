@@ -234,6 +234,62 @@
       },
       "type": "object"
     },
+    "ArdentConfigToml": {
+      "additionalProperties": false,
+      "description": "Ardent database sandbox settings. These are intentionally non-secret; source database URLs and branch URLs should come from secure stores or command output.",
+      "properties": {
+        "branch_name_prefix": {
+          "description": "Prefix for ephemeral branch names created for agent tasks.",
+          "type": "string"
+        },
+        "branch_ttl_minutes": {
+          "description": "Optional requested branch TTL in minutes when the Ardent CLI supports it.",
+          "format": "uint32",
+          "minimum": 1.0,
+          "type": "integer"
+        },
+        "cli_path": {
+          "description": "Optional Ardent CLI path. Defaults to `ardent` on PATH.",
+          "type": "string"
+        },
+        "data_plane": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/ArdentDataPlaneToml"
+            }
+          ],
+          "description": "Whether Ardent runs in managed infrastructure or customer cloud."
+        },
+        "default_connector": {
+          "description": "Default Ardent connector name or id to use for branch lifecycle commands.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Enables the optional login/configure prompt and Ardent command surface.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "ArdentDataPlaneToml": {
+      "description": "Data plane placement for Ardent-managed database sandboxes.",
+      "oneOf": [
+        {
+          "description": "Ardent-managed infrastructure.",
+          "enum": [
+            "managed"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Customer-managed or bring-your-own-cloud deployment.",
+          "enum": [
+            "byoc"
+          ],
+          "type": "string"
+        }
+      ]
+    },
     "AskForApproval": {
       "description": "Determines the conditions under which the user is consulted to approve running the command proposed by ThinWedge.",
       "oneOf": [
@@ -341,6 +397,25 @@
       },
       "type": "object"
     },
+    "AwsIdentityConfigToml": {
+      "additionalProperties": false,
+      "description": "AWS identity settings used by finance integrations. Local CLI setups may use `aws_profile`; production deployments should prefer a role or an AWS credential provider chain that resolves to narrowly scoped credentials.",
+      "properties": {
+        "aws_profile": {
+          "description": "Optional local AWS CLI profile name. Intended for workstation setup.",
+          "type": "string"
+        },
+        "region": {
+          "description": "Optional AWS region override for this identity.",
+          "type": "string"
+        },
+        "role_arn": {
+          "description": "Optional IAM role ARN for production or managed runtime use.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "BundledSkillsConfig": {
       "additionalProperties": false,
       "properties": {
@@ -441,12 +516,6 @@
               "$ref": "#/definitions/FeatureToml_for_CodeModeConfigToml"
             },
             "code_mode_only": {
-              "type": "boolean"
-            },
-            "thinwedge_git_commit": {
-              "type": "boolean"
-            },
-            "thinwedge_hooks": {
               "type": "boolean"
             },
             "collab": {
@@ -635,6 +704,12 @@
             "terminal_visualization_instructions": {
               "type": "boolean"
             },
+            "thinwedge_git_commit": {
+              "type": "boolean"
+            },
+            "thinwedge_hooks": {
+              "type": "boolean"
+            },
             "token_budget": {
               "type": "boolean"
             },
@@ -774,6 +849,108 @@
         }
       },
       "type": "object"
+    },
+    "DbSandboxBackendToml": {
+      "description": "Branch/sandbox backend that receives a verified source DB connection.",
+      "oneOf": [
+        {
+          "description": "Do not configure a branch backend yet; only validate provider readiness.",
+          "enum": [
+            "none"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Use Ardent to create isolated branch databases.",
+          "enum": [
+            "ardent"
+          ],
+          "type": "string"
+        }
+      ]
+    },
+    "DbSandboxConfigToml": {
+      "additionalProperties": false,
+      "description": "Generic DB sandbox settings. These are intentionally non-secret; API keys and source URLs are referenced by environment-variable name instead of being stored in config.toml.",
+      "properties": {
+        "branch_backend": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/DbSandboxBackendToml"
+            }
+          ],
+          "description": "Optional branch backend. Defaults to `none` unless the user opts into Ardent."
+        },
+        "enabled": {
+          "description": "Enables DB sandbox setup for finance/database agents.",
+          "type": "boolean"
+        },
+        "neon_api_key_env": {
+          "description": "Env var containing the Neon API key.",
+          "type": "string"
+        },
+        "neon_project_id": {
+          "description": "Optional non-secret Neon project id. API keys must still stay in env/secrets.",
+          "type": "string"
+        },
+        "neon_project_id_env": {
+          "description": "Env var containing the Neon project id.",
+          "type": "string"
+        },
+        "provider": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/DbSandboxProviderToml"
+            }
+          ],
+          "description": "Source database provider. Defaults to `neon` in CLI setup flows."
+        },
+        "source_url_env": {
+          "description": "Env var containing a source Postgres URL for generic/Postgres-like providers.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "DbSandboxProviderToml": {
+      "description": "Source database provider used by the finance DB sandbox preflight path.",
+      "oneOf": [
+        {
+          "description": "Neon Postgres. This is the default first-class provider for ThinWedge's DB sandbox setup flow.",
+          "enum": [
+            "neon"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Generic PostgreSQL-compatible source URL.",
+          "enum": [
+            "postgresql"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "AWS RDS Postgres checked through the DB Ops AWS identity.",
+          "enum": [
+            "rds"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Supabase direct Postgres endpoint.",
+          "enum": [
+            "supabase"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "PlanetScale source. Preflight currently records intent and skips live checks.",
+          "enum": [
+            "planetscale"
+          ],
+          "type": "string"
+        }
+      ]
     },
     "DebugConfigLockToml": {
       "additionalProperties": false,
@@ -4430,6 +4607,15 @@
       "description": "Optional product SKU forwarded on host-owned ThinWedge Apps MCP requests.",
       "type": "string"
     },
+    "ardent": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ArdentConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "Optional Ardent database sandbox integration."
+    },
     "audio": {
       "allOf": [
         {
@@ -4454,6 +4640,15 @@
       "minimum": 0.0,
       "type": "integer"
     },
+    "billing": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AwsIdentityConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "AWS identity used for billing and cost-management integrations."
+    },
     "chatgpt_base_url": {
       "description": "Base URL for requests to ChatGPT (as opposed to the OpenAI API).",
       "type": "string"
@@ -4474,6 +4669,24 @@
     "compact_prompt": {
       "description": "Compact prompt used for history compaction.",
       "type": "string"
+    },
+    "db_ops": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/AwsIdentityConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "AWS identity used for database operations such as RDS and Secrets Manager checks."
+    },
+    "db_sandbox": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/DbSandboxConfigToml"
+        }
+      ],
+      "default": null,
+      "description": "Generic finance DB sandbox setup. Secrets are referenced by env var name."
     },
     "debug": {
       "allOf": [
@@ -4596,12 +4809,6 @@
           "$ref": "#/definitions/FeatureToml_for_CodeModeConfigToml"
         },
         "code_mode_only": {
-          "type": "boolean"
-        },
-        "thinwedge_git_commit": {
-          "type": "boolean"
-        },
-        "thinwedge_hooks": {
           "type": "boolean"
         },
         "collab": {
@@ -4788,6 +4995,12 @@
           "type": "boolean"
         },
         "terminal_visualization_instructions": {
+          "type": "boolean"
+        },
+        "thinwedge_git_commit": {
+          "type": "boolean"
+        },
+        "thinwedge_hooks": {
           "type": "boolean"
         },
         "token_budget": {
