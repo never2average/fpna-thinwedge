@@ -486,6 +486,12 @@ jobs:
             cp thinwedge-rs/core/config.schema.json dist/config-schema.json
             git log -1 --format=%B "${CIRCLE_SHA1}" > /tmp/release-notes.md
             echo >> /tmp/release-notes.md
+      - store_artifacts:
+          path: /tmp/circleci-release/release-assets
+          destination: release-assets
+      - store_artifacts:
+          path: dist
+          destination: dist
       - run:
           name: Publish GitHub release assets
           command: |
@@ -500,13 +506,17 @@ jobs:
               dist/config-schema.json
             )
 
-            if gh release view "${CIRCLE_TAG}" --repo "${repo}" >/dev/null 2>&1; then
-              gh release upload "${CIRCLE_TAG}" "${assets[@]}" --repo "${repo}" --clobber
-            else
-              gh release create "${CIRCLE_TAG}" "${assets[@]}" \
-                --repo "${repo}" \
-                --title "${version}" \
-                --notes-file /tmp/release-notes.md
+            if ! {
+              if gh release view "${CIRCLE_TAG}" --repo "${repo}" >/dev/null 2>&1; then
+                gh release upload "${CIRCLE_TAG}" "${assets[@]}" --repo "${repo}" --clobber
+              else
+                gh release create "${CIRCLE_TAG}" "${assets[@]}" \
+                  --repo "${repo}" \
+                  --title "${version}" \
+                  --notes-file /tmp/release-notes.md
+              fi
+            }; then
+              echo "GitHub release publication failed; release assets were stored as CircleCI artifacts." >&2
             fi
       - run:
           name: Publish npm packages
