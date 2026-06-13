@@ -112,12 +112,7 @@ jobs:
               || { echo "Tag ${CIRCLE_TAG} (${tag_commit}) is not reachable from origin/main"; exit 1; }
 
             tag_ver="${CIRCLE_TAG#rust-v}"
-            cargo_ver="$(python3 - <<'PY'
-            import tomllib
-            with open("thinwedge-rs/Cargo.toml", "rb") as f:
-                print(tomllib.load(f)["workspace"]["package"]["version"])
-            PY
-            )"
+            cargo_ver="$(python3 -c 'import tomllib; print(tomllib.load(open("thinwedge-rs/Cargo.toml", "rb"))["workspace"]["package"]["version"])')"
             if [ "${tag_ver}" != "${cargo_ver}" ]; then
               echo "tag ${tag_ver} does not match Cargo.toml ${cargo_ver}"
               exit 1
