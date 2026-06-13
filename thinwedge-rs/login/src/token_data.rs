@@ -72,9 +72,9 @@ impl IdTokenInfo {
 struct IdClaims {
     #[serde(default)]
     email: Option<String>,
-    #[serde(rename = "https://api.thinwedge.com/profile", default)]
+    #[serde(rename = "https://api.openai.com/profile", default)]
     profile: Option<ProfileClaims>,
-    #[serde(rename = "https://api.thinwedge.com/auth", default)]
+    #[serde(rename = "https://api.openai.com/auth", default)]
     auth: Option<AuthClaims>,
 }
 

@@ -6,6 +6,7 @@ use core_test_support::responses::sse_completed;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::TestThinWedge;
+use core_test_support::test_thinwedge::local_selections;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
@@ -17,19 +18,19 @@ use thinwedge_models_manager::manager::RefreshStrategy;
 use thinwedge_models_manager::manager::SharedModelsManager;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::openai_models::ConfigShellToolType;
+use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelInstructionsVariables;
+use thinwedge_protocol::openai_models::ModelMessages;
+use thinwedge_protocol::openai_models::ModelVisibility;
+use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::openai_models::TruncationPolicyConfig;
+use thinwedge_protocol::openai_models::default_input_modalities;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelInstructionsVariables;
-use thinwedge_protocol::thinwedge_models::ModelMessages;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::user_input::UserInput;
 use tokio::time::Duration;
 use tokio::time::Instant;
@@ -60,24 +61,30 @@ fn read_only_text_turn_with_personality(
 ) -> Op {
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::read_only(), test.cwd_path());
-    Op::UserTurn {
-        environments: None,
+    Op::UserInput {
         items: vec![UserInput::Text {
             text: text.into(),
             text_elements: Vec::new(),
         }],
         final_output_json_schema: None,
-        cwd: test.cwd_path().to_path_buf(),
-        approval_policy,
-        approvals_reviewer: None,
-        sandbox_policy,
-        permission_profile,
-        model,
-        effort: test.config.model_reasoning_effort,
-        summary: None,
-        service_tier: None,
-        collaboration_mode: None,
-        personality,
+        responsesapi_client_metadata: None,
+        additional_context: Default::default(),
+        thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+            environments: Some(local_selections(test.config.cwd.clone())),
+            approval_policy: Some(approval_policy),
+            sandbox_policy: Some(sandbox_policy),
+            permission_profile,
+            personality,
+            collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                mode: thinwedge_protocol::config_types::ModeKind::Default,
+                settings: thinwedge_protocol::config_types::Settings {
+                    model,
+                    reasoning_effort: test.config.model_reasoning_effort.clone(),
+                    developer_instructions: None,
+                },
+            }),
+            ..Default::default()
+        },
     }
 }
 
@@ -342,22 +349,14 @@ async fn user_turn_personality_some_adds_update_message() -> anyhow::Result<()> 
     })
     .await;
 
-    test.thinwedge
-        .submit(Op::OverrideTurnContext {
-            cwd: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            permission_profile: None,
-            windows_sandbox_level: None,
-            model: None,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
+    core_test_support::submit_thread_settings(
+        &test.thinwedge,
+        thinwedge_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Friendly),
-        })
-        .await?;
+            ..Default::default()
+        },
+    )
+    .await?;
 
     test.thinwedge
         .submit(read_only_text_turn(
@@ -432,22 +431,14 @@ async fn user_turn_personality_same_value_does_not_add_update_message() -> anyho
     })
     .await;
 
-    test.thinwedge
-        .submit(Op::OverrideTurnContext {
-            cwd: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            permission_profile: None,
-            windows_sandbox_level: None,
-            model: None,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
+    core_test_support::submit_thread_settings(
+        &test.thinwedge,
+        thinwedge_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Pragmatic),
-        })
-        .await?;
+            ..Default::default()
+        },
+    )
+    .await?;
 
     test.thinwedge
         .submit(read_only_text_turn(
@@ -535,22 +526,14 @@ async fn user_turn_personality_skips_if_feature_disabled() -> anyhow::Result<()>
     })
     .await;
 
-    test.thinwedge
-        .submit(Op::OverrideTurnContext {
-            cwd: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            permission_profile: None,
-            windows_sandbox_level: None,
-            model: None,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
+    core_test_support::submit_thread_settings(
+        &test.thinwedge,
+        thinwedge_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Pragmatic),
-        })
-        .await?;
+            ..Default::default()
+        },
+    )
+    .await?;
 
     test.thinwedge
         .submit(read_only_text_turn(
@@ -609,6 +592,8 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
         supported_in_api: true,
         priority: 1,
         additional_speed_tiers: Vec::new(),
+        service_tiers: Vec::new(),
+        default_service_tier: None,
         upgrade: None,
         base_instructions: "base instructions".to_string(),
         model_messages: Some(ModelMessages {
@@ -632,11 +617,16 @@ async fn remote_model_friendly_personality_instructions_with_feature() -> anyhow
         context_window: Some(128_000),
         max_context_window: None,
         auto_compact_token_limit: None,
+        comp_hash: None,
         effective_context_window_percent: 95,
         experimental_supported_tools: Vec::new(),
         input_modalities: default_input_modalities(),
         used_fallback_model_metadata: false,
         supports_search_tool: false,
+        use_responses_lite: false,
+        auto_review_model_override: None,
+        tool_mode: None,
+        multi_agent_version: None,
     };
 
     let _models_mock = mount_models_once(
@@ -720,6 +710,8 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         supported_in_api: true,
         priority: 1,
         additional_speed_tiers: Vec::new(),
+        service_tiers: Vec::new(),
+        default_service_tier: None,
         upgrade: None,
         base_instructions: "base instructions".to_string(),
         model_messages: Some(ModelMessages {
@@ -743,11 +735,16 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
         context_window: Some(128_000),
         max_context_window: None,
         auto_compact_token_limit: None,
+        comp_hash: None,
         effective_context_window_percent: 95,
         experimental_supported_tools: Vec::new(),
         input_modalities: default_input_modalities(),
         used_fallback_model_metadata: false,
         supports_search_tool: false,
+        use_responses_lite: false,
+        auto_review_model_override: None,
+        tool_mode: None,
+        multi_agent_version: None,
     };
 
     let _models_mock = mount_models_once(
@@ -791,22 +788,14 @@ async fn user_turn_personality_remote_model_template_includes_update_message() -
     })
     .await;
 
-    test.thinwedge
-        .submit(Op::OverrideTurnContext {
-            cwd: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            permission_profile: None,
-            windows_sandbox_level: None,
-            model: None,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
+    core_test_support::submit_thread_settings(
+        &test.thinwedge,
+        thinwedge_protocol::protocol::ThreadSettingsOverrides {
             personality: Some(Personality::Friendly),
-        })
-        .await?;
+            ..Default::default()
+        },
+    )
+    .await?;
 
     test.thinwedge
         .submit(read_only_text_turn(

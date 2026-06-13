@@ -226,7 +226,7 @@ mod tests {
                 wiremock::ResponseTemplate::new(200).set_body_raw(
                     serde_json::json!({
                         "data": [
-                            {"id": "thinwedge/gpt-oss-20b"},
+                            {"id": "openai/gpt-oss-20b"},
                         ]
                     })
                     .to_string(),
@@ -238,7 +238,7 @@ mod tests {
 
         let client = LMStudioClient::from_host_root(server.uri());
         let models = client.fetch_models().await.expect("fetch models");
-        assert!(models.contains(&"thinwedge/gpt-oss-20b".to_string()));
+        assert!(models.contains(&"openai/gpt-oss-20b".to_string()));
     }
 
     #[tokio::test]

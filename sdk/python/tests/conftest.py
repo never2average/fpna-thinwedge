@@ -12,5 +12,5 @@ if src_str in sys.path:
 sys.path.insert(0, src_str)
 
 for module_name in list(sys.modules):
-    if module_name == "thinwedge_app_server" or module_name.startswith("thinwedge_app_server."):
+    if module_name == "openai_thinwedge" or module_name.startswith("openai_thinwedge."):
         sys.modules.pop(module_name)

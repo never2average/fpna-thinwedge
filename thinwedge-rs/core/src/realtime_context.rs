@@ -14,6 +14,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use thinwedge_exec_server::LOCAL_FS;
 use thinwedge_git_utils::resolve_root_git_project_for_trust;
+use thinwedge_protocol::models::AgentMessageInputContent;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_thread_store::ListThreadsParams;
 use thinwedge_thread_store::SortDirection;
@@ -237,6 +238,23 @@ fn build_current_thread_section(items: &[ResponseItem]) -> Option<String> {
                     continue;
                 }
                 current_assistant.push(text);
+            }
+            ResponseItem::AgentMessage {
+                author, content, ..
+            } => {
+                let text = content
+                    .iter()
+                    .filter_map(|content| match content {
+                        AgentMessageInputContent::InputText { text } => Some(text.as_str()),
+                        AgentMessageInputContent::EncryptedContent { .. } => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                if text.trim().is_empty() || current_user.is_empty() && current_assistant.is_empty()
+                {
+                    continue;
+                }
+                current_assistant.push(format!("Agent message from {author}:\n{text}"));
             }
             _ => {}
         }

@@ -3,10 +3,9 @@ use crate::config::ConfigBuilder;
 use std::fs;
 use std::path::Path;
 
-use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
 
 pub(crate) const TEST_CURATED_PLUGIN_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
-pub(crate) const TEST_CURATED_PLUGIN_CACHE_VERSION: &str = "01234567";
 
 pub(crate) fn write_file(path: &Path, contents: &str) {
     fs::create_dir_all(path.parent().expect("file should have a parent")).unwrap();
@@ -51,7 +50,7 @@ pub(crate) fn write_curated_plugin(root: &Path, plugin_name: &str) {
     );
 }
 
-pub(crate) fn write_thinwedge_curated_marketplace(root: &Path, plugin_names: &[&str]) {
+pub(crate) fn write_openai_curated_marketplace(root: &Path, plugin_names: &[&str]) {
     let plugins = plugin_names
         .iter()
         .map(|plugin_name| {
@@ -71,7 +70,7 @@ pub(crate) fn write_thinwedge_curated_marketplace(root: &Path, plugin_names: &[&
         &root.join(".agents/plugins/marketplace.json"),
         &format!(
             r#"{{
-  "name": "{THINWEDGE_CURATED_MARKETPLACE_NAME}",
+  "name": "{OPENAI_CURATED_MARKETPLACE_NAME}",
   "plugins": [
 {plugins}
   ]

@@ -7,6 +7,7 @@ version.workspace = true
 [lib]
 name = "thinwedge_memories_write"
 path = "src/lib.rs"
+doctest = false
 
 [lints]
 workspace = true
@@ -20,6 +21,7 @@ thinwedge-config = { workspace = true }
 thinwedge-features = { workspace = true }
 thinwedge-git-utils = { workspace = true }
 thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
 thinwedge-otel = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-rollout = { workspace = true }
@@ -38,6 +40,7 @@ tracing = { workspace = true, features = ["log"] }
 uuid = { workspace = true, features = ["v4", "v5"] }
 
 [dev-dependencies]
+thinwedge-model-provider-info = { workspace = true }
 thinwedge-models-manager = { workspace = true }
 core_test_support = { workspace = true }
 pretty_assertions = { workspace = true }

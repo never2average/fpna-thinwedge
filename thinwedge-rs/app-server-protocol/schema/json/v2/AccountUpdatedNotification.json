@@ -2,10 +2,10 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "definitions": {
     "AuthMode": {
-      "description": "Authentication mode for ThinWedge-backed providers.",
+      "description": "Authentication mode for OpenAI-backed providers.",
       "oneOf": [
         {
-          "description": "ThinWedge API key provided by the caller and stored by ThinWedge.",
+          "description": "OpenAI API key provided by the caller and stored by ThinWedge.",
           "enum": [
             "apikey"
           ],
@@ -19,7 +19,7 @@
           "type": "string"
         },
         {
-          "description": "[UNSTABLE] FOR THINWEDGE INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
+          "description": "[UNSTABLE] FOR OPENAI INTERNAL USE ONLY - DO NOT USE.\n\nChatGPT auth tokens are supplied by an external host app and are only stored in memory. Token refresh must be handled by the external host app.",
           "enum": [
             "chatgptAuthTokens"
           ],
@@ -29,6 +29,20 @@
           "description": "Programmatic ThinWedge auth backed by a registered Agent Identity.",
           "enum": [
             "agentIdentity"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Programmatic ThinWedge auth backed by a personal access token.",
+          "enum": [
+            "personalAccessToken"
+          ],
+          "type": "string"
+        },
+        {
+          "description": "Amazon Bedrock bearer token managed by ThinWedge.",
+          "enum": [
+            "bedrockApiKey"
           ],
           "type": "string"
         }

@@ -12,11 +12,10 @@ outside the current working directory whenever it is available. If `bwrap` is
 present but too old to support
 `--argv0`, the helper keeps using system bubblewrap and switches to a
 no-`--argv0` compatibility path for the inner re-exec. If `bwrap` is missing,
-default public release builds fail closed and ask the user to install system
-bubblewrap. Vendored bubblewrap embedding is available only for explicit
-internal/compliance builds that set `THINWEDGE_ENABLE_VENDORED_BWRAP=1`.
+the helper falls back to the bundled `thinwedge-resources/bwrap` binary shipped
+with ThinWedge.
 ThinWedge also surfaces a startup warning when `bwrap` is missing so users know it
-is falling back to the vendored helper. ThinWedge surfaces the same startup warning
+is falling back to the bundled helper. ThinWedge surfaces the same startup warning
 path when bubblewrap cannot create user namespaces. WSL2 follows the normal
 Linux bubblewrap path. WSL1 is not supported for bubblewrap sandboxing because
 it cannot create the required user namespaces, so ThinWedge rejects sandboxed shell
@@ -29,11 +28,8 @@ commands that would enter the bubblewrap path.
   helper uses it.
 - If `bwrap` is present but too old to support `--argv0`, the helper uses a
   no-`--argv0` compatibility path for the inner re-exec.
-- If `bwrap` is missing, default public release builds fail closed and ask the
-  user to install system bubblewrap.
-- Vendored bubblewrap embedding is opt-in via
-  `THINWEDGE_ENABLE_VENDORED_BWRAP=1` for builds that intentionally satisfy the
-  applicable LGPL obligations.
+- If `bwrap` is missing, the helper falls back to the bundled
+  `thinwedge-resources/bwrap` path.
 - If `bwrap` is missing, ThinWedge also surfaces a startup warning instead of
   printing directly from the sandbox helper.
 - If bubblewrap cannot create user namespaces, ThinWedge surfaces a startup warning
@@ -78,7 +74,7 @@ commands that would enter the bubblewrap path.
   [permissions.workspace.filesystem]
   glob_scan_max_depth = 2
 
-  [permissions.workspace.filesystem.":project_roots"]
+  [permissions.workspace.filesystem.":workspace_roots"]
   "**/*.env" = "none"
   ```
 
@@ -98,4 +94,4 @@ commands that would enter the bubblewrap path.
   you can skip this in restrictive container environments with `--no-proc`.
 
 **Notes**
-- The CLI surface still uses legacy names like `thinwedge debug landlock`.
+- The CLI surface is `thinwedge sandbox`; the host OS selects the sandbox backend.

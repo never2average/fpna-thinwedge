@@ -20,18 +20,20 @@ use tempfile::TempDir;
 use thinwedge_git_utils::GitSha;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::models::ContentItem;
+use thinwedge_protocol::models::PermissionProfile;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::GitInfo;
-use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_thread_store::StoredThread;
 
 fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredThread {
     StoredThread {
         thread_id: ThreadId::new(),
+        extra_config: None,
         rollout_path: Some(PathBuf::from("/tmp/rollout.jsonl")),
         forked_from_id: None,
+        parent_thread_id: None,
         preview: first_user_message.to_string(),
         name: (!title.is_empty()).then(|| title.to_string()),
         model_provider: "test-provider".to_string(),
@@ -49,6 +51,7 @@ fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredThre
         cwd: PathBuf::from(cwd),
         cli_version: "test".to_string(),
         source: SessionSource::Cli,
+        thread_source: None,
         agent_nickname: None,
         agent_role: None,
         agent_path: None,
@@ -58,7 +61,7 @@ fn stored_thread(cwd: &str, title: &str, first_user_message: &str) -> StoredThre
             repository_url: None,
         }),
         approval_mode: AskForApproval::Never,
-        sandbox_policy: SandboxPolicy::new_read_only_policy(),
+        permission_profile: PermissionProfile::read_only(),
         token_usage: None,
         first_user_message: Some(first_user_message.to_string()),
         history: None,

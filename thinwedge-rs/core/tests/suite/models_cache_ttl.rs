@@ -1,3 +1,4 @@
+use core_test_support::test_thinwedge::local_selections;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -22,16 +23,16 @@ use thinwedge_models_manager::client_version_to_whole;
 use thinwedge_models_manager::manager::RefreshStrategy;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_protocol::openai_models::ConfigShellToolType;
+use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelVisibility;
+use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::openai_models::TruncationPolicyConfig;
+use thinwedge_protocol::openai_models::default_input_modalities;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
 use thinwedge_protocol::user_input::UserInput;
 use wiremock::MockServer;
 
@@ -93,24 +94,29 @@ async fn renews_cache_ttl_on_matching_models_etag() -> Result<()> {
         turn_permission_fields(PermissionProfile::Disabled, test.cwd_path());
 
     thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hi".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
-            cwd: test.cwd_path().to_path_buf(),
-            approval_policy: thinwedge_protocol::protocol::AskForApproval::Never,
-            approvals_reviewer: None,
-            sandbox_policy,
-            permission_profile,
-            model: test.session_configured.model.clone(),
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(test.config.cwd.clone())),
+                approval_policy: Some(thinwedge_protocol::protocol::AskForApproval::Never),
+                sandbox_policy: Some(sandbox_policy),
+                permission_profile,
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: test.session_configured.model.clone(),
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await?;
 
@@ -348,6 +354,8 @@ fn test_remote_model(slug: &str, priority: i32) -> ModelInfo {
         supported_in_api: true,
         priority,
         additional_speed_tiers: Vec::new(),
+        service_tiers: Vec::new(),
+        default_service_tier: None,
         upgrade: None,
         base_instructions: "base instructions".to_string(),
         model_messages: None,
@@ -364,10 +372,15 @@ fn test_remote_model(slug: &str, priority: i32) -> ModelInfo {
         context_window: Some(272_000),
         max_context_window: None,
         auto_compact_token_limit: None,
+        comp_hash: None,
         effective_context_window_percent: 95,
         experimental_supported_tools: Vec::new(),
         input_modalities: default_input_modalities(),
         used_fallback_model_metadata: false,
         supports_search_tool: false,
+        use_responses_lite: false,
+        auto_review_model_override: None,
+        tool_mode: None,
+        multi_agent_version: None,
     }
 }

@@ -1,0 +1,25 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-prompts"
+version.workspace = true
+
+[lib]
+doctest = false
+name = "thinwedge_prompts"
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+thinwedge-context-fragments = { workspace = true }
+thinwedge-git-utils = { workspace = true }
+thinwedge-execpolicy = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-template = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

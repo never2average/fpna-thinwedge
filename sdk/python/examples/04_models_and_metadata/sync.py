@@ -9,10 +9,10 @@ from _bootstrap import ensure_local_sdk_src, runtime_config, server_label
 
 ensure_local_sdk_src()
 
-from thinwedge_app_server import ThinWedge
+from openai_thinwedge import ThinWedge
 
 with ThinWedge(config=runtime_config()) as thinwedge:
     print("server:", server_label(thinwedge.metadata))
     models = thinwedge.models()
     print("models.count:", len(models.data))
-    print("models:", ", ".join(model.id for model in models.data[:5]) or "[none]")
+    print("models:", ", ".join(model.id for model in models.data[:5]))

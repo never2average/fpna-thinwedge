@@ -12,6 +12,7 @@ path = "src/main.rs"
 [lib]
 name = "thinwedge_execpolicy_legacy"
 path = "src/lib.rs"
+doctest = false
 
 [lints]
 workspace = true

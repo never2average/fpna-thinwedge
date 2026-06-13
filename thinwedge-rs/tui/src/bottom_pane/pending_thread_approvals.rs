@@ -114,12 +114,12 @@ mod tests {
     #[test]
     fn render_single_thread_snapshot() {
         let mut widget = PendingThreadApprovals::new();
-        widget.set_threads(vec!["Robie [pricing_researcher]".to_string()]);
+        widget.set_threads(vec!["Robie [explorer]".to_string()]);
 
         assert_snapshot!(
             snapshot_rows(&widget, /*width*/ 40).replace(' ', "."),
             @r"
-        ..!.Approval.needed.in.Robie.[pricing_researcher].
+        ..!.Approval.needed.in.Robie.[explorer].
         ..../agent.to.switch.threads............
         "
         );
@@ -130,7 +130,7 @@ mod tests {
         let mut widget = PendingThreadApprovals::new();
         widget.set_threads(vec![
             "Main [default]".to_string(),
-            "Robie [pricing_researcher]".to_string(),
+            "Robie [explorer]".to_string(),
             "Inspector".to_string(),
             "Extra agent".to_string(),
         ]);
@@ -139,7 +139,7 @@ mod tests {
             snapshot_rows(&widget, /*width*/ 44).replace(' ', "."),
             @r"
         ..!.Approval.needed.in.Main.[default].......
-        ..!.Approval.needed.in.Robie.[pricing_researcher].....
+        ..!.Approval.needed.in.Robie.[explorer].....
         ..!.Approval.needed.in.Inspector............
         ............................................
         ..../agent.to.switch.threads................

@@ -12,6 +12,7 @@ path = "src/main.rs"
 [lib]
 name = "thinwedge_cli"
 path = "src/lib.rs"
+doctest = false
 
 [lints]
 workspace = true
@@ -21,27 +22,35 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 clap_complete = { workspace = true }
 thinwedge-app-server = { workspace = true }
+thinwedge-app-server-daemon = { workspace = true }
 thinwedge-app-server-protocol = { workspace = true }
 thinwedge-app-server-test-client = { workspace = true }
 thinwedge-arg0 = { workspace = true }
+thinwedge-api = { workspace = true }
 thinwedge-chatgpt = { workspace = true }
 thinwedge-cloud-tasks = { path = "../cloud-tasks" }
 thinwedge-utils-cli = { workspace = true }
 thinwedge-config = { workspace = true }
 thinwedge-core = { workspace = true }
 thinwedge-core-plugins = { workspace = true }
+thinwedge-home = { workspace = true }
 thinwedge-exec = { workspace = true }
 thinwedge-exec-server = { workspace = true }
 thinwedge-execpolicy = { workspace = true }
 thinwedge-features = { workspace = true }
+thinwedge-git-utils = { workspace = true }
+thinwedge-install-context = { workspace = true }
 thinwedge-login = { workspace = true }
 thinwedge-memories-write = { workspace = true }
 thinwedge-mcp = { workspace = true }
 thinwedge-mcp-server = { workspace = true }
+thinwedge-model-provider = { workspace = true }
 thinwedge-models-manager = { workspace = true }
+thinwedge-plugin = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-responses-api-proxy = { workspace = true }
 thinwedge-rmcp-client = { workspace = true }
+thinwedge-rollout = { workspace = true }
 thinwedge-rollout-trace = { workspace = true }
 thinwedge-sandboxing = { workspace = true }
 thinwedge-state = { workspace = true }
@@ -50,32 +59,47 @@ thinwedge-terminal-detection = { workspace = true }
 thinwedge-tui = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
 thinwedge-utils-path = { workspace = true }
+crossterm = { workspace = true }
+http = { workspace = true }
 libc = { workspace = true }
+os_info = { workspace = true }
 owo-colors = { workspace = true }
 regex-lite = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 supports-color = { workspace = true }
+sys-locale = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = [
     "io-std",
     "macros",
+    "net",
     "process",
     "rt-multi-thread",
     "signal",
+    "time",
 ] }
 toml = { workspace = true }
-toml_edit = { workspace = true }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
+unicode-segmentation = { workspace = true }
+url = { workspace = true }
+which = { workspace = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 thinwedge_windows_sandbox = { package = "thinwedge-windows-sandbox", path = "../windows-sandbox-rs" }
+windows-sys = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+] }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
 thinwedge-utils-cargo-bin = { workspace = true }
+insta = { workspace = true }
 predicates = { workspace = true }
 pretty_assertions = { workspace = true }
 sqlx = { workspace = true }
+wiremock = { workspace = true }

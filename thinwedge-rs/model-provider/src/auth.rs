@@ -10,8 +10,12 @@ use thinwedge_api::SharedAuthProvider;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_model_provider_info::ModelProviderInfo;
+use thinwedge_protocol::error::ThinWedgeErr;
 
 use crate::bearer_auth_provider::BearerAuthProvider;
+
+const BEDROCK_API_KEY_UNSUPPORTED_MESSAGE: &str =
+    "Bedrock API key auth is only supported by the Amazon Bedrock model provider";
 
 #[derive(Clone, Debug)]
 struct AgentIdentityAuthProvider {
@@ -44,13 +48,13 @@ impl AuthProvider for AgentIdentityAuthProvider {
         }
 
         if self.auth.is_fedramp_account() {
-            let _ = headers.insert("X-ThinWedge-Fedramp", HeaderValue::from_static("true"));
+            let _ = headers.insert("X-OpenAI-Fedramp", HeaderValue::from_static("true"));
         }
     }
 }
 
 // Some providers are meant to send no auth headers. Examples include local OSS
-// providers and custom test providers with `requires_thinwedge_auth = false`.
+// providers and custom test providers with `requires_openai_auth = false`.
 #[derive(Clone, Debug)]
 struct UnauthenticatedAuthProvider;
 
@@ -71,8 +75,7 @@ pub(crate) fn auth_manager_for_provider(
 ) -> Option<Arc<AuthManager>> {
     match provider.auth.clone() {
         Some(config) => Some(AuthManager::external_bearer_only(config)),
-        None if provider.requires_thinwedge_auth => auth_manager,
-        None => None,
+        None => auth_manager,
     }
 }
 
@@ -80,6 +83,12 @@ pub(crate) fn resolve_provider_auth(
     auth: Option<&ThinWedgeAuth>,
     provider: &ModelProviderInfo,
 ) -> thinwedge_protocol::error::Result<SharedAuthProvider> {
+    if matches!(auth, Some(ThinWedgeAuth::BedrockApiKey(_))) {
+        return Err(ThinWedgeErr::UnsupportedOperation(
+            BEDROCK_API_KEY_UNSUPPORTED_MESSAGE.to_string(),
+        ));
+    }
+
     if let Some(auth) = bearer_auth_for_provider(provider)? {
         return Ok(Arc::new(auth));
     }
@@ -110,9 +119,11 @@ pub fn auth_provider_from_auth(auth: &ThinWedgeAuth) -> SharedAuthProvider {
         ThinWedgeAuth::AgentIdentity(auth) => {
             Arc::new(AgentIdentityAuthProvider { auth: auth.clone() })
         }
+        ThinWedgeAuth::BedrockApiKey(_) => unreachable!("{BEDROCK_API_KEY_UNSUPPORTED_MESSAGE}"),
         ThinWedgeAuth::ApiKey(_)
         | ThinWedgeAuth::Chatgpt(_)
-        | ThinWedgeAuth::ChatgptAuthTokens(_) => Arc::new(BearerAuthProvider {
+        | ThinWedgeAuth::ChatgptAuthTokens(_)
+        | ThinWedgeAuth::PersonalAccessToken(_) => Arc::new(BearerAuthProvider {
             token: auth.get_token().ok(),
             account_id: auth.get_account_id(),
             is_fedramp_account: auth.is_fedramp_account(),
@@ -122,6 +133,8 @@ pub fn auth_provider_from_auth(auth: &ThinWedgeAuth) -> SharedAuthProvider {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+    use thinwedge_login::auth::BedrockApiKeyAuth;
     use thinwedge_model_provider_info::WireApi;
     use thinwedge_model_provider_info::create_oss_provider_with_base_url;
 
@@ -134,5 +147,22 @@ mod tests {
         let auth = resolve_provider_auth(/*auth*/ None, &provider).expect("auth should resolve");
 
         assert!(auth.to_auth_headers().is_empty());
+    }
+
+    #[test]
+    fn openai_provider_rejects_bedrock_api_key_auth() {
+        let provider = ModelProviderInfo::create_openai_provider(/*base_url*/ None);
+        let auth = ThinWedgeAuth::BedrockApiKey(BedrockApiKeyAuth {
+            api_key: "bedrock-api-key-test".to_string(),
+            region: "us-east-1".to_string(),
+        });
+
+        match resolve_provider_auth(Some(&auth), &provider) {
+            Err(ThinWedgeErr::UnsupportedOperation(message)) => {
+                assert_eq!(message, BEDROCK_API_KEY_UNSUPPORTED_MESSAGE);
+            }
+            Err(err) => panic!("unexpected auth error: {err:?}"),
+            Ok(_) => panic!("Bedrock API key auth should be rejected"),
+        }
     }
 }

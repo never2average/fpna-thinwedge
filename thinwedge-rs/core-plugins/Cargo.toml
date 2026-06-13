@@ -13,22 +13,29 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+thinwedge-analytics = { workspace = true }
 thinwedge-app-server-protocol = { workspace = true }
 thinwedge-config = { workspace = true }
 thinwedge-core-skills = { workspace = true }
 thinwedge-exec-server = { workspace = true }
 thinwedge-git-utils = { workspace = true }
+thinwedge-hooks = { workspace = true }
 thinwedge-login = { workspace = true }
+thinwedge-mcp = { workspace = true }
 thinwedge-model-provider = { workspace = true }
 thinwedge-otel = { workspace = true }
 thinwedge-plugin = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-path-uri = { workspace = true }
 thinwedge-utils-plugins = { workspace = true }
 chrono = { workspace = true }
 dirs = { workspace = true }
 flate2 = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 reqwest = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 tar = { workspace = true }
@@ -41,8 +48,9 @@ url = { workspace = true }
 zip = { workspace = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
 libc = { workspace = true }
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-test = { workspace = true, features = ["no-env-filter"] }
 wiremock = { workspace = true }

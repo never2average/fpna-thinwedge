@@ -2,6 +2,7 @@ use crate::endpoint::realtime_websocket::protocol_v1::parse_realtime_event_v1;
 use crate::endpoint::realtime_websocket::protocol_v2::parse_realtime_event_v2;
 use serde::Serialize;
 use serde_json::Value;
+use thinwedge_protocol::protocol::ConversationTextRole;
 pub use thinwedge_protocol::protocol::RealtimeAudioFrame;
 pub use thinwedge_protocol::protocol::RealtimeEvent;
 pub use thinwedge_protocol::protocol::RealtimeOutputModality;
@@ -157,7 +158,7 @@ pub(super) struct SessionAudioOutputFormat {
 pub(super) struct ConversationMessageItem {
     #[serde(rename = "type")]
     pub(super) r#type: ConversationItemType,
-    pub(super) role: ConversationRole,
+    pub(super) role: ConversationTextRole,
     pub(super) content: Vec<ConversationItemContent>,
 }
 
@@ -166,12 +167,6 @@ pub(super) struct ConversationMessageItem {
 pub(super) enum ConversationItemType {
     Message,
     FunctionCallOutput,
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(super) enum ConversationRole {
-    User,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -199,7 +194,6 @@ pub(super) struct ConversationItemContent {
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum ConversationContentType {
-    Text,
     InputText,
 }
 

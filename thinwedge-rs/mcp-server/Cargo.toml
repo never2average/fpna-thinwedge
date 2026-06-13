@@ -11,6 +11,7 @@ path = "src/main.rs"
 [lib]
 name = "thinwedge_mcp_server"
 path = "src/lib.rs"
+doctest = false
 
 [lints]
 workspace = true
@@ -20,10 +21,10 @@ anyhow = { workspace = true }
 thinwedge-arg0 = { workspace = true }
 thinwedge-config = { workspace = true }
 thinwedge-core = { workspace = true }
+thinwedge-home = { workspace = true }
 thinwedge-exec-server = { workspace = true }
-thinwedge-features = { workspace = true }
+thinwedge-extension-api = { workspace = true }
 thinwedge-login = { workspace = true }
-thinwedge-models-manager = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-utils-cli = { workspace = true }
 thinwedge-utils-json-to-toml = { workspace = true }

@@ -14,9 +14,9 @@ Use /mcp to list configured MCP tools.
 Run `thinwedge app` to open ThinWedge Desktop (it installs on macOS if needed).
 Use /personality to customize how ThinWedge communicates.
 Use /rename to rename your threads for easier thread resuming.
-Use the ThinWedge docs MCP for API questions; enable it with `thinwedge mcp add thinwedgeDeveloperDocs --url https://developers.thinwedge.com/mcp`.
-Join the ThinWedge community Discord: http://discord.gg/thinwedge
-Visit the ThinWedge community forum: https://community.thinwedge.com/c/thinwedge/37
+Use the OpenAI docs MCP for API questions; enable it with `thinwedge mcp add openaiDeveloperDocs --url https://developers.openai.com/mcp`.
+Join the OpenAI community Discord: http://discord.gg/openai
+Visit the ThinWedge community forum: https://community.openai.com/c/thinwedge/37
 You can run any shell command from ThinWedge using `!` (e.g. `!ls`)
 Type / to open the command popup; Tab autocompletes slash commands.
 When the composer is empty, press Esc to step back and edit your last message; Enter confirms.
@@ -25,4 +25,4 @@ Press Tab to queue a message when a task is running; otherwise it sends immediat
 See the ThinWedge keymap documentation for supported actions and examples.
 Paste an image with Ctrl+V to attach it to your next message.
 You can resume a previous conversation by running `thinwedge resume`
-Use /copy or press Ctrl+O to export prior transcript cells as Excel and Word files.
+Use /copy or press Ctrl+O to copy the latest agent response as Markdown.

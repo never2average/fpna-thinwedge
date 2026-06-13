@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "thinwedge-home",
+    crate_name = "thinwedge_home",
+)

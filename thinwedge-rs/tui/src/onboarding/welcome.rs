@@ -95,21 +95,8 @@ impl WidgetRef for &WelcomeWidget {
             "  ".into(),
             "Welcome to ".into(),
             "ThinWedge".bold(),
-            ", the command-line coding agent".into(),
+            ", OpenAI's command-line coding agent".into(),
         ]));
-        if !self.is_logged_in {
-            lines.push("".into());
-            lines.push(Line::from(vec![
-                "  Required for chat: set ".into(),
-                "OPENROUTER_API_KEY".bold(),
-                " or paste it in the next step.".into(),
-            ]));
-            lines.push(
-                "  Optional later: ARTIFICIAL_ANALYSIS_API_KEY, RUNPOD_API_KEY, and AWS_PROFILE/AWS_REGION."
-                    .dim()
-                    .into(),
-            );
-        }
 
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
@@ -163,24 +150,6 @@ mod tests {
 
         let welcome_row = row_containing(&buf, "Welcome");
         assert_eq!(welcome_row, Some(frame_lines + 1));
-        assert_eq!(
-            row_containing(&buf, "OPENROUTER_API_KEY"),
-            Some(frame_lines + 3)
-        );
-    }
-
-    #[test]
-    fn welcome_omits_key_setup_guidance_when_logged_in() {
-        let widget = WelcomeWidget::new(
-            /*is_logged_in*/ true,
-            FrameRequester::test_dummy(),
-            /*animations_enabled*/ false,
-        );
-        let area = Rect::new(0, 0, MIN_ANIMATION_WIDTH, MIN_ANIMATION_HEIGHT);
-        let mut buf = Buffer::empty(area);
-        (&widget).render(area, &mut buf);
-
-        assert_eq!(row_containing(&buf, "OPENROUTER_API_KEY"), None);
     }
 
     #[test]

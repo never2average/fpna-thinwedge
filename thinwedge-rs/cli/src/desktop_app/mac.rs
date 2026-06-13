@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use tempfile::Builder;
 use tokio::process::Command;
 
-const THINWEDGE_DMG_URL_ARM64: &str = "https://persistent.oaistatic.com/thinwedge-app-prod/ThinWedge.dmg";
+const THINWEDGE_DMG_URL_ARM64: &str =
+    "https://persistent.oaistatic.com/thinwedge-app-prod/ThinWedge.dmg";
 const THINWEDGE_DMG_URL_X64: &str =
     "https://persistent.oaistatic.com/thinwedge-app-prod/ThinWedge-latest-x64.dmg";
 
@@ -72,7 +73,11 @@ fn find_existing_thinwedge_app_path() -> Option<PathBuf> {
 fn candidate_thinwedge_app_paths() -> Vec<PathBuf> {
     let mut paths = vec![PathBuf::from("/Applications/ThinWedge.app")];
     if let Some(home) = std::env::var_os("HOME") {
-        paths.push(PathBuf::from(home).join("Applications").join("ThinWedge.app"));
+        paths.push(
+            PathBuf::from(home)
+                .join("Applications")
+                .join("ThinWedge.app"),
+        );
     }
     paths
 }
@@ -82,10 +87,11 @@ async fn open_thinwedge_app(app_path: &Path, workspace: &Path) -> anyhow::Result
         "Opening workspace {workspace}...",
         workspace = workspace.display()
     );
+    let url = thinwedge_new_thread_url(workspace);
     let status = Command::new("open")
         .arg("-a")
         .arg(app_path)
-        .arg(workspace)
+        .arg(&url)
         .status()
         .await
         .context("failed to invoke `open`")?;
@@ -95,13 +101,23 @@ async fn open_thinwedge_app(app_path: &Path, workspace: &Path) -> anyhow::Result
     }
 
     anyhow::bail!(
-        "`open -a {app_path} {workspace}` exited with {status}",
+        "`open -a {app_path} {url}` exited with {status}",
         app_path = app_path.display(),
-        workspace = workspace.display()
+        url = url
     );
 }
 
-async fn download_and_install_thinwedge_to_user_applications(dmg_url: &str) -> anyhow::Result<PathBuf> {
+fn thinwedge_new_thread_url(workspace: &Path) -> String {
+    let workspace = workspace.as_os_str().to_string_lossy();
+    let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+    serializer.append_pair("path", workspace.as_ref());
+    let query = serializer.finish();
+    format!("thinwedge://threads/new?{query}")
+}
+
+async fn download_and_install_thinwedge_to_user_applications(
+    dmg_url: &str,
+) -> anyhow::Result<PathBuf> {
     let temp_dir = Builder::new()
         .prefix("thinwedge-app-installer-")
         .tempdir()
@@ -120,7 +136,7 @@ async fn download_and_install_thinwedge_to_user_applications(dmg_url: &str) -> a
     );
     let result = async {
         let app_in_volume = find_thinwedge_app_in_mount(&mount_point)
-            .context("failed to locate ThinWedge desktop app in mounted dmg")?;
+            .context("failed to locate ThinWedge.app in mounted dmg")?;
         install_thinwedge_app_bundle(&app_in_volume).await
     }
     .await;
@@ -158,14 +174,14 @@ async fn install_thinwedge_app_bundle(app_in_volume: &Path) -> anyhow::Result<Pa
             Ok(()) => return Ok(dest_app),
             Err(err) => {
                 eprintln!(
-                    "warning: failed to install ThinWedge Desktop to {applications_dir}: {err}",
+                    "warning: failed to install ThinWedge.app to {applications_dir}: {err}",
                     applications_dir = applications_dir.display()
                 );
             }
         }
     }
 
-    anyhow::bail!("failed to install ThinWedge Desktop to any applications directory");
+    anyhow::bail!("failed to install ThinWedge.app to any applications directory");
 }
 
 fn candidate_applications_dirs() -> anyhow::Result<Vec<PathBuf>> {
@@ -294,7 +310,9 @@ fn parse_hdiutil_attach_mount_point(output: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::parse_hdiutil_attach_mount_point;
+    use super::thinwedge_new_thread_url;
     use pretty_assertions::assert_eq;
+    use std::path::Path;
 
     #[test]
     fn parses_mount_point_from_tab_separated_hdiutil_output() {
@@ -311,6 +329,32 @@ mod tests {
         assert_eq!(
             parse_hdiutil_attach_mount_point(output).as_deref(),
             Some("/Volumes/ThinWedge Installer")
+        );
+    }
+
+    #[test]
+    fn thinwedge_new_thread_url_encodes_workspace_path() {
+        let url = url::Url::parse(&thinwedge_new_thread_url(Path::new(
+            "/tmp/thinwedge workspace/#1",
+        )))
+        .expect("deep link should parse");
+
+        assert_eq!(
+            (
+                url.scheme().to_string(),
+                url.host_str().map(str::to_string),
+                url.path().to_string(),
+                url.query_pairs().into_owned().collect::<Vec<_>>(),
+            ),
+            (
+                "thinwedge".to_string(),
+                Some("threads".to_string()),
+                "/new".to_string(),
+                vec![(
+                    "path".to_string(),
+                    "/tmp/thinwedge workspace/#1".to_string()
+                )],
+            )
         );
     }
 }

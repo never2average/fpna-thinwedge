@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use thinwedge_app_server_protocol::Model;
+use thinwedge_app_server_protocol::ModelServiceTier;
 use thinwedge_app_server_protocol::ModelUpgradeInfo;
 use thinwedge_app_server_protocol::ReasoningEffortOption;
 use thinwedge_core::ThreadManager;
 use thinwedge_models_manager::manager::RefreshStrategy;
-use thinwedge_protocol::thinwedge_models::ModelPreset;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::openai_models::ReasoningEffortPreset;
 
 pub async fn supported_models(
     thread_manager: Arc<ThreadManager>,
@@ -43,6 +44,16 @@ fn model_from_preset(preset: ModelPreset) -> Model {
         input_modalities: preset.input_modalities,
         supports_personality: preset.supports_personality,
         additional_speed_tiers: preset.additional_speed_tiers,
+        service_tiers: preset
+            .service_tiers
+            .into_iter()
+            .map(|service_tier| ModelServiceTier {
+                id: service_tier.id,
+                name: service_tier.name,
+                description: service_tier.description,
+            })
+            .collect(),
+        default_service_tier: preset.default_service_tier,
         is_default: preset.is_default,
     }
 }
@@ -51,10 +62,10 @@ fn reasoning_efforts_from_preset(
     efforts: Vec<ReasoningEffortPreset>,
 ) -> Vec<ReasoningEffortOption> {
     efforts
-        .iter()
+        .into_iter()
         .map(|preset| ReasoningEffortOption {
             reasoning_effort: preset.effort,
-            description: preset.description.to_string(),
+            description: preset.description,
         })
         .collect()
 }

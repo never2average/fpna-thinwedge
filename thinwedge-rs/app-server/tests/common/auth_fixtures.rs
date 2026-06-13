@@ -10,6 +10,7 @@ use serde_json::json;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_login::AuthDotJson;
+use thinwedge_login::AuthKeyringBackendKind;
 use thinwedge_login::save_auth;
 use thinwedge_login::token_data::TokenData;
 use thinwedge_login::token_data::parse_chatgpt_jwt_claims;
@@ -128,7 +129,7 @@ pub fn encode_id_token(claims: &ChatGptIdTokenClaims) -> Result<String> {
     }
     if !auth_payload.is_empty() {
         payload.insert(
-            "https://api.thinwedge.com/auth".to_string(),
+            "https://api.openai.com/auth".to_string(),
             serde_json::Value::Object(auth_payload),
         );
     }
@@ -160,11 +161,19 @@ pub fn write_chatgpt_auth(
 
     let auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(tokens),
         last_refresh,
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
 
-    save_auth(thinwedge_home, &auth, cli_auth_credentials_store_mode).context("write auth.json")
+    save_auth(
+        thinwedge_home,
+        &auth,
+        cli_auth_credentials_store_mode,
+        AuthKeyringBackendKind::default(),
+    )
+    .context("write auth.json")
 }

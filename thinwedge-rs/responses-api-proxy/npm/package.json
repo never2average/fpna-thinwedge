@@ -11,10 +11,7 @@
   },
   "files": [
     "bin",
-    "vendor",
-    "LICENSE",
-    "NOTICE",
-    "THIRD_PARTY_NOTICES.md"
+    "vendor"
   ],
   "repository": {
     "type": "git",

@@ -1,7 +1,7 @@
 use crate::memory_extensions_root;
 use std::path::Path;
 use std::sync::LazyLock;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelInfo;
 use thinwedge_utils_output_truncation::TruncationPolicy;
 use thinwedge_utils_output_truncation::truncate_text;
 use thinwedge_utils_template::Template;

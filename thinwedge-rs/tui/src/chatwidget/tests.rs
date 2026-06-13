@@ -1,29 +1,30 @@
 //! Exercises `ChatWidget` event handling and rendering invariants.
 //!
-//! These tests treat the widget as the adapter between `thinwedge_protocol::protocol::EventMsg` inputs and
-//! the TUI output. Many assertions are snapshot-based so that layout regressions and status/header
-//! changes show up as stable, reviewable diffs.
+//! These tests cover both app-server-native inputs and focused widget helpers. Many assertions are
+//! snapshot-based so that layout regressions and status/header changes show up as stable,
+//! reviewable diffs.
 
 pub(super) use super::*;
+pub(super) use crate::app_command::AppCommand as Op;
 pub(super) use crate::app_event::AppEvent;
 pub(super) use crate::app_event::ExitMode;
-#[cfg(not(target_os = "linux"))]
-pub(super) use crate::app_event::RealtimeAudioDeviceKind;
 pub(super) use crate::app_event_sender::AppEventSender;
+pub(super) use crate::approval_events::ApplyPatchApprovalRequestEvent;
+pub(super) use crate::approval_events::ExecApprovalRequestEvent;
 pub(super) use crate::bottom_pane::LocalImageAttachment;
 pub(super) use crate::bottom_pane::MentionBinding;
 pub(super) use crate::bottom_pane::QueuedInputAction;
-pub(super) use crate::chatwidget::realtime::RealtimeConversationPhase;
+pub(super) use crate::diff_model::FileChange;
 pub(super) use crate::history_cell::UserHistoryCell;
 pub(super) use crate::legacy_core::config::Config;
 pub(super) use crate::legacy_core::config::ConfigBuilder;
-pub(super) use crate::legacy_core::config::Constrained;
-pub(super) use crate::legacy_core::config::ConstraintError;
 pub(super) use crate::model_catalog::ModelCatalog;
 pub(super) use crate::test_backend::VT100Backend;
 pub(super) use crate::test_support::PathBufExt;
 pub(super) use crate::test_support::test_path_buf;
 pub(super) use crate::test_support::test_path_display;
+pub(super) use crate::token_usage::TokenUsage;
+pub(super) use crate::token_usage::TokenUsageInfo;
 pub(super) use crate::tui::FrameRequester;
 pub(super) use assert_matches::assert_matches;
 pub(super) use crossterm::event::KeyCode;
@@ -33,9 +34,7 @@ pub(super) use insta::assert_snapshot;
 pub(super) use serde_json::json;
 #[cfg(target_os = "windows")]
 pub(super) use serial_test::serial;
-pub(super) use std::collections::BTreeMap;
 pub(super) use std::collections::HashMap;
-pub(super) use std::collections::HashSet;
 pub(super) use std::path::PathBuf;
 pub(super) use tempfile::NamedTempFile;
 pub(super) use tempfile::tempdir;
@@ -52,10 +51,13 @@ pub(super) use thinwedge_app_server_protocol::CollabAgentTool as AppServerCollab
 pub(super) use thinwedge_app_server_protocol::CollabAgentToolCallStatus as AppServerCollabAgentToolCallStatus;
 pub(super) use thinwedge_app_server_protocol::CommandAction as AppServerCommandAction;
 pub(super) use thinwedge_app_server_protocol::CommandExecutionRequestApprovalParams as AppServerCommandExecutionRequestApprovalParams;
+pub(super) use thinwedge_app_server_protocol::CommandExecutionSource as ExecCommandSource;
 pub(super) use thinwedge_app_server_protocol::CommandExecutionSource as AppServerCommandExecutionSource;
 pub(super) use thinwedge_app_server_protocol::CommandExecutionStatus as AppServerCommandExecutionStatus;
 pub(super) use thinwedge_app_server_protocol::ConfigWarningNotification;
+pub(super) use thinwedge_app_server_protocol::CreditsSnapshot;
 pub(super) use thinwedge_app_server_protocol::ErrorNotification;
+pub(super) use thinwedge_app_server_protocol::ExecPolicyAmendment;
 pub(super) use thinwedge_app_server_protocol::FileUpdateChange;
 pub(super) use thinwedge_app_server_protocol::GuardianApprovalReview;
 pub(super) use thinwedge_app_server_protocol::GuardianApprovalReviewAction as AppServerGuardianApprovalReviewAction;
@@ -80,11 +82,14 @@ pub(super) use thinwedge_app_server_protocol::ItemGuardianApprovalReviewStartedN
 pub(super) use thinwedge_app_server_protocol::ItemStartedNotification;
 pub(super) use thinwedge_app_server_protocol::MarketplaceAddResponse;
 pub(super) use thinwedge_app_server_protocol::MarketplaceInterface;
+pub(super) use thinwedge_app_server_protocol::MarketplaceUpgradeErrorInfo;
+pub(super) use thinwedge_app_server_protocol::MarketplaceUpgradeResponse;
 pub(super) use thinwedge_app_server_protocol::McpServerStartupState;
 pub(super) use thinwedge_app_server_protocol::McpServerStatusDetail;
 pub(super) use thinwedge_app_server_protocol::McpServerStatusUpdatedNotification;
 pub(super) use thinwedge_app_server_protocol::ModelVerification as AppServerModelVerification;
 pub(super) use thinwedge_app_server_protocol::ModelVerificationNotification;
+pub(super) use thinwedge_app_server_protocol::NonSteerableTurnKind;
 pub(super) use thinwedge_app_server_protocol::PatchApplyStatus as AppServerPatchApplyStatus;
 pub(super) use thinwedge_app_server_protocol::PatchChangeKind;
 pub(super) use thinwedge_app_server_protocol::PermissionsRequestApprovalParams as AppServerPermissionsRequestApprovalParams;
@@ -97,131 +102,74 @@ pub(super) use thinwedge_app_server_protocol::PluginMarketplaceEntry;
 pub(super) use thinwedge_app_server_protocol::PluginReadResponse;
 pub(super) use thinwedge_app_server_protocol::PluginSource;
 pub(super) use thinwedge_app_server_protocol::PluginSummary;
+pub(super) use thinwedge_app_server_protocol::RateLimitReachedType;
+pub(super) use thinwedge_app_server_protocol::RateLimitSnapshot;
+pub(super) use thinwedge_app_server_protocol::RateLimitWindow;
 pub(super) use thinwedge_app_server_protocol::ReasoningSummaryTextDeltaNotification;
+pub(super) use thinwedge_app_server_protocol::ReviewTarget;
 pub(super) use thinwedge_app_server_protocol::ServerNotification;
 pub(super) use thinwedge_app_server_protocol::SkillSummary;
+pub(super) use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 pub(super) use thinwedge_app_server_protocol::ThreadClosedNotification;
 pub(super) use thinwedge_app_server_protocol::ThreadItem as AppServerThreadItem;
+pub(super) use thinwedge_app_server_protocol::ToolRequestUserInputOption;
+pub(super) use thinwedge_app_server_protocol::ToolRequestUserInputParams;
+pub(super) use thinwedge_app_server_protocol::ToolRequestUserInputQuestion;
 pub(super) use thinwedge_app_server_protocol::Turn as AppServerTurn;
 pub(super) use thinwedge_app_server_protocol::TurnCompletedNotification;
 pub(super) use thinwedge_app_server_protocol::TurnError as AppServerTurnError;
 pub(super) use thinwedge_app_server_protocol::TurnStartedNotification;
 pub(super) use thinwedge_app_server_protocol::TurnStatus as AppServerTurnStatus;
+pub(super) use thinwedge_app_server_protocol::UserInput;
 pub(super) use thinwedge_app_server_protocol::UserInput as AppServerUserInput;
 pub(super) use thinwedge_app_server_protocol::WarningNotification;
-pub(super) use thinwedge_config::AppRequirementToml;
-pub(super) use thinwedge_config::AppsRequirementsToml;
 pub(super) use thinwedge_config::ConfigLayerStack;
-pub(super) use thinwedge_config::ConfigRequirements;
-pub(super) use thinwedge_config::ConfigRequirementsToml;
+pub(super) use thinwedge_config::Constrained;
+pub(super) use thinwedge_config::ConstraintError;
 pub(super) use thinwedge_config::RequirementSource;
 pub(super) use thinwedge_config::types::ApprovalsReviewer;
 pub(super) use thinwedge_config::types::Notifications;
-#[cfg(target_os = "windows")]
 pub(super) use thinwedge_config::types::WindowsSandboxModeToml;
-pub(super) use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
+pub(super) use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
 pub(super) use thinwedge_core_skills::model::SkillMetadata;
 pub(super) use thinwedge_features::FEATURES;
 pub(super) use thinwedge_features::Feature;
 pub(super) use thinwedge_git_utils::CommitLogEntry;
-pub(super) use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+pub(super) use thinwedge_models_manager::test_support::construct_model_info_offline_for_tests;
+pub(super) use thinwedge_models_manager::test_support::get_model_offline_for_tests;
 pub(super) use thinwedge_otel::RuntimeMetricsSummary;
 pub(super) use thinwedge_otel::SessionTelemetry;
 pub(super) use thinwedge_protocol::ThreadId;
 pub(super) use thinwedge_protocol::account::PlanType;
+pub(super) use thinwedge_protocol::approvals::GuardianAssessmentAction;
+pub(super) use thinwedge_protocol::approvals::GuardianAssessmentDecisionSource;
+pub(super) use thinwedge_protocol::approvals::GuardianAssessmentEvent;
+pub(super) use thinwedge_protocol::approvals::GuardianAssessmentStatus;
+pub(super) use thinwedge_protocol::approvals::GuardianCommandSource;
+pub(super) use thinwedge_protocol::approvals::GuardianRiskLevel;
+pub(super) use thinwedge_protocol::approvals::GuardianUserAuthorization;
 pub(super) use thinwedge_protocol::config_types::CollaborationMode;
 pub(super) use thinwedge_protocol::config_types::ModeKind;
 pub(super) use thinwedge_protocol::config_types::Personality;
+pub(super) use thinwedge_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
 pub(super) use thinwedge_protocol::config_types::ServiceTier;
-pub(super) use thinwedge_protocol::config_types::Settings;
-pub(super) use thinwedge_protocol::items::AgentMessageContent;
-pub(super) use thinwedge_protocol::items::AgentMessageItem;
-pub(super) use thinwedge_protocol::items::PlanItem;
-pub(super) use thinwedge_protocol::items::TurnItem;
-pub(super) use thinwedge_protocol::items::UserMessageItem;
+pub(super) use thinwedge_protocol::models::ActivePermissionProfile;
+pub(super) use thinwedge_protocol::models::BUILT_IN_PERMISSION_PROFILE_WORKSPACE;
 pub(super) use thinwedge_protocol::models::FileSystemPermissions;
 pub(super) use thinwedge_protocol::models::MessagePhase;
 pub(super) use thinwedge_protocol::models::NetworkPermissions;
 pub(super) use thinwedge_protocol::models::PermissionProfile;
+pub(super) use thinwedge_protocol::openai_models::ModelInfo;
+pub(super) use thinwedge_protocol::openai_models::ModelPreset;
+pub(super) use thinwedge_protocol::openai_models::ModelsResponse;
+pub(super) use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+pub(super) use thinwedge_protocol::openai_models::default_input_modalities;
 pub(super) use thinwedge_protocol::parse_command::ParsedCommand;
 pub(super) use thinwedge_protocol::plan_tool::PlanItemArg;
 pub(super) use thinwedge_protocol::plan_tool::StepStatus;
 pub(super) use thinwedge_protocol::plan_tool::UpdatePlanArgs;
-pub(super) use thinwedge_protocol::protocol::AgentMessageDeltaEvent;
-pub(super) use thinwedge_protocol::protocol::AgentMessageEvent;
-pub(super) use thinwedge_protocol::protocol::AgentReasoningDeltaEvent;
-pub(super) use thinwedge_protocol::protocol::AgentReasoningEvent;
-pub(super) use thinwedge_protocol::protocol::AgentStatus;
-pub(super) use thinwedge_protocol::protocol::ApplyPatchApprovalRequestEvent;
-pub(super) use thinwedge_protocol::protocol::BackgroundEventEvent;
-pub(super) use thinwedge_protocol::protocol::CollabAgentSpawnBeginEvent;
-pub(super) use thinwedge_protocol::protocol::CollabAgentSpawnEndEvent;
-pub(super) use thinwedge_protocol::protocol::CreditsSnapshot;
-pub(super) use thinwedge_protocol::protocol::ErrorEvent;
-pub(super) use thinwedge_protocol::protocol::Event;
-pub(super) use thinwedge_protocol::protocol::EventMsg;
-pub(super) use thinwedge_protocol::protocol::ExecApprovalRequestEvent;
-pub(super) use thinwedge_protocol::protocol::ExecCommandBeginEvent;
-pub(super) use thinwedge_protocol::protocol::ExecCommandEndEvent;
-pub(super) use thinwedge_protocol::protocol::ExecCommandSource;
-pub(super) use thinwedge_protocol::protocol::ExecCommandStatus as CoreExecCommandStatus;
-pub(super) use thinwedge_protocol::protocol::ExecPolicyAmendment;
-pub(super) use thinwedge_protocol::protocol::ExitedReviewModeEvent;
-pub(super) use thinwedge_protocol::protocol::FileChange;
-pub(super) use thinwedge_protocol::protocol::GuardianAssessmentAction;
-pub(super) use thinwedge_protocol::protocol::GuardianAssessmentDecisionSource;
-pub(super) use thinwedge_protocol::protocol::GuardianAssessmentEvent;
-pub(super) use thinwedge_protocol::protocol::GuardianAssessmentStatus;
-pub(super) use thinwedge_protocol::protocol::GuardianCommandSource;
-pub(super) use thinwedge_protocol::protocol::GuardianRiskLevel;
-pub(super) use thinwedge_protocol::protocol::GuardianUserAuthorization;
-pub(super) use thinwedge_protocol::protocol::ImageGenerationEndEvent;
-pub(super) use thinwedge_protocol::protocol::ItemCompletedEvent;
-pub(super) use thinwedge_protocol::protocol::McpStartupCompleteEvent;
-pub(super) use thinwedge_protocol::protocol::McpStartupStatus;
-pub(super) use thinwedge_protocol::protocol::McpStartupUpdateEvent;
-pub(super) use thinwedge_protocol::protocol::ModelVerification as CoreModelVerification;
-pub(super) use thinwedge_protocol::protocol::ModelVerificationEvent;
-pub(super) use thinwedge_protocol::protocol::NonSteerableTurnKind;
-pub(super) use thinwedge_protocol::protocol::Op;
-pub(super) use thinwedge_protocol::protocol::PatchApplyBeginEvent;
-pub(super) use thinwedge_protocol::protocol::PatchApplyEndEvent;
-pub(super) use thinwedge_protocol::protocol::PatchApplyStatus as CorePatchApplyStatus;
-pub(super) use thinwedge_protocol::protocol::RateLimitReachedType;
-pub(super) use thinwedge_protocol::protocol::RateLimitSnapshot;
-pub(super) use thinwedge_protocol::protocol::RateLimitWindow;
-pub(super) use thinwedge_protocol::protocol::RealtimeConversationClosedEvent;
-pub(super) use thinwedge_protocol::protocol::RealtimeConversationRealtimeEvent;
-pub(super) use thinwedge_protocol::protocol::RealtimeEvent;
-pub(super) use thinwedge_protocol::protocol::ReviewRequest;
-pub(super) use thinwedge_protocol::protocol::ReviewTarget;
-pub(super) use thinwedge_protocol::protocol::SessionConfiguredEvent;
-pub(super) use thinwedge_protocol::protocol::SessionSource;
-pub(super) use thinwedge_protocol::protocol::SkillScope;
-pub(super) use thinwedge_protocol::protocol::StreamErrorEvent;
-pub(super) use thinwedge_protocol::protocol::TerminalInteractionEvent;
-pub(super) use thinwedge_protocol::protocol::ThinWedgeErrorInfo;
-pub(super) use thinwedge_protocol::protocol::ThreadRolledBackEvent;
-pub(super) use thinwedge_protocol::protocol::TokenCountEvent;
-pub(super) use thinwedge_protocol::protocol::TokenUsage;
-pub(super) use thinwedge_protocol::protocol::TokenUsageInfo;
-pub(super) use thinwedge_protocol::protocol::TurnCompleteEvent;
-pub(super) use thinwedge_protocol::protocol::TurnStartedEvent;
-pub(super) use thinwedge_protocol::protocol::UndoCompletedEvent;
-pub(super) use thinwedge_protocol::protocol::UndoStartedEvent;
-pub(super) use thinwedge_protocol::protocol::ViewImageToolCallEvent;
-pub(super) use thinwedge_protocol::protocol::WarningEvent;
 pub(super) use thinwedge_protocol::request_permissions::RequestPermissionProfile;
-pub(super) use thinwedge_protocol::request_user_input::RequestUserInputEvent;
-pub(super) use thinwedge_protocol::request_user_input::RequestUserInputQuestion;
-pub(super) use thinwedge_protocol::request_user_input::RequestUserInputQuestionOption;
-pub(super) use thinwedge_protocol::thinwedge_models::ModelInfo;
-pub(super) use thinwedge_protocol::thinwedge_models::ModelPreset;
-pub(super) use thinwedge_protocol::thinwedge_models::ModelsResponse;
-pub(super) use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-pub(super) use thinwedge_protocol::thinwedge_models::default_input_modalities;
 pub(super) use thinwedge_protocol::user_input::TextElement;
-pub(super) use thinwedge_protocol::user_input::UserInput;
 pub(super) use thinwedge_terminal_detection::Multiplexer;
 pub(super) use thinwedge_terminal_detection::TerminalInfo;
 pub(super) use thinwedge_terminal_detection::TerminalName;
@@ -265,14 +213,32 @@ macro_rules! assert_chatwidget_snapshot {
     }};
 }
 
+fn next_goal_draft(
+    rx: &mut tokio::sync::mpsc::UnboundedReceiver<AppEvent>,
+    expected_thread_id: ThreadId,
+) -> crate::goal_files::GoalDraft {
+    loop {
+        let event = rx.try_recv().expect("expected goal draft event");
+        if let AppEvent::SetThreadGoalDraft {
+            thread_id, draft, ..
+        } = event
+        {
+            assert_eq!(thread_id, expected_thread_id);
+            return draft;
+        }
+    }
+}
+
 mod app_server;
 mod approval_requests;
-mod background_events;
 mod composer_submission;
+#[path = "tests/config_errors_tests.rs"]
+mod config_errors;
 mod exec_flow;
 mod goal_menu;
+mod goal_validation;
 mod guardian;
-mod helpers;
+pub(crate) mod helpers;
 mod history_replay;
 mod mcp_startup;
 mod permissions;

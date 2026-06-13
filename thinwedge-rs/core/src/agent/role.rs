@@ -2,9 +2,9 @@
 //!
 //! Roles are selected at spawn time and are loaded with the same config machinery as
 //! `config.toml`. This module resolves built-in and user-defined role files, inserts the role as a
-//! high-precedence layer, and preserves the caller's current profile/provider unless the role
-//! explicitly takes ownership of model selection. It does not decide when to spawn a sub-agent or
-//! which role to use; the multi-agent tool handler owns that orchestration.
+//! high-precedence layer, and preserves the caller's current provider and service tier unless the
+//! role layer sets them. It does not decide when to spawn a sub-agent or which role to use; the
+//! multi-agent tool handler owns that orchestration.
 
 use crate::config::AgentRoleConfig;
 use crate::config::Config;
@@ -15,7 +15,6 @@ use anyhow::anyhow;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::LazyLock;
 use thinwedge_app_server_protocol::ConfigLayerSource;
 use thinwedge_config::ConfigLayerEntry;
@@ -27,17 +26,15 @@ use thinwedge_exec_server::LOCAL_FS;
 use toml::Value as TomlValue;
 
 /// The role name used when a caller omits `agent_type`.
-pub const DEFAULT_ROLE_NAME: &str = "CFO";
+pub const DEFAULT_ROLE_NAME: &str = "default";
 const AGENT_TYPE_UNAVAILABLE_ERROR: &str = "agent type is currently not available";
 
-/// Applies a named role layer to `config` while preserving caller-owned model selection.
+/// Applies a named role layer to `config` while preserving caller-owned provider settings.
 ///
 /// The role layer is inserted at session-flag precedence so it can override persisted config, but
-/// the caller's current `profile` and `model_provider` remain sticky runtime choices unless the
-/// role explicitly sets `profile`, explicitly sets `model_provider`, or rewrites the active
-/// profile's `model_provider` in place. Rebuilding the config without those overrides would make a
-/// spawned agent silently fall back to the default provider, which is the bug this preservation
-/// logic avoids.
+/// the caller's current `model_provider` and `service_tier` remain sticky runtime choices unless
+/// the role explicitly sets the corresponding top-level config key. Rebuilding the config without
+/// those overrides would make a spawned agent silently fall back to default settings.
 pub(crate) async fn apply_role_to_config(
     config: &mut Config,
     role_name: Option<&str>,
@@ -53,9 +50,7 @@ pub(crate) async fn apply_role_to_config(
         .map_err(|err| {
             tracing::warn!("failed to apply role to config: {err}");
             AGENT_TYPE_UNAVAILABLE_ERROR.to_string()
-        })?;
-    config.role_visible_skills = role.visible_skills.clone().unwrap_or_default();
-    Ok(())
+        })
 }
 
 async fn apply_role_to_config_inner(
@@ -74,14 +69,14 @@ async fn apply_role_to_config_inner(
     {
         return Ok(());
     }
-    let (preserve_current_profile, preserve_current_provider) =
-        preservation_policy(config, &role_layer_toml);
+    let preserve_current_provider = role_layer_toml.get("model_provider").is_none();
+    let preserve_current_service_tier = role_layer_toml.get("service_tier").is_none();
 
     *config = reload::build_next_config(
         config,
         role_layer_toml,
-        preserve_current_profile,
         preserve_current_provider,
+        preserve_current_service_tier,
     )
     .await?;
     Ok(())
@@ -131,105 +126,44 @@ pub(crate) fn resolve_role_config<'a>(
         .or_else(|| built_in::configs().get(role_name))
 }
 
-fn preservation_policy(config: &Config, role_layer_toml: &TomlValue) -> (bool, bool) {
-    let role_selects_provider = role_layer_toml.get("model_provider").is_some();
-    let role_selects_profile = role_layer_toml.get("profile").is_some();
-    let role_updates_active_profile_provider = config
-        .active_profile
-        .as_ref()
-        .and_then(|active_profile| {
-            role_layer_toml
-                .get("profiles")
-                .and_then(TomlValue::as_table)
-                .and_then(|profiles| profiles.get(active_profile))
-                .and_then(TomlValue::as_table)
-                .map(|profile| profile.contains_key("model_provider"))
-        })
-        .unwrap_or(false);
-    let preserve_current_profile = !role_selects_provider && !role_selects_profile;
-    let preserve_current_provider =
-        preserve_current_profile && !role_updates_active_profile_provider;
-    (preserve_current_profile, preserve_current_provider)
-}
-
 mod reload {
     use super::*;
 
     pub(super) async fn build_next_config(
         config: &Config,
         role_layer_toml: TomlValue,
-        preserve_current_profile: bool,
         preserve_current_provider: bool,
+        preserve_current_service_tier: bool,
     ) -> anyhow::Result<Config> {
-        let active_profile_name = preserve_current_profile
-            .then_some(config.active_profile.as_deref())
-            .flatten();
-        let config_layer_stack =
-            build_config_layer_stack(config, &role_layer_toml, active_profile_name)?;
-        let mut merged_config = deserialize_effective_config(config, &config_layer_stack)?;
-        if preserve_current_profile {
-            merged_config.profile = None;
-        }
+        let config_layer_stack = build_config_layer_stack(config, &role_layer_toml)?;
+        let merged_config = deserialize_effective_config(config, &config_layer_stack)?;
 
-        let mut next_config = Config::load_config_with_layer_stack(
+        let next_config = Config::load_config_with_layer_stack(
             LOCAL_FS.as_ref(),
             merged_config,
-            reload_overrides(config, preserve_current_provider),
+            reload_overrides(
+                config,
+                preserve_current_provider,
+                preserve_current_service_tier,
+            ),
             config.thinwedge_home.clone(),
             config_layer_stack,
         )
         .await?;
-        if preserve_current_profile {
-            next_config.active_profile = config.active_profile.clone();
-        }
         Ok(next_config)
     }
 
     fn build_config_layer_stack(
         config: &Config,
         role_layer_toml: &TomlValue,
-        active_profile_name: Option<&str>,
     ) -> anyhow::Result<ConfigLayerStack> {
         let mut layers = existing_layers(config);
-        if let Some(resolved_profile_layer) =
-            resolved_profile_layer(config, &layers, role_layer_toml, active_profile_name)?
-        {
-            insert_layer(&mut layers, resolved_profile_layer);
-        }
         insert_layer(&mut layers, role_layer(role_layer_toml.clone()));
         Ok(ConfigLayerStack::new(
             layers,
             config.config_layer_stack.requirements().clone(),
             config.config_layer_stack.requirements_toml().clone(),
         )?)
-    }
-
-    fn resolved_profile_layer(
-        config: &Config,
-        existing_layers: &[ConfigLayerEntry],
-        role_layer_toml: &TomlValue,
-        active_profile_name: Option<&str>,
-    ) -> anyhow::Result<Option<ConfigLayerEntry>> {
-        let Some(active_profile_name) = active_profile_name else {
-            return Ok(None);
-        };
-
-        let mut layers = existing_layers.to_vec();
-        insert_layer(&mut layers, role_layer(role_layer_toml.clone()));
-        let merged_config = deserialize_effective_config(
-            config,
-            &ConfigLayerStack::new(
-                layers,
-                config.config_layer_stack.requirements().clone(),
-                config.config_layer_stack.requirements_toml().clone(),
-            )?,
-        )?;
-        let resolved_profile =
-            merged_config.get_config_profile(Some(active_profile_name.to_string()))?;
-        Ok(Some(ConfigLayerEntry::new(
-            ConfigLayerSource::SessionFlags,
-            TomlValue::try_from(resolved_profile)?,
-        )))
     }
 
     fn deserialize_effective_config(
@@ -264,10 +198,15 @@ mod reload {
         ConfigLayerEntry::new(ConfigLayerSource::SessionFlags, role_layer_toml)
     }
 
-    fn reload_overrides(config: &Config, preserve_current_provider: bool) -> ConfigOverrides {
+    fn reload_overrides(
+        config: &Config,
+        preserve_current_provider: bool,
+        preserve_current_service_tier: bool,
+    ) -> ConfigOverrides {
         ConfigOverrides {
             cwd: Some(config.cwd.to_path_buf()),
             model_provider: preserve_current_provider.then(|| config.model_provider_id.clone()),
+            service_tier: preserve_current_service_tier.then(|| config.service_tier.clone()),
             thinwedge_linux_sandbox_exe: config.thinwedge_linux_sandbox_exe.clone(),
             main_execve_wrapper_exe: config.main_execve_wrapper_exe.clone(),
             ..Default::default()
@@ -326,8 +265,11 @@ pub(crate) mod spawn_tool_spec {
                     let reasoning_effort = role_toml
                         .get("model_reasoning_effort")
                         .and_then(TomlValue::as_str);
+                    let service_tier = role_toml
+                        .get("service_tier")
+                        .and_then(TomlValue::as_str);
 
-                    match (model, reasoning_effort) {
+                    let model_and_reasoning_note = match (model, reasoning_effort) {
                         (Some(model), Some(reasoning_effort)) => format!(
                             "\n- This role's model is set to `{model}` and its reasoning effort is set to `{reasoning_effort}`. These settings cannot be changed."
                         ),
@@ -342,7 +284,15 @@ pub(crate) mod spawn_tool_spec {
                             )
                         }
                         (None, None) => String::new(),
-                    }
+                    };
+                    let service_tier_note = service_tier
+                        .map(|service_tier| {
+                            format!(
+                                "\n- This role's service tier is set to `{service_tier}`. If it is supported by the resolved model, it takes precedence over a valid spawn request service tier."
+                            )
+                        })
+                        .unwrap_or_default();
+                    format!("{model_and_reasoning_note}{service_tier_note}")
                 })
                 .unwrap_or_default();
             format!("{name}: {{\n{description}{locked_settings_note}\n}}")
@@ -362,191 +312,58 @@ mod built_in {
                 (
                     DEFAULT_ROLE_NAME.to_string(),
                     AgentRoleConfig {
-                        description: Some(r#"Use `CFO` as the default coordinator role.
-Typical tasks:
-- Preserve the baseline default-agent behavior: general reasoning, tool use, orchestration, and final synthesis
-- Frame the decision, success metric, and time horizon
-- Coordinate work across specialized agents
-- Synthesize research into a recommendation with explicit tradeoffs
-Rules:
-- Own the final recommendation, including what to do next and why.
-- Delegate pricing strategy, packaging, willingness-to-pay, and unit economics work to `pricing_researcher` when the task becomes monetization-specific.
-- Delegate competitive durability, strategic positioning, and moat analysis to `moat_researcher` when the task becomes defensibility-specific.
-- Delegate statistical reasoning, experiment interpretation, feature analysis, or model-oriented data exploration to `data-scientist`.
-- Delegate metric interpretation, trend explanation, and decision support from existing analytics outputs to `data-analyst`.
-- Delegate ML system implementation across training pipelines, feature flow, model serving, or inference integration to `machine-learning-engineer`.
-- Delegate spend-policy research, approval matrices, budget guardrails, exception handling, and purchasing-governance design to `spend-policy-manager`.
-- Delegate technical cost structure, infrastructure economics, and cost-to-serve modeling to `aws_cost_engineer` when the task depends on architecture, cloud, GPU, storage, networking, training, or serving cost details.
-- Keep the working plan coherent across delegated work.
-- Force every delegated thread to return assumptions, evidence, risks, and a decision-ready conclusion.
-- Use `llmcosts.*` for LLM market context and `infracosts.*` for AWS cost context.
-- Any specialist may run `npx @open-slide/cli init` when a compact slide artifact would help the user understand the recommendation, decision tree, risks, or implementation plan.
-- Do not drift into deep specialist work when a narrower role can produce a better answer faster."#.to_string()),
+                        description: Some("Default agent.".to_string()),
                         config_file: None,
-                        nickname_candidates: Some(vec![
-                            "Controller".to_string(),
-                            "Steward".to_string(),
-                            "Northstar".to_string(),
-                        ]),
-                        visible_skills: Some(vec![
-                            "synthesis".to_string(),
-                            "finance-decision-framing".to_string(),
-                            "evidence-review".to_string(),
-                            "risk-review".to_string(),
-                        ]),
-                    }
-                ),
-                (
-                    "data-scientist".to_string(),
-                    AgentRoleConfig {
-                        description: Some(
-                            "Use when a task needs statistical reasoning, experiment interpretation, feature analysis, or model-oriented data exploration.".to_string(),
-                        ),
-                        config_file: Some(PathBuf::from("data-scientist.toml")),
                         nickname_candidates: None,
-                        visible_skills: None,
                     }
                 ),
                 (
-                    "data-analyst".to_string(),
+                    "explorer".to_string(),
                     AgentRoleConfig {
-                        description: Some(
-                            "Use when a task needs data interpretation, metric breakdown, trend explanation, or decision support from existing analytics outputs.".to_string(),
-                        ),
-                        config_file: Some(PathBuf::from("data-analyst.toml")),
+                        description: Some(r#"Use `explorer` for specific codebase questions.
+Explorers are fast and authoritative.
+They must be used to ask specific, well-scoped questions on the codebase.
+Rules:
+- In order to avoid redundant work, you should avoid exploring the same problem that explorers have already covered. Typically, you should trust the explorer results without additional verification. You are still allowed to inspect the code yourself to gain the needed context!
+- You are encouraged to spawn up multiple explorers in parallel when you have multiple distinct questions to ask about the codebase that can be answered independently. This allows you to get more information faster without waiting for one question to finish before asking the next. While waiting for the explorer results, you can continue working on other local tasks that do not depend on those results. This parallelism is a key advantage of delegation, so use it whenever you have multiple questions to ask.
+- Reuse existing explorers for related questions."#.to_string()),
+                        config_file: Some("explorer.toml".to_string().parse().unwrap_or_default()),
                         nickname_candidates: None,
-                        visible_skills: None,
                     }
                 ),
                 (
-                    "machine-learning-engineer".to_string(),
+                    "worker".to_string(),
                     AgentRoleConfig {
-                        description: Some(
-                            "Use when a task needs ML system implementation work across training pipelines, feature flow, model serving, or inference integration.".to_string(),
-                        ),
-                        config_file: Some(PathBuf::from("machine-learning-engineer.toml")),
+                        description: Some(r#"Use for execution and production work.
+Typical tasks:
+- Implement part of a feature
+- Fix tests or bugs
+- Split large refactors into independent chunks
+Rules:
+- Explicitly assign **ownership** of the task (files / responsibility). When the subtask involves code changes, you should clearly specify which files or modules the worker is responsible for. This helps avoid merge conflicts and ensures accountability. For example, you can say "Worker 1 is responsible for updating the authentication module, while Worker 2 will handle the database layer." By defining clear ownership, you can delegate more effectively and reduce coordination overhead.
+- Always tell workers they are **not alone in the codebase**, and they should not revert the edits made by others, and they should adjust their implementation to accommodate the changes made by others. This is important because there may be multiple workers making changes in parallel, and they need to be aware of each other's work to avoid conflicts and ensure a cohesive final product."#.to_string()),
+                        config_file: None,
                         nickname_candidates: None,
-                        visible_skills: None,
                     }
                 ),
-                (
-                    "spend-policy-manager".to_string(),
-                    AgentRoleConfig {
-                        description: Some(
-                            "Use when a task needs deep spend-policy research, purchasing guardrails, approval workflows, or budget-governance recommendations.".to_string(),
-                        ),
-                        config_file: Some(PathBuf::from("spend-policy-manager.toml")),
-                        nickname_candidates: Some(vec![
-                            "Guardrail".to_string(),
-                            "Approver".to_string(),
-                            "Policy".to_string(),
-                        ]),
-                        visible_skills: Some(vec![
-                            "spend-policy-research".to_string(),
-                            "procurement-governance".to_string(),
-                            "approval-workflows".to_string(),
-                            "budget-controls".to_string(),
-                            "risk-review".to_string(),
-                        ]),
-                    }
-                ),
-                (
-                    "pricing_researcher".to_string(),
-                    AgentRoleConfig {
-                        description: Some(r#"Use `pricing_researcher` for pricing analysis and model-driven market research.
-Typical tasks:
-- Compare pricing strategies, packaging structures, and monetization tradeoffs
-- Run or inspect statistical model jobs related to pricing
-- Produce a pricing memo with assumptions, evidence, sensitivity, and recommendation
-Rules:
-- Own willingness-to-pay, packaging, seat/usage economics, and price-performance positioning.
-- Use `statisticalmodels.*` for job submission and eval inspection when structured evidence is needed.
-- Use `trainingenvironments.*` when the task depends on a role-approved training environment.
-- Use `llmcosts.*` for LLM market pricing/speed context from Artificial Analysis.
-- Use `infracosts.*` when pricing conclusions depend on AWS infrastructure cost structure.
-- Escalate to `aws_cost_engineer` when margin conclusions depend on detailed AWS service assumptions rather than high-level unit economics.
-- Escalate to `spend-policy-manager` when pricing or packaging conclusions need purchasing policy, approval thresholds, renewal controls, or budget-governance design.
-- You may run `npx @open-slide/cli init` when the user needs a concise pricing deck with options, sensitivities, and risks.
-- Return a decision-ready pricing memo, not just notes."#.to_string()),
-                        nickname_candidates: Some(vec![
-                            "Ratecard".to_string(),
-                            "Yield".to_string(),
-                            "Tariff".to_string(),
-                        ]),
-                        visible_skills: Some(vec![
-                            "market-research".to_string(),
-                            "quant-analysis".to_string(),
-                            "pricing-packaging".to_string(),
-                            "cohort-analysis".to_string(),
-                            "willingness-to-pay".to_string(),
-                        ]),
-                        config_file: Some(PathBuf::from("pricing-researcher.toml")),
-                    }
-                ),
-                (
-                    "moat_researcher".to_string(),
-                    AgentRoleConfig {
-                        description: Some(r#"Use `moat_researcher` for competitive, strategic, and defensibility analysis.
-Typical tasks:
-- Analyze differentiation, defensibility, and strategic positioning
-- Run or inspect statistical model jobs related to moat research
-- Produce a strategy memo covering competitors, switching costs, data/network effects, and structural risk
-Rules:
-- Own competitive intensity, market structure, imitation risk, and durable advantage.
-- Use `statisticalmodels.*` for job submission and eval inspection when structured evidence is needed.
-- Use `trainingenvironments.*` when the task depends on a role-approved training environment.
-- Use `llmcosts.*` for LLM market context and `infracosts.*` when moat conclusions depend on infrastructure cost structure.
-- Call `aws_cost_engineer` when a moat claim depends on a structural cost advantage, infrastructure efficiency, or cloud-economics asymmetry.
-- Call `spend-policy-manager` when defensibility or adoption depends on procurement rules, approval friction, budget ownership, or vendor-governance constraints.
-- You may run `npx @open-slide/cli init` when the user needs a concise strategy deck with competitors, risks, and recommended positioning.
-- Distinguish clearly between temporary product lead, operational execution, and true structural moat."#.to_string()),
-                        nickname_candidates: Some(vec![
-                            "Alpha".to_string(),
-                            "Premium".to_string(),
-                            "Edge".to_string(),
-                        ]),
-                        visible_skills: Some(vec![
-                            "competitive-analysis".to_string(),
-                            "market-research".to_string(),
-                            "trend-analysis".to_string(),
-                            "benchmark-evidence-capture".to_string(),
-                        ]),
-                        config_file: Some(PathBuf::from("moat-researcher.toml")),
-                    }
-                ),
-                (
-                    "aws_cost_engineer".to_string(),
-                    AgentRoleConfig {
-                        description: Some(r#"Use `aws_cost_engineer` for AWS BOQs, infrastructure pricing, and service-level cost modeling.
-Typical tasks:
-- Build or inspect AWS line-item cost assumptions across EC2, storage, networking, and managed services
-- Translate product requirements into AWS Price List filters and SKU-level pricing context
-- Produce a decision-ready BOQ with cost drivers, tradeoffs, and uncertainty ranges
-Rules:
-- All other built-in roles may delegate AWS-specific cost structure, infra economics, or billing-detail questions here.
-- Use `infracosts.*` as the primary first-party tool namespace for AWS pricing work.
-- Use `llmcosts.*` only when the AWS analysis also depends on LLM market pricing context.
-- Escalate to `spend-policy-manager` when the cost evidence must become purchasing thresholds, approval workflow, exception policy, or renewal governance.
-- You may run `npx @open-slide/cli init` when the user needs a concise cost or BOQ deck with assumptions, line items, and decision risks.
-- Prefer precise service and filter assumptions over vague blended estimates.
-- Make regions, usage assumptions, SKU filters, billing scope, and unresolved pricing gaps explicit in the output.
-- Return an assumptions register covering profile, region, billing scope, time window, units, and quantities.
-- Return a line-item BOQ or billing summary with source API, selected units, totals, uncertainty, and unresolved gaps.
-- Return cost evidence and a decision-ready BOQ, but do not make the final business recommendation."#.to_string()),
-                        nickname_candidates: Some(vec![
-                            "Basis".to_string(),
-                            "Runrate".to_string(),
-                            "Variance".to_string(),
-                        ]),
-                        visible_skills: Some(vec![
-                            "cloud-architecture".to_string(),
-                            "finops-aws-cost".to_string(),
-                            "infrastructure-pricing".to_string(),
-                            "terraform-iac-review".to_string(),
-                        ]),
-                        config_file: Some(PathBuf::from("aws-cost-engineer.toml")),
-                    }
-                ),
+                // Awaiter is temp removed
+//                 (
+//                     "awaiter".to_string(),
+//                     AgentRoleConfig {
+//                         description: Some(r#"Use an `awaiter` agent EVERY TIME you must run a command that will take some very long time.
+// This includes, but not only:
+// * testing
+// * monitoring of a long running process
+// * explicit ask to wait for something
+//
+// Rules:
+// - When an awaiter is running, you can work on something else. If you need to wait for its completion, use the largest possible timeout.
+// - Be patient with the `awaiter`.
+// - Do not use an awaiter for every compilation/test if it won't take time. Only use if for long running commands.
+// - Close the awaiter when you're done with it."#.to_string()),
+//                         config_file: Some("awaiter.toml".to_string().parse().unwrap_or_default()),
+//                     }
+//                 )
             ])
         });
         &CONFIG
@@ -554,16 +371,11 @@ Rules:
 
     /// Resolves a built-in role `config_file` path to embedded content.
     pub(super) fn config_file_contents(path: &Path) -> Option<&'static str> {
+        const EXPLORER: &str = include_str!("builtins/explorer.toml");
+        const AWAITER: &str = include_str!("builtins/awaiter.toml");
         match path.to_str()? {
-            "data-scientist.toml" => Some(include_str!("builtins/data-scientist.toml")),
-            "data-analyst.toml" => Some(include_str!("builtins/data-analyst.toml")),
-            "machine-learning-engineer.toml" => {
-                Some(include_str!("builtins/machine-learning-engineer.toml"))
-            }
-            "spend-policy-manager.toml" => Some(include_str!("builtins/spend-policy-manager.toml")),
-            "pricing-researcher.toml" => Some(include_str!("builtins/pricing-researcher.toml")),
-            "moat-researcher.toml" => Some(include_str!("builtins/moat-researcher.toml")),
-            "aws-cost-engineer.toml" => Some(include_str!("builtins/aws-cost-engineer.toml")),
+            "explorer.toml" => Some(EXPLORER),
+            "awaiter.toml" => Some(AWAITER),
             _ => None,
         }
     }

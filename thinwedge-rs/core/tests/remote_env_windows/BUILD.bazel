@@ -1,0 +1,24 @@
+load("//bazel/rules/testing:wine.bzl", "wine_rust_test")
+
+wine_rust_test(
+    name = "smoke-test",
+    timeout = "short",
+    srcs = ["remote_env_windows_test.rs"],
+    crate_name = "remote_env_windows_test",
+    crate_root = "remote_env_windows_test.rs",
+    windows_binaries = {
+        "wine-windows-exec-server": "//thinwedge-rs/exec-server/testing:windows-exec-server",
+    },
+    deps = [
+        "//bazel/rules/testing/wine:wine_test_support",
+        "//thinwedge-rs/core/tests/common",
+        "//thinwedge-rs/exec-server",
+        "//thinwedge-rs/features",
+        "//thinwedge-rs/protocol",
+        "//thinwedge-rs/utils/cargo-bin",
+        "@crates//:anyhow",
+        "@crates//:pretty_assertions",
+        "@crates//:serde_json",
+        "@crates//:tokio",
+    ],
+)

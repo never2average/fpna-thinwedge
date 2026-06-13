@@ -33,7 +33,7 @@ pub fn normalize_base_url(input: &str) -> String {
         base_url.pop();
     }
     if (base_url.starts_with("https://chatgpt.com")
-        || base_url.starts_with("https://chat.thinwedge.com"))
+        || base_url.starts_with("https://chat.openai.com"))
         && !base_url.contains("/backend-api")
     {
         base_url = format!("{base_url}/backend-api");
@@ -49,7 +49,8 @@ pub async fn load_auth_manager(chatgpt_base_url: Option<String>) -> Option<AuthM
             config.thinwedge_home.to_path_buf(),
             /*enable_thinwedge_api_key_env*/ false,
             config.cli_auth_credentials_store_mode,
-            chatgpt_base_url.or(Some(config.chatgpt_base_url)),
+            chatgpt_base_url.or(Some(config.chatgpt_base_url.clone())),
+            config.auth_keyring_backend_kind(),
         )
         .await,
     )

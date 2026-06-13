@@ -2,7 +2,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 #[cfg(not(debug_assertions))]
-pub(crate) const PACKAGE_URL: &str = "https://registry.npmjs.org/@never2average-does-npm%2fcli";
+pub(crate) const PACKAGE_URL: &str = "https://registry.npmjs.org/@openai%2fthinwedge";
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct NpmPackageInfo {
@@ -76,9 +76,7 @@ mod tests {
         serde_json::json!({
             "dist": {
                 "integrity": format!("sha512-{version}"),
-                "tarball": format!(
-                    "https://registry.npmjs.org/@never2average-does-npm/cli/-/cli-{version}.tgz"
-                ),
+                "tarball": format!("https://registry.npmjs.org/@openai/thinwedge/-/thinwedge-{version}.tgz"),
             }
         })
     }

@@ -10,9 +10,8 @@ use std::path::PathBuf;
 use thinwedge_config::types::PluginConfig;
 use thinwedge_core::config::Config;
 use thinwedge_core::config::ConfigBuilder;
-use thinwedge_core::plugins::PluginId;
-use thinwedge_core::plugins::PluginInstallRequest;
-use thinwedge_core::plugins::PluginsManager;
+use thinwedge_core_plugins::PluginInstallRequest;
+use thinwedge_core_plugins::PluginsManager;
 use thinwedge_core_plugins::marketplace::MarketplacePluginInstallPolicy;
 use thinwedge_core_plugins::marketplace::find_marketplace_manifest_path;
 use thinwedge_core_plugins::marketplace_add::MarketplaceAddRequest;
@@ -29,6 +28,7 @@ use thinwedge_external_agent_migration::missing_command_names;
 use thinwedge_external_agent_migration::missing_subagent_names;
 use thinwedge_external_agent_sessions::ExternalAgentSessionMigration;
 use thinwedge_external_agent_sessions::detect_recent_sessions;
+use thinwedge_plugin::PluginId;
 use thinwedge_protocol::protocol::Product;
 use toml::Value as TomlValue;
 
@@ -144,8 +144,24 @@ impl ExternalAgentConfigService {
         Ok(items)
     }
 
-    pub(crate) fn detect_recent_sessions(&self) -> io::Result<Vec<ExternalAgentSessionMigration>> {
-        detect_recent_sessions(&self.external_agent_home, &self.thinwedge_home)
+    pub(crate) fn external_agent_session_source_path(
+        &self,
+        path: &Path,
+    ) -> io::Result<Option<PathBuf>> {
+        if path.extension().and_then(|value| value.to_str()) != Some("jsonl") {
+            return Ok(None);
+        }
+        let path = match fs::canonicalize(path) {
+            Ok(path) => path,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(err) => return Err(err),
+        };
+        let projects_root = match fs::canonicalize(self.external_agent_home.join("projects")) {
+            Ok(projects_root) => projects_root,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(err) => return Err(err),
+        };
+        Ok(path.starts_with(projects_root).then_some(path))
     }
 
     pub(crate) async fn import(
@@ -252,7 +268,7 @@ impl ExternalAgentConfigService {
             || self.external_agent_home.join("settings.json"),
             |repo_root| repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
         );
-        let settings = read_external_settings(&source_settings)?;
+        let settings = effective_external_settings(&source_settings)?;
         let target_config = repo_root.map_or_else(
             || self.thinwedge_home.join("config.toml"),
             |repo_root| repo_root.join(".thinwedge").join("config.toml"),
@@ -300,9 +316,8 @@ impl ExternalAgentConfigService {
             Some(self.external_agent_home.as_path()),
             mcp_settings.as_ref(),
         )?;
-        let mcp_server_names = migrated_mcp_server_names(&migrated_mcp);
+        let mut mcp_server_names = migrated_mcp_server_names(&migrated_mcp);
         if !is_empty_toml_table(&migrated_mcp) {
-            let mut should_include = true;
             if target_config.exists() {
                 let existing_raw = fs::read_to_string(&target_config)?;
                 let mut existing = if existing_raw.trim().is_empty() {
@@ -312,10 +327,10 @@ impl ExternalAgentConfigService {
                         invalid_data_error(format!("invalid existing config.toml: {err}"))
                     })?
                 };
-                should_include = merge_missing_toml_values(&mut existing, &migrated_mcp)?;
+                mcp_server_names = merge_missing_mcp_servers(&mut existing, &migrated_mcp)?;
             }
 
-            if should_include {
+            if !mcp_server_names.is_empty() {
                 items.push(ExternalAgentConfigMigrationItem {
                     item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
                     description: format!(
@@ -325,7 +340,7 @@ impl ExternalAgentConfigService {
                     ),
                     cwd: cwd.clone(),
                     details: Some(MigrationDetails {
-                        mcp_servers: named_migrations(mcp_server_names.clone()),
+                        mcp_servers: named_migrations(mcp_server_names),
                         ..Default::default()
                     }),
                 });
@@ -491,7 +506,7 @@ impl ExternalAgentConfigService {
                 Ok(config) => {
                     let configured_plugin_ids = config
                         .config_layer_stack
-                        .get_user_layer()
+                        .get_active_user_layer()
                         .and_then(|user_layer| user_layer.config.get("plugins"))
                         .and_then(|plugins| {
                             match plugins.clone().try_into::<HashMap<String, PluginConfig>>() {
@@ -569,7 +584,7 @@ impl ExternalAgentConfigService {
     ) -> io::Result<Option<JsonValue>> {
         if repo_root.is_some() && source_settings.is_none() {
             let home_settings = self.external_agent_home.join("settings.json");
-            match read_external_settings(&home_settings) {
+            match effective_external_settings(&home_settings) {
                 Ok(settings) => Ok(settings),
                 Err(err) => {
                     tracing::warn!(
@@ -636,7 +651,7 @@ impl ExternalAgentConfigService {
             |cwd| cwd.join(EXTERNAL_AGENT_DIR).join("settings.json"),
         );
         let source_root = cwd.unwrap_or(self.external_agent_home.as_path());
-        let import_sources = read_external_settings(&source_settings)?
+        let import_sources = effective_external_settings(&source_settings)?
             .map(|settings| collect_marketplace_import_sources(&settings, source_root))
             .unwrap_or_default();
 
@@ -697,9 +712,11 @@ impl ExternalAgentConfigService {
                 |cwd| cwd.join(EXTERNAL_AGENT_DIR).join("settings.json"),
             );
             let source_root = cwd.unwrap_or(self.external_agent_home.as_path());
-            let import_source = read_external_settings(&source_settings)?.and_then(|settings| {
-                collect_marketplace_import_sources(&settings, source_root).remove(&marketplace_name)
-            });
+            let import_source =
+                effective_external_settings(&source_settings)?.and_then(|settings| {
+                    collect_marketplace_import_sources(&settings, source_root)
+                        .remove(&marketplace_name)
+                });
             let Some(import_source) = import_source else {
                 outcome.failed_marketplaces.push(marketplace_name);
                 outcome.failed_plugin_ids.extend(plugin_ids);
@@ -768,13 +785,9 @@ impl ExternalAgentConfigService {
                 self.thinwedge_home.join("config.toml"),
             )
         };
-        if !source_settings.is_file() {
+        let Some(settings) = effective_external_settings(&source_settings)? else {
             return Ok(());
-        }
-
-        let raw_settings = fs::read_to_string(&source_settings)?;
-        let settings: JsonValue = serde_json::from_str(&raw_settings)
-            .map_err(|err| invalid_data_error(err.to_string()))?;
+        };
         let migrated = build_config_from_external(&settings)?;
         if is_empty_toml_table(&migrated) {
             return Ok(());
@@ -823,7 +836,7 @@ impl ExternalAgentConfigService {
         };
         let settings = self.mcp_settings(
             repo_root.as_deref(),
-            read_external_settings(&source_settings)?,
+            effective_external_settings(&source_settings)?,
         )?;
         let migrated = build_mcp_config_from_external(
             self.source_root(repo_root.as_deref()).as_path(),
@@ -850,7 +863,7 @@ impl ExternalAgentConfigService {
             toml::from_str::<TomlValue>(&existing_raw)
                 .map_err(|err| invalid_data_error(format!("invalid existing config.toml: {err}")))?
         };
-        if merge_missing_toml_values(&mut existing, &migrated)? {
+        if !merge_missing_mcp_servers(&mut existing, &migrated)?.is_empty() {
             write_toml_file(&target_config, &existing)?;
         }
         Ok(())
@@ -1000,6 +1013,43 @@ fn read_external_settings(path: &Path) -> io::Result<Option<JsonValue>> {
     Ok(Some(settings))
 }
 
+fn effective_external_settings(project_settings: &Path) -> io::Result<Option<JsonValue>> {
+    let mut effective = read_external_settings(project_settings)?;
+    let Some(settings_dir) = project_settings.parent() else {
+        return Ok(effective);
+    };
+    let local_settings = settings_dir.join("settings.local.json");
+    let local_settings = match read_external_settings(&local_settings) {
+        Ok(Some(local_settings)) => local_settings,
+        Ok(None) => return Ok(effective),
+        Err(err) if err.kind() == io::ErrorKind::InvalidData => return Ok(effective),
+        Err(err) => return Err(err),
+    };
+    if let Some(effective) = effective.as_mut() {
+        merge_json_settings(effective, &local_settings);
+    } else {
+        effective = Some(local_settings);
+    }
+    Ok(effective)
+}
+
+fn merge_json_settings(existing: &mut JsonValue, incoming: &JsonValue) {
+    match (existing, incoming) {
+        (JsonValue::Object(existing), JsonValue::Object(incoming)) => {
+            for (key, incoming_value) in incoming {
+                match existing.get_mut(key) {
+                    Some(existing_value) => merge_json_settings(existing_value, incoming_value),
+                    None => {
+                        existing.insert(key.clone(), incoming_value.clone());
+                    }
+                }
+            }
+        }
+        (existing, incoming) => {
+            *existing = incoming.clone();
+        }
+    }
+}
 fn extract_plugin_migration_details(
     settings: &JsonValue,
     source_root: &Path,
@@ -1096,8 +1146,9 @@ fn configured_marketplace_plugins(
     config: &Config,
     plugins_manager: &PluginsManager,
 ) -> io::Result<BTreeMap<String, HashSet<String>>> {
+    let plugins_input = config.plugins_config_input();
     let marketplaces = plugins_manager
-        .list_marketplaces_for_config(config, &[])
+        .list_marketplaces_for_config(&plugins_input, &[], /*include_openai_curated*/ true)
         .map_err(|err| {
             invalid_data_error(format!("failed to list configured marketplaces: {err}"))
         })?;
@@ -1484,6 +1535,43 @@ fn merge_missing_toml_values(existing: &mut TomlValue, incoming: &TomlValue) -> 
             "expected TOML table while merging migrated config values",
         )),
     }
+}
+
+fn merge_missing_mcp_servers(
+    existing: &mut TomlValue,
+    incoming: &TomlValue,
+) -> io::Result<Vec<String>> {
+    let existing_root = existing
+        .as_table_mut()
+        .ok_or_else(|| invalid_data_error("expected existing config to be a TOML table"))?;
+    let incoming_root = incoming
+        .as_table()
+        .ok_or_else(|| invalid_data_error("expected migrated MCP config to be a TOML table"))?;
+    let Some(incoming_servers) = incoming_root.get("mcp_servers") else {
+        return Ok(Vec::new());
+    };
+    let incoming_servers = incoming_servers
+        .as_table()
+        .ok_or_else(|| invalid_data_error("expected migrated MCP servers to be a TOML table"))?;
+    let Some(existing_servers) = existing_root.get_mut("mcp_servers") else {
+        existing_root.insert(
+            "mcp_servers".to_string(),
+            TomlValue::Table(incoming_servers.clone()),
+        );
+        return Ok(incoming_servers.keys().cloned().collect());
+    };
+    let Some(existing_servers) = existing_servers.as_table_mut() else {
+        return Ok(Vec::new());
+    };
+
+    let mut merged_server_names = Vec::new();
+    for (server_name, incoming_server) in incoming_servers {
+        if !existing_servers.contains_key(server_name) {
+            existing_servers.insert(server_name.clone(), incoming_server.clone());
+            merged_server_names.push(server_name.clone());
+        }
+    }
+    Ok(merged_server_names)
 }
 
 fn write_toml_file(path: &Path, value: &TomlValue) -> io::Result<()> {

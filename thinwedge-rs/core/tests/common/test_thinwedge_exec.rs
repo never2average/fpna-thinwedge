@@ -25,7 +25,7 @@ impl TestThinWedgeExecBuilder {
         let mut cmd = self.cmd();
         let base = format!("{}/v1", server.uri());
         cmd.arg("-c")
-            .arg(format!("thinwedge_base_url={}", toml_string_literal(&base)));
+            .arg(format!("openai_base_url={}", toml_string_literal(&base)));
         cmd
     }
 

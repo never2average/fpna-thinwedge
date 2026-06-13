@@ -6,9 +6,9 @@ use std::io::Result as IoResult;
 use std::sync::Arc;
 
 use thinwedge_arg0::Arg0DispatchPaths;
-use thinwedge_core::config::Config;
+use thinwedge_core::config::ConfigBuilder;
+use thinwedge_core::resolve_installation_id;
 use thinwedge_exec_server::EnvironmentManager;
-use thinwedge_exec_server::EnvironmentManagerArgs;
 use thinwedge_exec_server::ExecServerRuntimePaths;
 use thinwedge_login::default_client::set_default_client_residency_requirement;
 use thinwedge_utils_cli::CliConfigOverrides;
@@ -51,7 +51,7 @@ pub use crate::thinwedge_tool_config::ThinWedgeToolCallReplyParam;
 /// is a balance between throughput and memory usage – 128 messages should be
 /// plenty for an interactive CLI.
 const CHANNEL_CAPACITY: usize = 128;
-const DEFAULT_ANALYTICS_ENABLED: bool = false;
+const DEFAULT_ANALYTICS_ENABLED: bool = true;
 const OTEL_SERVICE_NAME: &str = "thinwedge_mcp_server";
 
 type IncomingMessage = JsonRpcMessage<ClientRequest, Value, ClientNotification>;
@@ -59,16 +59,8 @@ type IncomingMessage = JsonRpcMessage<ClientRequest, Value, ClientNotification>;
 pub async fn run_main(
     arg0_paths: Arg0DispatchPaths,
     cli_config_overrides: CliConfigOverrides,
+    strict_config: bool,
 ) -> IoResult<()> {
-    let environment_manager = Arc::new(
-        EnvironmentManager::new(EnvironmentManagerArgs::new(
-            ExecServerRuntimePaths::from_optional_paths(
-                arg0_paths.thinwedge_self_exe.clone(),
-                arg0_paths.thinwedge_linux_sandbox_exe.clone(),
-            )?,
-        ))
-        .await,
-    );
     // Parse CLI overrides once and derive the base Config eagerly so later
     // components do not need to work with raw TOML values.
     let cli_kv_overrides = cli_config_overrides.parse_overrides().map_err(|e| {
@@ -77,13 +69,15 @@ pub async fn run_main(
             format!("error parsing -c overrides: {e}"),
         )
     })?;
-    let config = Config::load_with_cli_overrides(cli_kv_overrides)
+    let config = ConfigBuilder::default()
+        .cli_overrides(cli_kv_overrides)
+        .strict_config(strict_config)
+        .build()
         .await
         .map_err(|e| {
             std::io::Error::new(ErrorKind::InvalidData, format!("error loading config: {e}"))
         })?;
     set_default_client_residency_requirement(config.enforce_residency.value());
-
     let otel = thinwedge_core::otel_init::build_provider(
         &config,
         env!("CARGO_PKG_VERSION"),
@@ -96,6 +90,20 @@ pub async fn run_main(
             format!("error loading otel config: {e}"),
         )
     })?;
+    thinwedge_core::otel_init::record_process_start(otel.as_ref(), OTEL_SERVICE_NAME);
+    thinwedge_core::otel_init::install_sqlite_telemetry(otel.as_ref(), OTEL_SERVICE_NAME);
+    let state_db = thinwedge_core::init_state_db(&config).await;
+    let environment_manager = Arc::new(
+        EnvironmentManager::from_thinwedge_home(
+            config.thinwedge_home.clone(),
+            Some(ExecServerRuntimePaths::from_optional_paths(
+                arg0_paths.thinwedge_self_exe.clone(),
+                arg0_paths.thinwedge_linux_sandbox_exe.clone(),
+            )?),
+        )
+        .await
+        .map_err(std::io::Error::other)?,
+    );
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_writer(std::io::stderr)
@@ -112,6 +120,7 @@ pub async fn run_main(
     // Set up channels.
     let (incoming_tx, mut incoming_rx) = mpsc::channel::<IncomingMessage>(CHANNEL_CAPACITY);
     let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<OutgoingMessage>();
+    let installation_id = resolve_installation_id(&config.thinwedge_home).await?;
 
     // Task: read from stdin, push to `incoming_tx`.
     let stdin_reader_handle = tokio::spawn({
@@ -144,6 +153,8 @@ pub async fn run_main(
             arg0_paths,
             Arc::new(config),
             environment_manager,
+            state_db,
+            installation_id,
         )
         .await;
         async move {
@@ -201,8 +212,8 @@ mod tests {
     use thinwedge_core::config::ConfigBuilder;
 
     #[test]
-    fn mcp_server_defaults_analytics_to_disabled() {
-        assert_eq!(DEFAULT_ANALYTICS_ENABLED, false);
+    fn mcp_server_defaults_analytics_to_enabled() {
+        assert_eq!(DEFAULT_ANALYTICS_ENABLED, true);
     }
 
     #[tokio::test]

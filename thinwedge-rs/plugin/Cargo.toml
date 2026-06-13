@@ -14,6 +14,10 @@ workspace = true
 
 [dependencies]
 thinwedge-config = { workspace = true }
+thinwedge-protocol = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
 thinwedge-utils-plugins = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

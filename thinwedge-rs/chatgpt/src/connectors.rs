@@ -1,10 +1,12 @@
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
 
 use crate::chatgpt_client::chatgpt_get_request_with_timeout;
 
 use thinwedge_app_server_protocol::AppInfo;
-use thinwedge_connectors::AllConnectorsCacheKey;
+use thinwedge_connectors::ConnectorDirectoryCacheContext;
+use thinwedge_connectors::ConnectorDirectoryCacheKey;
 use thinwedge_connectors::DirectoryListResponse;
 use thinwedge_connectors::filter::filter_disallowed_connectors;
 use thinwedge_connectors::merge::merge_connectors;
@@ -12,15 +14,16 @@ use thinwedge_connectors::merge::merge_plugin_connectors;
 use thinwedge_core::config::Config;
 pub use thinwedge_core::connectors::list_accessible_connectors_from_mcp_tools;
 pub use thinwedge_core::connectors::list_accessible_connectors_from_mcp_tools_with_environment_manager;
+pub use thinwedge_core::connectors::list_accessible_connectors_from_mcp_tools_with_mcp_manager;
 pub use thinwedge_core::connectors::list_accessible_connectors_from_mcp_tools_with_options;
 pub use thinwedge_core::connectors::list_accessible_connectors_from_mcp_tools_with_options_and_status;
 pub use thinwedge_core::connectors::list_cached_accessible_connectors_from_mcp_tools;
 pub use thinwedge_core::connectors::with_app_enabled_state;
-use thinwedge_core::plugins::AppConnectorId;
-use thinwedge_core::plugins::PluginsManager;
+use thinwedge_core_plugins::PluginsManager;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::default_client::originator;
+use thinwedge_plugin::AppConnectorId;
 
 const DIRECTORY_CONNECTORS_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -76,8 +79,8 @@ pub async fn list_cached_all_connectors(config: &Config) -> Option<Vec<AppInfo>>
     }
 
     let auth = connector_auth(config).await.ok()?;
-    let cache_key = all_connectors_cache_key(config, &auth);
-    let connectors = thinwedge_connectors::cached_all_connectors(&cache_key)?;
+    let cache_context = connector_directory_cache_context(config, &auth);
+    let connectors = thinwedge_connectors::cached_directory_connectors(&cache_context)?;
     let connectors = merge_plugin_connectors(
         connectors,
         plugin_apps_for_config(config)
@@ -99,9 +102,9 @@ pub async fn list_all_connectors_with_options(
         return Ok(Vec::new());
     }
     let auth = connector_auth(config).await?;
-    let cache_key = all_connectors_cache_key(config, &auth);
+    let cache_context = connector_directory_cache_context(config, &auth);
     let connectors = thinwedge_connectors::list_all_connectors_with_options(
-        cache_key,
+        cache_context,
         auth.is_workspace_account(),
         force_refetch,
         |path| async move {
@@ -127,18 +130,25 @@ pub async fn list_all_connectors_with_options(
     ))
 }
 
-fn all_connectors_cache_key(config: &Config, auth: &ThinWedgeAuth) -> AllConnectorsCacheKey {
-    AllConnectorsCacheKey::new(
-        config.chatgpt_base_url.clone(),
-        auth.get_account_id(),
-        auth.get_chatgpt_user_id(),
-        auth.is_workspace_account(),
+fn connector_directory_cache_context(
+    config: &Config,
+    auth: &ThinWedgeAuth,
+) -> ConnectorDirectoryCacheContext {
+    ConnectorDirectoryCacheContext::new(
+        config.thinwedge_home.to_path_buf(),
+        ConnectorDirectoryCacheKey::new(
+            config.chatgpt_base_url.clone(),
+            auth.get_account_id(),
+            auth.get_chatgpt_user_id(),
+            auth.is_workspace_account(),
+        ),
     )
 }
 
-async fn plugin_apps_for_config(config: &Config) -> Vec<thinwedge_core::plugins::AppConnectorId> {
+async fn plugin_apps_for_config(config: &Config) -> Vec<AppConnectorId> {
+    let plugins_input = config.plugins_config_input();
     PluginsManager::new(config.thinwedge_home.to_path_buf())
-        .plugins_for_config(config)
+        .plugins_for_config(&plugins_input)
         .await
         .effective_apps()
 }
@@ -147,20 +157,21 @@ pub fn connectors_for_plugin_apps(
     connectors: Vec<AppInfo>,
     plugin_apps: &[AppConnectorId],
 ) -> Vec<AppInfo> {
-    let plugin_app_ids = plugin_apps
-        .iter()
-        .map(|connector_id| connector_id.0.as_str())
-        .collect::<HashSet<_>>();
-
     let connectors = merge_plugin_connectors(
         connectors,
         plugin_apps
             .iter()
             .map(|connector_id| connector_id.0.clone()),
     );
-    filter_disallowed_connectors(connectors, originator().value.as_str())
-        .into_iter()
-        .filter(|connector| plugin_app_ids.contains(connector.id.as_str()))
+    let mut connectors_by_id =
+        filter_disallowed_connectors(connectors, originator().value.as_str())
+            .into_iter()
+            .map(|connector| (connector.id.clone(), connector))
+            .collect::<HashMap<_, _>>();
+
+    plugin_apps
+        .iter()
+        .filter_map(|connector_id| connectors_by_id.remove(connector_id.0.as_str()))
         .collect()
 }
 
@@ -190,7 +201,7 @@ mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
     use thinwedge_connectors::metadata::connector_install_url;
-    use thinwedge_core::plugins::AppConnectorId;
+    use thinwedge_plugin::AppConnectorId;
 
     fn app(id: &str) -> AppInfo {
         AppInfo {
@@ -259,13 +270,14 @@ mod tests {
         let connectors = connectors_for_plugin_apps(
             vec![app("alpha"), app("beta")],
             &[
+                AppConnectorId("gmail".to_string()),
                 AppConnectorId("alpha".to_string()),
                 AppConnectorId("gmail".to_string()),
             ],
         );
         assert_eq!(
             connectors,
-            vec![app("alpha"), merged_app("gmail", /*is_accessible*/ false)]
+            vec![merged_app("gmail", /*is_accessible*/ false), app("alpha")]
         );
     }
 

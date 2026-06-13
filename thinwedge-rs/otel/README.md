@@ -39,6 +39,8 @@ let settings = OtelSettings {
         tls: None,
     },
     metrics_exporter: OtelExporter::None,
+    span_attributes: std::collections::BTreeMap::new(),
+    tracestate: std::collections::BTreeMap::new(),
 };
 
 if let Some(provider) = OtelProvider::from(&settings)? {
@@ -48,6 +50,26 @@ if let Some(provider) = OtelProvider::from(&settings)? {
     registry.init();
 }
 ```
+
+Configured span attributes and W3C tracestate member fields are applied to
+exported trace spans and propagated trace context:
+
+```toml
+[otel.span_attributes]
+"example.trace_attr" = "enabled"
+
+[otel.tracestate.example]
+alpha = "one"
+beta = "two"
+```
+
+Configured tracestate members and encoded values must be valid W3C tracestate.
+Each nested table is encoded as semicolon-separated `key:value` fields inside
+that member. If propagated trace context already has the named member, ThinWedge
+upserts configured fields and preserves other fields in that member. This
+config shape does not support setting opaque tracestate member values. Invalid
+trace metadata entries are ignored during config load and reported as startup
+warnings.
 
 ## SessionTelemetry (events)
 
@@ -82,7 +104,7 @@ Modes:
 - In-memory: records via `opentelemetry_sdk::metrics::InMemoryMetricExporter` for tests/assertions; call `shutdown()` to flush.
 
 `thinwedge-otel` also provides `OtelExporter::Statsig`, a shorthand for exporting OTLP/HTTP JSON metrics
-to Statsig when `THINWEDGE_STATSIG_OTLP_HTTP_ENDPOINT` and `THINWEDGE_STATSIG_API_KEY` are set. Without those environment variables, the shorthand resolves to no exporter.
+to Statsig using ThinWedge-internal defaults.
 
 Statsig ingestion (OTLP/HTTP JSON) example:
 

@@ -4,6 +4,7 @@ use anyhow::Result;
 use futures::future::join_all;
 use thinwedge_config::McpServerConfig;
 use thinwedge_config::McpServerTransportConfig;
+use thinwedge_config::types::AuthKeyringBackendKind;
 use thinwedge_config::types::OAuthCredentialsStoreMode;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_protocol::protocol::McpAuthStatus;
@@ -11,6 +12,8 @@ use thinwedge_rmcp_client::OAuthProviderError;
 use thinwedge_rmcp_client::determine_streamable_http_auth_status;
 use thinwedge_rmcp_client::discover_streamable_http_oauth;
 use tracing::warn;
+
+use crate::server::EffectiveMcpServer;
 
 use super::THINWEDGE_APPS_MCP_SERVER_NAME;
 
@@ -45,7 +48,7 @@ pub struct ResolvedMcpOAuthScopes {
 
 #[derive(Debug, Clone)]
 pub struct McpAuthStatusEntry {
-    pub config: McpServerConfig,
+    pub config: Option<McpServerConfig>,
     pub auth_status: McpAuthStatus,
 }
 
@@ -128,32 +131,49 @@ pub fn should_retry_without_scopes(scopes: &ResolvedMcpOAuthScopes, error: &anyh
 pub async fn compute_auth_statuses<'a, I>(
     servers: I,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     auth: Option<&ThinWedgeAuth>,
 ) -> HashMap<String, McpAuthStatusEntry>
 where
-    I: IntoIterator<Item = (&'a String, &'a McpServerConfig)>,
+    I: IntoIterator<Item = (&'a String, &'a EffectiveMcpServer)>,
 {
-    let futures = servers.into_iter().map(|(name, config)| {
+    let futures = servers.into_iter().map(|(name, server)| {
         let name = name.clone();
-        let config = config.clone();
+        let config = server.configured_config().cloned();
         let has_runtime_auth = name == THINWEDGE_APPS_MCP_SERVER_NAME
             && auth.is_some_and(ThinWedgeAuth::uses_thinwedge_backend)
-            && matches!(
-                &config.transport,
-                McpServerTransportConfig::StreamableHttp {
-                    bearer_token_env_var: None,
-                    ..
-                }
-            );
-        async move {
-            let auth_status =
-                match compute_auth_status(&name, &config, store_mode, has_runtime_auth).await {
-                    Ok(status) => status,
-                    Err(error) => {
-                        warn!("failed to determine auth status for MCP server `{name}`: {error:?}");
-                        McpAuthStatus::Unsupported
+            && config.as_ref().is_some_and(|config| {
+                matches!(
+                    &config.transport,
+                    McpServerTransportConfig::StreamableHttp {
+                        bearer_token_env_var: None,
+                        ..
                     }
-                };
+                )
+            });
+        async move {
+            let auth_status = match config.as_ref() {
+                Some(config) => {
+                    match compute_auth_status(
+                        &name,
+                        config,
+                        store_mode,
+                        keyring_backend_kind,
+                        has_runtime_auth,
+                    )
+                    .await
+                    {
+                        Ok(status) => status,
+                        Err(error) => {
+                            warn!(
+                                "failed to determine auth status for MCP server `{name}`: {error:?}"
+                            );
+                            McpAuthStatus::Unsupported
+                        }
+                    }
+                }
+                None => McpAuthStatus::Unsupported,
+            };
             let entry = McpAuthStatusEntry {
                 config,
                 auth_status,
@@ -169,6 +189,7 @@ async fn compute_auth_status(
     server_name: &str,
     config: &McpServerConfig,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     has_runtime_auth: bool,
 ) -> Result<McpAuthStatus> {
     if !config.enabled {
@@ -194,6 +215,7 @@ async fn compute_auth_status(
                 http_headers.clone(),
                 env_http_headers.clone(),
                 store_mode,
+                keyring_backend_kind,
             )
             .await
         }

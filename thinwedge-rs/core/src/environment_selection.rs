@@ -1,68 +1,119 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
-use thinwedge_exec_server::Environment;
 use thinwedge_exec_server::EnvironmentManager;
+use thinwedge_exec_server::ExecutorFileSystem;
 use thinwedge_protocol::error::Result as ThinWedgeResult;
 use thinwedge_protocol::error::ThinWedgeErr;
 use thinwedge_protocol::protocol::TurnEnvironmentSelection;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
+
+use crate::session::turn_context::TurnEnvironment;
+use crate::shell::Shell;
 
 pub(crate) fn default_thread_environment_selections(
     environment_manager: &EnvironmentManager,
     cwd: &AbsolutePathBuf,
 ) -> Vec<TurnEnvironmentSelection> {
     environment_manager
-        .default_environment_id()
+        .default_environment_ids()
+        .into_iter()
         .map(|environment_id| TurnEnvironmentSelection {
-            environment_id: environment_id.to_string(),
+            environment_id,
             cwd: cwd.clone(),
         })
-        .into_iter()
         .collect()
 }
 
-pub(crate) fn validate_environment_selections(
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ResolvedTurnEnvironments {
+    pub(crate) turn_environments: Vec<TurnEnvironment>,
+}
+
+impl ResolvedTurnEnvironments {
+    pub(crate) fn to_selections(&self) -> Vec<TurnEnvironmentSelection> {
+        self.turn_environments
+            .iter()
+            .map(TurnEnvironment::selection)
+            .collect()
+    }
+
+    pub(crate) fn primary(&self) -> Option<&TurnEnvironment> {
+        self.turn_environments.first()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn primary_environment(&self) -> Option<Arc<thinwedge_exec_server::Environment>> {
+        self.primary()
+            .map(|environment| Arc::clone(&environment.environment))
+    }
+
+    pub(crate) fn primary_filesystem(&self) -> Option<Arc<dyn ExecutorFileSystem>> {
+        self.primary()
+            .map(|environment| environment.environment.get_filesystem())
+    }
+
+    pub(crate) fn single_local_environment_cwd(&self) -> Option<&AbsolutePathBuf> {
+        let [environment] = self.turn_environments.as_slice() else {
+            return None;
+        };
+
+        (!environment.environment.is_remote()).then_some(environment.cwd())
+    }
+}
+
+pub(crate) async fn resolve_environment_selections(
     environment_manager: &EnvironmentManager,
     environments: &[TurnEnvironmentSelection],
-) -> ThinWedgeResult<()> {
+) -> ThinWedgeResult<ResolvedTurnEnvironments> {
+    let mut seen_environment_ids = HashSet::with_capacity(environments.len());
+    let mut turn_environments = Vec::with_capacity(environments.len());
     for selected_environment in environments {
-        if environment_manager
-            .get_environment(&selected_environment.environment_id)
-            .is_none()
-        {
+        if !seen_environment_ids.insert(selected_environment.environment_id.as_str()) {
             return Err(ThinWedgeErr::InvalidRequest(format!(
-                "unknown turn environment id `{}`",
+                "duplicate turn environment id `{}`",
                 selected_environment.environment_id
             )));
         }
+        let environment_id = selected_environment.environment_id.clone();
+        let environment = environment_manager
+            .get_environment(&environment_id)
+            .ok_or_else(|| {
+                ThinWedgeErr::InvalidRequest(format!(
+                    "unknown turn environment id `{environment_id}`"
+                ))
+            })?;
+        let shell = match environment.info().await {
+            Ok(info) => match Shell::from_environment_shell_info(info.shell) {
+                Ok(shell) => Some(shell),
+                Err(err) => {
+                    tracing::warn!(
+                        "failed to resolve shell for environment `{environment_id}`: {err}"
+                    );
+                    None
+                }
+            },
+            Err(err) => {
+                tracing::warn!("failed to get info for environment `{environment_id}`: {err}");
+                None
+            }
+        };
+        turn_environments.push(TurnEnvironment::new(
+            environment_id,
+            environment,
+            selected_environment.cwd.clone(),
+            shell,
+        ));
     }
-
-    Ok(())
-}
-
-pub(crate) fn selected_primary_environment(
-    environment_manager: &EnvironmentManager,
-    environments: &[TurnEnvironmentSelection],
-) -> ThinWedgeResult<Option<Arc<Environment>>> {
-    environments
-        .first()
-        .map(|selected_environment| {
-            environment_manager
-                .get_environment(&selected_environment.environment_id)
-                .ok_or_else(|| {
-                    ThinWedgeErr::InvalidRequest(format!(
-                        "unknown turn environment id `{}`",
-                        selected_environment.environment_id
-                    ))
-                })
-        })
-        .transpose()
+    Ok(ResolvedTurnEnvironments { turn_environments })
 }
 
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use thinwedge_exec_server::Environment;
     use thinwedge_exec_server::ExecServerRuntimePaths;
+    use thinwedge_exec_server::LOCAL_ENVIRONMENT_ID;
     use thinwedge_exec_server::REMOTE_ENVIRONMENT_ID;
     use thinwedge_protocol::protocol::TurnEnvironmentSelection;
     use thinwedge_utils_absolute_path::AbsolutePathBuf;
@@ -82,7 +133,7 @@ mod tests {
         let cwd = AbsolutePathBuf::current_dir().expect("cwd");
         let manager = EnvironmentManager::create_for_tests(
             Some("ws://127.0.0.1:8765".to_string()),
-            test_runtime_paths(),
+            Some(test_runtime_paths()),
         )
         .await;
 
@@ -96,13 +147,152 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn toml_default_thread_environment_selections_include_local_and_remote() {
+        let temp_dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(
+            temp_dir.path().join("environments.toml"),
+            r#"
+[[environments]]
+id = "remote"
+url = "ws://127.0.0.1:8765"
+"#,
+        )
+        .expect("write environments.toml");
+        let cwd = AbsolutePathBuf::current_dir().expect("cwd");
+        let manager =
+            EnvironmentManager::from_thinwedge_home(temp_dir.path(), Some(test_runtime_paths()))
+                .await
+                .expect("environment manager");
+
+        assert_eq!(
+            default_thread_environment_selections(&manager, &cwd),
+            vec![
+                TurnEnvironmentSelection {
+                    environment_id: LOCAL_ENVIRONMENT_ID.to_string(),
+                    cwd: cwd.clone(),
+                },
+                TurnEnvironmentSelection {
+                    environment_id: REMOTE_ENVIRONMENT_ID.to_string(),
+                    cwd,
+                },
+            ]
+        );
+    }
+
+    #[tokio::test]
     async fn default_thread_environment_selections_empty_when_default_disabled() {
         let cwd = AbsolutePathBuf::current_dir().expect("cwd");
-        let manager = EnvironmentManager::disabled_for_tests(test_runtime_paths());
+        let manager = EnvironmentManager::without_environments();
 
         assert_eq!(
             default_thread_environment_selections(&manager, &cwd),
             Vec::<TurnEnvironmentSelection>::new()
         );
+    }
+
+    #[tokio::test]
+    async fn resolve_environment_selections_rejects_duplicate_ids() {
+        let cwd = AbsolutePathBuf::current_dir().expect("cwd");
+        let manager = EnvironmentManager::default_for_tests();
+
+        let err = resolve_environment_selections(
+            &manager,
+            &[
+                TurnEnvironmentSelection {
+                    environment_id: "local".to_string(),
+                    cwd: cwd.clone(),
+                },
+                TurnEnvironmentSelection {
+                    environment_id: "local".to_string(),
+                    cwd: cwd.join("other"),
+                },
+            ],
+        )
+        .await
+        .expect_err("duplicate environment id should fail");
+
+        assert!(err.to_string().contains("duplicate"));
+    }
+
+    #[tokio::test]
+    async fn resolved_environment_selections_use_first_selection_as_primary() {
+        let cwd = AbsolutePathBuf::current_dir().expect("cwd");
+        let selected_cwd = cwd.join("selected");
+        let manager = EnvironmentManager::default_for_tests();
+
+        let resolved = resolve_environment_selections(
+            &manager,
+            &[TurnEnvironmentSelection {
+                environment_id: "local".to_string(),
+                cwd: selected_cwd,
+            }],
+        )
+        .await
+        .expect("environment selections should resolve");
+
+        assert_eq!(
+            resolved
+                .primary()
+                .expect("primary environment")
+                .environment_id,
+            "local"
+        );
+        assert_eq!(
+            resolved.primary().expect("primary environment").shell,
+            Some(
+                Shell::from_environment_shell_info(
+                    manager
+                        .get_environment("local")
+                        .expect("local environment")
+                        .info()
+                        .await
+                        .expect("local environment info")
+                        .shell
+                )
+                .expect("resolved shell")
+            )
+        );
+    }
+
+    #[tokio::test]
+    async fn single_local_environment_cwd_requires_exactly_one_local_environment() {
+        let cwd = AbsolutePathBuf::current_dir().expect("cwd");
+        let local_manager = EnvironmentManager::default_for_tests();
+        let local = resolve_environment_selections(
+            &local_manager,
+            &[TurnEnvironmentSelection {
+                environment_id: LOCAL_ENVIRONMENT_ID.to_string(),
+                cwd: cwd.clone(),
+            }],
+        )
+        .await
+        .expect("local environment should resolve");
+        let remote_environment = Arc::new(
+            Environment::create_for_tests(Some("ws://127.0.0.1:8765".to_string()))
+                .expect("remote environment"),
+        );
+        let remote = ResolvedTurnEnvironments {
+            turn_environments: vec![TurnEnvironment::new(
+                REMOTE_ENVIRONMENT_ID.to_string(),
+                remote_environment.clone(),
+                cwd.clone(),
+                /*shell*/ None,
+            )],
+        };
+        let multiple = ResolvedTurnEnvironments {
+            turn_environments: vec![
+                local.primary().expect("local environment").clone(),
+                TurnEnvironment::new(
+                    REMOTE_ENVIRONMENT_ID.to_string(),
+                    remote_environment,
+                    cwd.clone(),
+                    /*shell*/ None,
+                ),
+            ],
+        };
+
+        assert_eq!(local.single_local_environment_cwd(), Some(&cwd));
+        assert_eq!(remote.single_local_environment_cwd(), None);
+        assert_eq!(multiple.single_local_environment_cwd(), None);
     }
 }

@@ -148,7 +148,7 @@ async fn poll_for_token(
 fn print_device_code_prompt(verification_url: &str, code: &str) {
     let version = env!("CARGO_PKG_VERSION");
     println!(
-        "\nWelcome to ThinWedge [v{ANSI_GRAY}{version}{ANSI_RESET}]\n{ANSI_GRAY}ThinWedge's command-line coding agent{ANSI_RESET}\n\
+        "\nWelcome to ThinWedge [v{ANSI_GRAY}{version}{ANSI_RESET}]\n{ANSI_GRAY}OpenAI's command-line coding agent{ANSI_RESET}\n\
 \nFollow these steps to sign in with ChatGPT using device code authorization:\n\
 \n1. Open this link in your browser and sign in to your account\n   {ANSI_BLUE}{verification_url}{ANSI_RESET}\n\
 \n2. Enter this one-time code {ANSI_GRAY}(expires in 15 minutes){ANSI_RESET}\n   {ANSI_BLUE}{code}{ANSI_RESET}\n\
@@ -217,6 +217,7 @@ pub async fn complete_device_code_login(
         tokens.access_token,
         tokens.refresh_token,
         opts.cli_auth_credentials_store_mode,
+        opts.auth_keyring_backend_kind,
     )
     .await
 }

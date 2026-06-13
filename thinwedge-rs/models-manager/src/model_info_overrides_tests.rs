@@ -2,16 +2,16 @@ use crate::ModelsManagerConfig;
 use crate::manager::ModelsManager;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
+use thinwedge_protocol::openai_models::TruncationPolicyConfig;
 
 use super::TestModelsEndpoint;
-use super::thinwedge_manager_for_tests;
+use super::openai_manager_for_tests;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn offline_model_info_without_tool_output_override() {
     let thinwedge_home = TempDir::new().expect("create temp dir");
     let config = ModelsManagerConfig::default();
-    let manager = thinwedge_manager_for_tests(
+    let manager = openai_manager_for_tests(
         thinwedge_home.path().to_path_buf(),
         TestModelsEndpoint::new(Vec::new()),
     );
@@ -31,7 +31,7 @@ async fn offline_model_info_with_tool_output_override() {
         tool_output_token_limit: Some(123),
         ..Default::default()
     };
-    let manager = thinwedge_manager_for_tests(
+    let manager = openai_manager_for_tests(
         thinwedge_home.path().to_path_buf(),
         TestModelsEndpoint::new(Vec::new()),
     );

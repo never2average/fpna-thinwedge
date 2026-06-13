@@ -14,6 +14,7 @@ chrono = { workspace = true }
 thinwedge-file-system = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-path-uri = { workspace = true }
 futures = { workspace = true, features = ["alloc"] }
 gix = { workspace = true }
 once_cell = { workspace = true }
@@ -33,3 +34,6 @@ walkdir = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

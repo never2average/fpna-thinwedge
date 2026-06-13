@@ -1,6 +1,7 @@
 pub const TOOL_CALL_COUNT_METRIC: &str = "thinwedge.tool.call";
 pub const TOOL_CALL_DURATION_METRIC: &str = "thinwedge.tool.call.duration_ms";
 pub const TOOL_CALL_UNIFIED_EXEC_METRIC: &str = "thinwedge.tool.unified_exec";
+pub const PROCESS_START_METRIC: &str = "thinwedge.process.start";
 pub const API_CALL_COUNT_METRIC: &str = "thinwedge.api_request";
 pub const API_CALL_DURATION_METRIC: &str = "thinwedge.api_request.duration_ms";
 pub const SSE_EVENT_COUNT_METRIC: &str = "thinwedge.sse_event";
@@ -28,11 +29,27 @@ pub const TURN_NETWORK_PROXY_METRIC: &str = "thinwedge.turn.network_proxy";
 pub const TURN_MEMORY_METRIC: &str = "thinwedge.turn.memory";
 pub const TURN_TOOL_CALL_METRIC: &str = "thinwedge.turn.tool.call";
 pub const TURN_TOKEN_USAGE_METRIC: &str = "thinwedge.turn.token_usage";
-pub const PROFILE_USAGE_METRIC: &str = "thinwedge.profile.usage";
+pub const GUARDIAN_REVIEW_COUNT_METRIC: &str = "thinwedge.guardian.review";
+pub const GUARDIAN_REVIEW_DURATION_METRIC: &str = "thinwedge.guardian.review.duration_ms";
+pub const GUARDIAN_REVIEW_TTFT_DURATION_METRIC: &str = "thinwedge.guardian.review.ttft.duration_ms";
+pub const GUARDIAN_REVIEW_TOKEN_USAGE_METRIC: &str = "thinwedge.guardian.review.token_usage";
+pub const GOAL_CREATED_METRIC: &str = "thinwedge.goal.created";
+pub const GOAL_RESUMED_METRIC: &str = "thinwedge.goal.resumed";
+pub const GOAL_COMPLETED_METRIC: &str = "thinwedge.goal.completed";
+pub const GOAL_BUDGET_LIMITED_METRIC: &str = "thinwedge.goal.budget_limited";
+pub const GOAL_USAGE_LIMITED_METRIC: &str = "thinwedge.goal.usage_limited";
+pub const GOAL_BLOCKED_METRIC: &str = "thinwedge.goal.blocked";
+pub const GOAL_TOKEN_COUNT_METRIC: &str = "thinwedge.goal.token_count";
+pub const GOAL_DURATION_SECONDS_METRIC: &str = "thinwedge.goal.duration_s";
+pub const PLUGIN_INSTALL_ELICITATION_SENT_METRIC: &str =
+    "thinwedge.plugins.install_elicitation.sent";
+pub const PLUGIN_INSTALL_SUGGESTION_METRIC: &str = "thinwedge.plugins.install_suggestion";
 pub const CURATED_PLUGINS_STARTUP_SYNC_METRIC: &str = "thinwedge.plugins.startup_sync";
 pub const CURATED_PLUGINS_STARTUP_SYNC_FINAL_METRIC: &str = "thinwedge.plugins.startup_sync.final";
 pub const HOOK_RUN_METRIC: &str = "thinwedge.hooks.run";
 pub const HOOK_RUN_DURATION_METRIC: &str = "thinwedge.hooks.run.duration_ms";
+/// Duration for coarse startup phases, tagged by low-cardinality phase and status.
+pub const STARTUP_PHASE_DURATION_METRIC: &str = "thinwedge.startup.phase.duration_ms";
 /// Total runtime of a startup prewarm attempt until it completes, tagged by final status.
 pub const STARTUP_PREWARM_DURATION_METRIC: &str = "thinwedge.startup_prewarm.duration_ms";
 /// Age of the startup prewarm attempt when the first real turn resolves it, tagged by outcome.

@@ -12,12 +12,14 @@ use futures::StreamExt;
 use serde_json::Value;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::openai_models::ModelsResponse;
 use tokio::net::TcpListener;
 use tokio::sync::Notify;
 use tokio::sync::oneshot;
 use tokio_tungstenite::accept_hdr_async_with_config;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::extensions::ExtensionsConfig;
+use tokio_tungstenite::tungstenite::extensions::compression::deflate::DeflateConfig;
 use tokio_tungstenite::tungstenite::handshake::server::Request;
 use tokio_tungstenite::tungstenite::handshake::server::Response;
 use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
@@ -32,8 +34,6 @@ use wiremock::http::HeaderName;
 use wiremock::http::HeaderValue;
 use wiremock::matchers::method;
 use wiremock::matchers::path_regex;
-
-use crate::test_thinwedge::ApplyPatchModelOutput;
 
 #[derive(Debug, Clone)]
 pub struct ResponseMock {
@@ -643,7 +643,7 @@ pub fn ev_model_verification_metadata(id: &str, verifications: Vec<&str>) -> Val
         "sequence_number": 1,
         "response_id": id,
         "metadata": {
-            "thinwedge_verification_recommendation": verifications,
+            "openai_verification_recommendation": verifications,
         }
     })
 }
@@ -881,27 +881,9 @@ pub fn ev_local_shell_call(call_id: &str, status: &str, command: Vec<&str>) -> V
     })
 }
 
-pub fn ev_apply_patch_call(
-    call_id: &str,
-    patch: &str,
-    output_type: ApplyPatchModelOutput,
-) -> Value {
-    match output_type {
-        ApplyPatchModelOutput::Freeform => ev_apply_patch_custom_tool_call(call_id, patch),
-        ApplyPatchModelOutput::Function => ev_apply_patch_function_call(call_id, patch),
-        ApplyPatchModelOutput::Shell => ev_apply_patch_shell_call(call_id, patch),
-        ApplyPatchModelOutput::ShellViaHeredoc => {
-            ev_apply_patch_shell_call_via_heredoc(call_id, patch)
-        }
-        ApplyPatchModelOutput::ShellCommandViaHeredoc => {
-            ev_apply_patch_shell_command_call_via_heredoc(call_id, patch)
-        }
-    }
-}
-
 /// Convenience: SSE event for an `apply_patch` custom tool call with raw patch
 /// text. This mirrors the payload produced by the Responses API when the model
-/// invokes `apply_patch` directly (before we convert it to a function call).
+/// invokes `apply_patch` directly.
 pub fn ev_apply_patch_custom_tool_call(call_id: &str, patch: &str) -> Value {
     serde_json::json!({
         "type": "response.output_item.done",
@@ -909,24 +891,6 @@ pub fn ev_apply_patch_custom_tool_call(call_id: &str, patch: &str) -> Value {
             "type": "custom_tool_call",
             "name": "apply_patch",
             "input": patch,
-            "call_id": call_id
-        }
-    })
-}
-
-/// Convenience: SSE event for an `apply_patch` function call. The Responses API
-/// wraps the patch content in a JSON string under the `input` key; we recreate
-/// the same structure so downstream code exercises the full parsing path.
-pub fn ev_apply_patch_function_call(call_id: &str, patch: &str) -> Value {
-    let arguments = serde_json::json!({ "input": patch });
-    let arguments = serde_json::to_string(&arguments).expect("serialize apply_patch arguments");
-
-    serde_json::json!({
-        "type": "response.output_item.done",
-        "item": {
-            "type": "function_call",
-            "name": "apply_patch",
-            "arguments": arguments,
             "call_id": call_id
         }
     })
@@ -940,21 +904,6 @@ pub fn ev_shell_command_call(call_id: &str, command: &str) -> Value {
 pub fn ev_shell_command_call_with_args(call_id: &str, args: &serde_json::Value) -> Value {
     let arguments = serde_json::to_string(args).expect("serialize shell command arguments");
     ev_function_call(call_id, "shell_command", &arguments)
-}
-
-pub fn ev_apply_patch_shell_call(call_id: &str, patch: &str) -> Value {
-    let args = serde_json::json!({ "command": ["apply_patch", patch] });
-    let arguments = serde_json::to_string(&args).expect("serialize apply_patch arguments");
-
-    ev_function_call(call_id, "shell", &arguments)
-}
-
-pub fn ev_apply_patch_shell_call_via_heredoc(call_id: &str, patch: &str) -> Value {
-    let script = format!("apply_patch <<'EOF'\n{patch}\nEOF\n");
-    let args = serde_json::json!({ "command": ["bash", "-lc", script] });
-    let arguments = serde_json::to_string(&args).expect("serialize apply_patch arguments");
-
-    ev_function_call(call_id, "shell", &arguments)
 }
 
 pub fn ev_apply_patch_shell_command_call_via_heredoc(call_id: &str, patch: &str) -> Value {
@@ -1443,7 +1392,12 @@ fn parse_ws_request_body(message: Message) -> Option<Value> {
 }
 
 fn websocket_accept_config() -> WebSocketConfig {
-    WebSocketConfig::default()
+    let mut extensions = ExtensionsConfig::default();
+    extensions.permessage_deflate = Some(DeflateConfig::default());
+
+    let mut config = WebSocketConfig::default();
+    config.extensions = extensions;
+    config
 }
 
 #[derive(Clone)]

@@ -3,7 +3,6 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use anyhow::Result;
-use async_trait::async_trait;
 use bytes::Bytes;
 use http::HeaderMap;
 use http::HeaderValue;
@@ -71,7 +70,6 @@ impl RecordingTransport {
     }
 }
 
-#[async_trait]
 impl HttpTransport for RecordingTransport {
     async fn execute(&self, _req: Request) -> Result<Response, TransportError> {
         Err(TransportError::Build("execute should not run".to_string()))
@@ -195,11 +193,6 @@ impl FailsOnceAuth {
             .lock()
             .unwrap_or_else(|err| panic!("mutex poisoned: {err}"))
     }
-}
-
-#[async_trait]
-impl AuthProvider for FailsOnceAuth {
-    fn add_auth_headers(&self, _headers: &mut HeaderMap) {}
 
     async fn apply_auth(&self, request: Request) -> Result<Request, AuthError> {
         let mut attempts = self
@@ -219,7 +212,14 @@ impl AuthProvider for FailsOnceAuth {
     }
 }
 
-#[async_trait]
+impl AuthProvider for FailsOnceAuth {
+    fn add_auth_headers(&self, _headers: &mut HeaderMap) {}
+
+    fn apply_auth(&self, request: Request) -> thinwedge_api::AuthProviderFuture<'_> {
+        Box::pin(FailsOnceAuth::apply_auth(self, request))
+    }
+}
+
 impl HttpTransport for FlakyTransport {
     async fn execute(&self, _req: Request) -> Result<Response, TransportError> {
         Err(TransportError::Build("execute should not run".to_string()))
@@ -255,7 +255,7 @@ data: {"id":"resp-1","output":[{"type":"message","role":"assistant","content":[{
 async fn responses_client_uses_responses_path() -> Result<()> {
     let state = RecordingState::default();
     let transport = RecordingTransport::new(state.clone());
-    let client = ResponsesClient::new(transport, provider("thinwedge"), Arc::new(NoAuth));
+    let client = ResponsesClient::new(transport, provider("openai"), Arc::new(NoAuth));
 
     let body = serde_json::json!({ "echo": true });
     let _stream = client
@@ -277,7 +277,7 @@ async fn streaming_client_adds_auth_headers() -> Result<()> {
     let state = RecordingState::default();
     let transport = RecordingTransport::new(state.clone());
     let auth = Arc::new(StaticAuth::new("secret-token", "acct-1"));
-    let client = ResponsesClient::new(transport, provider("thinwedge"), auth);
+    let client = ResponsesClient::new(transport, provider("openai"), auth);
 
     let body = serde_json::json!({ "model": "gpt-test" });
     let _stream = client
@@ -317,7 +317,7 @@ async fn streaming_client_adds_auth_headers() -> Result<()> {
 async fn streaming_client_retries_on_transport_error() -> Result<()> {
     let transport = FlakyTransport::new();
 
-    let mut provider = provider("thinwedge");
+    let mut provider = provider("openai");
     provider.retry.max_attempts = 2;
 
     let request = ResponsesApiRequest {
@@ -357,7 +357,7 @@ async fn streaming_client_retries_on_transient_auth_error() -> Result<()> {
     let transport = RecordingTransport::new(state.clone());
     let auth = FailsOnceAuth::transient();
 
-    let mut provider = provider("thinwedge");
+    let mut provider = provider("openai");
     provider.retry.max_attempts = 2;
 
     let client = ResponsesClient::new(transport, provider, Arc::new(auth.clone()));
@@ -382,7 +382,7 @@ async fn streaming_client_does_not_retry_auth_build_error() -> Result<()> {
     let transport = RecordingTransport::new(state.clone());
     let auth = FailsOnceAuth::build();
 
-    let mut provider = provider("thinwedge");
+    let mut provider = provider("openai");
     provider.retry.max_attempts = 2;
 
     let client = ResponsesClient::new(transport, provider, Arc::new(auth.clone()));
@@ -444,7 +444,8 @@ async fn azure_default_store_attaches_ids_and_headers() -> Result<()> {
         .stream_request(
             request,
             ResponsesOptions {
-                conversation_id: Some("sess_123".into()),
+                session_id: Some("sess_123".into()),
+                thread_id: Some("thread_123".into()),
                 session_source: Some(SessionSource::SubAgent(SubAgentSource::Review)),
                 extra_headers,
                 compression: Compression::None,
@@ -458,12 +459,22 @@ async fn azure_default_store_attaches_ids_and_headers() -> Result<()> {
     let req = &requests[0];
 
     assert_eq!(
-        req.headers.get("session_id").and_then(|v| v.to_str().ok()),
+        req.headers.get("session-id").and_then(|v| v.to_str().ok()),
         Some("sess_123")
     );
     assert_eq!(
+        req.headers.get("thread-id").and_then(|v| v.to_str().ok()),
+        Some("thread_123")
+    );
+    assert_eq!(
         req.headers
-            .get("x-thinwedge-subagent")
+            .get("x-client-request-id")
+            .and_then(|v| v.to_str().ok()),
+        Some("thread_123")
+    );
+    assert_eq!(
+        req.headers
+            .get("x-openai-subagent")
             .and_then(|v| v.to_str().ok()),
         Some("review")
     );

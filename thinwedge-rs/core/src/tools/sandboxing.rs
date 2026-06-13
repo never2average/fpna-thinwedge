@@ -26,15 +26,15 @@ use thinwedge_protocol::permissions::FileSystemSandboxKind;
 use thinwedge_protocol::permissions::FileSystemSandboxPolicy;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::ReviewDecision;
-#[cfg(test)]
-use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_sandboxing::SandboxCommand;
 use thinwedge_sandboxing::SandboxManager;
-use thinwedge_sandboxing::SandboxTransformError;
 use thinwedge_sandboxing::SandboxTransformRequest;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::SandboxablePreference;
+use thinwedge_tools::ToolName;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_path_uri::PathUri;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Clone, Default, Debug)]
 pub(crate) struct ApprovalStore {
@@ -246,21 +246,59 @@ pub(crate) enum SandboxOverride {
 pub(crate) fn sandbox_override_for_first_attempt(
     sandbox_permissions: SandboxPermissions,
     exec_approval_requirement: &ExecApprovalRequirement,
+    file_system_sandbox_policy: &FileSystemSandboxPolicy,
 ) -> SandboxOverride {
+    // Deny-read restrictions are part of the active permission policy. Running
+    // without a filesystem sandbox would discard them, even if the command was
+    // otherwise approved by rules or explicit escalation.
+    if !unsandboxed_execution_allowed(file_system_sandbox_policy) {
+        return SandboxOverride::NoOverride;
+    }
+
     // ExecPolicy `Allow` can intentionally imply full trust (Skip + bypass_sandbox=true),
     // which supersedes `with_additional_permissions` sandboxed execution hints.
-    if sandbox_permissions.requires_escalated_permissions()
-        || matches!(
-            exec_approval_requirement,
-            ExecApprovalRequirement::Skip {
-                bypass_sandbox: true,
-                ..
-            }
-        )
-    {
+    if matches!(
+        exec_approval_requirement,
+        ExecApprovalRequirement::Skip {
+            bypass_sandbox: true,
+            ..
+        }
+    ) {
+        return SandboxOverride::BypassSandboxFirstAttempt;
+    }
+
+    if sandbox_permissions.requires_escalated_permissions() {
         SandboxOverride::BypassSandboxFirstAttempt
     } else {
         SandboxOverride::NoOverride
+    }
+}
+
+/// Returns true when the active filesystem policy can be represented by
+/// running without a filesystem sandbox.
+///
+/// Denied reads only exist inside the sandbox. If a policy contains any
+/// denied-read paths, bypassing the sandbox would silently grant those reads,
+/// so escalation must keep the command sandboxed with the denied reads intact.
+pub(crate) fn unsandboxed_execution_allowed(
+    file_system_sandbox_policy: &FileSystemSandboxPolicy,
+) -> bool {
+    !file_system_sandbox_policy.has_denied_read_restrictions()
+}
+
+pub(crate) fn sandbox_permissions_preserving_denied_reads(
+    sandbox_permissions: SandboxPermissions,
+    file_system_sandbox_policy: &FileSystemSandboxPolicy,
+) -> SandboxPermissions {
+    if sandbox_permissions.requires_escalated_permissions()
+        && !unsandboxed_execution_allowed(file_system_sandbox_policy)
+    {
+        // `RequireEscalated` normally asks the executor to bypass the sandbox.
+        // When denied reads are active, that would drop the only mechanism that
+        // enforces them, so fall back to the default sandboxed attempt instead.
+        SandboxPermissions::UseDefault
+    } else {
+        sandbox_permissions
     }
 }
 
@@ -287,11 +325,10 @@ pub(crate) trait Approvable<Req> {
     // requests touching a subset can be auto-approved.
     fn approval_keys(&self, req: &Req) -> Vec<Self::ApprovalKey>;
 
-    /// Some tools may request to skip the sandbox on the first attempt
-    /// (e.g., when the request explicitly asks for escalated permissions).
-    /// Defaults to `NoOverride`.
-    fn sandbox_mode_for_first_attempt(&self, _req: &Req) -> SandboxOverride {
-        SandboxOverride::NoOverride
+    /// Return per-request sandbox permissions for first-attempt sandbox
+    /// selection. Most tools use the ambient sandbox policy unchanged.
+    fn sandbox_permissions(&self, _req: &Req) -> SandboxPermissions {
+        SandboxPermissions::UseDefault
     }
 
     fn should_bypass_approval(&self, policy: AskForApproval, already_approved: bool) -> bool {
@@ -343,7 +380,7 @@ pub(crate) struct ToolCtx {
     pub session: Arc<Session>,
     pub turn: Arc<TurnContext>,
     pub call_id: String,
-    pub tool_name: String,
+    pub tool_name: ToolName,
 }
 
 #[derive(Debug)]
@@ -354,6 +391,10 @@ pub(crate) enum ToolError {
 
 pub(crate) trait ToolRuntime<Req, Out>: Approvable<Req> + Sandboxable {
     fn network_approval_spec(&self, _req: &Req, _ctx: &ToolCtx) -> Option<NetworkApprovalSpec> {
+        None
+    }
+
+    fn sandbox_cwd<'a>(&self, _req: &'a Req) -> Option<&'a AbsolutePathBuf> {
         None
     }
 
@@ -370,11 +411,13 @@ pub(crate) struct SandboxAttempt<'a> {
     pub permissions: &'a thinwedge_protocol::models::PermissionProfile,
     pub enforce_managed_network: bool,
     pub(crate) manager: &'a SandboxManager,
-    pub(crate) sandbox_cwd: &'a AbsolutePathBuf,
+    pub(crate) sandbox_cwd: &'a PathUri,
+    pub(crate) workspace_roots: &'a [AbsolutePathBuf],
     pub thinwedge_linux_sandbox_exe: Option<&'a std::path::PathBuf>,
     pub use_legacy_landlock: bool,
     pub windows_sandbox_level: thinwedge_protocol::config_types::WindowsSandboxLevel,
     pub windows_sandbox_private_desktop: bool,
+    pub network_denial_cancellation_token: Option<CancellationToken>,
 }
 
 impl<'a> SandboxAttempt<'a> {
@@ -383,8 +426,9 @@ impl<'a> SandboxAttempt<'a> {
         command: SandboxCommand,
         options: ExecOptions,
         network: Option<&NetworkProxy>,
-    ) -> Result<crate::sandboxing::ExecRequest, SandboxTransformError> {
-        self.manager
+    ) -> Result<crate::sandboxing::ExecRequest, ThinWedgeErr> {
+        let request = self
+            .manager
             .transform(SandboxTransformRequest {
                 command,
                 permissions: self.permissions,
@@ -399,18 +443,12 @@ impl<'a> SandboxAttempt<'a> {
                 windows_sandbox_level: self.windows_sandbox_level,
                 windows_sandbox_private_desktop: self.windows_sandbox_private_desktop,
             })
-            .map(|request| {
-                let windows_sandbox_policy_cwd =
-                    thinwedge_utils_absolute_path::AbsolutePathBuf::try_from(
-                        self.sandbox_cwd.to_path_buf(),
-                    )
-                    .unwrap_or_else(|_| request.cwd.clone());
-                crate::sandboxing::ExecRequest::from_sandbox_exec_request(
-                    request,
-                    options,
-                    windows_sandbox_policy_cwd,
-                )
-            })
+            .map_err(ThinWedgeErr::from)?;
+        Ok(crate::sandboxing::ExecRequest::from_sandbox_exec_request(
+            request,
+            options,
+            self.workspace_roots.to_vec(),
+        ))
     }
 }
 

@@ -1,4 +1,3 @@
-use bytes::BytesMut;
 use futures::StreamExt;
 use futures::stream::BoxStream;
 use semver::Version;
@@ -6,11 +5,12 @@ use serde_json::Value as JsonValue;
 use std::collections::VecDeque;
 use std::io;
 
+use crate::line_buffer::LineBuffer;
 use crate::parser::pull_events_from_value;
 use crate::pull::PullEvent;
 use crate::pull::PullProgressReporter;
 use crate::url::base_url_to_host_root;
-use crate::url::is_thinwedge_compatible_base_url;
+use crate::url::is_openai_compatible_base_url;
 use thinwedge_core::config::Config;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_model_provider_info::OLLAMA_OSS_PROVIDER_ID;
@@ -25,7 +25,7 @@ const OLLAMA_CONNECTION_ERROR: &str = "No running Ollama server detected. Start 
 pub struct OllamaClient {
     client: reqwest::Client,
     host_root: String,
-    uses_thinwedge_compat: bool,
+    uses_openai_compat: bool,
 }
 
 impl OllamaClient {
@@ -62,7 +62,7 @@ impl OllamaClient {
             .base_url
             .as_ref()
             .expect("oss provider must have a base_url");
-        let uses_thinwedge_compat = is_thinwedge_compatible_base_url(base_url);
+        let uses_openai_compat = is_openai_compatible_base_url(base_url);
         let host_root = base_url_to_host_root(base_url);
         let client = reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
@@ -71,7 +71,7 @@ impl OllamaClient {
         let client = Self {
             client,
             host_root,
-            uses_thinwedge_compat,
+            uses_openai_compat,
         };
         client.probe_server().await?;
         Ok(client)
@@ -79,7 +79,7 @@ impl OllamaClient {
 
     /// Probe whether the server is reachable by hitting the appropriate health endpoint.
     async fn probe_server(&self) -> io::Result<()> {
-        let url = if self.uses_thinwedge_compat {
+        let url = if self.uses_openai_compat {
             format!("{}/v1/models", self.host_root.trim_end_matches('/'))
         } else {
             format!("{}/api/tags", self.host_root.trim_end_matches('/'))
@@ -174,7 +174,7 @@ impl OllamaClient {
         }
 
         let mut stream = resp.bytes_stream();
-        let mut buf = BytesMut::new();
+        let mut buf = LineBuffer::default();
         let _pending: VecDeque<PullEvent> = VecDeque::new();
 
         // Using an async stream adaptor backed by unfold-like manual loop.
@@ -183,8 +183,7 @@ impl OllamaClient {
                 match chunk {
                     Ok(bytes) => {
                         buf.extend_from_slice(&bytes);
-                        while let Some(pos) = buf.iter().position(|b| *b == b'\n') {
-                            let line = buf.split_to(pos + 1);
+                        while let Some(line) = buf.take_line() {
                             if let Ok(text) = std::str::from_utf8(&line) {
                                 let text = text.trim();
                                 if text.is_empty() { continue; }
@@ -255,7 +254,7 @@ impl OllamaClient {
         Self {
             client,
             host_root: host_root.into(),
-            uses_thinwedge_compat: false,
+            uses_openai_compat: false,
         }
     }
 }
@@ -263,6 +262,7 @@ impl OllamaClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_matches::assert_matches;
     use pretty_assertions::assert_eq;
 
     // Happy-path tests using a mock HTTP server; skip if sandbox network is disabled.
@@ -336,11 +336,56 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_probe_server_happy_path_thinwedge_compat_and_native() {
+    async fn test_pull_model_stream_parses_large_json_lines() {
         if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
         {
             tracing::info!(
-                "{} set; skipping test_probe_server_happy_path_thinwedge_compat_and_native",
+                "{} set; skipping test_pull_model_stream_parses_large_json_lines",
+                thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR
+            );
+            return;
+        }
+
+        let server = wiremock::MockServer::start().await;
+        let body = format!(
+            "{}\n{}\n",
+            serde_json::json!({
+                "status": "pulling layers",
+                "padding": "x".repeat(128 * 1024),
+            }),
+            serde_json::json!({"status": "complete"}),
+        );
+        wiremock::Mock::given(wiremock::matchers::method("POST"))
+            .and(wiremock::matchers::path("/api/pull"))
+            .respond_with(
+                wiremock::ResponseTemplate::new(200).set_body_raw(body, "application/x-ndjson"),
+            )
+            .mount(&server)
+            .await;
+
+        let client = OllamaClient::from_host_root(server.uri());
+        let events = client
+            .pull_model_stream("test-model")
+            .await
+            .expect("start pull stream")
+            .collect::<Vec<_>>()
+            .await;
+
+        assert_matches!(
+            events.as_slice(),
+            [
+                PullEvent::Status(pulling),
+                PullEvent::Status(complete),
+            ] if pulling == "pulling layers" && complete == "complete"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_probe_server_happy_path_openai_compat_and_native() {
+        if std::env::var(thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR).is_ok()
+        {
+            tracing::info!(
+                "{} set; skipping test_probe_server_happy_path_openai_compat_and_native",
                 thinwedge_core::spawn::THINWEDGE_SANDBOX_NETWORK_DISABLED_ENV_VAR
             );
             return;
@@ -357,7 +402,7 @@ mod tests {
         let native = OllamaClient::from_host_root(server.uri());
         native.probe_server().await.expect("probe native");
 
-        // ThinWedge compatibility endpoint
+        // OpenAI compatibility endpoint
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/v1/models"))
             .respond_with(wiremock::ResponseTemplate::new(200))
@@ -366,11 +411,11 @@ mod tests {
         let ollama_client =
             OllamaClient::try_from_provider_with_base_url(&format!("{}/v1", server.uri()))
                 .await
-                .expect("probe ThinWedge compat");
+                .expect("probe OpenAI compat");
         ollama_client
             .probe_server()
             .await
-            .expect("probe ThinWedge compat");
+            .expect("probe OpenAI compat");
     }
 
     #[tokio::test]
@@ -386,7 +431,7 @@ mod tests {
 
         let server = wiremock::MockServer::start().await;
 
-        // ThinWedge‑compat models endpoint responds OK.
+        // OpenAI‑compat models endpoint responds OK.
         wiremock::Mock::given(wiremock::matchers::method("GET"))
             .and(wiremock::matchers::path("/v1/models"))
             .respond_with(wiremock::ResponseTemplate::new(200))

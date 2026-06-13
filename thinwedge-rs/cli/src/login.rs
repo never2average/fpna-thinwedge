@@ -1,29 +1,29 @@
 //! CLI login commands and their direct-user observability surfaces.
 //!
 //! The TUI path already installs a broader tracing stack with feedback, OpenTelemetry, and other
-//! interactive-session layers. Direct `thinwedge login` intentionally does less: it preserves
-//! straightforward stderr UX and adds only a small file-backed tracing layer for login-specific
+//! interactive-session layers. Direct `thinwedge login` intentionally does less: it preserves the
+//! existing stderr/browser UX and adds only a small file-backed tracing layer for login-specific
 //! targets. Keeping that setup local avoids pulling the TUI's session-oriented logging machinery
 //! into a one-shot CLI command while still producing a durable `thinwedge-login.log` artifact that
 //! support can request from users.
 
-use crate::db_sandbox_cmd::prompt_database_sandbox_config_edits;
-use std::collections::BTreeMap;
 use std::fs::OpenOptions;
 use std::io::IsTerminal;
 use std::io::Read;
-use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
 use thinwedge_app_server_protocol::AuthMode;
+use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_core::config::Config;
-use thinwedge_core::config::edit::ConfigEditsBuilder;
-use thinwedge_login::OPENROUTER_API_KEY_ENV_VAR;
+use thinwedge_login::AuthKeyringBackendKind;
+use thinwedge_login::CLIENT_ID;
+use thinwedge_login::ServerOptions;
 use thinwedge_login::ThinWedgeAuth;
-use thinwedge_login::login_with_agent_identity;
+use thinwedge_login::login_with_access_token;
 use thinwedge_login::login_with_api_key;
 use thinwedge_login::logout_with_revoke;
-use thinwedge_login::read_preferred_api_key_env_var_name;
-use thinwedge_login::read_preferred_api_key_from_env;
+use thinwedge_login::run_device_code_login;
+use thinwedge_login::run_login_server;
 use thinwedge_protocol::config_types::ForcedLoginMethod;
 use thinwedge_utils_cli::CliConfigOverrides;
 use tracing_appender::non_blocking;
@@ -33,11 +33,12 @@ use tracing_subscriber::Layer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-const MANAGED_LOGIN_DISABLED_MESSAGE: &str = "Managed browser login is not supported in ThinWedge. Set OPENROUTER_API_KEY and run `thinwedge login`, or pipe a token with `printenv OPENROUTER_API_KEY | thinwedge login --with-api-key`.";
+const CHATGPT_LOGIN_DISABLED_MESSAGE: &str =
+    "ChatGPT login is disabled. Use API key login instead.";
 const API_KEY_LOGIN_DISABLED_MESSAGE: &str =
-    "API key login is disabled by configuration for this workspace.";
-const AGENT_IDENTITY_LOGIN_DISABLED_MESSAGE: &str =
-    "Agent Identity login is disabled. Use API key login instead.";
+    "API key login is disabled. Use ChatGPT login instead.";
+const ACCESS_TOKEN_LOGIN_DISABLED_MESSAGE: &str =
+    "Access token login is disabled. Use API key login instead.";
 const LOGIN_SUCCESS_MESSAGE: &str = "Successfully logged in";
 
 /// Installs a small file-backed tracing layer for direct `thinwedge login` flows.
@@ -95,7 +96,7 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
         .with_ansi(false)
         .with_filter(env_filter);
 
-    // Direct `thinwedge login` otherwise relies on ephemeral stderr output.
+    // Direct `thinwedge login` otherwise relies on ephemeral stderr and browser output.
     // Persist the same login targets to a file so support can inspect auth failures
     // without reproducing them through TUI or app-server.
     if let Err(err) = tracing_subscriber::registry().with(file_layer).try_init() {
@@ -109,37 +110,76 @@ fn init_login_file_logging(config: &Config) -> Option<WorkerGuard> {
     Some(guard)
 }
 
-fn print_api_token_login_help() {
+fn print_login_server_start(actual_port: u16, auth_url: &str) {
     eprintln!(
-        "ThinWedge uses OpenRouter-compatible API-token authentication.\n\nRequired for chat:\n\n    export OPENROUTER_API_KEY=...\n    thinwedge login\n\nOr pipe the token directly:\n\n    printenv OPENROUTER_API_KEY | thinwedge login --with-api-key\n\nOptional capability keys:\n\n    ARTIFICIAL_ANALYSIS_API_KEY  LLM market data and cost context\n    RUNPOD_API_KEY               GPU sandbox lifecycle commands\n    AWS_PROFILE/AWS_REGION       AWS Bedrock and cost tools\n    THINWEDGE_NEON_API_KEY       Neon DB sandbox provider checks\n    THINWEDGE_NEON_PROJECT_ID    Neon DB sandbox project id\n\nThe token is stored locally in ThinWedge auth storage."
+        "Starting local login server on http://localhost:{actual_port}.\nIf your browser did not open, navigate to this URL to authenticate:\n\n{auth_url}\n\nOn a remote or headless machine? Use `thinwedge login --device-auth` instead."
     );
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum PromptOptionalConfig {
-    No,
-    IfInteractive,
+async fn clear_existing_auth_before_login(
+    thinwedge_home: &Path,
+    auth_credentials_store_mode: AuthCredentialsStoreMode,
+    auth_keyring_backend_kind: AuthKeyringBackendKind,
+) {
+    if let Err(err) = logout_with_revoke(
+        thinwedge_home,
+        auth_credentials_store_mode,
+        auth_keyring_backend_kind,
+    )
+    .await
+    {
+        tracing::warn!("failed to clear existing auth before login: {err}");
+    }
 }
 
-fn finish_api_key_login(
-    config: &Config,
-    api_key: &str,
-    prompt_optional_config: PromptOptionalConfig,
-) -> ! {
-    if matches!(config.forced_login_method, Some(ForcedLoginMethod::Chatgpt)) {
-        eprintln!("{API_KEY_LOGIN_DISABLED_MESSAGE}");
+pub async fn login_with_chatgpt(
+    thinwedge_home: PathBuf,
+    forced_chatgpt_workspace_id: Option<Vec<String>>,
+    cli_auth_credentials_store_mode: AuthCredentialsStoreMode,
+    auth_keyring_backend_kind: AuthKeyringBackendKind,
+) -> std::io::Result<()> {
+    clear_existing_auth_before_login(
+        &thinwedge_home,
+        cli_auth_credentials_store_mode,
+        auth_keyring_backend_kind,
+    )
+    .await;
+
+    let opts = ServerOptions::new(
+        thinwedge_home,
+        CLIENT_ID.to_string(),
+        forced_chatgpt_workspace_id,
+        cli_auth_credentials_store_mode,
+        auth_keyring_backend_kind,
+    );
+    let server = run_login_server(opts)?;
+
+    print_login_server_start(server.actual_port, &server.auth_url);
+
+    server.block_until_done().await
+}
+
+pub async fn run_login_with_chatgpt(cli_config_overrides: CliConfigOverrides) -> ! {
+    let config = load_config_or_exit(cli_config_overrides).await;
+    let _login_log_guard = init_login_file_logging(&config);
+    tracing::info!("starting browser login flow");
+
+    if matches!(config.forced_login_method, Some(ForcedLoginMethod::Api)) {
+        eprintln!("{CHATGPT_LOGIN_DISABLED_MESSAGE}");
         std::process::exit(1);
     }
 
-    match login_with_api_key(
-        &config.thinwedge_home,
-        api_key,
+    let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
+
+    match login_with_chatgpt(
+        config.thinwedge_home.to_path_buf(),
+        forced_chatgpt_workspace_id,
         config.cli_auth_credentials_store_mode,
-    ) {
+        config.auth_keyring_backend_kind(),
+    )
+    .await
+    {
         Ok(_) => {
-            if prompt_optional_config == PromptOptionalConfig::IfInteractive {
-                prompt_and_save_optional_capability_config(config.thinwedge_home.as_path());
-            }
             eprintln!("{LOGIN_SUCCESS_MESSAGE}");
             std::process::exit(0);
         }
@@ -157,53 +197,49 @@ pub async fn run_login_with_api_key(
     let config = load_config_or_exit(cli_config_overrides).await;
     let _login_log_guard = init_login_file_logging(&config);
     tracing::info!("starting api key login flow");
-    finish_api_key_login(&config, &api_key, PromptOptionalConfig::No);
-}
 
-pub async fn run_login_with_preferred_api_key(cli_config_overrides: CliConfigOverrides) -> ! {
-    match read_preferred_api_key_from_env() {
-        Some(api_key) => {
-            let env_var_name =
-                read_preferred_api_key_env_var_name().unwrap_or(OPENROUTER_API_KEY_ENV_VAR);
-            eprintln!("Reading API key from {env_var_name}...");
-            let config = load_config_or_exit(cli_config_overrides).await;
-            let _login_log_guard = init_login_file_logging(&config);
-            tracing::info!("starting api key login flow from environment");
-            finish_api_key_login(&config, &api_key, PromptOptionalConfig::IfInteractive);
+    if matches!(config.forced_login_method, Some(ForcedLoginMethod::Chatgpt)) {
+        eprintln!("{API_KEY_LOGIN_DISABLED_MESSAGE}");
+        std::process::exit(1);
+    }
+
+    match login_with_api_key(
+        &config.thinwedge_home,
+        &api_key,
+        config.cli_auth_credentials_store_mode,
+        config.auth_keyring_backend_kind(),
+    ) {
+        Ok(_) => {
+            eprintln!("{LOGIN_SUCCESS_MESSAGE}");
+            std::process::exit(0);
         }
-        None => {
-            let config = load_config_or_exit(cli_config_overrides).await;
-            let _login_log_guard = init_login_file_logging(&config);
-            tracing::info!("api token login requested without an API key env var");
-
-            if let Some(api_key) = read_api_key_from_interactive_prompt() {
-                tracing::info!("starting api key login flow from interactive prompt");
-                finish_api_key_login(&config, &api_key, PromptOptionalConfig::IfInteractive);
-            }
-
-            print_api_token_login_help();
+        Err(e) => {
+            eprintln!("Error logging in: {e}");
             std::process::exit(1);
         }
     }
 }
-pub async fn run_login_with_agent_identity(
+
+pub async fn run_login_with_access_token(
     cli_config_overrides: CliConfigOverrides,
-    agent_identity: String,
+    access_token: String,
 ) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
     let _login_log_guard = init_login_file_logging(&config);
-    tracing::info!("starting agent identity login flow");
+    tracing::info!("starting access token login flow");
 
     if matches!(config.forced_login_method, Some(ForcedLoginMethod::Api)) {
-        eprintln!("{AGENT_IDENTITY_LOGIN_DISABLED_MESSAGE}");
+        eprintln!("{ACCESS_TOKEN_LOGIN_DISABLED_MESSAGE}");
         std::process::exit(1);
     }
 
-    match login_with_agent_identity(
+    match login_with_access_token(
         &config.thinwedge_home,
-        &agent_identity,
+        &access_token,
         config.cli_auth_credentials_store_mode,
+        config.forced_chatgpt_workspace_id.as_deref(),
         Some(&config.chatgpt_base_url),
+        config.auth_keyring_backend_kind(),
     )
     .await
     {
@@ -212,7 +248,7 @@ pub async fn run_login_with_agent_identity(
             std::process::exit(0);
         }
         Err(e) => {
-            eprintln!("Error logging in with Agent Identity: {e}");
+            eprintln!("Error logging in with access token: {e}");
             std::process::exit(1);
         }
     }
@@ -220,195 +256,18 @@ pub async fn run_login_with_agent_identity(
 
 pub fn read_api_key_from_stdin() -> String {
     read_stdin_secret(
-        "--with-api-key expects the API key on stdin. Try piping it, e.g. `printenv OPENROUTER_API_KEY | thinwedge login --with-api-key`.",
+        "--with-api-key expects the API key on stdin. Try piping it, e.g. `printenv OPENAI_API_KEY | thinwedge login --with-api-key`.",
         "Reading API key from stdin...",
         "No API key provided via stdin.",
     )
 }
 
-pub fn read_agent_identity_from_stdin() -> String {
+pub fn read_access_token_from_stdin() -> String {
     read_stdin_secret(
-        "--with-agent-identity expects the Agent Identity token on stdin. Try piping it, e.g. `printenv THINWEDGE_AGENT_IDENTITY | thinwedge login --with-agent-identity`.",
-        "Reading Agent Identity token from stdin...",
-        "No Agent Identity token provided via stdin.",
+        "--with-access-token expects the access token on stdin. Try piping it, e.g. `printenv THINWEDGE_ACCESS_TOKEN | thinwedge login --with-access-token`.",
+        "Reading access token from stdin...",
+        "No access token provided via stdin.",
     )
-}
-
-fn read_api_key_from_interactive_prompt() -> Option<String> {
-    let stdin = std::io::stdin();
-    if !stdin.is_terminal() {
-        return None;
-    }
-
-    eprint!("Enter OpenRouter-compatible API key: ");
-    let _ = std::io::stderr().flush();
-
-    let mut api_key = String::new();
-    if let Err(err) = stdin.read_line(&mut api_key) {
-        eprintln!("Failed to read API key: {err}");
-        std::process::exit(1);
-    }
-
-    let api_key = api_key.trim().to_string();
-    if api_key.is_empty() {
-        eprintln!("No API key provided.");
-        std::process::exit(1);
-    }
-
-    Some(api_key)
-}
-
-fn prompt_and_save_optional_capability_config(thinwedge_home: &Path) {
-    let stdin = std::io::stdin();
-    if !stdin.is_terminal() {
-        return;
-    }
-
-    let prompts = [
-        (
-            "ARTIFICIAL_ANALYSIS_API_KEY",
-            "LLM market data and model-cost context",
-        ),
-        ("RUNPOD_API_KEY", "GPU sandbox lifecycle commands"),
-        ("AWS_PROFILE", "AWS Bedrock and AWS cost tools profile"),
-        ("AWS_REGION", "AWS Bedrock and AWS cost tools region"),
-        ("THINWEDGE_NEON_API_KEY", "Neon DB sandbox provider checks"),
-        ("THINWEDGE_NEON_PROJECT_ID", "Neon DB sandbox project id"),
-    ];
-
-    eprintln!(
-        "Optional capability setup. Press Enter to skip any value and keep your current environment."
-    );
-
-    let mut updates: Vec<(String, String)> = Vec::new();
-    for (name, description) in prompts {
-        eprint!("{name} ({description}) [optional]: ");
-        let _ = std::io::stderr().flush();
-
-        let mut value = String::new();
-        if let Err(err) = stdin.read_line(&mut value) {
-            eprintln!("Failed to read {name}: {err}");
-            std::process::exit(1);
-        }
-
-        let value = value.trim().to_string();
-        if !value.is_empty() {
-            updates.push((name.to_string(), value));
-        }
-    }
-
-    if !updates.is_empty() {
-        if let Err(err) = save_dotenv_updates(thinwedge_home, &updates) {
-            eprintln!("Error saving optional capability config: {err}");
-            std::process::exit(1);
-        }
-
-        eprintln!(
-            "Saved optional capability config to {}",
-            thinwedge_home.join(".env").display()
-        );
-    }
-
-    prompt_and_save_database_sandbox_config(thinwedge_home);
-}
-
-fn prompt_and_save_database_sandbox_config(thinwedge_home: &Path) {
-    match prompt_database_sandbox_config_edits() {
-        Ok(edits) if !edits.is_empty() => {
-            if let Err(err) = ConfigEditsBuilder::new(thinwedge_home)
-                .with_edits(edits)
-                .apply_blocking()
-            {
-                eprintln!("Error saving database sandbox config: {err}");
-                std::process::exit(1);
-            }
-            eprintln!(
-                "Saved database sandbox config to {}",
-                thinwedge_home.join("config.toml").display()
-            );
-        }
-        Ok(_) => {}
-        Err(err) => {
-            eprintln!("Error reading database sandbox config: {err}");
-            std::process::exit(1);
-        }
-    }
-}
-
-fn save_dotenv_updates(thinwedge_home: &Path, updates: &[(String, String)]) -> std::io::Result<()> {
-    std::fs::create_dir_all(thinwedge_home)?;
-    let dotenv_path = thinwedge_home.join(".env");
-    let existing = match std::fs::read_to_string(&dotenv_path) {
-        Ok(contents) => contents,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
-        Err(err) => return Err(err),
-    };
-
-    let update_map: BTreeMap<&str, &str> = updates
-        .iter()
-        .map(|(name, value)| (name.as_str(), value.as_str()))
-        .collect();
-    let mut seen: BTreeMap<&str, bool> = update_map.keys().map(|key| (*key, false)).collect();
-    let mut output: Vec<String> = Vec::new();
-
-    for line in existing.lines() {
-        let trimmed = line.trim_start();
-        let mut replaced = false;
-        for (name, value) in &update_map {
-            if trimmed.starts_with(&format!("{name}=")) {
-                output.push(format!("{name}={}", dotenv_quote(value)));
-                seen.insert(name, true);
-                replaced = true;
-                break;
-            }
-        }
-        if !replaced {
-            output.push(line.to_string());
-        }
-    }
-
-    let missing_updates: Vec<(&str, &str)> = update_map
-        .iter()
-        .filter_map(|(name, value)| {
-            if !seen.get(name).copied().unwrap_or(false) {
-                Some((*name, *value))
-            } else {
-                None
-            }
-        })
-        .collect();
-
-    if !missing_updates.is_empty() {
-        if !output.is_empty() && output.last().is_some_and(|line| !line.is_empty()) {
-            output.push(String::new());
-        }
-        output.push(
-            "# Optional ThinWedge capability config written by `thinwedge login`.".to_string(),
-        );
-        for (name, value) in missing_updates {
-            output.push(format!("{name}={}", dotenv_quote(value)));
-        }
-    }
-
-    let mut file_options = OpenOptions::new();
-    file_options.create(true).write(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        file_options.mode(0o600);
-    }
-    let mut file = file_options.open(dotenv_path)?;
-    file.write_all(output.join("\n").as_bytes())?;
-    file.write_all(b"\n")?;
-    Ok(())
-}
-
-fn dotenv_quote(value: &str) -> String {
-    let escaped = value
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n");
-    format!("\"{escaped}\"")
 }
 
 fn read_stdin_secret(terminal_message: &str, reading_message: &str, empty_message: &str) -> String {
@@ -436,30 +295,117 @@ fn read_stdin_secret(terminal_message: &str, reading_message: &str, empty_messag
     secret
 }
 
-/// Legacy managed-auth device code flow.
+/// Login using the OAuth device code flow.
 pub async fn run_login_with_device_code(
     cli_config_overrides: CliConfigOverrides,
-    _issuer_base_url: Option<String>,
-    _client_id: Option<String>,
+    issuer_base_url: Option<String>,
+    client_id: Option<String>,
 ) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
     let _login_log_guard = init_login_file_logging(&config);
     tracing::info!("starting device code login flow");
-    eprintln!("{MANAGED_LOGIN_DISABLED_MESSAGE}");
-    std::process::exit(1);
+    if matches!(config.forced_login_method, Some(ForcedLoginMethod::Api)) {
+        eprintln!("{CHATGPT_LOGIN_DISABLED_MESSAGE}");
+        std::process::exit(1);
+    }
+    clear_existing_auth_before_login(
+        &config.thinwedge_home,
+        config.cli_auth_credentials_store_mode,
+        config.auth_keyring_backend_kind(),
+    )
+    .await;
+    let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
+    let mut opts = ServerOptions::new(
+        config.thinwedge_home.to_path_buf(),
+        client_id.unwrap_or(CLIENT_ID.to_string()),
+        forced_chatgpt_workspace_id,
+        config.cli_auth_credentials_store_mode,
+        config.auth_keyring_backend_kind(),
+    );
+    if let Some(iss) = issuer_base_url {
+        opts.issuer = iss;
+    }
+    match run_device_code_login(opts).await {
+        Ok(()) => {
+            eprintln!("{LOGIN_SUCCESS_MESSAGE}");
+            std::process::exit(0);
+        }
+        Err(e) => {
+            eprintln!("Error logging in with device code: {e}");
+            std::process::exit(1);
+        }
+    }
 }
 
-/// Legacy managed-auth fallback flow.
+/// Prefers device-code login (with `open_browser = false`) when headless environment is detected, but keeps
+/// `thinwedge login` working in environments where device-code may be disabled/feature-gated.
+/// If `run_device_code_login` returns `ErrorKind::NotFound` ("device-code unsupported"), this
+/// falls back to starting the local browser login server.
 pub async fn run_login_with_device_code_fallback_to_browser(
     cli_config_overrides: CliConfigOverrides,
-    _issuer_base_url: Option<String>,
-    _client_id: Option<String>,
+    issuer_base_url: Option<String>,
+    client_id: Option<String>,
 ) -> ! {
     let config = load_config_or_exit(cli_config_overrides).await;
     let _login_log_guard = init_login_file_logging(&config);
     tracing::info!("starting login flow with device code fallback");
-    eprintln!("{MANAGED_LOGIN_DISABLED_MESSAGE}");
-    std::process::exit(1);
+    if matches!(config.forced_login_method, Some(ForcedLoginMethod::Api)) {
+        eprintln!("{CHATGPT_LOGIN_DISABLED_MESSAGE}");
+        std::process::exit(1);
+    }
+    clear_existing_auth_before_login(
+        &config.thinwedge_home,
+        config.cli_auth_credentials_store_mode,
+        config.auth_keyring_backend_kind(),
+    )
+    .await;
+
+    let forced_chatgpt_workspace_id = config.forced_chatgpt_workspace_id.clone();
+    let mut opts = ServerOptions::new(
+        config.thinwedge_home.to_path_buf(),
+        client_id.unwrap_or(CLIENT_ID.to_string()),
+        forced_chatgpt_workspace_id,
+        config.cli_auth_credentials_store_mode,
+        config.auth_keyring_backend_kind(),
+    );
+    if let Some(iss) = issuer_base_url {
+        opts.issuer = iss;
+    }
+    opts.open_browser = false;
+
+    match run_device_code_login(opts.clone()).await {
+        Ok(()) => {
+            eprintln!("{LOGIN_SUCCESS_MESSAGE}");
+            std::process::exit(0);
+        }
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                eprintln!("Device code login is not enabled; falling back to browser login.");
+                match run_login_server(opts) {
+                    Ok(server) => {
+                        print_login_server_start(server.actual_port, &server.auth_url);
+                        match server.block_until_done().await {
+                            Ok(()) => {
+                                eprintln!("{LOGIN_SUCCESS_MESSAGE}");
+                                std::process::exit(0);
+                            }
+                            Err(e) => {
+                                eprintln!("Error logging in: {e}");
+                                std::process::exit(1);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error logging in: {e}");
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                eprintln!("Error logging in with device code: {e}");
+                std::process::exit(1);
+            }
+        }
+    }
 }
 
 pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
@@ -469,6 +415,7 @@ pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
         &config.thinwedge_home,
         config.cli_auth_credentials_store_mode,
         Some(&config.chatgpt_base_url),
+        config.auth_keyring_backend_kind(),
     )
     .await
     {
@@ -484,13 +431,19 @@ pub async fn run_login_status(cli_config_overrides: CliConfigOverrides) -> ! {
                 }
             },
             AuthMode::Chatgpt | AuthMode::ChatgptAuthTokens => {
-                eprintln!(
-                    "Legacy managed login credentials are present, but ThinWedge now uses OpenRouter-compatible API-token authentication. Run `thinwedge logout`, then set OPENROUTER_API_KEY and run `thinwedge login`."
-                );
-                std::process::exit(1);
+                eprintln!("Logged in using ChatGPT");
+                std::process::exit(0);
             }
             AuthMode::AgentIdentity => {
-                eprintln!("Logged in using Agent Identity");
+                eprintln!("Logged in using access token");
+                std::process::exit(0);
+            }
+            AuthMode::PersonalAccessToken => {
+                eprintln!("Logged in using personal access token");
+                std::process::exit(0);
+            }
+            AuthMode::BedrockApiKey => {
+                eprintln!("Logged in using Amazon Bedrock API key");
                 std::process::exit(0);
             }
         },
@@ -511,6 +464,7 @@ pub async fn run_logout(cli_config_overrides: CliConfigOverrides) -> ! {
     match logout_with_revoke(
         &config.thinwedge_home,
         config.cli_auth_credentials_store_mode,
+        config.auth_keyring_backend_kind(),
     )
     .await
     {
@@ -558,46 +512,52 @@ fn safe_format_key(key: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::dotenv_quote;
+    use pretty_assertions::assert_eq;
+    use tempfile::tempdir;
+    use thinwedge_config::types::AuthCredentialsStoreMode;
+    use thinwedge_login::AuthKeyringBackendKind;
+    use thinwedge_login::load_auth_dot_json;
+    use thinwedge_login::login_with_api_key;
+
+    use super::clear_existing_auth_before_login;
     use super::safe_format_key;
-    use super::save_dotenv_updates;
-    use tempfile::TempDir;
 
-    #[test]
-    fn dotenv_quote_escapes_special_characters() {
-        assert_eq!(dotenv_quote(r#"abc"de\fg"#), r#""abc\"de\\fg""#);
-    }
-
-    #[test]
-    fn save_dotenv_updates_replaces_existing_and_appends_missing() {
-        let temp = TempDir::new().expect("temp dir");
-        std::fs::write(temp.path().join(".env"), "RUNPOD_API_KEY=old\nKEEP_ME=1\n")
-            .expect("write env");
-
-        save_dotenv_updates(
-            temp.path(),
-            &[
-                ("RUNPOD_API_KEY".to_string(), "new".to_string()),
-                ("AWS_REGION".to_string(), "us-east-1".to_string()),
-            ],
+    #[tokio::test]
+    async fn clears_existing_auth_before_login() {
+        let thinwedge_home = tempdir().expect("create temporary ThinWedge home");
+        login_with_api_key(
+            thinwedge_home.path(),
+            "sk-existing",
+            AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
         )
-        .expect("save updates");
+        .expect("save existing auth");
 
-        let contents = std::fs::read_to_string(temp.path().join(".env")).expect("read env");
-        assert!(contents.contains(r#"RUNPOD_API_KEY="new""#));
-        assert!(contents.contains("KEEP_ME=1"));
-        assert!(contents.contains(r#"AWS_REGION="us-east-1""#));
+        clear_existing_auth_before_login(
+            thinwedge_home.path(),
+            AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
+        )
+        .await;
+
+        let auth = load_auth_dot_json(
+            thinwedge_home.path(),
+            AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
+        )
+        .expect("load auth after cleanup");
+        assert_eq!(auth, None);
     }
 
     #[test]
     fn formats_long_key() {
-        let key = "testkey-1234567890ABCDE";
-        assert_eq!(safe_format_key(key), "testkey-***ABCDE");
+        let key = concat!("sk-", "proj-1234567890ABCDE");
+        assert_eq!(safe_format_key(key), "sk-proj-***ABCDE");
     }
 
     #[test]
     fn short_key_returns_stars() {
-        let key = "testkey-12345";
+        let key = concat!("sk-", "proj-12345");
         assert_eq!(safe_format_key(key), "***");
     }
 }

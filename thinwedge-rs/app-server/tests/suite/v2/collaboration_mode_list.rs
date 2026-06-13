@@ -1,15 +1,14 @@
 //! Validates that the collaboration mode list endpoint returns the expected default presets.
 //!
 //! The test drives the app server through the MCP harness and asserts that the list response
-//! includes the plan and default modes with their default model and reasoning effort
-//! settings, which keeps the API contract visible in one place.
+//! includes the plan and default modes, which keeps the API contract visible in one place.
 
 #![allow(clippy::unwrap_used)]
 
 use std::time::Duration;
 
 use anyhow::Result;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -29,7 +28,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
 #[tokio::test]
 async fn list_collaboration_modes_returns_presets() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
 
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 

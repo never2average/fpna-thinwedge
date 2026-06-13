@@ -13,9 +13,11 @@ pub(super) async fn archive_thread(
     params: ArchiveThreadParams,
 ) -> ThreadStoreResult<()> {
     let thread_id = params.thread_id;
+    let state_db_ctx = store.state_db().await;
     let rollout_path = find_thread_path_by_id_str(
         store.config.thinwedge_home.as_path(),
         &thread_id.to_string(),
+        state_db_ctx.as_deref(),
     )
     .await
     .map_err(|err| ThreadStoreError::InvalidRequest {
@@ -53,7 +55,7 @@ pub(super) async fn archive_thread(
         }
     })?;
 
-    if let Some(ctx) = thinwedge_rollout::state_db::get_state_db(&store.config).await {
+    if let Some(ctx) = state_db_ctx {
         let _ = ctx
             .mark_archived(thread_id, archived_path.as_path(), Utc::now())
             .await;
@@ -82,7 +84,7 @@ mod tests {
     #[tokio::test]
     async fn archive_thread_moves_rollout_to_archived_collection() {
         let home = TempDir::new().expect("temp dir");
-        let store = LocalThreadStore::new(test_config(home.path()));
+        let store = LocalThreadStore::new(test_config(home.path()), /*state_db*/ None);
         let uuid = Uuid::from_u128(201);
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
@@ -128,17 +130,17 @@ mod tests {
     async fn archive_thread_updates_sqlite_metadata_when_present() {
         let home = TempDir::new().expect("temp dir");
         let config = test_config(home.path());
-        let store = LocalThreadStore::new(config.clone());
         let uuid = Uuid::from_u128(202);
         let thread_id = ThreadId::from_string(&uuid.to_string()).expect("valid thread id");
         let active_path =
             write_session_file(home.path(), "2025-01-03T12-00-00", uuid).expect("session file");
         let runtime = thinwedge_state::StateRuntime::init(
             home.path().to_path_buf(),
-            config.model_provider_id.clone(),
+            config.default_model_provider_id.clone(),
         )
         .await
         .expect("state db should initialize");
+        let store = LocalThreadStore::new(config.clone(), Some(runtime.clone()));
         runtime
             .mark_backfill_complete(/*last_watermark*/ None)
             .await
@@ -149,10 +151,10 @@ mod tests {
             Utc::now(),
             SessionSource::Cli,
         );
-        builder.model_provider = Some(config.model_provider_id.clone());
+        builder.model_provider = Some(config.default_model_provider_id.clone());
         builder.cwd = home.path().to_path_buf();
         builder.cli_version = Some("test_version".to_string());
-        let metadata = builder.build(config.model_provider_id.as_str());
+        let metadata = builder.build(config.default_model_provider_id.as_str());
         runtime
             .upsert_thread(&metadata)
             .await

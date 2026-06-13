@@ -12,3 +12,6 @@ thinwedge-core = { workspace = true }
 thinwedge-lmstudio = { workspace = true }
 thinwedge-model-provider-info = { workspace = true }
 thinwedge-ollama = { workspace = true }
+
+[lib]
+doctest = false

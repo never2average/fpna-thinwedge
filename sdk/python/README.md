@@ -1,110 +1,74 @@
-# ThinWedge App Server Python SDK (Experimental)
+# OpenAI ThinWedge Python SDK (Beta)
 
-Experimental Python SDK for `thinwedge app-server` JSON-RPC v2 over stdio, with a small default surface optimized for real scripts and apps.
-
-The generated wire-model layer is currently sourced from the bundled v2 schema and exposed as Pydantic models with snake_case Python fields that serialize back to the app-server’s camelCase wire format.
+Build Python applications that start ThinWedge threads, run turns, stream progress,
+and control workspace access.
 
 ## Install
 
-```bash
-cd sdk/python
-uv sync
-source .venv/bin/activate
-```
+Install the SDK:
 
-Published SDK builds pin an exact `thinwedge-thinwedge-cli-bin` runtime dependency
-with the same version as the SDK. For local repo development, either pass
-`AppServerConfig(thinwedge_bin=...)` to point at a local build explicitly, or use
-the repo examples/notebook bootstrap which installs the pinned runtime package
-automatically.
+```bash
+pip install openai-thinwedge
+```
 
 ## Quickstart
 
+The SDK reuses your existing ThinWedge authentication when one is already
+available:
+
 ```python
-from thinwedge_app_server import ThinWedge
+from openai_thinwedge import ThinWedge
 
 with ThinWedge() as thinwedge:
-    thread = thinwedge.thread_start(model="gpt-5")
-    result = thread.run("Say hello in one sentence.")
+    thread = thinwedge.thread_start()
+    result = thread.run("Explain this repository in three bullets.")
     print(result.final_response)
-    print(len(result.items))
 ```
 
-`result.final_response` is `None` when the turn completes without a final-answer
-or phase-less assistant message item.
+`thread.run(...)` returns a `TurnResult` containing the final response,
+collected items, and token usage.
 
-## Docs map
+## Authentication
 
-- Golden path tutorial: `docs/getting-started.md`
-- API reference (signatures + behavior): `docs/api-reference.md`
-- Common decisions and pitfalls: `docs/faq.md`
-- Runnable examples index: `examples/README.md`
-- Jupyter walkthrough notebook: `notebooks/sdk_walkthrough.ipynb`
+Existing ThinWedge authentication is reused automatically. To start ChatGPT
+browser login explicitly:
 
-## Examples
+```python
+from openai_thinwedge import ThinWedge
 
-Start here:
-
-```bash
-cd sdk/python
-python examples/01_quickstart_constructor/sync.py
-python examples/01_quickstart_constructor/async.py
+with ThinWedge() as thinwedge:
+    login = thinwedge.login_chatgpt()
+    print(login.auth_url)
+    print(login.wait().success)
 ```
 
-## Runtime packaging
+For device-code login:
 
-The repo no longer checks `thinwedge` binaries into `sdk/python`.
-
-Published SDK builds are pinned to an exact `thinwedge-thinwedge-cli-bin` package
-version, and that runtime package carries the platform-specific binary for the
-target wheel. The SDK package version and runtime package version must match.
-
-For local repo development, the checked-in `sdk/python-runtime` package is only
-a template for staged release artifacts. Editable installs should use an
-explicit `thinwedge_bin` override for manual SDK usage; the repo examples and
-notebook bootstrap the pinned runtime package automatically.
-
-## Maintainer workflow
-
-```bash
-cd sdk/python
-python scripts/update_sdk_artifacts.py generate-types
-python scripts/update_sdk_artifacts.py \
-  stage-sdk \
-  /tmp/thinwedge-python-release/thinwedge-thinwedge-app-server-sdk \
-  --thinwedge-version <thinwedge-release-tag-or-pep440-version>
-python scripts/update_sdk_artifacts.py \
-  stage-runtime \
-  /tmp/thinwedge-python-release/thinwedge-thinwedge-cli-bin \
-  /path/to/thinwedge \
-  --thinwedge-version <thinwedge-release-tag-or-pep440-version>
+```python
+with ThinWedge() as thinwedge:
+    login = thinwedge.login_chatgpt_device_code()
+    print(login.verification_url, login.user_code)
+    login.wait()
 ```
 
-Pass `--platform-tag ...` to `stage-runtime` when the wheel should be tagged for
-a Rust target that differs from the Python build host. The intended one-off
-matrix is `macosx_11_0_arm64`, `macosx_10_9_x86_64`,
-`musllinux_1_1_aarch64`, `musllinux_1_1_x86_64`, `win_arm64`, and
-`win_amd64`.
+For API-key login:
 
-This supports the CI release flow:
+```python
+with ThinWedge() as thinwedge:
+    thinwedge.login_api_key("sk-...")
+```
 
-- run `generate-types` before packaging
-- stage `thinwedge-thinwedge-app-server-sdk` once with an exact `thinwedge-thinwedge-cli-bin==...` dependency
-- stage `thinwedge-thinwedge-cli-bin` on each supported platform runner with the same pinned runtime version
-- build and publish `thinwedge-thinwedge-cli-bin` as platform wheels only; do not publish an sdist
+## Built-In Help
 
-## Compatibility and versioning
+Use Python's standard `help(openai_thinwedge)`, `help(ThinWedge)`, or
+`python -m pydoc openai_thinwedge` documentation tools.
 
-- Package: `thinwedge-thinwedge-app-server-sdk`
-- Runtime package: `thinwedge-thinwedge-cli-bin`
-- Python: `>=3.10`
-- Target protocol: ThinWedge `app-server` JSON-RPC v2
-- Versioning rule: the SDK package version is the underlying ThinWedge runtime version
+## Documentation
 
-## Notes
+- [Getting started](https://github.com/openai/thinwedge/blob/main/sdk/python/docs/getting-started.md)
+- [API reference](https://github.com/openai/thinwedge/blob/main/sdk/python/docs/api-reference.md)
+- [FAQ](https://github.com/openai/thinwedge/blob/main/sdk/python/docs/faq.md)
+- [Examples](https://github.com/openai/thinwedge/blob/main/sdk/python/examples/README.md)
 
-- `ThinWedge()` is eager and performs startup + `initialize` in the constructor.
-- Use context managers (`with ThinWedge() as thinwedge:`) to ensure shutdown.
-- Prefer `thread.run("...")` for the common case. Use `thread.turn(...)` when
-  you need streaming, steering, or interrupt control.
-- For transient overload, use `thinwedge_app_server.retry.retry_on_overload`.
+The package is licensed under the
+[repository Apache License 2.0](https://github.com/openai/thinwedge/blob/main/LICENSE).

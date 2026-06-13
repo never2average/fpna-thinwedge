@@ -1,7 +1,7 @@
 use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::ImageDetail;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelInfo;
 
 pub fn can_request_original_image_detail(model_info: &ModelInfo) -> bool {
     model_info.supports_image_detail_original

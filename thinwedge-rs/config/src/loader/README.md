@@ -1,6 +1,6 @@
 # `thinwedge-config` loader
 
-This module is the canonical place to **load and describe ThinWedge configuration layers** (user config, CLI/session overrides, managed config, and MDM-managed preferences) and to produce:
+This module is the canonical place to **load and describe ThinWedge configuration layers** (user config, CLI/session overrides, cloud-managed config, managed config, and MDM-managed preferences) and to produce:
 
 - An **effective merged** TOML config.
 - **Per-key origins** metadata (which layer “wins” for a given key).
@@ -10,13 +10,14 @@ This module is the canonical place to **load and describe ThinWedge configuratio
 
 Exported from `thinwedge_config::loader`:
 
-- `load_config_layers_state(fs, thinwedge_home, cwd_opt, cli_overrides, overrides, cloud_requirements, thread_config_loader) -> ConfigLayerStack`
+- `load_config_layers_state(fs, thinwedge_home, cwd_opt, cli_overrides, options, thread_config_loader) -> ConfigLayerStack`
 - `ConfigLayerStack`
   - `effective_config() -> toml::Value`
   - `origins() -> HashMap<String, ConfigLayerMetadata>`
   - `layers_high_to_low() -> Vec<ConfigLayer>`
   - `with_user_config(user_config) -> ConfigLayerStack`
 - `ConfigLayerEntry` (one layer’s `{name, config, version, disabled_reason}`; `name` carries source metadata)
+- `ConfigLoadOptions` (user-facing load behavior such as strict config validation)
 - `LoaderOverrides` (test/override hooks for managed config sources)
 - `merge_toml_values(base, overlay)` (public helper used elsewhere)
 
@@ -24,13 +25,19 @@ Exported from `thinwedge_config::loader`:
 
 Precedence is **top overrides bottom**:
 
-1. **MDM** managed preferences (macOS only)
-2. **System** managed config (e.g. `managed_config.toml`)
-3. **Session flags** (CLI overrides, applied as dotted-path TOML writes)
-4. **User** config (`config.toml`)
+1. `LegacyManagedConfigTomlFromMdm` (MDM-delivered `managed_config.toml`, while it is being phased out)
+2. `LegacyManagedConfigTomlFromFile` (`managed_config.toml`, while it is being phased out)
+3. `SessionFlags` (CLI overrides, applied as dotted-path TOML writes)
+4. `Project` config (`.thinwedge/config.toml`)
+5. `User` profile config, when present
+6. `User` config (`config.toml`)
+7. `EnterpriseManaged` cloud-managed config bundle layers
+8. `System` config (`/etc/thinwedge/config.toml` or the Windows system config path)
 
-Thread config entries supplied by `thread_config_loader` are inserted according
-to their translated `ConfigLayerSource` precedence.
+`ConfigLayerStack` stores layers in the opposite order internally: lowest
+precedence first, highest precedence last, so later layers override earlier
+layers when folded. Thread config entries supplied by `thread_config_loader` are
+inserted according to their translated `ConfigLayerSource` precedence.
 
 Layers with a `disabled_reason` are still surfaced for UI, but are ignored when
 computing the effective config and origins metadata. This is what
@@ -41,9 +48,8 @@ computing the effective config and origins metadata. This is what
 Most callers want the effective config plus metadata:
 
 ```rust
-use thinwedge_config::NoopThreadConfigLoader;
-use thinwedge_config::CloudRequirementsLoader;
 use thinwedge_config::LoaderOverrides;
+use thinwedge_config::NoopThreadConfigLoader;
 use thinwedge_config::loader::load_config_layers_state;
 use thinwedge_exec_server::LOCAL_FS;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
@@ -57,7 +63,6 @@ let layers = load_config_layers_state(
     Some(cwd),
     &cli_overrides,
     LoaderOverrides::default(),
-    CloudRequirementsLoader::default(),
     &NoopThreadConfigLoader,
 ).await?;
 

@@ -1,6 +1,6 @@
 ---
 source: tui/src/chatwidget/tests/slash_commands.rs
-assertion_line: 1358
+assertion_line: 145
 expression: rendered
 ---
-■ No transcript cells to export
+■ No agent response to copy

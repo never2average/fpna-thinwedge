@@ -6,7 +6,6 @@ use std::time::Duration;
 use std::time::Instant;
 
 use anyhow::Result;
-use anyhow::bail;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
@@ -15,12 +14,14 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::stdio_server_bin;
+use core_test_support::test_thinwedge::TestThinWedge;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
-use core_test_support::wait_for_event_with_timeout;
+use core_test_support::wait_for_mcp_server;
 use tempfile::TempDir;
 use thinwedge_features::Feature;
 use thinwedge_login::ThinWedgeAuth;
+use thinwedge_mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use wiremock::MockServer;
@@ -75,6 +76,7 @@ fn write_plugin_mcp_plugin(home: &TempDir, command: &str) {
   "mcpServers": {{
     "sample": {{
       "command": "{command}",
+      "cwd": ".",
       "startup_timeout_sec": 60.0
     }}
   }}
@@ -99,24 +101,10 @@ fn write_plugin_app_plugin(home: &TempDir) {
     .expect("write plugin app config");
 }
 
-async fn build_plugin_test_thinwedge(
-    server: &MockServer,
-    thinwedge_home: Arc<TempDir>,
-) -> Result<Arc<thinwedge_core::ThinWedgeThread>> {
-    let mut builder = test_thinwedge()
-        .with_home(thinwedge_home)
-        .with_auth(ThinWedgeAuth::from_api_key("Test API Key"));
-    Ok(builder
-        .build(server)
-        .await
-        .expect("create new conversation")
-        .thinwedge)
-}
-
 async fn build_analytics_plugin_test_thinwedge(
     server: &MockServer,
     thinwedge_home: Arc<TempDir>,
-) -> Result<Arc<thinwedge_core::ThinWedgeThread>> {
+) -> Result<TestThinWedge> {
     let chatgpt_base_url = server.uri();
     let mut builder = test_thinwedge()
         .with_home(thinwedge_home)
@@ -128,15 +116,14 @@ async fn build_analytics_plugin_test_thinwedge(
     Ok(builder
         .build(server)
         .await
-        .expect("create new conversation")
-        .thinwedge)
+        .expect("create new conversation"))
 }
 
 async fn build_apps_enabled_plugin_test_thinwedge(
     server: &MockServer,
     thinwedge_home: Arc<TempDir>,
     chatgpt_base_url: String,
-) -> Result<Arc<thinwedge_core::ThinWedgeThread>> {
+) -> Result<TestThinWedge> {
     let mut builder = test_thinwedge()
         .with_home(thinwedge_home)
         .with_auth(ThinWedgeAuth::create_dummy_chatgpt_auth_for_testing())
@@ -150,47 +137,7 @@ async fn build_apps_enabled_plugin_test_thinwedge(
     Ok(builder
         .build(server)
         .await
-        .expect("create new conversation")
-        .thinwedge)
-}
-
-async fn wait_for_sample_mcp_ready(thinwedge: &thinwedge_core::ThinWedgeThread) -> Result<()> {
-    let startup_event = wait_for_event_with_timeout(
-        thinwedge,
-        |ev| match ev {
-            EventMsg::McpStartupComplete(summary) => {
-                summary.ready.iter().any(|server| server == "sample")
-                    || summary
-                        .failed
-                        .iter()
-                        .any(|failure| failure.server == "sample")
-                    || summary.cancelled.iter().any(|server| server == "sample")
-            }
-            _ => false,
-        },
-        Duration::from_secs(70),
-    )
-    .await;
-    let EventMsg::McpStartupComplete(startup) = startup_event else {
-        unreachable!("event guard guarantees McpStartupComplete");
-    };
-    if let Some(failure) = startup
-        .failed
-        .iter()
-        .find(|failure| failure.server == "sample")
-    {
-        let error = &failure.error;
-        bail!("plugin MCP server failed to start: {error}");
-    }
-    if startup.cancelled.iter().any(|server| server == "sample") {
-        bail!("plugin MCP server startup was cancelled");
-    }
-    assert!(
-        startup.ready.iter().any(|server| server == "sample"),
-        "expected plugin MCP server to be ready; startup summary: {startup:?}"
-    );
-
-    Ok(())
+        .expect("create new conversation"))
 }
 
 fn tool_names(body: &serde_json::Value) -> Vec<String> {
@@ -225,22 +172,24 @@ async fn capability_sections_render_in_developer_message_in_order() -> Result<()
     let thinwedge_home = Arc::new(TempDir::new()?);
     write_plugin_skill_plugin(thinwedge_home.as_ref());
     write_plugin_app_plugin(thinwedge_home.as_ref());
-    let thinwedge = build_apps_enabled_plugin_test_thinwedge(
+    let test_thinwedge = build_apps_enabled_plugin_test_thinwedge(
         &server,
         Arc::clone(&thinwedge_home),
         apps_server.chatgpt_base_url,
     )
     .await?;
+    let thinwedge = Arc::clone(&test_thinwedge.thinwedge);
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![thinwedge_protocol::user_input::UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -263,12 +212,8 @@ async fn capability_sections_render_in_developer_message_in_order() -> Result<()
         "expected Apps -> Skills -> Plugins order: {developer_messages:?}"
     );
     assert!(
-        developer_text.contains("`sample`"),
-        "expected enabled plugin name in developer message: {developer_messages:?}"
-    );
-    assert!(
-        developer_text.contains("`sample`: inspect sample data"),
-        "expected plugin description in developer message: {developer_messages:?}"
+        !developer_text.contains("`sample`: inspect sample data"),
+        "did not expect plugin description in developer message: {developer_messages:?}"
     );
     assert!(
         developer_text.contains("skill entries are prefixed with `plugin_name:`"),
@@ -283,7 +228,7 @@ async fn capability_sections_render_in_developer_message_in_order() -> Result<()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn explicit_plugin_mentions_inject_plugin_guidance() -> Result<()> {
+async fn explicit_plugin_mentions_use_apps_for_chatgpt_dual_surface_plugins() -> Result<()> {
     skip_if_no_network!(Ok(()));
     let server = start_mock_server().await;
     let apps_server = AppsTestServer::mount_with_connector_name(&server, "Google Calendar").await?;
@@ -305,23 +250,124 @@ async fn explicit_plugin_mentions_inject_plugin_guidance() -> Result<()> {
     write_plugin_mcp_plugin(thinwedge_home.as_ref(), &rmcp_test_server_bin);
     write_plugin_app_plugin(thinwedge_home.as_ref());
 
-    let thinwedge = build_apps_enabled_plugin_test_thinwedge(
+    let test_thinwedge = build_apps_enabled_plugin_test_thinwedge(
         &server,
         thinwedge_home,
         apps_server.chatgpt_base_url,
     )
     .await?;
-    wait_for_sample_mcp_ready(&thinwedge).await?;
+    let thinwedge = Arc::clone(&test_thinwedge.thinwedge);
+    wait_for_mcp_server(&thinwedge, THINWEDGE_APPS_MCP_SERVER_NAME).await?;
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![thinwedge_protocol::user_input::UserInput::Mention {
                 name: "sample".into(),
                 path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
+        })
+        .await?;
+    wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+
+    let request = mock.single_request();
+    let developer_messages = request.message_input_texts("developer");
+    assert!(
+        developer_messages
+            .iter()
+            .any(|text| text.contains("Skills from this plugin")),
+        "expected plugin skills guidance: {developer_messages:?}"
+    );
+    assert!(
+        !developer_messages
+            .iter()
+            .any(|text| text.contains("MCP servers from this plugin")),
+        "expected plugin MCP guidance to be suppressed for ChatGPT auth: {developer_messages:?}"
+    );
+    assert!(
+        developer_messages
+            .iter()
+            .any(|text| text.contains("Apps from this plugin")),
+        "expected visible plugin app guidance: {developer_messages:?}"
+    );
+    let request_body = request.body_json();
+    let request_tools = tool_names(&request_body);
+    assert!(
+        request_tools
+            .iter()
+            .any(|name| name == "mcp__thinwedge_apps__google_calendar"),
+        "expected plugin app tools to become visible for this turn: {request_tools:?}"
+    );
+    assert!(
+        request.tool_by_name("mcp__sample", "echo").is_none(),
+        "expected plugin MCP tool to be suppressed for ChatGPT auth"
+    );
+    let calendar_tool = request
+        .tool_by_name("mcp__thinwedge_apps__google_calendar", "_create_event")
+        .expect("plugin app tool should be present");
+    let calendar_description = calendar_tool
+        .get("description")
+        .and_then(serde_json::Value::as_str)
+        .expect("plugin app tool description should be present");
+    assert!(
+        calendar_description.contains("This tool is part of plugin `sample`."),
+        "expected plugin app provenance in tool description: {calendar_description:?}"
+    );
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn explicit_plugin_mentions_use_mcp_for_api_key_dual_surface_plugins() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+    let server = start_mock_server().await;
+    let mock = mount_sse_once(
+        &server,
+        sse(vec![ev_response_created("resp-1"), ev_completed("resp-1")]),
+    )
+    .await;
+
+    let thinwedge_home = Arc::new(TempDir::new()?);
+    let rmcp_test_server_bin = match stdio_server_bin() {
+        Ok(bin) => bin,
+        Err(err) => {
+            eprintln!("test_stdio_server binary not available, skipping test: {err}");
+            return Ok(());
+        }
+    };
+    write_plugin_skill_plugin(thinwedge_home.as_ref());
+    write_plugin_mcp_plugin(thinwedge_home.as_ref(), &rmcp_test_server_bin);
+    write_plugin_app_plugin(thinwedge_home.as_ref());
+
+    let mut builder = test_thinwedge()
+        .with_home(thinwedge_home)
+        .with_auth(ThinWedgeAuth::from_api_key("Test API Key"))
+        .with_config(move |config| {
+            config
+                .features
+                .enable(Feature::Apps)
+                .expect("test config should allow feature update");
+        });
+    let test_thinwedge = builder
+        .build(&server)
+        .await
+        .expect("create new conversation");
+    let thinwedge = Arc::clone(&test_thinwedge.thinwedge);
+    wait_for_mcp_server(&thinwedge, "sample").await?;
+
+    thinwedge
+        .submit(Op::UserInput {
+            items: vec![thinwedge_protocol::user_input::UserInput::Mention {
+                name: "sample".into(),
+                path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
     wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
@@ -341,21 +387,21 @@ async fn explicit_plugin_mentions_inject_plugin_guidance() -> Result<()> {
         "expected visible plugin MCP guidance: {developer_messages:?}"
     );
     assert!(
-        developer_messages
+        !developer_messages
             .iter()
             .any(|text| text.contains("Apps from this plugin")),
-        "expected visible plugin app guidance: {developer_messages:?}"
+        "expected plugin app guidance to be suppressed for API-key auth: {developer_messages:?}"
     );
     let request_body = request.body_json();
     let request_tools = tool_names(&request_body);
     assert!(
-        request_tools
+        !request_tools
             .iter()
             .any(|name| name == "mcp__thinwedge_apps__google_calendar"),
-        "expected plugin app tools to become visible for this turn: {request_tools:?}"
+        "expected plugin app tools to be hidden for API-key auth: {request_tools:?}"
     );
     let echo_tool = request
-        .tool_by_name("mcp__sample__", "echo")
+        .tool_by_name("mcp__sample", "echo")
         .expect("plugin MCP tool should be present");
     let echo_description = echo_tool
         .get("description")
@@ -364,17 +410,6 @@ async fn explicit_plugin_mentions_inject_plugin_guidance() -> Result<()> {
     assert!(
         echo_description.contains("This tool is part of plugin `sample`."),
         "expected plugin MCP provenance in tool description: {echo_description:?}"
-    );
-    let calendar_tool = request
-        .tool_by_name("mcp__thinwedge_apps__google_calendar", "_create_event")
-        .expect("plugin app tool should be present");
-    let calendar_description = calendar_tool
-        .get("description")
-        .and_then(serde_json::Value::as_str)
-        .expect("plugin app tool description should be present");
-    assert!(
-        calendar_description.contains("This tool is part of plugin `sample`."),
-        "expected plugin app provenance in tool description: {calendar_description:?}"
     );
 
     Ok(())
@@ -392,17 +427,19 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
 
     let thinwedge_home = Arc::new(TempDir::new()?);
     write_plugin_skill_plugin(thinwedge_home.as_ref());
-    let thinwedge = build_analytics_plugin_test_thinwedge(&server, thinwedge_home).await?;
+    let test_thinwedge = build_analytics_plugin_test_thinwedge(&server, thinwedge_home).await?;
+    let thinwedge = Arc::clone(&test_thinwedge.thinwedge);
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![thinwedge_protocol::user_input::UserInput::Mention {
                 name: "sample".into(),
                 path: format!("plugin://{SAMPLE_PLUGIN_CONFIG_NAME}"),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
     wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
@@ -438,6 +475,10 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
     assert_eq!(event["event_params"]["has_skills"], true);
     assert_eq!(event["event_params"]["mcp_server_count"], 0);
     assert_eq!(
+        event["event_params"]["mcp_server_names"],
+        serde_json::json!([])
+    );
+    assert_eq!(
         event["event_params"]["connector_ids"],
         serde_json::json!([])
     );
@@ -448,37 +489,6 @@ async fn explicit_plugin_mentions_track_plugin_used_analytics() -> Result<()> {
     assert_eq!(event["event_params"]["model_slug"], "gpt-5.2");
     assert!(event["event_params"]["thread_id"].as_str().is_some());
     assert!(event["event_params"]["turn_id"].as_str().is_some());
-
-    Ok(())
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn plugin_mcp_tools_are_listed() -> Result<()> {
-    skip_if_no_network!(Ok(()));
-    let server = start_mock_server().await;
-    let thinwedge_home = Arc::new(TempDir::new()?);
-    let rmcp_test_server_bin = stdio_server_bin()?;
-    write_plugin_mcp_plugin(thinwedge_home.as_ref(), &rmcp_test_server_bin);
-    let thinwedge = build_plugin_test_thinwedge(&server, thinwedge_home).await?;
-    wait_for_sample_mcp_ready(&thinwedge).await?;
-
-    thinwedge.submit(Op::ListMcpTools).await?;
-    let list_event = wait_for_event_with_timeout(
-        &thinwedge,
-        |ev| matches!(ev, EventMsg::McpListToolsResponse(_)),
-        Duration::from_secs(10),
-    )
-    .await;
-    let EventMsg::McpListToolsResponse(tool_list) = list_event else {
-        unreachable!("event guard guarantees McpListToolsResponse");
-    };
-    let mut available_tools: Vec<&str> = tool_list.tools.keys().map(String::as_str).collect();
-    available_tools.sort_unstable();
-    assert!(
-        tool_list.tools.contains_key("mcp__sample__echo")
-            && tool_list.tools.contains_key("mcp__sample__image"),
-        "expected plugin MCP tools to be listed; discovered tools: {available_tools:?}"
-    );
 
     Ok(())
 }

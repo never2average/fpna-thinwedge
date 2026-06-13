@@ -12,6 +12,7 @@ path = "src/main.rs"
 [lib]
 name = "thinwedge_exec"
 path = "src/lib.rs"
+doctest = false
 
 [[test]]
 name = "all"
@@ -26,7 +27,7 @@ clap = { workspace = true, features = ["derive"] }
 thinwedge-arg0 = { workspace = true }
 thinwedge-app-server-client = { workspace = true }
 thinwedge-app-server-protocol = { workspace = true }
-thinwedge-cloud-requirements = { workspace = true }
+thinwedge-cloud-config = { workspace = true }
 thinwedge-config = { workspace = true }
 thinwedge-core = { workspace = true }
 thinwedge-feedback = { workspace = true }
@@ -38,6 +39,7 @@ thinwedge-protocol = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
 thinwedge-utils-cli = { workspace = true }
 thinwedge-utils-oss = { workspace = true }
+thinwedge-utils-sandbox-summary = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

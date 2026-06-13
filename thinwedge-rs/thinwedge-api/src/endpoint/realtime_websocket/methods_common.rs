@@ -16,6 +16,7 @@ use crate::endpoint::realtime_websocket::protocol::SessionUpdateSession;
 use serde_json::Result as JsonResult;
 use serde_json::Value;
 use serde_json::to_value;
+use thinwedge_protocol::protocol::ConversationTextRole;
 
 pub(super) const REALTIME_AUDIO_SAMPLE_RATE: u32 = 24_000;
 const AGENT_FINAL_MESSAGE_PREFIX: &str = "\"Agent Final Message\":\n\n";
@@ -33,10 +34,11 @@ pub(super) fn normalized_session_mode(
 pub(super) fn conversation_item_create_message(
     event_parser: RealtimeEventParser,
     text: String,
+    role: ConversationTextRole,
 ) -> RealtimeOutboundMessage {
     match event_parser {
-        RealtimeEventParser::V1 => v1_conversation_item_create_message(text),
-        RealtimeEventParser::RealtimeV2 => v2_conversation_item_create_message(text),
+        RealtimeEventParser::V1 => v1_conversation_item_create_message(text, role),
+        RealtimeEventParser::RealtimeV2 => v2_conversation_item_create_message(text, role),
     }
 }
 

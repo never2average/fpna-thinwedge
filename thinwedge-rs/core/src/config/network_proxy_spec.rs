@@ -1,10 +1,10 @@
-use async_trait::async_trait;
 use std::collections::HashSet;
 use std::sync::Arc;
 use thinwedge_config::NetworkConstraints;
 use thinwedge_execpolicy::Policy;
 use thinwedge_network_proxy::BlockedRequestObserver;
 use thinwedge_network_proxy::ConfigReloader;
+use thinwedge_network_proxy::ConfigReloaderFuture;
 use thinwedge_network_proxy::ConfigState;
 use thinwedge_network_proxy::NetworkDecision;
 use thinwedge_network_proxy::NetworkPolicyDecider;
@@ -58,14 +58,13 @@ impl StaticNetworkProxyReloader {
     }
 }
 
-#[async_trait]
 impl ConfigReloader for StaticNetworkProxyReloader {
-    async fn maybe_reload(&self) -> anyhow::Result<Option<ConfigState>> {
-        Ok(None)
+    fn maybe_reload(&self) -> ConfigReloaderFuture<'_, Option<ConfigState>> {
+        Box::pin(async { Ok(None) })
     }
 
-    async fn reload_now(&self) -> anyhow::Result<ConfigState> {
-        Ok(self.state.clone())
+    fn reload_now(&self) -> ConfigReloaderFuture<'_, ConfigState> {
+        Box::pin(async { Ok(self.state.clone()) })
     }
 
     fn source_label(&self) -> String {

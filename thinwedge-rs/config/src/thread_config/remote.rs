@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::num::NonZeroU64;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_model_provider_info::WireApi;
 use thinwedge_protocol::config_types::ModelProviderAuthInfo;
@@ -14,6 +13,7 @@ use super::ThreadConfigContext;
 use super::ThreadConfigLoadError;
 use super::ThreadConfigLoadErrorCode;
 use super::ThreadConfigLoader;
+use super::ThreadConfigLoaderFuture;
 use super::ThreadConfigSource;
 use super::UserThreadConfig;
 use proto::thread_config_loader_client::ThreadConfigLoaderClient;
@@ -49,10 +49,7 @@ impl RemoteThreadConfigLoader {
                 )
             })
     }
-}
 
-#[async_trait]
-impl ThreadConfigLoader for RemoteThreadConfigLoader {
     async fn load(
         &self,
         context: ThreadConfigContext,
@@ -70,6 +67,15 @@ impl ThreadConfigLoader for RemoteThreadConfigLoader {
             .into_iter()
             .map(thread_config_source_from_proto)
             .collect()
+    }
+}
+
+impl ThreadConfigLoader for RemoteThreadConfigLoader {
+    fn load(
+        &self,
+        context: ThreadConfigContext,
+    ) -> ThreadConfigLoaderFuture<'_, Vec<ThreadConfigSource>> {
+        Box::pin(RemoteThreadConfigLoader::load(self, context))
     }
 }
 
@@ -182,7 +188,7 @@ fn model_provider_from_proto(
         stream_max_retries: provider.stream_max_retries,
         stream_idle_timeout_ms: provider.stream_idle_timeout_ms,
         websocket_connect_timeout_ms: provider.websocket_connect_timeout_ms,
-        requires_thinwedge_auth: provider.requires_thinwedge_auth,
+        requires_openai_auth: provider.requires_openai_auth,
         supports_websockets: provider.supports_websockets,
     };
     Ok((id, info))
@@ -209,7 +215,7 @@ fn model_provider_to_proto(
         stream_max_retries,
         stream_idle_timeout_ms,
         websocket_connect_timeout_ms,
-        requires_thinwedge_auth,
+        requires_openai_auth,
         supports_websockets,
     } = provider;
 
@@ -229,7 +235,7 @@ fn model_provider_to_proto(
         stream_max_retries,
         stream_idle_timeout_ms,
         websocket_connect_timeout_ms,
-        requires_thinwedge_auth,
+        requires_openai_auth,
         supports_websockets,
     }
 }
@@ -321,8 +327,7 @@ mod tests {
         expected_cwd: String,
     }
 
-    #[tonic::async_trait]
-    impl thread_config_loader_server::ThreadConfigLoader for TestServer {
+    impl TestServer {
         async fn load(
             &self,
             request: Request<proto::LoadThreadConfigRequest>,
@@ -338,6 +343,26 @@ mod tests {
             Ok(Response::new(proto::LoadThreadConfigResponse {
                 sources: self.sources.clone(),
             }))
+        }
+    }
+
+    impl thread_config_loader_server::ThreadConfigLoader for TestServer {
+        fn load<'a, 'async_trait>(
+            &'a self,
+            request: Request<proto::LoadThreadConfigRequest>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<Response<proto::LoadThreadConfigResponse>, Status>,
+                    > + Send
+                    + 'async_trait,
+            >,
+        >
+        where
+            'a: 'async_trait,
+            Self: 'async_trait,
+        {
+            Box::pin(TestServer::load(self, request))
         }
     }
 
@@ -446,7 +471,7 @@ mod tests {
                             stream_max_retries: Some(8),
                             stream_idle_timeout_ms: Some(9_000),
                             websocket_connect_timeout_ms: Some(10_000),
-                            requires_thinwedge_auth: false,
+                            requires_openai_auth: false,
                             supports_websockets: true,
                         }],
                         features: HashMap::from([
@@ -509,7 +534,7 @@ mod tests {
             stream_max_retries: Some(8),
             stream_idle_timeout_ms: Some(9_000),
             websocket_connect_timeout_ms: Some(10_000),
-            requires_thinwedge_auth: false,
+            requires_openai_auth: false,
             supports_websockets: true,
             aws: None,
         }

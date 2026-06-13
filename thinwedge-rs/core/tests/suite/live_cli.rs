@@ -1,8 +1,9 @@
 #![expect(clippy::expect_used)]
 
-//! Optional smoke tests that hit the real ThinWedge /v1/responses endpoint. They are `#[ignore]` by
+//! Optional smoke tests that hit the real OpenAI /v1/responses endpoint. They are `#[ignore]` by
 //! default so CI stays deterministic and free. Developers can run them locally with
-//! `cargo test --test live_cli -- --ignored` provided they set a valid `THINWEDGE_API_KEY`.
+//! `just test -p thinwedge-core --test all --run-ignored only live_cli` provided they set a valid
+//! `OPENAI_API_KEY`.
 
 use assert_cmd::prelude::*;
 use predicates::prelude::*;
@@ -11,8 +12,8 @@ use std::process::Stdio;
 use tempfile::TempDir;
 
 fn require_api_key() -> String {
-    std::env::var("THINWEDGE_API_KEY")
-        .expect("THINWEDGE_API_KEY env var not set — skip running live tests")
+    std::env::var("OPENAI_API_KEY")
+        .expect("OPENAI_API_KEY env var not set — skip running live tests")
 }
 
 /// Helper that spawns the binary inside a TempDir with minimal flags. Returns (Assert, TempDir).
@@ -23,6 +24,9 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
     use std::thread;
 
     let dir = TempDir::new().unwrap();
+    let home = TempDir::new().unwrap();
+    let thinwedge_home = home.path().join(".thinwedge");
+    std::fs::create_dir_all(&thinwedge_home).unwrap();
 
     // Build a plain `std::process::Command` so we have full control over the underlying stdio
     // handles. `assert_cmd`’s own `Command` wrapper always forces stdout/stderr to be piped
@@ -32,7 +36,9 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
 
     let mut cmd = Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge-rs").unwrap());
     cmd.current_dir(dir.path());
-    cmd.env("THINWEDGE_API_KEY", require_api_key());
+    cmd.env("OPENAI_API_KEY", require_api_key());
+    cmd.env("HOME", home.path());
+    cmd.env("THINWEDGE_HOME", &thinwedge_home);
 
     // We want three things at once:
     //   1. live streaming of the child’s stdout/stderr while the test is running
@@ -113,8 +119,8 @@ fn run_live(prompt: &str) -> (assert_cmd::assert::Assert, TempDir) {
 #[ignore]
 #[test]
 fn live_create_file_hello_txt() {
-    if std::env::var("THINWEDGE_API_KEY").is_err() {
-        eprintln!("skipping live_create_file_hello_txt – THINWEDGE_API_KEY not set");
+    if std::env::var("OPENAI_API_KEY").is_err() {
+        eprintln!("skipping live_create_file_hello_txt – OPENAI_API_KEY not set");
         return;
     }
 
@@ -135,8 +141,8 @@ fn live_create_file_hello_txt() {
 #[ignore]
 #[test]
 fn live_print_working_directory() {
-    if std::env::var("THINWEDGE_API_KEY").is_err() {
-        eprintln!("skipping live_print_working_directory – THINWEDGE_API_KEY not set");
+    if std::env::var("OPENAI_API_KEY").is_err() {
+        eprintln!("skipping live_print_working_directory – OPENAI_API_KEY not set");
         return;
     }
 

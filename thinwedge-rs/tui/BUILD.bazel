@@ -18,7 +18,7 @@ thinwedge_rust_crate(
     test_data_extra = glob([
         "src/**/*.rs",
         "src/**/snapshots/**",
-    ]) + ["//thinwedge-rs/core:model_availability_nux_fixtures"],
+    ]),
     integration_compile_data_extra = ["src/test_backend.rs"],
     extra_binaries = [
         "//thinwedge-rs/cli:thinwedge",

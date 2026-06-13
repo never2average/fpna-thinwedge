@@ -1,6 +1,6 @@
 use anyhow::Context;
 use anyhow::Result;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use core_test_support::responses;
 use serde_json::Value;
@@ -36,7 +36,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -92,6 +92,7 @@ async fn thread_inject_items_adds_raw_response_items_to_thread_history() -> Resu
     let turn_req = mcp
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id.clone(),
+            client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Hello".to_string(),
                 text_elements: Vec::new(),
@@ -151,7 +152,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path(), &server.uri())?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let thread_req = mcp
@@ -170,6 +171,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     let first_turn_req = mcp
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id.clone(),
+            client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "First turn".to_string(),
                 text_elements: Vec::new(),
@@ -215,6 +217,7 @@ async fn thread_inject_items_adds_raw_response_items_after_a_turn() -> Result<()
     let second_turn_req = mcp
         .send_turn_start_request(TurnStartParams {
             thread_id: thread.id.clone(),
+            client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: "Second turn".to_string(),
                 text_elements: Vec::new(),

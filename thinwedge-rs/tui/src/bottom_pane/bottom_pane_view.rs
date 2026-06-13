@@ -3,7 +3,7 @@ use crate::bottom_pane::ApprovalRequest;
 use crate::bottom_pane::McpServerElicitationFormRequest;
 use crate::render::renderable::Renderable;
 use crossterm::event::KeyEvent;
-use thinwedge_protocol::request_user_input::RequestUserInputEvent;
+use thinwedge_app_server_protocol::ToolRequestUserInputParams;
 
 use super::CancellationEvent;
 
@@ -101,8 +101,8 @@ pub(crate) trait BottomPaneView: Renderable {
     /// consumed.
     fn try_consume_user_input_request(
         &mut self,
-        request: RequestUserInputEvent,
-    ) -> Option<RequestUserInputEvent> {
+        request: ToolRequestUserInputParams,
+    ) -> Option<ToolRequestUserInputParams> {
         Some(request)
     }
 
@@ -129,5 +129,10 @@ pub(crate) trait BottomPaneView: Renderable {
     /// ThinWedge needs user input.
     fn terminal_title_requires_action(&self) -> bool {
         false
+    }
+
+    /// Return the next time-based redraw this view needs while it is active.
+    fn next_frame_delay(&self) -> Option<std::time::Duration> {
+        None
     }
 }

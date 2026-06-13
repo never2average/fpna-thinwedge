@@ -4,6 +4,7 @@ use std::path::Path;
 
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_config::types::AuthCredentialsStoreMode;
+use thinwedge_login::AuthKeyringBackendKind;
 use thinwedge_login::load_auth_dot_json;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,12 +17,16 @@ pub(crate) struct LocalChatgptAuth {
 pub(crate) fn load_local_chatgpt_auth(
     thinwedge_home: &Path,
     auth_credentials_store_mode: AuthCredentialsStoreMode,
-    forced_chatgpt_workspace_id: Option<&str>,
+    forced_chatgpt_workspace_id: Option<&[String]>,
 ) -> Result<LocalChatgptAuth, String> {
-    let auth = load_auth_dot_json(thinwedge_home, auth_credentials_store_mode)
-        .map_err(|err| format!("failed to load local auth: {err}"))?
-        .ok_or_else(|| "no local auth available".to_string())?;
-    if matches!(auth.auth_mode, Some(AuthMode::ApiKey)) || auth.thinwedge_api_key.is_some() {
+    let auth = load_auth_dot_json(
+        thinwedge_home,
+        auth_credentials_store_mode,
+        AuthKeyringBackendKind::default(),
+    )
+    .map_err(|err| format!("failed to load local auth: {err}"))?
+    .ok_or_else(|| "no local auth available".to_string())?;
+    if matches!(auth.auth_mode, Some(AuthMode::ApiKey)) || auth.openai_api_key.is_some() {
         return Err("local auth is not a ChatGPT login".to_string());
     }
 
@@ -33,11 +38,11 @@ pub(crate) fn load_local_chatgpt_auth(
         .account_id
         .or(tokens.id_token.chatgpt_account_id.clone())
         .ok_or_else(|| "local ChatGPT auth is missing chatgpt account id".to_string())?;
-    if let Some(expected_workspace) = forced_chatgpt_workspace_id
-        && chatgpt_account_id != expected_workspace
+    if let Some(expected_workspaces) = forced_chatgpt_workspace_id
+        && !expected_workspaces.contains(&chatgpt_account_id)
     {
         return Err(format!(
-            "local ChatGPT auth must use workspace {expected_workspace}, but found {chatgpt_account_id:?}"
+            "local ChatGPT auth must use one of workspace(s) {expected_workspaces:?}, but found {chatgpt_account_id:?}",
         ));
     }
 
@@ -82,7 +87,7 @@ mod tests {
         };
         let payload = json!({
             "email": email,
-            "https://api.thinwedge.com/auth": {
+            "https://api.openai.com/auth": {
                 "chatgpt_account_id": account_id,
                 "chatgpt_plan_type": plan_type,
             },
@@ -99,7 +104,7 @@ mod tests {
         let access_token = fake_jwt("user@example.com", "workspace-1", plan_type);
         let auth = AuthDotJson {
             auth_mode: Some(AuthMode::Chatgpt),
-            thinwedge_api_key: None,
+            openai_api_key: None,
             tokens: Some(TokenData {
                 id_token: thinwedge_login::token_data::parse_chatgpt_jwt_claims(&id_token)
                     .expect("id token should parse"),
@@ -109,9 +114,16 @@ mod tests {
             }),
             last_refresh: Some(Utc::now()),
             agent_identity: None,
+            personal_access_token: None,
+            bedrock_api_key: None,
         };
-        save_auth(thinwedge_home, &auth, AuthCredentialsStoreMode::File)
-            .expect("chatgpt auth should save");
+        save_auth(
+            thinwedge_home,
+            &auth,
+            AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
+        )
+        .expect("chatgpt auth should save");
     }
 
     #[test]
@@ -122,7 +134,7 @@ mod tests {
         let auth = load_local_chatgpt_auth(
             thinwedge_home.path(),
             AuthCredentialsStoreMode::File,
-            Some("workspace-1"),
+            Some(&["workspace-1".to_string()]),
         )
         .expect("chatgpt auth should load");
 
@@ -152,12 +164,15 @@ mod tests {
             thinwedge_home.path(),
             &AuthDotJson {
                 auth_mode: Some(AuthMode::ApiKey),
-                thinwedge_api_key: Some("sk-test".to_string()),
+                openai_api_key: Some("sk-test".to_string()),
                 tokens: None,
                 last_refresh: None,
                 agent_identity: None,
+                personal_access_token: None,
+                bedrock_api_key: None,
             },
             AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
         )
         .expect("api key auth should save");
 
@@ -186,7 +201,7 @@ mod tests {
         let auth = load_local_chatgpt_auth(
             thinwedge_home.path(),
             AuthCredentialsStoreMode::File,
-            Some("workspace-1"),
+            Some(&["workspace-1".to_string(), "workspace-2".to_string()]),
         )
         .expect("managed auth should win");
 
@@ -202,7 +217,7 @@ mod tests {
         let auth = load_local_chatgpt_auth(
             thinwedge_home.path(),
             AuthCredentialsStoreMode::File,
-            Some("workspace-1"),
+            Some(&["workspace-1".to_string()]),
         )
         .expect("chatgpt auth should load");
 

@@ -1,0 +1,30 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-web-search-extension"
+version.workspace = true
+
+[lib]
+name = "thinwedge_web_search_extension"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-api = { workspace = true }
+thinwedge-core = { workspace = true }
+thinwedge-extension-api = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
+thinwedge-model-provider-info = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-tools = { workspace = true }
+http = { workspace = true }
+schemars = { workspace = true }
+serde_json = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

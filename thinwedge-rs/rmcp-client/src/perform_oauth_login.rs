@@ -7,12 +7,16 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use reqwest::ClientBuilder;
 use reqwest::Url;
 use rmcp::transport::AuthorizationManager;
 use rmcp::transport::AuthorizationSession;
 use rmcp::transport::auth::OAuthClientConfig;
 use rmcp::transport::auth::OAuthState;
+use sha2::Digest;
+use sha2::Sha256;
 use tiny_http::Response;
 use tiny_http::Server;
 use tokio::sync::oneshot;
@@ -25,6 +29,7 @@ use crate::oauth::compute_expires_at_millis;
 use crate::save_oauth_tokens;
 use crate::utils::apply_default_headers;
 use crate::utils::build_default_headers;
+use thinwedge_config::types::AuthKeyringBackendKind;
 use thinwedge_config::types::OAuthCredentialsStoreMode;
 
 struct OauthHeaders {
@@ -77,6 +82,7 @@ pub async fn perform_oauth_login(
     server_name: &str,
     server_url: &str,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     scopes: &[String],
@@ -89,6 +95,7 @@ pub async fn perform_oauth_login(
         server_name,
         server_url,
         store_mode,
+        keyring_backend_kind,
         http_headers,
         env_http_headers,
         scopes,
@@ -106,6 +113,7 @@ pub async fn perform_oauth_login_silent(
     server_name: &str,
     server_url: &str,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     scopes: &[String],
@@ -118,6 +126,7 @@ pub async fn perform_oauth_login_silent(
         server_name,
         server_url,
         store_mode,
+        keyring_backend_kind,
         http_headers,
         env_http_headers,
         scopes,
@@ -135,6 +144,7 @@ async fn perform_oauth_login_with_browser_output(
     server_name: &str,
     server_url: &str,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     scopes: &[String],
@@ -152,6 +162,7 @@ async fn perform_oauth_login_with_browser_output(
         server_name,
         server_url,
         store_mode,
+        keyring_backend_kind,
         headers,
         scopes,
         oauth_client_id,
@@ -171,6 +182,7 @@ pub async fn perform_oauth_login_return_url(
     server_name: &str,
     server_url: &str,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     http_headers: Option<HashMap<String, String>>,
     env_http_headers: Option<HashMap<String, String>>,
     scopes: &[String],
@@ -188,6 +200,7 @@ pub async fn perform_oauth_login_return_url(
         server_name,
         server_url,
         store_mode,
+        keyring_backend_kind,
         headers,
         scopes,
         oauth_client_id,
@@ -346,6 +359,7 @@ struct OauthLoginFlow {
     server_name: String,
     server_url: String,
     store_mode: OAuthCredentialsStoreMode,
+    keyring_backend_kind: AuthKeyringBackendKind,
     launch_browser: bool,
     timeout: Duration,
 }
@@ -389,6 +403,31 @@ fn resolve_redirect_uri(server: &Server, callback_url: Option<&str>) -> Result<S
     Ok(callback_url.to_string())
 }
 
+fn callback_id_from_server_url(server_url: &str) -> Result<String> {
+    let mut parsed =
+        Url::parse(server_url).with_context(|| format!("invalid MCP server URL `{server_url}`"))?;
+    parsed
+        .host_str()
+        .ok_or_else(|| anyhow!("MCP server URL `{server_url}` must include a host"))?;
+    parsed.set_fragment(None);
+
+    let digest = Sha256::digest(parsed.as_str().as_bytes());
+    Ok(URL_SAFE_NO_PAD.encode(&digest[..9]))
+}
+
+fn append_callback_id_to_redirect_uri(redirect_uri: &str, callback_id: &str) -> Result<String> {
+    let mut parsed = Url::parse(redirect_uri)
+        .with_context(|| format!("invalid redirect URI `{redirect_uri}`"))?;
+    let path = parsed.path();
+    let new_path = if path.ends_with('/') {
+        format!("{path}{callback_id}")
+    } else {
+        format!("{path}/{callback_id}")
+    };
+    parsed.set_path(&new_path);
+    Ok(parsed.to_string())
+}
+
 fn callback_path_from_redirect_uri(redirect_uri: &str) -> Result<String> {
     let parsed = Url::parse(redirect_uri)
         .with_context(|| format!("invalid redirect URI `{redirect_uri}`"))?;
@@ -416,6 +455,7 @@ impl OauthLoginFlow {
         server_name: &str,
         server_url: &str,
         store_mode: OAuthCredentialsStoreMode,
+        keyring_backend_kind: AuthKeyringBackendKind,
         headers: OauthHeaders,
         scopes: &[String],
         oauth_client_id: Option<&str>,
@@ -440,6 +480,8 @@ impl OauthLoginFlow {
         };
 
         let redirect_uri = resolve_redirect_uri(&server, callback_url)?;
+        let callback_id = callback_id_from_server_url(server_url)?;
+        let redirect_uri = append_callback_id_to_redirect_uri(&redirect_uri, &callback_id)?;
         let callback_path = callback_path_from_redirect_uri(&redirect_uri)?;
 
         let (tx, rx) = oneshot::channel();
@@ -477,6 +519,7 @@ impl OauthLoginFlow {
             server_name: server_name.to_string(),
             server_url: server_url.to_string(),
             store_mode,
+            keyring_backend_kind,
             launch_browser,
             timeout,
         })
@@ -540,7 +583,12 @@ impl OauthLoginFlow {
                 token_response: WrappedOAuthTokenResponse(credentials),
                 expires_at,
             };
-            save_oauth_tokens(&self.server_name, &stored, self.store_mode)?;
+            save_oauth_tokens(
+                &self.server_name,
+                &stored,
+                self.store_mode,
+                self.keyring_backend_kind,
+            )?;
 
             Ok(())
         }
@@ -590,19 +638,15 @@ async fn start_authorization(
     auth_manager.with_client(http_client)?;
     let metadata = auth_manager.discover_metadata().await?;
     auth_manager.set_metadata(metadata);
-    auth_manager.configure_client(OAuthClientConfig {
-        client_id: oauth_client_id.to_string(),
-        client_secret: None,
-        scopes: scopes.iter().map(|scope| (*scope).to_string()).collect(),
-        redirect_uri: redirect_uri.to_string(),
-    })?;
+    auth_manager.configure_client(
+        OAuthClientConfig::new(oauth_client_id, redirect_uri)
+            .with_scopes(scopes.iter().map(|scope| (*scope).to_string()).collect()),
+    )?;
     let auth_url = auth_manager.get_authorization_url(scopes).await?;
 
-    Ok(OAuthState::Session(AuthorizationSession {
-        auth_manager,
-        auth_url,
-        redirect_uri: redirect_uri.to_string(),
-    }))
+    Ok(OAuthState::Session(
+        AuthorizationSession::for_scope_upgrade(auth_manager, auth_url, redirect_uri),
+    ))
 }
 
 fn append_query_param(url: &str, key: &str, value: Option<&str>) -> String {
@@ -624,13 +668,85 @@ fn append_query_param(url: &str, key: &str, value: Option<&str>) -> String {
 
 #[cfg(test)]
 mod tests {
+    use axum::Json;
+    use axum::Router;
+    use axum::routing::get;
     use pretty_assertions::assert_eq;
+    use reqwest::Url;
+    use serde_json::json;
+    use tokio::net::TcpListener;
 
     use super::CallbackOutcome;
     use super::OAuthProviderError;
+    use super::append_callback_id_to_redirect_uri;
     use super::append_query_param;
+    use super::callback_id_from_server_url;
     use super::callback_path_from_redirect_uri;
     use super::parse_oauth_callback;
+    use super::start_authorization;
+
+    async fn spawn_oauth_metadata_server() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind metadata listener");
+        let addr = listener.local_addr().expect("read metadata listener addr");
+        let base_url = format!("http://{addr}");
+        let metadata = json!({
+            "authorization_endpoint": format!("{base_url}/oauth/authorize"),
+            "token_endpoint": format!("{base_url}/oauth/token"),
+            "scopes_supported": [""],
+        });
+        let path_scoped_metadata = metadata.clone();
+        let app = Router::new()
+            .route(
+                "/.well-known/oauth-authorization-server/mcp",
+                get(move || {
+                    let metadata = path_scoped_metadata.clone();
+                    async move { Json(metadata) }
+                }),
+            )
+            .route(
+                "/.well-known/oauth-authorization-server",
+                get(move || {
+                    let metadata = metadata.clone();
+                    async move { Json(metadata) }
+                }),
+            );
+
+        tokio::spawn(async move {
+            axum::serve(listener, app)
+                .await
+                .expect("serve oauth metadata");
+        });
+
+        base_url
+    }
+
+    #[tokio::test]
+    async fn start_authorization_uses_configured_client_id() {
+        let base_url = spawn_oauth_metadata_server().await;
+        let oauth_state = start_authorization(
+            &format!("{base_url}/mcp"),
+            reqwest::Client::new(),
+            &[],
+            "http://127.0.0.1/callback",
+            Some("eci-prd-pub-thinwedge-123"),
+        )
+        .await
+        .expect("start oauth authorization");
+
+        let authorization_url = oauth_state
+            .get_authorization_url()
+            .await
+            .expect("read authorization url");
+        let auth_url = Url::parse(&authorization_url).expect("authorization url should parse");
+        let client_id = auth_url
+            .query_pairs()
+            .find(|(key, _)| key == "client_id")
+            .map(|(_, value)| value.into_owned());
+
+        assert_eq!(client_id.as_deref(), Some("eci-prd-pub-thinwedge-123"));
+    }
 
     #[test]
     fn parse_oauth_callback_accepts_default_path() {
@@ -642,6 +758,19 @@ mod tests {
     fn parse_oauth_callback_accepts_custom_path() {
         let parsed = parse_oauth_callback("/oauth/callback?code=abc&state=xyz", "/oauth/callback");
         assert!(matches!(parsed, CallbackOutcome::Success(_)));
+    }
+
+    #[test]
+    fn parse_oauth_callback_accepts_callback_id_path() {
+        let parsed =
+            parse_oauth_callback("/callback/abc123?code=abc&state=xyz", "/callback/abc123");
+        assert!(matches!(parsed, CallbackOutcome::Success(_)));
+    }
+
+    #[test]
+    fn parse_oauth_callback_rejects_missing_callback_id_path() {
+        let parsed = parse_oauth_callback("/callback?code=abc&state=xyz", "/callback/abc123");
+        assert!(matches!(parsed, CallbackOutcome::Invalid));
     }
 
     #[test]
@@ -671,6 +800,55 @@ mod tests {
         let path = callback_path_from_redirect_uri("https://example.com/oauth/callback")
             .expect("redirect URI should parse");
         assert_eq!(path, "/oauth/callback");
+    }
+
+    #[test]
+    fn callback_id_is_bound_to_server_url() {
+        let callback_id = callback_id_from_server_url("https://mcp.example.com/mcp?tenant=one")
+            .expect("server URL should parse");
+        let same_without_fragment =
+            callback_id_from_server_url("https://mcp.example.com/mcp?tenant=one#unused")
+                .expect("server URL should parse");
+        let different_path = callback_id_from_server_url("https://mcp.example.com/sse?tenant=one")
+            .expect("server URL should parse");
+        let different_query = callback_id_from_server_url("https://mcp.example.com/mcp?tenant=two")
+            .expect("server URL should parse");
+        let different_origin = callback_id_from_server_url("https://mcp.example.com:8443/mcp")
+            .expect("server URL should parse");
+
+        assert_eq!(callback_id, same_without_fragment);
+        assert_ne!(callback_id, different_path);
+        assert_ne!(callback_id, different_query);
+        assert_ne!(callback_id, different_origin);
+        assert_eq!(callback_id.len(), 12);
+        assert!(
+            callback_id
+                .chars()
+                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
+        );
+    }
+
+    #[test]
+    fn callback_id_is_appended_to_redirect_uri_path() {
+        let redirect_uri =
+            append_callback_id_to_redirect_uri("http://127.0.0.1:1234/callback", "abc123")
+                .expect("redirect URI should parse");
+
+        assert_eq!(redirect_uri, "http://127.0.0.1:1234/callback/abc123");
+    }
+
+    #[test]
+    fn callback_id_is_appended_before_redirect_uri_query() {
+        let redirect_uri = append_callback_id_to_redirect_uri(
+            "https://callbacks.example.com/oauth/callback?provider=github",
+            "abc123",
+        )
+        .expect("redirect URI should parse");
+
+        assert_eq!(
+            redirect_uri,
+            "https://callbacks.example.com/oauth/callback/abc123?provider=github"
+        );
     }
 
     #[test]

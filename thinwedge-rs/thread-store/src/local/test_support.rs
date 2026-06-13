@@ -4,16 +4,15 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use thinwedge_rollout::ARCHIVED_SESSIONS_SUBDIR;
-use thinwedge_rollout::RolloutConfig;
 use uuid::Uuid;
 
-pub(super) fn test_config(thinwedge_home: &Path) -> RolloutConfig {
-    RolloutConfig {
+use super::LocalThreadStoreConfig;
+
+pub(super) fn test_config(thinwedge_home: &Path) -> LocalThreadStoreConfig {
+    LocalThreadStoreConfig {
         thinwedge_home: thinwedge_home.to_path_buf(),
         sqlite_home: thinwedge_home.to_path_buf(),
-        cwd: thinwedge_home.to_path_buf(),
-        model_provider_id: "test-provider".to_string(),
-        generate_memories: true,
+        default_model_provider_id: "test-provider".to_string(),
     }
 }
 

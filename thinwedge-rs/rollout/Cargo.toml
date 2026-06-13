@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 thinwedge-file-search = { workspace = true }
 thinwedge-git-utils = { workspace = true }
@@ -23,9 +22,10 @@ thinwedge-otel = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-state = { workspace = true }
 thinwedge-utils-path = { workspace = true }
-thinwedge-utils-string = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 time = { workspace = true, features = [
     "formatting",
     "local-offset",
@@ -43,7 +43,7 @@ tokio = { workspace = true, features = [
 ] }
 tracing = { workspace = true }
 uuid = { workspace = true }
+zstd = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-tempfile = { workspace = true }

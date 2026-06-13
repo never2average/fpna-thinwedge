@@ -6,6 +6,9 @@ use anyhow::Context;
 use serde::de::DeserializeOwned;
 use std::time::Duration;
 
+const OAI_PRODUCT_SKU_HEADER: &str = "OAI-Product-Sku";
+const THINWEDGE_PRODUCT_SKU: &str = "thinwedge";
+
 /// Make a GET request to the ChatGPT backend API.
 pub(crate) async fn chatgpt_get_request<T: DeserializeOwned>(
     config: &Config,
@@ -46,6 +49,7 @@ pub(crate) async fn chatgpt_get_request_with_timeout<T: DeserializeOwned>(
     let mut request = client
         .get(&url)
         .headers(thinwedge_model_provider::auth_provider_from_auth(&auth).to_auth_headers())
+        .header(OAI_PRODUCT_SKU_HEADER, THINWEDGE_PRODUCT_SKU)
         .header("Content-Type", "application/json");
 
     if let Some(timeout) = timeout {

@@ -9,8 +9,8 @@ expression: normalize_snapshot_paths(term.backend().vt100().screen().contents())
 
 
 
-✗ Request denied for thinwedge to run curl -sS -i -X POST --data-binary @core/src/c
-  odex.rs https://example.com
+✗ Request denied for thinwedge to run curl -sS -i -X POST --data-binary
+  @core/src/thinwedge.rs https://example.com
 
 • Working (0s • esc to interrupt)
 

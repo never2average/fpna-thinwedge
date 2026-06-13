@@ -69,6 +69,28 @@ async fn add_and_remove_server_updates_global_config() -> Result<()> {
 }
 
 #[tokio::test]
+async fn profile_mcp_reports_legacy_profile_migration() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        r#"[profiles.work]
+model = "gpt-5"
+"#,
+    )?;
+
+    let mut list_cmd = thinwedge_command(thinwedge_home.path())?;
+    list_cmd
+        .args(["--profile", "work", "mcp", "list"])
+        .assert()
+        .failure()
+        .stderr(contains("--profile `work` cannot be used"))
+        .stderr(contains("[profiles.work]"))
+        .stderr(contains("work.config.toml"));
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn add_with_env_preserves_key_order_and_values() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
@@ -192,8 +214,6 @@ async fn add_streamable_http_with_oauth_options() -> Result<()> {
             "eci-prd-pub-thinwedge-123",
             "--oauth-resource",
             "https://resource.example.com",
-            "--experimental-environment",
-            "remote",
         ])
         .assert()
         .success();
@@ -209,10 +229,6 @@ async fn add_streamable_http_with_oauth_options() -> Result<()> {
     assert_eq!(
         oauth_server.oauth_resource.as_deref(),
         Some("https://resource.example.com")
-    );
-    assert_eq!(
-        oauth_server.experimental_environment.as_deref(),
-        Some("remote")
     );
 
     Ok(())

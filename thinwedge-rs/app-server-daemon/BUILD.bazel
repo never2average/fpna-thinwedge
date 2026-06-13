@@ -1,0 +1,6 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "app-server-daemon",
+    crate_name = "thinwedge_app_server_daemon",
+)

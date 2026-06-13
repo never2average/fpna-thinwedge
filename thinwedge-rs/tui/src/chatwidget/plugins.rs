@@ -5,6 +5,7 @@ use std::time::Instant;
 
 use super::ChatWidget;
 use crate::app_event::AppEvent;
+use crate::app_event::PluginLocation;
 use crate::bottom_pane::ColumnWidthMode;
 use crate::bottom_pane::SelectionAction;
 use crate::bottom_pane::SelectionItem;
@@ -14,42 +15,64 @@ use crate::bottom_pane::SelectionToggle;
 use crate::bottom_pane::SelectionViewParams;
 use crate::bottom_pane::custom_prompt_view::CustomPromptView;
 use crate::history_cell;
+use crate::key_hint;
+use crate::legacy_core::config::Config;
+use crate::motion::MotionMode;
+use crate::motion::shimmer_text;
 use crate::onboarding::mark_url_hyperlink;
 use crate::render::renderable::ColumnRenderable;
 use crate::render::renderable::Renderable;
-use crate::shimmer::shimmer_spans;
 use crate::tui::FrameRequester;
+use crossterm::event::KeyCode;
+use crossterm::event::KeyEvent;
+use crossterm::event::KeyEventKind;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::prelude::Widget;
 use ratatui::style::Stylize;
 use ratatui::text::Line;
+use ratatui::text::Span;
 use ratatui::widgets::Paragraph;
 use ratatui::widgets::WidgetRef;
 use ratatui::widgets::Wrap;
 use thinwedge_app_server_protocol::MarketplaceAddResponse;
+use thinwedge_app_server_protocol::MarketplaceRemoveResponse;
+use thinwedge_app_server_protocol::MarketplaceUpgradeResponse;
+use thinwedge_app_server_protocol::PluginAvailability;
 use thinwedge_app_server_protocol::PluginDetail;
 use thinwedge_app_server_protocol::PluginInstallPolicy;
 use thinwedge_app_server_protocol::PluginInstallResponse;
 use thinwedge_app_server_protocol::PluginListResponse;
 use thinwedge_app_server_protocol::PluginMarketplaceEntry;
 use thinwedge_app_server_protocol::PluginReadResponse;
+use thinwedge_app_server_protocol::PluginSource;
 use thinwedge_app_server_protocol::PluginSummary;
 use thinwedge_app_server_protocol::PluginUninstallResponse;
-use thinwedge_core_plugins::THINWEDGE_CURATED_MARKETPLACE_NAME;
+use thinwedge_core_plugins::OPENAI_CURATED_MARKETPLACE_NAME;
 use thinwedge_features::Feature;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use unicode_width::UnicodeWidthStr;
 
 const PLUGINS_SELECTION_VIEW_ID: &str = "plugins-selection";
 const ALL_PLUGINS_TAB_ID: &str = "all-plugins";
 const INSTALLED_PLUGINS_TAB_ID: &str = "installed-plugins";
 const MARKETPLACE_TAB_ID_PREFIX: &str = "marketplace:";
-const THINWEDGE_CURATED_TAB_ID: &str = "marketplace:thinwedge-curated";
+const OPENAI_CURATED_TAB_ID: &str = "marketplace:openai-curated";
 const ADD_MARKETPLACE_TAB_ID: &str = "add-marketplace";
 const PLUGIN_ROW_PREFIX_WIDTH: usize = 6;
 const LOADING_ANIMATION_DELAY: Duration = Duration::from_secs(1);
 const LOADING_ANIMATION_INTERVAL: Duration = Duration::from_millis(100);
+
+#[derive(Debug, Clone, Default)]
+pub(super) struct PluginListFetchState {
+    pub(super) cache_cwd: Option<PathBuf>,
+    pub(super) in_flight_cwd: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct PluginInstallAuthFlowState {
+    plugin_display_name: String,
+    next_app_index: usize,
+}
 
 struct DelayedLoadingHeader {
     started_at: Instant,
@@ -94,7 +117,10 @@ impl Renderable for DelayedLoadingHeader {
         } else if self.animations_enabled {
             self.frame_requester
                 .schedule_frame_in(LOADING_ANIMATION_INTERVAL);
-            lines.push(Line::from(shimmer_spans(self.loading_text.as_str())));
+            lines.push(Line::from(shimmer_text(
+                self.loading_text.as_str(),
+                MotionMode::Animated,
+            )));
         } else {
             lines.push(Line::from(self.loading_text.as_str().dim()));
         }
@@ -111,8 +137,7 @@ impl Renderable for DelayedLoadingHeader {
     }
 }
 
-const APPS_HELP_ARTICLE_URL: &str =
-    "https://help.thinwedge.com/en/articles/11487775-apps-in-chatgpt";
+const APPS_HELP_ARTICLE_URL: &str = "https://help.openai.com/en/articles/11487775-apps-in-chatgpt";
 
 struct PluginDisclosureLine {
     line: Line<'static>,
@@ -302,6 +327,73 @@ impl ChatWidget {
         }
     }
 
+    pub(crate) fn open_marketplace_upgrade_loading_popup(
+        &mut self,
+        marketplace_name: Option<&str>,
+    ) {
+        self.plugins_active_tab_id = self
+            .bottom_pane
+            .active_tab_id_for_active_view(PLUGINS_SELECTION_VIEW_ID)
+            .map(str::to_string)
+            .or_else(|| self.plugins_active_tab_id.clone());
+        let params = self.marketplace_upgrade_loading_popup_params(marketplace_name);
+        if !self
+            .bottom_pane
+            .replace_selection_view_if_active(PLUGINS_SELECTION_VIEW_ID, params)
+        {
+            self.bottom_pane.show_selection_view(
+                self.marketplace_upgrade_loading_popup_params(marketplace_name),
+            );
+        }
+    }
+
+    pub(crate) fn open_marketplace_remove_confirmation(
+        &mut self,
+        marketplace_name: String,
+        marketplace_display_name: String,
+    ) {
+        self.plugins_active_tab_id = self
+            .bottom_pane
+            .active_tab_id_for_active_view(PLUGINS_SELECTION_VIEW_ID)
+            .map(str::to_string)
+            .or_else(|| self.plugins_active_tab_id.clone());
+
+        let PluginsCacheState::Ready(plugins_response) = self.plugins_cache_for_current_cwd()
+        else {
+            return;
+        };
+
+        let params = self.marketplace_remove_confirmation_popup_params(
+            &plugins_response,
+            marketplace_name.clone(),
+            marketplace_display_name.clone(),
+        );
+        if !self
+            .bottom_pane
+            .replace_selection_view_if_active(PLUGINS_SELECTION_VIEW_ID, params)
+        {
+            self.bottom_pane.show_selection_view(
+                self.marketplace_remove_confirmation_popup_params(
+                    &plugins_response,
+                    marketplace_name,
+                    marketplace_display_name,
+                ),
+            );
+        }
+    }
+
+    pub(crate) fn open_marketplace_remove_loading_popup(&mut self, marketplace_display_name: &str) {
+        let params = self.marketplace_remove_loading_popup_params(marketplace_display_name);
+        if !self
+            .bottom_pane
+            .replace_selection_view_if_active(PLUGINS_SELECTION_VIEW_ID, params)
+        {
+            self.bottom_pane.show_selection_view(
+                self.marketplace_remove_loading_popup_params(marketplace_display_name),
+            );
+        }
+    }
+
     pub(crate) fn open_plugin_detail_loading_popup(&mut self, plugin_display_name: &str) {
         self.plugins_active_tab_id = self
             .bottom_pane
@@ -363,7 +455,7 @@ impl ChatWidget {
     pub(crate) fn on_plugin_install_loaded(
         &mut self,
         cwd: PathBuf,
-        _marketplace_path: AbsolutePathBuf,
+        _location: PluginLocation,
         _plugin_name: String,
         plugin_display_name: String,
         result: Result<PluginInstallResponse, String>,
@@ -396,7 +488,7 @@ impl ChatWidget {
                             self.plugin_install_apps_needing_auth.len()
                         )),
                     );
-                    self.plugin_install_auth_flow = Some(super::PluginInstallAuthFlowState {
+                    self.plugin_install_auth_flow = Some(PluginInstallAuthFlowState {
                         plugin_display_name,
                         next_app_index: 0,
                     });
@@ -464,6 +556,198 @@ impl ChatWidget {
                 }
             }
         }
+    }
+
+    pub(crate) fn on_marketplace_remove_loaded(
+        &mut self,
+        cwd: PathBuf,
+        marketplace_name: String,
+        marketplace_display_name: String,
+        result: Result<MarketplaceRemoveResponse, String>,
+    ) {
+        if self.config.cwd.as_path() != cwd.as_path() {
+            return;
+        }
+
+        match result {
+            Ok(response) => {
+                self.plugins_active_tab_id = Some(ALL_PLUGINS_TAB_ID.to_string());
+                self.add_info_message(
+                    format!("Removed marketplace {marketplace_display_name}."),
+                    Some(match response.installed_root {
+                        Some(installed_root) => {
+                            format!("Marketplace root: {}", installed_root.as_path().display())
+                        }
+                        None => format!(
+                            "Removed marketplace config for {}.",
+                            response.marketplace_name
+                        ),
+                    }),
+                );
+            }
+            Err(_) => {
+                let params = self.marketplace_remove_error_popup_params(
+                    &marketplace_name,
+                    &marketplace_display_name,
+                );
+                if !self
+                    .bottom_pane
+                    .replace_selection_view_if_active(PLUGINS_SELECTION_VIEW_ID, params)
+                {
+                    self.bottom_pane.show_selection_view(
+                        self.marketplace_remove_error_popup_params(
+                            &marketplace_name,
+                            &marketplace_display_name,
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    pub(crate) fn on_marketplace_upgrade_loaded(
+        &mut self,
+        cwd: PathBuf,
+        result: Result<MarketplaceUpgradeResponse, String>,
+    ) {
+        if self.config.cwd.as_path() != cwd.as_path() {
+            return;
+        }
+
+        match result {
+            Ok(response) => {
+                if response.upgraded_roots.len() == 1 {
+                    self.plugins_active_tab_id =
+                        Some(marketplace_tab_id_from_path(&response.upgraded_roots[0]));
+                }
+
+                let selected_count = response.selected_marketplaces.len();
+                let upgraded_count = response.upgraded_roots.len();
+                let error_count = response.errors.len();
+                if selected_count == 0 {
+                    self.add_info_message(
+                        "No configured Git marketplaces to upgrade.".to_string(),
+                        Some("Only configured Git marketplaces can be upgraded.".to_string()),
+                    );
+                    return;
+                }
+
+                if upgraded_count == 0 && error_count == 0 {
+                    let message = if selected_count == 1 {
+                        format!(
+                            "Marketplace {} is already up to date.",
+                            response.selected_marketplaces[0]
+                        )
+                    } else {
+                        format!(
+                            "Checked {selected_count} marketplaces; all are already up to date."
+                        )
+                    };
+                    self.add_info_message(
+                        message,
+                        Some(format!(
+                            "Checked: {}",
+                            response.selected_marketplaces.join(", ")
+                        )),
+                    );
+                    return;
+                }
+
+                if upgraded_count > 0 {
+                    let noun = if upgraded_count == 1 {
+                        "marketplace"
+                    } else {
+                        "marketplaces"
+                    };
+                    self.add_info_message(
+                        format!("Upgraded {upgraded_count} {noun}."),
+                        Some(format!(
+                            "Updated roots: {}",
+                            response
+                                .upgraded_roots
+                                .iter()
+                                .map(|root| root.as_path().display().to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )),
+                    );
+                }
+
+                if error_count > 0 {
+                    let noun = if error_count == 1 {
+                        "marketplace"
+                    } else {
+                        "marketplaces"
+                    };
+                    self.add_error_message(format!(
+                        "Failed to upgrade {error_count} {noun}: {}",
+                        response
+                            .errors
+                            .iter()
+                            .map(|err| format!("{}: {}", err.marketplace_name, err.message))
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    ));
+                }
+            }
+            Err(err) => {
+                self.add_error_message(err);
+            }
+        }
+    }
+
+    pub(crate) fn handle_plugins_popup_key_event(&mut self, key_event: KeyEvent) -> bool {
+        let remove_marketplace = key_hint::ctrl(KeyCode::Char('r')).is_press(key_event);
+        let upgrade_marketplace = key_hint::ctrl(KeyCode::Char('u')).is_press(key_event);
+        if !remove_marketplace && !upgrade_marketplace {
+            return false;
+        }
+
+        let Some(active_tab_id) = self
+            .bottom_pane
+            .active_tab_id_for_active_view(PLUGINS_SELECTION_VIEW_ID)
+        else {
+            return false;
+        };
+        let PluginsCacheState::Ready(plugins_response) = self.plugins_cache_for_current_cwd()
+        else {
+            return false;
+        };
+        let Some(marketplace) = plugins_response.marketplaces.iter().find(|marketplace| {
+            marketplace_tab_id(marketplace) == active_tab_id
+                && marketplace_is_user_configured(&self.config, &marketplace.name)
+        }) else {
+            return false;
+        };
+
+        if remove_marketplace {
+            self.open_marketplace_remove_confirmation(
+                marketplace.name.clone(),
+                marketplace_display_name(marketplace),
+            );
+            return true;
+        }
+        if marketplace.path.is_none()
+            || !marketplace_is_user_configured_git(&self.config, &marketplace.name)
+        {
+            return false;
+        }
+        if key_event.kind != KeyEventKind::Press {
+            return true;
+        }
+
+        let cwd = self.config.cwd.to_path_buf();
+        let marketplace_name = Some(marketplace.name.clone());
+        self.open_marketplace_upgrade_loading_popup(marketplace_name.as_deref());
+        self.app_event_tx
+            .send(AppEvent::OpenMarketplaceUpgradeLoading {
+                marketplace_name: marketplace_name.clone(),
+            });
+        self.app_event_tx.send(AppEvent::FetchMarketplaceUpgrade {
+            cwd,
+            marketplace_name,
+        });
+        true
     }
 
     pub(crate) fn on_plugin_enabled_set(
@@ -587,7 +871,7 @@ impl ChatWidget {
         let status_label = if is_installed {
             "Already installed in this session."
         } else {
-            "Install the required apps to continue:"
+            "Install the required Apps in ChatGPT to continue:"
         };
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
@@ -603,13 +887,13 @@ impl ChatWidget {
 
         if let Some(install_url) = app.install_url.clone() {
             let install_label = if is_installed {
-                "Manage app"
+                "Manage on ChatGPT"
             } else {
-                "Install app"
+                "Install on ChatGPT"
             };
             items.push(SelectionItem {
                 name: install_label.to_string(),
-                description: Some("Open the app management page".to_string()),
+                description: Some("Open the ChatGPT app management page".to_string()),
                 selected_description: Some("Open the app page in your browser.".to_string()),
                 actions: vec![Box::new(move |tx| {
                     tx.send(AppEvent::OpenUrlInBrowser {
@@ -620,7 +904,7 @@ impl ChatWidget {
             });
         } else {
             items.push(SelectionItem {
-                name: "App link unavailable".to_string(),
+                name: "ChatGPT apps link unavailable".to_string(),
                 description: Some("This app did not provide an install/manage URL.".to_string()),
                 is_disabled: true,
                 ..Default::default()
@@ -781,6 +1065,128 @@ impl ChatWidget {
         }
     }
 
+    fn marketplace_remove_confirmation_popup_params(
+        &self,
+        plugins_response: &PluginListResponse,
+        marketplace_name: String,
+        marketplace_display_name: String,
+    ) -> SelectionViewParams {
+        let mut header = ColumnRenderable::new();
+        header.push(Line::from("Plugins".bold()));
+        header.push(Line::from(
+            format!("Remove {marketplace_display_name} marketplace?").dim(),
+        ));
+        header.push(Line::from(
+            "This removes the configured marketplace from ThinWedge.".dim(),
+        ));
+
+        let cwd_for_remove = self.config.cwd.to_path_buf();
+        let cwd_for_cancel = self.config.cwd.to_path_buf();
+        let cwd_for_on_cancel = self.config.cwd.to_path_buf();
+        let plugins_response_for_cancel = plugins_response.clone();
+        let plugins_response_for_on_cancel = plugins_response.clone();
+
+        SelectionViewParams {
+            view_id: Some(PLUGINS_SELECTION_VIEW_ID),
+            header: Box::new(header),
+            footer_hint: Some(Line::from(vec![
+                Span::from(key_hint::plain(KeyCode::Enter)),
+                " select".dim(),
+                " · ".into(),
+                "esc close".dim(),
+            ])),
+            items: vec![
+                SelectionItem {
+                    name: "Remove marketplace".to_string(),
+                    description: Some(
+                        "Remove this marketplace from the available plugin list.".to_string(),
+                    ),
+                    selected_description: Some(
+                        "Remove this marketplace from the available plugin list.".to_string(),
+                    ),
+                    actions: vec![Box::new(move |tx| {
+                        tx.send(AppEvent::OpenMarketplaceRemoveLoading {
+                            marketplace_display_name: marketplace_display_name.clone(),
+                        });
+                        tx.send(AppEvent::FetchMarketplaceRemove {
+                            cwd: cwd_for_remove.clone(),
+                            marketplace_name: marketplace_name.clone(),
+                            marketplace_display_name: marketplace_display_name.clone(),
+                        });
+                    })],
+                    ..Default::default()
+                },
+                SelectionItem {
+                    name: "Back to plugins".to_string(),
+                    description: Some("Keep this marketplace installed.".to_string()),
+                    selected_description: Some("Keep this marketplace installed.".to_string()),
+                    actions: vec![Box::new(move |tx| {
+                        tx.send(AppEvent::PluginsLoaded {
+                            cwd: cwd_for_cancel.clone(),
+                            result: Ok(plugins_response_for_cancel.clone()),
+                        });
+                    })],
+                    ..Default::default()
+                },
+            ],
+            on_cancel: Some(Box::new(move |tx| {
+                tx.send(AppEvent::PluginsLoaded {
+                    cwd: cwd_for_on_cancel.clone(),
+                    result: Ok(plugins_response_for_on_cancel.clone()),
+                });
+            })),
+            ..Default::default()
+        }
+    }
+
+    fn marketplace_remove_loading_popup_params(
+        &self,
+        marketplace_display_name: &str,
+    ) -> SelectionViewParams {
+        let mut header = ColumnRenderable::new();
+        header.push(Line::from("Plugins".bold()));
+        header.push(Line::from(
+            format!("Removing {marketplace_display_name}...").dim(),
+        ));
+
+        SelectionViewParams {
+            view_id: Some(PLUGINS_SELECTION_VIEW_ID),
+            header: Box::new(header),
+            items: vec![SelectionItem {
+                name: "Removing marketplace...".to_string(),
+                description: Some("This updates when marketplace removal completes.".to_string()),
+                is_disabled: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn marketplace_upgrade_loading_popup_params(
+        &self,
+        marketplace_name: Option<&str>,
+    ) -> SelectionViewParams {
+        let loading_text = marketplace_name
+            .map(|name| format!("Upgrading {name} marketplace..."))
+            .unwrap_or_else(|| "Upgrading marketplaces...".to_string());
+        SelectionViewParams {
+            view_id: Some(PLUGINS_SELECTION_VIEW_ID),
+            header: Box::new(DelayedLoadingHeader::new(
+                self.frame_requester.clone(),
+                self.config.animations,
+                loading_text.clone(),
+                /*note*/ None,
+            )),
+            items: vec![SelectionItem {
+                name: loading_text,
+                description: Some("This updates when marketplace upgrade completes.".to_string()),
+                is_disabled: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        }
+    }
+
     fn plugin_detail_loading_popup_params(&self, plugin_display_name: &str) -> SelectionViewParams {
         SelectionViewParams {
             view_id: Some(PLUGINS_SELECTION_VIEW_ID),
@@ -914,6 +1320,63 @@ impl ChatWidget {
         }
     }
 
+    fn marketplace_remove_error_popup_params(
+        &self,
+        marketplace_name: &str,
+        marketplace_display_name: &str,
+    ) -> SelectionViewParams {
+        let mut header = ColumnRenderable::new();
+        header.push(Line::from("Plugins".bold()));
+        header.push(Line::from("Failed to remove marketplace.".dim()));
+
+        let marketplace_name = marketplace_name.to_string();
+        let marketplace_display_name = marketplace_display_name.to_string();
+        let mut items = vec![
+            SelectionItem {
+                name: "Marketplace removal failed".to_string(),
+                description: Some("Failed to remove the selected marketplace.".to_string()),
+                is_disabled: true,
+                ..Default::default()
+            },
+            SelectionItem {
+                name: "Try again".to_string(),
+                description: Some("Review the confirmation prompt again.".to_string()),
+                selected_description: Some("Review the confirmation prompt again.".to_string()),
+                actions: vec![Box::new(move |tx| {
+                    tx.send(AppEvent::OpenMarketplaceRemoveConfirm {
+                        marketplace_name: marketplace_name.clone(),
+                        marketplace_display_name: marketplace_display_name.clone(),
+                    });
+                })],
+                ..Default::default()
+            },
+        ];
+
+        if let PluginsCacheState::Ready(plugins_response) = self.plugins_cache_for_current_cwd() {
+            let cwd = self.config.cwd.to_path_buf();
+            items.push(SelectionItem {
+                name: "Back to plugins".to_string(),
+                description: Some("Return to the plugin list.".to_string()),
+                selected_description: Some("Return to the plugin list.".to_string()),
+                actions: vec![Box::new(move |tx| {
+                    tx.send(AppEvent::PluginsLoaded {
+                        cwd: cwd.clone(),
+                        result: Ok(plugins_response.clone()),
+                    });
+                })],
+                ..Default::default()
+            });
+        }
+
+        SelectionViewParams {
+            view_id: Some(PLUGINS_SELECTION_VIEW_ID),
+            header: Box::new(header),
+            footer_hint: Some(plugin_detail_hint_line()),
+            items,
+            ..Default::default()
+        }
+    }
+
     fn plugin_detail_error_popup_params(
         &self,
         err: &str,
@@ -987,6 +1450,7 @@ impl ChatWidget {
             .collect();
 
         let mut tabs = Vec::new();
+        let mut tab_footer_hints = Vec::new();
         tabs.push(SelectionTab {
             id: ALL_PLUGINS_TAB_ID.to_string(),
             label: "All Plugins".to_string(),
@@ -1019,7 +1483,7 @@ impl ChatWidget {
 
         let curated_marketplace = marketplaces
             .iter()
-            .find(|marketplace| marketplace.name == THINWEDGE_CURATED_MARKETPLACE_NAME)
+            .find(|marketplace| marketplace.name == OPENAI_CURATED_MARKETPLACE_NAME)
             .copied();
         let curated_entries = curated_marketplace
             .map(|marketplace| plugin_entries_for_marketplaces([marketplace]))
@@ -1030,26 +1494,24 @@ impl ChatWidget {
             .filter(|(_, plugin, _)| plugin.installed)
             .count();
         tabs.push(SelectionTab {
-            id: THINWEDGE_CURATED_TAB_ID.to_string(),
-            label: "ThinWedge Curated".to_string(),
+            id: OPENAI_CURATED_TAB_ID.to_string(),
+            label: "OpenAI Curated".to_string(),
             header: plugins_header(
-                "ThinWedge Curated marketplace.".to_string(),
-                format!(
-                    "Installed {curated_installed} of {curated_total} ThinWedge Curated plugins."
-                ),
+                "OpenAI Curated marketplace.".to_string(),
+                format!("Installed {curated_installed} of {curated_total} OpenAI Curated plugins."),
             ),
             items: self.plugin_selection_items(
                 curated_entries,
                 /*include_marketplace_names*/ false,
-                "No ThinWedge Curated plugins available",
-                "No ThinWedge Curated plugins available.",
+                "No OpenAI Curated plugins available",
+                "No OpenAI Curated plugins available.",
             ),
         });
 
         let mut additional_marketplaces: Vec<&PluginMarketplaceEntry> = marketplaces
             .iter()
             .copied()
-            .filter(|marketplace| marketplace.name != THINWEDGE_CURATED_MARKETPLACE_NAME)
+            .filter(|marketplace| marketplace.name != OPENAI_CURATED_MARKETPLACE_NAME)
             .collect();
         additional_marketplaces.sort_by(|left, right| {
             marketplace_display_name(left)
@@ -1073,6 +1535,19 @@ impl ChatWidget {
                 .filter(|(_, plugin, _)| plugin.installed)
                 .count();
             let tab_id = marketplace_tab_id(marketplace);
+            let can_remove_marketplace =
+                marketplace_is_user_configured(&self.config, &marketplace.name);
+            let can_upgrade_marketplace = marketplace.path.is_some()
+                && marketplace_is_user_configured_git(&self.config, &marketplace.name);
+            if can_remove_marketplace || can_upgrade_marketplace {
+                tab_footer_hints.push((
+                    tab_id.clone(),
+                    plugins_popup_hint_line(
+                        /*can_remove_marketplace*/ can_remove_marketplace,
+                        /*can_upgrade_marketplace*/ can_upgrade_marketplace,
+                    ),
+                ));
+            }
             let header = if self.newly_installed_marketplace_tab_id.as_deref() == Some(&tab_id) {
                 plugins_header(
                     format!("{label} installed successfully."),
@@ -1105,7 +1580,10 @@ impl ChatWidget {
         SelectionViewParams {
             view_id: Some(PLUGINS_SELECTION_VIEW_ID),
             header: Box::new(()),
-            footer_hint: Some(plugins_popup_hint_line()),
+            footer_hint: Some(plugins_popup_hint_line(
+                /*can_remove_marketplace*/ false, /*can_upgrade_marketplace*/ false,
+            )),
+            tab_footer_hints,
             tabs,
             initial_tab_id: active_tab_id,
             is_searchable: true,
@@ -1149,19 +1627,22 @@ impl ChatWidget {
     ) -> SelectionViewParams {
         let marketplace_label = plugin.marketplace_name.clone();
         let display_name = plugin_display_name(&plugin.summary);
-        let detail_status_label = if plugin.summary.installed {
-            if plugin.summary.enabled {
-                "Installed"
+        let detail_status_label =
+            if plugin.summary.availability == PluginAvailability::DisabledByAdmin {
+                "Disabled by admin"
+            } else if plugin.summary.installed {
+                if plugin.summary.enabled {
+                    "Installed"
+                } else {
+                    "Disabled"
+                }
             } else {
-                "Disabled"
-            }
-        } else {
-            match plugin.summary.install_policy {
-                PluginInstallPolicy::NotAvailable => "Not installable",
-                PluginInstallPolicy::Available => "Can be installed",
-                PluginInstallPolicy::InstalledByDefault => "Available by default",
-            }
-        };
+                match plugin.summary.install_policy {
+                    PluginInstallPolicy::NotAvailable => "Not installable",
+                    PluginInstallPolicy::Available => "Can be installed",
+                    PluginInstallPolicy::InstalledByDefault => "Available by default",
+                }
+            };
         let mut header = ColumnRenderable::new();
         header.push(Line::from("Plugins".bold()));
         header.push(Line::from(
@@ -1200,23 +1681,40 @@ impl ChatWidget {
         }];
 
         if plugin.summary.installed {
-            let uninstall_cwd = self.config.cwd.to_path_buf();
-            let plugin_id = plugin.summary.id.clone();
-            let plugin_display_name = display_name;
+            if let Some(plugin_id) = plugin_uninstall_id(&plugin.summary) {
+                let uninstall_cwd = self.config.cwd.to_path_buf();
+                let plugin_display_name = display_name;
+                items.push(SelectionItem {
+                    name: "Uninstall plugin".to_string(),
+                    description: Some("Remove this plugin now.".to_string()),
+                    selected_description: Some("Remove this plugin now.".to_string()),
+                    actions: vec![Box::new(move |tx| {
+                        tx.send(AppEvent::OpenPluginUninstallLoading {
+                            plugin_display_name: plugin_display_name.clone(),
+                        });
+                        tx.send(AppEvent::FetchPluginUninstall {
+                            cwd: uninstall_cwd.clone(),
+                            plugin_id: plugin_id.clone(),
+                            plugin_display_name: plugin_display_name.clone(),
+                        });
+                    })],
+                    ..Default::default()
+                });
+            } else {
+                items.push(SelectionItem {
+                    name: "Uninstall plugin".to_string(),
+                    description: Some(
+                        "This remote plugin did not provide an uninstall identity.".to_string(),
+                    ),
+                    is_disabled: true,
+                    ..Default::default()
+                });
+            }
+        } else if plugin.summary.availability == PluginAvailability::DisabledByAdmin {
             items.push(SelectionItem {
-                name: "Uninstall plugin".to_string(),
-                description: Some("Remove this plugin now.".to_string()),
-                selected_description: Some("Remove this plugin now.".to_string()),
-                actions: vec![Box::new(move |tx| {
-                    tx.send(AppEvent::OpenPluginUninstallLoading {
-                        plugin_display_name: plugin_display_name.clone(),
-                    });
-                    tx.send(AppEvent::FetchPluginUninstall {
-                        cwd: uninstall_cwd.clone(),
-                        plugin_id: plugin_id.clone(),
-                        plugin_display_name: plugin_display_name.clone(),
-                    });
-                })],
+                name: "Install plugin".to_string(),
+                description: Some("This plugin is disabled by your workspace admin.".to_string()),
+                is_disabled: true,
                 ..Default::default()
             });
         } else if plugin.summary.install_policy == PluginInstallPolicy::NotAvailable {
@@ -1228,9 +1726,9 @@ impl ChatWidget {
                 is_disabled: true,
                 ..Default::default()
             });
-        } else if let Some(marketplace_path) = plugin.marketplace_path.clone() {
+        } else if let Some(location) = plugin_detail_location(plugin) {
             let install_cwd = self.config.cwd.to_path_buf();
-            let plugin_name = plugin.summary.name.clone();
+            let plugin_name = plugin_request_name(&plugin.summary);
             let plugin_display_name = display_name;
             items.push(SelectionItem {
                 name: "Install plugin".to_string(),
@@ -1242,7 +1740,7 @@ impl ChatWidget {
                     });
                     tx.send(AppEvent::FetchPluginInstall {
                         cwd: install_cwd.clone(),
-                        marketplace_path: marketplace_path.clone(),
+                        location: location.clone(),
                         plugin_name: plugin_name.clone(),
                         plugin_display_name: plugin_display_name.clone(),
                     });
@@ -1252,7 +1750,7 @@ impl ChatWidget {
         } else {
             items.push(SelectionItem {
                 name: "Install plugin".to_string(),
-                description: Some("Installing remote plugins is not supported yet.".to_string()),
+                description: Some("This plugin did not provide an install location.".to_string()),
                 is_disabled: true,
                 ..Default::default()
             });
@@ -1261,6 +1759,12 @@ impl ChatWidget {
         items.push(SelectionItem {
             name: "Skills".to_string(),
             description: Some(plugin_skill_summary(plugin)),
+            is_disabled: true,
+            ..Default::default()
+        });
+        items.push(SelectionItem {
+            name: "Hooks".to_string(),
+            description: Some(plugin_hook_summary(plugin)),
             is_disabled: true,
             ..Default::default()
         });
@@ -1310,9 +1814,12 @@ impl ChatWidget {
             } else {
                 plugin_brief_description_without_marketplace(plugin, status_label_width)
             };
-            let can_view_details = marketplace.path.is_some();
+            let plugin_detail_request = plugin_detail_request_for_entry(marketplace, plugin);
+            let can_view_details = plugin_detail_request.is_some();
+            let disabled_by_admin = plugin.availability == PluginAvailability::DisabledByAdmin;
+            let can_toggle_plugin = plugin.installed && !disabled_by_admin;
             let selected_status_label = format!("{status_label:<status_label_width$}");
-            let selected_description = if plugin.installed {
+            let selected_description = if can_toggle_plugin {
                 let toggle_action = if plugin.enabled { "disable" } else { "enable" };
                 if can_view_details {
                     format!(
@@ -1321,6 +1828,12 @@ impl ChatWidget {
                 } else {
                     format!("{selected_status_label}   Space to {toggle_action}.")
                 }
+            } else if plugin.installed && can_view_details {
+                format!("{selected_status_label}   Press Enter to view plugin details.")
+            } else if plugin.installed {
+                format!("{selected_status_label}   Plugin details are unavailable.")
+            } else if disabled_by_admin && can_view_details {
+                format!("{selected_status_label}   Press Enter to view plugin details.")
             } else if can_view_details {
                 format!("{selected_status_label}   Press Enter to install or view plugin details.")
             } else {
@@ -1332,11 +1845,9 @@ impl ChatWidget {
             );
             let cwd = self.config.cwd.to_path_buf();
             let plugin_display_name = display_name.clone();
-            let marketplace_path = marketplace.path.clone();
-            let plugin_name = plugin.name.clone();
             let toggle_cwd = cwd.clone();
             let toggle_plugin_id = plugin.id.clone();
-            let toggle = plugin.installed.then(|| SelectionToggle {
+            let toggle = can_toggle_plugin.then(|| SelectionToggle {
                 is_on: plugin.enabled,
                 action: Box::new(move |enabled, tx| {
                     tx.send(AppEvent::SetPluginEnabled {
@@ -1346,31 +1857,33 @@ impl ChatWidget {
                     });
                 }),
             });
-            let actions: Vec<SelectionAction> = if let Some(marketplace_path) = marketplace_path {
-                vec![Box::new(move |tx| {
-                    tx.send(AppEvent::OpenPluginDetailLoading {
-                        plugin_display_name: plugin_display_name.clone(),
-                    });
-                    tx.send(AppEvent::FetchPluginDetail {
-                        cwd: cwd.clone(),
-                        params: thinwedge_app_server_protocol::PluginReadParams {
-                            marketplace_path: Some(marketplace_path.clone()),
-                            remote_marketplace_name: None,
-                            plugin_name: plugin_name.clone(),
-                        },
-                    });
-                })]
-            } else {
-                Vec::new()
-            };
+            let actions: Vec<SelectionAction> =
+                if let Some((location, plugin_name)) = plugin_detail_request {
+                    vec![Box::new(move |tx| {
+                        tx.send(AppEvent::OpenPluginDetailLoading {
+                            plugin_display_name: plugin_display_name.clone(),
+                        });
+                        let (marketplace_path, remote_marketplace_name) =
+                            location.clone().into_request_params();
+                        tx.send(AppEvent::FetchPluginDetail {
+                            cwd: cwd.clone(),
+                            params: thinwedge_app_server_protocol::PluginReadParams {
+                                marketplace_path,
+                                remote_marketplace_name,
+                                plugin_name: plugin_name.clone(),
+                            },
+                        });
+                    })]
+                } else {
+                    Vec::new()
+                };
             let is_disabled = !can_view_details && !plugin.installed;
-            let disabled_reason =
-                is_disabled.then(|| "remote plugin details are not available yet".to_string());
+            let disabled_reason = is_disabled.then(|| "plugin details are unavailable".to_string());
 
             items.push(SelectionItem {
                 name: display_name,
                 toggle,
-                toggle_placeholder: (!plugin.installed).then_some("[-] "),
+                toggle_placeholder: (!can_toggle_plugin).then_some("[-] "),
                 description: Some(description),
                 selected_description: Some(selected_description),
                 search_value: Some(search_value),
@@ -1393,8 +1906,24 @@ impl ChatWidget {
     }
 }
 
-fn plugins_popup_hint_line() -> Line<'static> {
-    Line::from("space enable/disable · ←/→ select marketplace · enter view details · esc close")
+fn plugins_popup_hint_line(
+    can_remove_marketplace: bool,
+    can_upgrade_marketplace: bool,
+) -> Line<'static> {
+    match (can_remove_marketplace, can_upgrade_marketplace) {
+        (true, true) => Line::from(
+            "ctrl + u upgrade · ctrl + r remove · space toggle · ←/→ tabs · enter details · esc close",
+        ),
+        (true, false) => {
+            Line::from("ctrl + r remove · space toggle · ←/→ tabs · enter details · esc close")
+        }
+        (false, true) => {
+            Line::from("ctrl + u upgrade · space toggle · ←/→ tabs · enter details · esc close")
+        }
+        (false, false) => Line::from(
+            "space enable/disable · ←/→ select marketplace · enter view details · esc close",
+        ),
+    }
 }
 
 fn plugin_detail_hint_line() -> Line<'static> {
@@ -1524,6 +2053,29 @@ fn marketplace_display_name(marketplace: &PluginMarketplaceEntry) -> String {
         .unwrap_or_else(|| marketplace.name.clone())
 }
 
+fn marketplace_is_user_configured(config: &Config, marketplace_name: &str) -> bool {
+    let Some(user_config) = config.config_layer_stack.effective_user_config() else {
+        return false;
+    };
+    user_config
+        .get("marketplaces")
+        .and_then(toml::Value::as_table)
+        .is_some_and(|marketplaces| marketplaces.contains_key(marketplace_name))
+}
+
+fn marketplace_is_user_configured_git(config: &Config, marketplace_name: &str) -> bool {
+    config
+        .config_layer_stack
+        .get_active_user_layer()
+        .and_then(|user_layer| user_layer.config.get("marketplaces"))
+        .and_then(toml::Value::as_table)
+        .and_then(|marketplaces| marketplaces.get(marketplace_name))
+        .and_then(toml::Value::as_table)
+        .and_then(|marketplace| marketplace.get("source_type"))
+        .and_then(toml::Value::as_str)
+        .is_some_and(|source_type| source_type == "git")
+}
+
 fn plugin_display_name(plugin: &PluginSummary) -> String {
     plugin
         .interface
@@ -1561,6 +2113,9 @@ fn plugin_brief_description_without_marketplace(
 }
 
 fn plugin_status_label(plugin: &PluginSummary) -> &'static str {
+    if plugin.availability == PluginAvailability::DisabledByAdmin {
+        return "Disabled by admin";
+    }
     if plugin.installed {
         if plugin.enabled {
             "Installed"
@@ -1574,6 +2129,59 @@ fn plugin_status_label(plugin: &PluginSummary) -> &'static str {
             PluginInstallPolicy::InstalledByDefault => "Available",
         }
     }
+}
+
+fn plugin_location_for_marketplace(
+    marketplace: &PluginMarketplaceEntry,
+    plugin: &PluginSummary,
+) -> Option<PluginLocation> {
+    if let Some(marketplace_path) = marketplace.path.clone() {
+        return Some(PluginLocation::Local { marketplace_path });
+    }
+    plugin_remote_identity(plugin).map(|_| PluginLocation::Remote {
+        marketplace_name: marketplace.name.clone(),
+    })
+}
+
+fn plugin_detail_location(plugin: &PluginDetail) -> Option<PluginLocation> {
+    if let Some(marketplace_path) = plugin.marketplace_path.clone() {
+        return Some(PluginLocation::Local { marketplace_path });
+    }
+    plugin_remote_identity(&plugin.summary).map(|_| PluginLocation::Remote {
+        marketplace_name: plugin.marketplace_name.clone(),
+    })
+}
+
+fn plugin_detail_request_for_entry(
+    marketplace: &PluginMarketplaceEntry,
+    plugin: &PluginSummary,
+) -> Option<(PluginLocation, String)> {
+    plugin_location_for_marketplace(marketplace, plugin)
+        .map(|location| (location, plugin_request_name(plugin)))
+}
+
+fn plugin_request_name(plugin: &PluginSummary) -> String {
+    if matches!(&plugin.source, PluginSource::Remote)
+        && let Some(remote_plugin_id) = plugin_remote_identity(plugin)
+    {
+        return remote_plugin_id;
+    }
+    plugin.name.clone()
+}
+
+fn plugin_remote_identity(plugin: &PluginSummary) -> Option<String> {
+    plugin
+        .share_context
+        .as_ref()
+        .map(|context| context.remote_plugin_id.clone())
+        .or_else(|| plugin.remote_plugin_id.clone())
+}
+
+fn plugin_uninstall_id(plugin: &PluginSummary) -> Option<String> {
+    if matches!(&plugin.source, PluginSource::Remote) {
+        return plugin_remote_identity(plugin);
+    }
+    Some(plugin.id.clone())
 }
 
 fn plugin_description(plugin: &PluginSummary) -> Option<String> {
@@ -1635,6 +2243,29 @@ fn plugin_app_summary(plugin: &PluginDetail) -> String {
             .apps
             .iter()
             .map(|app| app.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+fn plugin_hook_summary(plugin: &PluginDetail) -> String {
+    if plugin.hooks.is_empty() {
+        "No plugin hooks.".to_string()
+    } else {
+        let mut event_counts = Vec::<(thinwedge_app_server_protocol::HookEventName, usize)>::new();
+        for hook in &plugin.hooks {
+            if let Some((_, handler_count)) = event_counts
+                .iter_mut()
+                .find(|(event_name, _)| *event_name == hook.event_name)
+            {
+                *handler_count += 1;
+            } else {
+                event_counts.push((hook.event_name, 1));
+            }
+        }
+        event_counts
+            .into_iter()
+            .map(|(event_name, handler_count)| format!("{event_name:?} ({handler_count})"))
             .collect::<Vec<_>>()
             .join(", ")
     }

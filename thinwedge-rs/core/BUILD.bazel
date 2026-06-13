@@ -1,13 +1,5 @@
 load("//:defs.bzl", "thinwedge_rust_crate")
 
-filegroup(
-    name = "model_availability_nux_fixtures",
-    srcs = [
-        "tests/cli_responses_fixture.sse",
-    ],
-    visibility = ["//visibility:public"],
-)
-
 thinwedge_rust_crate(
     name = "core",
     crate_name = "thinwedge_core",
@@ -25,10 +17,6 @@ thinwedge_rust_crate(
         # that relies on env!("CARGO_MANIFEST_DIR").
         "CARGO_MANIFEST_DIR": "thinwedge-rs/core",
     },
-    integration_compile_data_extra = [
-        "//thinwedge-rs/apply-patch:apply_patch_tool_instructions.md",
-        "templates/realtime/backend_prompt.md",
-    ],
     integration_test_timeout = "long",
     test_data_extra = [
         "config.schema.json",
@@ -52,9 +40,12 @@ thinwedge_rust_crate(
     test_tags = ["no-sandbox"],
     unit_test_timeout = "long",
     extra_binaries = [
+        "//thinwedge-rs/bwrap:bwrap",
         "//thinwedge-rs/linux-sandbox:thinwedge-linux-sandbox",
         "//thinwedge-rs/rmcp-client:test_stdio_server",
         "//thinwedge-rs/rmcp-client:test_streamable_http_server",
         "//thinwedge-rs/cli:thinwedge",
+        "//thinwedge-rs/windows-sandbox-rs:thinwedge-command-runner",
+        "//thinwedge-rs/windows-sandbox-rs:thinwedge-windows-sandbox-setup",
     ],
 )

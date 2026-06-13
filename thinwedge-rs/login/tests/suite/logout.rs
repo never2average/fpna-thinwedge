@@ -10,9 +10,11 @@ use tempfile::TempDir;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_login::AuthDotJson;
+use thinwedge_login::AuthKeyringBackendKind;
 use thinwedge_login::AuthManager;
 use thinwedge_login::CLIENT_ID;
 use thinwedge_login::REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR;
+use thinwedge_login::THINWEDGE_ACCESS_TOKEN_ENV_VAR;
 use thinwedge_login::logout_with_revoke;
 use thinwedge_login::save_auth;
 use thinwedge_login::token_data::IdTokenInfo;
@@ -50,9 +52,15 @@ async fn logout_with_revoke_revokes_refresh_token_then_removes_auth() -> Result<
         thinwedge_home.path(),
         &chatgpt_auth(),
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
-    let removed = logout_with_revoke(thinwedge_home.path(), AuthCredentialsStoreMode::File).await?;
+    let removed = logout_with_revoke(
+        thinwedge_home.path(),
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )
+    .await?;
 
     assert!(removed);
     assert!(!thinwedge_home.path().join("auth.json").exists());
@@ -72,6 +80,48 @@ async fn logout_with_revoke_revokes_refresh_token_then_removes_auth() -> Result<
             "client_id": CLIENT_ID,
         })
     );
+    server.verify().await;
+    Ok(())
+}
+
+#[serial_test::serial(logout_revoke)]
+#[tokio::test]
+async fn logout_with_revoke_uses_stored_auth_when_access_token_env_is_set() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth/revoke"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let _revoke_env_guard = EnvGuard::set(
+        REVOKE_TOKEN_URL_OVERRIDE_ENV_VAR,
+        format!("{}/oauth/revoke", server.uri()),
+    );
+    let _access_token_env_guard = EnvGuard::set(
+        THINWEDGE_ACCESS_TOKEN_ENV_VAR,
+        "at-environment-token".to_string(),
+    );
+
+    let thinwedge_home = TempDir::new()?;
+    save_auth(
+        thinwedge_home.path(),
+        &chatgpt_auth(),
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )?;
+
+    let removed = logout_with_revoke(
+        thinwedge_home.path(),
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )
+    .await?;
+
+    assert!(removed);
+    assert!(!thinwedge_home.path().join("auth.json").exists());
     server.verify().await;
     Ok(())
 }
@@ -102,9 +152,15 @@ async fn logout_with_revoke_removes_auth_when_revoke_fails() -> Result<()> {
         thinwedge_home.path(),
         &chatgpt_auth(),
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
-    let removed = logout_with_revoke(thinwedge_home.path(), AuthCredentialsStoreMode::File).await?;
+    let removed = logout_with_revoke(
+        thinwedge_home.path(),
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )
+    .await?;
 
     assert!(removed);
     assert!(!thinwedge_home.path().join("auth.json").exists());
@@ -137,18 +193,21 @@ async fn auth_manager_logout_with_revoke_uses_cached_auth() -> Result<()> {
         thinwedge_home.path(),
         &chatgpt_auth_with_refresh_token(REFRESH_TOKEN),
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
     let manager = AuthManager::new(
         thinwedge_home.path().to_path_buf(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
     )
     .await;
     save_auth(
         thinwedge_home.path(),
         &chatgpt_auth_with_refresh_token("newer-disk-refresh-token"),
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     let removed = manager.logout_with_revoke().await?;
@@ -183,7 +242,7 @@ fn chatgpt_auth() -> AuthDotJson {
 fn chatgpt_auth_with_refresh_token(refresh_token: &str) -> AuthDotJson {
     AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(TokenData {
             id_token: IdTokenInfo {
                 raw_jwt: minimal_jwt(),
@@ -195,6 +254,8 @@ fn chatgpt_auth_with_refresh_token(refresh_token: &str) -> AuthDotJson {
         }),
         last_refresh: None,
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     }
 }
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -28,7 +28,7 @@ async fn marketplace_add_local_directory_source() -> Result<()> {
         r#"{"name":"sample"}"#,
     )?;
     std::fs::write(source.join("plugins/sample/marker.txt"), "local ref")?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

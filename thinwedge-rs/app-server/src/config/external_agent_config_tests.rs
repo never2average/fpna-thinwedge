@@ -425,7 +425,7 @@ async fn detect_repo_skips_hooks_when_only_unsupported_hooks_exist() {
     fs::create_dir_all(repo_root.join(EXTERNAL_AGENT_DIR)).expect("create external agent dir");
     fs::write(
         repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
-        r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","if":"Bash(rm *)","command":"echo blocked"}]}],"SubagentStart":[{"matcher":"worker","hooks":[{"type":"command","command":"echo started"}]}]}}"#,
+        r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","if":"Bash(rm *)","command":"echo blocked"}]}],"UnsupportedEvent":[{"matcher":"worker","hooks":[{"type":"command","command":"echo started"}]}]}}"#,
     )
     .expect("write hooks");
 
@@ -642,6 +642,124 @@ Research with ThinWedge carefully."""
 }
 
 #[tokio::test]
+async fn import_repo_mcp_preserves_existing_same_named_server() {
+    let root = TempDir::new().expect("create tempdir");
+    let repo_root = root.path().join("repo");
+    fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
+    fs::write(
+        repo_root.join(".mcp.json"),
+        r#"{
+          "mcpServers": {
+            "mixedTransport": {
+              "command": "mcp-remote-proxy",
+              "args": [
+                "https://example.com/mixed-transport",
+                "--transport",
+                "http"
+              ],
+              "url": "https://example.com/mixed-transport"
+            }
+          }
+        }"#,
+    )
+    .expect("write mcp");
+    fs::create_dir_all(repo_root.join(".thinwedge")).expect("create thinwedge dir");
+    let existing_config = r#"[mcp_servers.mixedTransport]
+url = "https://example.com/mixed-transport"
+"#;
+    fs::write(
+        repo_root.join(".thinwedge").join("config.toml"),
+        existing_config,
+    )
+    .expect("write config");
+
+    let service = service_for_paths(
+        root.path().join(EXTERNAL_AGENT_DIR),
+        root.path().join(".thinwedge"),
+    );
+    assert_eq!(
+        service
+            .detect(ExternalAgentConfigDetectOptions {
+                include_home: false,
+                cwds: Some(vec![repo_root.clone()]),
+            })
+            .await
+            .expect("detect"),
+        Vec::<ExternalAgentConfigMigrationItem>::new()
+    );
+
+    service
+        .import(vec![ExternalAgentConfigMigrationItem {
+            item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
+            description: String::new(),
+            cwd: Some(repo_root.clone()),
+            details: None,
+        }])
+        .await
+        .expect("import");
+
+    assert_eq!(
+        fs::read_to_string(repo_root.join(".thinwedge").join("config.toml")).expect("read config"),
+        existing_config
+    );
+}
+
+#[tokio::test]
+async fn detect_repo_mcp_lists_only_missing_servers() {
+    let root = TempDir::new().expect("create tempdir");
+    let repo_root = root.path().join("repo");
+    fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
+    fs::write(
+        repo_root.join(".mcp.json"),
+        r#"{
+          "mcpServers": {
+            "docs": {"command": "docs-server"},
+            "mixedTransport": {"command": "mcp-remote-proxy"}
+          }
+        }"#,
+    )
+    .expect("write mcp");
+    fs::create_dir_all(repo_root.join(".thinwedge")).expect("create thinwedge dir");
+    fs::write(
+        repo_root.join(".thinwedge").join("config.toml"),
+        r#"[mcp_servers.mixedTransport]
+url = "https://example.com/mixed-transport"
+"#,
+    )
+    .expect("write config");
+
+    let items = service_for_paths(
+        root.path().join(EXTERNAL_AGENT_DIR),
+        root.path().join(".thinwedge"),
+    )
+    .detect(ExternalAgentConfigDetectOptions {
+        include_home: false,
+        cwds: Some(vec![repo_root.clone()]),
+    })
+    .await
+    .expect("detect");
+
+    assert_eq!(
+        items,
+        vec![ExternalAgentConfigMigrationItem {
+            item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
+            description: format!(
+                "Migrate MCP servers from {} into {}",
+                repo_root.display(),
+                repo_root.join(".thinwedge").join("config.toml").display()
+            ),
+            cwd: Some(repo_root),
+            details: Some(MigrationDetails {
+                mcp_servers: vec![NamedMigration {
+                    name: "docs".to_string(),
+                }],
+                ..Default::default()
+            }),
+        }]
+    );
+}
+
+#[tokio::test]
 async fn import_home_migrates_supported_config_fields_skills_and_agents_md() {
     let (_root, external_agent_home, thinwedge_home) = fixture_paths();
     let agents_skills = thinwedge_home
@@ -699,14 +817,107 @@ async fn import_home_migrates_supported_config_fields_skills_and_agents_md() {
         "ThinWedge guidance"
     );
 
-    assert_eq!(
-        fs::read_to_string(thinwedge_home.join("config.toml")).expect("read config"),
-        "sandbox_mode = \"workspace-write\"\n\n[shell_environment_policy]\ninherit = \"core\"\n\n[shell_environment_policy.set]\nCI = \"false\"\nFOO = \"bar\"\nMAX_RETRIES = \"3\"\nMY_TEAM = \"thinwedge\"\n"
-    );
+    let config: TomlValue = toml::from_str(
+        &fs::read_to_string(thinwedge_home.join("config.toml")).expect("read config"),
+    )
+    .expect("parse config");
+    let expected: TomlValue = toml::from_str(
+        r#"
+sandbox_mode = "workspace-write"
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+CI = "false"
+FOO = "bar"
+MAX_RETRIES = "3"
+MY_TEAM = "thinwedge"
+"#,
+    )
+    .expect("parse expected config");
+    assert_eq!(config, expected);
     assert_eq!(
         fs::read_to_string(agents_skills.join("skill-a").join("SKILL.md"))
             .expect("read copied skill"),
         "Use ThinWedge and ThinWedge utilities."
+    );
+}
+
+#[tokio::test]
+async fn import_home_config_uses_local_settings_over_project_settings() {
+    let (_root, external_agent_home, thinwedge_home) = fixture_paths();
+    fs::create_dir_all(&external_agent_home).expect("create external agent home");
+    fs::write(
+        external_agent_home.join("settings.json"),
+        r#"{"env":{"FOO":"project","PROJECT_ONLY":"yes"},"sandbox":{"enabled":false}}"#,
+    )
+    .expect("write project settings");
+    fs::write(
+        external_agent_home.join("settings.local.json"),
+        r#"{"env":{"FOO":"local","LOCAL_ONLY":true},"sandbox":{"enabled":true}}"#,
+    )
+    .expect("write local settings");
+
+    service_for_paths(external_agent_home, thinwedge_home.clone())
+        .import(vec![ExternalAgentConfigMigrationItem {
+            item_type: ExternalAgentConfigMigrationItemType::Config,
+            description: String::new(),
+            cwd: None,
+            details: None,
+        }])
+        .await
+        .expect("import");
+
+    let config: TomlValue = toml::from_str(
+        &fs::read_to_string(thinwedge_home.join("config.toml")).expect("read config"),
+    )
+    .expect("parse config");
+    let expected: TomlValue = toml::from_str(
+        r#"
+sandbox_mode = "workspace-write"
+
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+FOO = "local"
+LOCAL_ONLY = "true"
+PROJECT_ONLY = "yes"
+"#,
+    )
+    .expect("parse expected config");
+    assert_eq!(config, expected);
+}
+
+#[tokio::test]
+async fn import_home_config_ignores_invalid_local_settings() {
+    let (_root, external_agent_home, thinwedge_home) = fixture_paths();
+    fs::create_dir_all(&external_agent_home).expect("create external agent home");
+    fs::write(
+        external_agent_home.join("settings.json"),
+        r#"{"env":{"FOO":"project"},"sandbox":{"enabled":false}}"#,
+    )
+    .expect("write project settings");
+    fs::write(
+        external_agent_home.join("settings.local.json"),
+        "{invalid json",
+    )
+    .expect("write local settings");
+
+    service_for_paths(external_agent_home, thinwedge_home.clone())
+        .import(vec![ExternalAgentConfigMigrationItem {
+            item_type: ExternalAgentConfigMigrationItemType::Config,
+            description: String::new(),
+            cwd: None,
+            details: None,
+        }])
+        .await
+        .expect("import");
+
+    assert_eq!(
+        fs::read_to_string(thinwedge_home.join("config.toml")).expect("read config"),
+        "[shell_environment_policy]\ninherit = \"core\"\n\n[shell_environment_policy.set]\nFOO = \"project\"\n"
     );
 }
 
@@ -1148,6 +1359,67 @@ command = "allowed-server"
 }
 
 #[tokio::test]
+async fn import_repo_mcp_uses_local_settings_toggles_over_project_settings() {
+    let root = TempDir::new().expect("create tempdir");
+    let repo_root = root.path().join("repo");
+    let external_agent_home = root.path().join(EXTERNAL_AGENT_DIR);
+    fs::create_dir_all(repo_root.join(".git")).expect("create git dir");
+    fs::create_dir_all(repo_root.join(EXTERNAL_AGENT_DIR)).expect("create external agent dir");
+    fs::write(
+        repo_root.join(".mcp.json"),
+        r#"{
+          "mcpServers": {
+            "project-disabled": {"command": "project-disabled-server"},
+            "local-disabled": {"command": "local-disabled-server"},
+            "local-enabled": {"command": "local-enabled-server"}
+          }
+        }"#,
+    )
+    .expect("write mcp");
+    fs::write(
+        repo_root.join(EXTERNAL_AGENT_DIR).join("settings.json"),
+        r#"{
+          "enabledMcpjsonServers": ["project-disabled", "local-disabled"],
+          "disabledMcpjsonServers": ["project-disabled"]
+        }"#,
+    )
+    .expect("write project settings");
+    fs::write(
+        repo_root
+            .join(EXTERNAL_AGENT_DIR)
+            .join("settings.local.json"),
+        r#"{
+          "enabledMcpjsonServers": ["local-enabled", "local-disabled"],
+          "disabledMcpjsonServers": ["local-disabled"]
+        }"#,
+    )
+    .expect("write local settings");
+
+    service_for_paths(external_agent_home, root.path().join(".thinwedge"))
+        .import(vec![ExternalAgentConfigMigrationItem {
+            item_type: ExternalAgentConfigMigrationItemType::McpServerConfig,
+            description: String::new(),
+            cwd: Some(repo_root.clone()),
+            details: None,
+        }])
+        .await
+        .expect("import");
+
+    let config: TomlValue = toml::from_str(
+        &fs::read_to_string(repo_root.join(".thinwedge").join("config.toml")).expect("read config"),
+    )
+    .expect("parse config");
+    let expected: TomlValue = toml::from_str(
+        r#"
+[mcp_servers.local-enabled]
+command = "local-enabled-server"
+"#,
+    )
+    .expect("parse expected config");
+    assert_eq!(config, expected);
+}
+
+#[tokio::test]
 async fn import_repo_mcp_ignores_invalid_home_settings_when_repo_settings_missing() {
     let root = TempDir::new().expect("create tempdir");
     let repo_root = root.path().join("repo");
@@ -1282,6 +1554,64 @@ async fn detect_home_lists_enabled_plugins_from_settings() {
                 plugins: vec![PluginsMigration {
                     marketplace_name: "acme-tools".to_string(),
                     plugin_names: vec!["deployer".to_string(), "formatter".to_string()],
+                }],
+                ..Default::default()
+            }),
+        }]
+    );
+}
+
+#[tokio::test]
+async fn detect_home_plugins_uses_local_settings_over_project_settings() {
+    let (_root, external_agent_home, thinwedge_home) = fixture_paths();
+    fs::create_dir_all(&external_agent_home).expect("create external agent home");
+    fs::write(
+        external_agent_home.join("settings.json"),
+        r#"{
+          "enabledPlugins": {
+            "formatter@acme-tools": true,
+            "legacy@acme-tools": true
+          },
+          "extraKnownMarketplaces": {
+            "acme-tools": {
+              "source": "acme-corp/external-agent-plugins"
+            }
+          }
+        }"#,
+    )
+    .expect("write project settings");
+    fs::write(
+        external_agent_home.join("settings.local.json"),
+        r#"{
+          "enabledPlugins": {
+            "formatter@acme-tools": false,
+            "deployer@acme-tools": true
+          }
+        }"#,
+    )
+    .expect("write local settings");
+
+    let items = service_for_paths(external_agent_home.clone(), thinwedge_home)
+        .detect(ExternalAgentConfigDetectOptions {
+            include_home: true,
+            cwds: None,
+        })
+        .await
+        .expect("detect");
+
+    assert_eq!(
+        items,
+        vec![ExternalAgentConfigMigrationItem {
+            item_type: ExternalAgentConfigMigrationItemType::Plugins,
+            description: format!(
+                "Migrate enabled plugins from {}",
+                external_agent_home.join("settings.json").display()
+            ),
+            cwd: None,
+            details: Some(MigrationDetails {
+                plugins: vec![PluginsMigration {
+                    marketplace_name: "acme-tools".to_string(),
+                    plugin_names: vec!["deployer".to_string(), "legacy".to_string()],
                 }],
                 ..Default::default()
             }),

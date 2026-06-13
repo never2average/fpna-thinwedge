@@ -1,9 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use async_trait::async_trait;
 use http::HeaderMap;
-use serde::Deserialize;
 use thinwedge_api::ModelsClient;
 use thinwedge_api::RequestTelemetry;
 use thinwedge_api::ReqwestTransport;
@@ -18,17 +16,12 @@ use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::collect_auth_env_telemetry;
 use thinwedge_login::default_client::build_reqwest_client;
 use thinwedge_model_provider_info::ModelProviderInfo;
-use thinwedge_models_manager::manager::ModelsCacheProviderIdentity;
 use thinwedge_models_manager::manager::ModelsEndpointClient;
-use thinwedge_models_manager::model_info::model_info_from_slug;
+use thinwedge_models_manager::manager::ModelsEndpointFuture;
 use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::error::Result as CoreResult;
 use thinwedge_protocol::error::ThinWedgeErr;
-use thinwedge_protocol::thinwedge_models::InputModality;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
+use thinwedge_protocol::openai_models::ModelInfo;
 use thinwedge_response_debug_context::extract_response_debug_context;
 use thinwedge_response_debug_context::telemetry_transport_error_message;
 use tokio::time::timeout;
@@ -38,14 +31,14 @@ use crate::auth::resolve_provider_auth;
 const MODELS_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 const MODELS_ENDPOINT: &str = "/models";
 
-/// Provider-owned ThinWedge-compatible `/models` endpoint.
+/// Provider-owned OpenAI-compatible `/models` endpoint.
 #[derive(Debug)]
-pub(crate) struct ThinWedgeModelsEndpoint {
+pub(crate) struct OpenAiModelsEndpoint {
     provider_info: ModelProviderInfo,
     auth_manager: Option<Arc<AuthManager>>,
 }
 
-impl ThinWedgeModelsEndpoint {
+impl OpenAiModelsEndpoint {
     pub(crate) fn new(
         provider_info: ModelProviderInfo,
         auth_manager: Option<Arc<AuthManager>>,
@@ -63,29 +56,21 @@ impl ThinWedgeModelsEndpoint {
         }
     }
 
-    fn auth_env(&self) -> AuthEnvTelemetry {
-        let thinwedge_api_key_env_enabled = self
-            .auth_manager
+    async fn uses_thinwedge_backend(&self) -> bool {
+        self.auth()
+            .await
             .as_ref()
-            .is_some_and(|auth_manager| auth_manager.thinwedge_api_key_env_enabled());
-        collect_auth_env_telemetry(&self.provider_info, thinwedge_api_key_env_enabled)
+            .is_some_and(ThinWedgeAuth::uses_thinwedge_backend)
     }
 
-    async fn provider_identity(&self) -> CoreResult<ModelsCacheProviderIdentity> {
-        let auth = self.auth().await;
-        let api_provider = self
-            .provider_info
-            .to_api_provider(auth.as_ref().map(ThinWedgeAuth::auth_mode))?;
-        Ok(ModelsCacheProviderIdentity {
-            name: self.provider_info.name.clone(),
-            base_url: api_provider.base_url.trim_end_matches('/').to_string(),
-        })
-    }
-
-    async fn list_thinwedge_compatible_models(
+    async fn list_models(
         &self,
         client_version: &str,
     ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
+        let _timer = thinwedge_otel::start_global_timer(
+            "thinwedge.remote_models.fetch_update.duration_ms",
+            &[],
+        );
         let auth = self.auth().await;
         let auth_mode = auth.as_ref().map(ThinWedgeAuth::auth_mode);
         let api_provider = self.provider_info.to_api_provider(auth_mode)?;
@@ -110,211 +95,30 @@ impl ThinWedgeModelsEndpoint {
         .map_err(map_api_error)
     }
 
-    async fn list_openrouter_models(
-        &self,
-        client_version: &str,
-    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
-        match self.list_thinwedge_compatible_models(client_version).await {
-            Ok(models) => Ok(models),
-            Err(err) if self.provider_info.is_openrouter() => {
-                tracing::info!("falling back to OpenRouter models schema adapter: {err}");
-                self.list_openrouter_models_fallback().await
-            }
-            Err(err) => Err(err),
-        }
-    }
-
-    async fn list_openrouter_models_fallback(
-        &self,
-    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
-        let auth = self.auth().await;
-        let api_provider = self
-            .provider_info
-            .to_api_provider(auth.as_ref().map(ThinWedgeAuth::auth_mode))?;
-        let api_auth = resolve_provider_auth(auth.as_ref(), &self.provider_info)?;
-        let mut headers = HeaderMap::new();
-        api_auth.add_auth_headers(&mut headers);
-        let response = build_reqwest_client()
-            .get(format!(
-                "{}/models",
-                api_provider.base_url.trim_end_matches('/')
-            ))
-            .headers(headers)
-            .send()
-            .await
-            .map_err(|err| ThinWedgeErr::Stream(err.to_string(), None))?;
-        let etag = response
-            .headers()
-            .get(http::header::ETAG)
-            .and_then(|value| value.to_str().ok())
-            .map(ToString::to_string);
-        let status = response.status();
-        let body = response
-            .bytes()
-            .await
-            .map_err(|err| ThinWedgeErr::Stream(err.to_string(), None))?;
-        if !status.is_success() {
-            return Err(ThinWedgeErr::Stream(
-                format!(
-                    "OpenRouter /models request failed: {status}: {}",
-                    String::from_utf8_lossy(&body)
-                ),
-                None,
-            ));
-        }
-        let response: OpenRouterModelsResponse = serde_json::from_slice(&body).map_err(|err| {
-            ThinWedgeErr::Stream(
-                format!("failed to decode OpenRouter models response: {err}"),
-                None,
-            )
-        })?;
-        Ok((
-            response
-                .data
-                .into_iter()
-                .map(openrouter_model_to_model_info)
-                .collect(),
-            etag,
-        ))
+    fn auth_env(&self) -> AuthEnvTelemetry {
+        let thinwedge_api_key_env_enabled = self
+            .auth_manager
+            .as_ref()
+            .is_some_and(|auth_manager| auth_manager.thinwedge_api_key_env_enabled());
+        collect_auth_env_telemetry(&self.provider_info, thinwedge_api_key_env_enabled)
     }
 }
 
-#[async_trait]
-impl ModelsEndpointClient for ThinWedgeModelsEndpoint {
+impl ModelsEndpointClient for OpenAiModelsEndpoint {
     fn has_command_auth(&self) -> bool {
         self.provider_info.has_command_auth()
     }
 
-    fn uses_bundled_catalog(&self) -> bool {
-        self.provider_info.is_thinwedge()
+    fn uses_thinwedge_backend(&self) -> ModelsEndpointFuture<'_, bool> {
+        Box::pin(OpenAiModelsEndpoint::uses_thinwedge_backend(self))
     }
 
-    async fn uses_thinwedge_backend(&self) -> bool {
-        self.auth()
-            .await
-            .as_ref()
-            .is_some_and(ThinWedgeAuth::uses_thinwedge_backend)
+    fn list_models<'a>(
+        &'a self,
+        client_version: &'a str,
+    ) -> ModelsEndpointFuture<'a, CoreResult<(Vec<ModelInfo>, Option<String>)>> {
+        Box::pin(OpenAiModelsEndpoint::list_models(self, client_version))
     }
-
-    async fn supports_remote_refresh(&self) -> bool {
-        !self.provider_info.requires_thinwedge_auth || self.auth().await.is_some()
-    }
-
-    async fn cache_identity(&self) -> ModelsCacheProviderIdentity {
-        self.provider_identity()
-            .await
-            .unwrap_or_else(|_| ModelsCacheProviderIdentity {
-                name: self.provider_info.name.clone(),
-                base_url: self
-                    .provider_info
-                    .base_url
-                    .clone()
-                    .unwrap_or_default()
-                    .trim_end_matches('/')
-                    .to_string(),
-            })
-    }
-
-    async fn list_models(
-        &self,
-        client_version: &str,
-    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
-        let _timer = thinwedge_otel::start_global_timer(
-            "thinwedge.remote_models.fetch_update.duration_ms",
-            &[],
-        );
-        self.list_openrouter_models(client_version).await
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterModelsResponse {
-    data: Vec<OpenRouterModel>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterModel {
-    id: String,
-    name: Option<String>,
-    description: Option<String>,
-    context_length: Option<i64>,
-    architecture: Option<OpenRouterArchitecture>,
-    supported_parameters: Option<Vec<String>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct OpenRouterArchitecture {
-    input_modalities: Option<Vec<String>>,
-}
-
-fn openrouter_model_to_model_info(model: OpenRouterModel) -> ModelInfo {
-    let OpenRouterModel {
-        id,
-        name,
-        description,
-        context_length,
-        architecture,
-        supported_parameters,
-    } = model;
-    let mut fallback = model_info_from_slug(&id);
-    fallback.slug = id.clone();
-    fallback.display_name = name.unwrap_or_else(|| id.clone());
-    fallback.description = description;
-    fallback.visibility = ModelVisibility::List;
-    fallback.supported_in_api = true;
-    fallback.priority = 100;
-    fallback.context_window = context_length;
-    fallback.max_context_window = context_length;
-    fallback.auto_compact_token_limit = None;
-    fallback.supports_parallel_tool_calls = supported_parameters
-        .as_ref()
-        .is_some_and(|params| params.iter().any(|param| param == "tools"));
-    fallback.supports_search_tool = supported_parameters
-        .as_ref()
-        .is_some_and(|params| params.iter().any(|param| param == "web_search"));
-    fallback.supported_reasoning_levels = if supported_parameters
-        .as_ref()
-        .is_some_and(|params| params.iter().any(|param| param == "reasoning"))
-    {
-        vec![
-            ReasoningEffortPreset {
-                effort: ReasoningEffort::Low,
-                description: "Low".to_string(),
-            },
-            ReasoningEffortPreset {
-                effort: ReasoningEffort::Medium,
-                description: "Medium".to_string(),
-            },
-            ReasoningEffortPreset {
-                effort: ReasoningEffort::High,
-                description: "High".to_string(),
-            },
-        ]
-    } else {
-        Vec::new()
-    };
-    fallback.default_reasoning_level = fallback
-        .supported_reasoning_levels
-        .iter()
-        .find(|preset| preset.effort == ReasoningEffort::Medium)
-        .map(|preset| preset.effort);
-    if let Some(architecture) = architecture
-        && let Some(input_modalities) = architecture.input_modalities
-    {
-        let mapped_modalities: Vec<InputModality> = input_modalities
-            .into_iter()
-            .filter_map(|modality| match modality.as_str() {
-                "text" => Some(InputModality::Text),
-                "image" => Some(InputModality::Image),
-                _ => None,
-            })
-            .collect();
-        if !mapped_modalities.is_empty() {
-            fallback.input_modalities = mapped_modalities;
-        }
-    }
-    fallback.used_fallback_model_metadata = false;
-    fallback
 }
 
 #[derive(Clone)]
@@ -351,6 +155,7 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             endpoint = MODELS_ENDPOINT,
             auth.header_attached = self.auth_header_attached,
             auth.header_name = self.auth_header_name,
+            auth.env_openai_api_key_present = self.auth_env.openai_api_key_env_present,
             auth.env_thinwedge_api_key_present = self.auth_env.thinwedge_api_key_env_present,
             auth.env_thinwedge_api_key_enabled = self.auth_env.thinwedge_api_key_env_enabled,
             auth.env_provider_key_name = self.auth_env.provider_env_key_name.as_deref(),
@@ -374,6 +179,7 @@ impl RequestTelemetry for ModelsRequestTelemetry {
             endpoint = MODELS_ENDPOINT,
             auth.header_attached = self.auth_header_attached,
             auth.header_name = self.auth_header_name,
+            auth.env_openai_api_key_present = self.auth_env.openai_api_key_env_present,
             auth.env_thinwedge_api_key_present = self.auth_env.thinwedge_api_key_env_present,
             auth.env_thinwedge_api_key_enabled = self.auth_env.thinwedge_api_key_env_enabled,
             auth.env_provider_key_name = self.auth_env.provider_env_key_name.as_deref(),
@@ -426,14 +232,14 @@ mod tests {
                     .try_into()
                     .expect("current dir should be absolute"),
             }),
-            requires_thinwedge_auth: false,
-            ..ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None)
+            requires_openai_auth: false,
+            ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
         }
     }
 
     #[test]
     fn command_auth_provider_reports_command_auth_without_cached_auth() {
-        let endpoint = ThinWedgeModelsEndpoint::new(
+        let endpoint = OpenAiModelsEndpoint::new(
             provider_info_with_command_auth(),
             /*auth_manager*/ None,
         );
@@ -443,8 +249,8 @@ mod tests {
 
     #[test]
     fn provider_without_command_auth_reports_no_command_auth() {
-        let endpoint = ThinWedgeModelsEndpoint::new(
-            ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None),
+        let endpoint = OpenAiModelsEndpoint::new(
+            ModelProviderInfo::create_openai_provider(/*base_url*/ None),
             /*auth_manager*/ None,
         );
 

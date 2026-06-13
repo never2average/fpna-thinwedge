@@ -11,7 +11,6 @@ requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "ThinWedge" }]
 classifiers = [
-  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
@@ -36,7 +35,12 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/thinwedge_cli_bin"]
-include = ["src/thinwedge_cli_bin/bin/**"]
+include = [
+  "src/thinwedge_cli_bin/thinwedge-package.json",
+  "src/thinwedge_cli_bin/bin/**",
+  "src/thinwedge_cli_bin/thinwedge-resources/**",
+  "src/thinwedge_cli_bin/thinwedge-path/**",
+]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 

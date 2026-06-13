@@ -7,6 +7,7 @@ license.workspace = true
 [lib]
 name = "thinwedge_arg0"
 path = "src/lib.rs"
+doctest = false
 
 [lints]
 workspace = true
@@ -15,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 thinwedge-apply-patch = { workspace = true }
 thinwedge-exec-server = { workspace = true }
+thinwedge-install-context = { workspace = true }
 thinwedge-linux-sandbox = { workspace = true }
 thinwedge-sandboxing = { workspace = true }
 thinwedge-shell-escalation = { workspace = true }
@@ -23,3 +25,6 @@ thinwedge-utils-home-dir = { workspace = true }
 dotenvy = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

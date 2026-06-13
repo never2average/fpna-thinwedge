@@ -5,12 +5,12 @@ use std::path::Path;
 use thinwedge_core::test_support::all_model_presets;
 use thinwedge_models_manager::client_version_to_whole;
 use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelPreset;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
+use thinwedge_protocol::openai_models::ConfigShellToolType;
+use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelPreset;
+use thinwedge_protocol::openai_models::ModelVisibility;
+use thinwedge_protocol::openai_models::TruncationPolicyConfig;
+use thinwedge_protocol::openai_models::default_input_modalities;
 
 /// Convert a ModelPreset to ModelInfo for cache storage.
 fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {
@@ -18,7 +18,7 @@ fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {
         slug: preset.id.clone(),
         display_name: preset.display_name.clone(),
         description: Some(preset.description.clone()),
-        default_reasoning_level: Some(preset.default_reasoning_effort),
+        default_reasoning_level: Some(preset.default_reasoning_effort.clone()),
         supported_reasoning_levels: preset.supported_reasoning_efforts.clone(),
         shell_type: ConfigShellToolType::ShellCommand,
         visibility: if preset.show_in_picker {
@@ -29,6 +29,8 @@ fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {
         supported_in_api: preset.supported_in_api,
         priority,
         additional_speed_tiers: preset.additional_speed_tiers.clone(),
+        service_tiers: preset.service_tiers.clone(),
+        default_service_tier: preset.default_service_tier.clone(),
         upgrade: preset.upgrade.as_ref().map(Into::into),
         base_instructions: "base instructions".to_string(),
         model_messages: None,
@@ -45,11 +47,16 @@ fn preset_to_info(preset: &ModelPreset, priority: i32) -> ModelInfo {
         context_window: Some(272_000),
         max_context_window: None,
         auto_compact_token_limit: None,
+        comp_hash: None,
         effective_context_window_percent: 95,
         experimental_supported_tools: Vec::new(),
         input_modalities: default_input_modalities(),
         used_fallback_model_metadata: false,
         supports_search_tool: false,
+        use_responses_lite: false,
+        auto_review_model_override: None,
+        tool_mode: None,
+        multi_agent_version: None,
     }
 }
 

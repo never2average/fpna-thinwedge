@@ -1,0 +1,10 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "goal",
+    crate_name = "thinwedge_goal_extension",
+    compile_data = glob([
+        "templates/**",
+    ]),
+    integration_compile_data_extra = ["src/accounting.rs"],
+)

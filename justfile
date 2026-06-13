@@ -14,8 +14,6 @@ thinwedge *args:
 
 # Back-compat alias for the historical CLI name.
 alias c := thinwedge
-thinwedge *args:
-    cargo run --bin thinwedge -- "$@"
 
 # `thinwedge exec`
 exec *args:

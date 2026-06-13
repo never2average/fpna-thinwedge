@@ -1,8 +1,8 @@
 use std::collections::VecDeque;
 
-use thinwedge_protocol::protocol::GuardianAssessmentAction;
-use thinwedge_protocol::protocol::GuardianAssessmentEvent;
-use thinwedge_protocol::protocol::GuardianAssessmentStatus;
+use thinwedge_protocol::approvals::GuardianAssessmentAction;
+use thinwedge_protocol::approvals::GuardianAssessmentEvent;
+use thinwedge_protocol::approvals::GuardianAssessmentStatus;
 
 const MAX_RECENT_DENIALS: usize = 10;
 
@@ -77,7 +77,7 @@ pub(crate) fn action_summary(action: &GuardianAssessmentAction) -> String {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use thinwedge_protocol::protocol::GuardianCommandSource;
+    use thinwedge_protocol::approvals::GuardianCommandSource;
     use thinwedge_utils_absolute_path::test_support::PathBufExt;
     use thinwedge_utils_absolute_path::test_support::test_path_buf;
 
@@ -88,6 +88,8 @@ mod tests {
             id: format!("review-{id}"),
             target_item_id: None,
             turn_id: "turn-1".to_string(),
+            started_at_ms: 0,
+            completed_at_ms: Some(1),
             status: GuardianAssessmentStatus::Denied,
             risk_level: None,
             user_authorization: None,

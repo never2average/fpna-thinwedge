@@ -1,11 +1,6 @@
 load("//:defs.bzl", "thinwedge_rust_crate")
 
-exports_files(["apply_patch_tool_instructions.md"])
-
 thinwedge_rust_crate(
     name = "apply-patch",
     crate_name = "thinwedge_apply_patch",
-    compile_data = [
-        "apply_patch_tool_instructions.md",
-    ],
 )

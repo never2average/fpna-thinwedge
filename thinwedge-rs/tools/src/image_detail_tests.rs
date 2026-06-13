@@ -4,7 +4,7 @@ use serde_json::json;
 use thinwedge_protocol::models::DEFAULT_IMAGE_DETAIL;
 use thinwedge_protocol::models::FunctionCallOutputContentItem;
 use thinwedge_protocol::models::ImageDetail;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelInfo;
 
 fn model_info() -> ModelInfo {
     serde_json::from_value(json!({
@@ -70,6 +70,10 @@ fn explicit_original_is_dropped_without_model_support() {
 fn explicit_non_original_detail_is_preserved() {
     let model_info = model_info();
 
+    assert_eq!(
+        normalize_output_image_detail(&model_info, Some(ImageDetail::Auto)),
+        Some(ImageDetail::Auto)
+    );
     assert_eq!(
         normalize_output_image_detail(&model_info, Some(ImageDetail::Low)),
         Some(ImageDetail::Low)

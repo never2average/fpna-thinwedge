@@ -19,15 +19,20 @@ use thinwedge_protocol::config_types::ModelProviderAuthInfo;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
+use wiremock::matchers::header;
 use wiremock::matchers::method;
 use wiremock::matchers::path;
+
+const WORKSPACE_ID_ALLOWED: &str = "123e4567-e89b-42d3-a456-426614174000";
+const WORKSPACE_ID_SECOND_ALLOWED: &str = "123e4567-e89b-42d3-a456-426614174001";
+const WORKSPACE_ID_DISALLOWED: &str = "123e4567-e89b-42d3-a456-426614174002";
 
 #[tokio::test]
 async fn refresh_without_id_token() {
     let thinwedge_home = tempdir().unwrap();
     let fake_jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: None,
         },
@@ -38,6 +43,7 @@ async fn refresh_without_id_token() {
     let storage = create_auth_storage(
         thinwedge_home.path().to_path_buf(),
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     );
     let updated = super::persist_tokens(
         &storage,
@@ -58,7 +64,7 @@ fn login_with_api_key_overwrites_existing_auth_json() {
     let dir = tempdir().unwrap();
     let auth_path = dir.path().join("auth.json");
     let stale_auth = json!({
-        "THINWEDGE_API_KEY": "sk-old",
+        "OPENAI_API_KEY": "sk-old",
         "tokens": {
             "id_token": "stale.header.payload",
             "access_token": "stale-access",
@@ -72,22 +78,27 @@ fn login_with_api_key_overwrites_existing_auth_json() {
     )
     .unwrap();
 
-    super::login_with_api_key(dir.path(), "sk-new", AuthCredentialsStoreMode::File)
-        .expect("login_with_api_key should succeed");
+    super::login_with_api_key(
+        dir.path(),
+        "sk-new",
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )
+    .expect("login_with_api_key should succeed");
 
     let storage = FileAuthStorage::new(dir.path().to_path_buf());
     let auth = storage
         .try_read_auth_json(&auth_path)
         .expect("auth.json should parse");
-    assert_eq!(auth.thinwedge_api_key.as_deref(), Some("sk-new"));
+    assert_eq!(auth.openai_api_key.as_deref(), Some("sk-new"));
     assert!(auth.tokens.is_none(), "tokens should be cleared");
 }
 
 #[tokio::test]
-async fn login_with_agent_identity_writes_only_token() {
+async fn login_with_access_token_writes_only_token() {
     let dir = tempdir().unwrap();
     let auth_path = dir.path().join("auth.json");
-    let record = agent_identity_record("account-123");
+    let record = agent_identity_record(WORKSPACE_ID_ALLOWED);
     let agent_identity =
         signed_agent_identity_jwt(&record, json!(record.plan_type)).expect("signed agent identity");
     let server = MockServer::start().await;
@@ -99,14 +110,16 @@ async fn login_with_agent_identity_writes_only_token() {
         .await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
 
-    super::login_with_agent_identity(
+    super::login_with_access_token(
         dir.path(),
         &agent_identity,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         Some(&chatgpt_base_url),
+        AuthKeyringBackendKind::default(),
     )
     .await
-    .expect("login_with_agent_identity should succeed");
+    .expect("login_with_access_token should succeed");
 
     let storage = FileAuthStorage::new(dir.path().to_path_buf());
     let auth = storage
@@ -118,37 +131,157 @@ async fn login_with_agent_identity_writes_only_token() {
         Some(agent_identity.as_str())
     );
     assert!(auth.tokens.is_none(), "tokens should be cleared");
+    assert!(auth.openai_api_key.is_none(), "API key should be cleared");
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
+async fn login_with_access_token_writes_only_personal_access_token() {
+    let dir = tempdir().unwrap();
+    let auth_path = dir.path().join("auth.json");
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .and(header("authorization", "Bearer at-login-test"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_ALLOWED)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    let allowed_workspaces = [WORKSPACE_ID_ALLOWED.to_string()];
+    super::login_with_access_token(
+        dir.path(),
+        "at-login-test",
+        AuthCredentialsStoreMode::File,
+        Some(&allowed_workspaces),
+        /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
+    )
+    .await
+    .expect("personal access token login should succeed");
+
+    let storage = FileAuthStorage::new(dir.path().to_path_buf());
+    let auth = storage
+        .try_read_auth_json(&auth_path)
+        .expect("auth.json should parse");
+    assert_eq!(
+        auth,
+        AuthDotJson {
+            auth_mode: None,
+            openai_api_key: None,
+            tokens: None,
+            last_refresh: None,
+            agent_identity: None,
+            personal_access_token: Some("at-login-test".to_string()),
+            bedrock_api_key: None,
+        }
+    );
+    assert_eq!(auth.resolved_mode(), AuthMode::PersonalAccessToken);
+    let persisted: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(auth_path).unwrap()).unwrap();
+    assert!(persisted.get("auth_mode").is_none());
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
+async fn login_with_access_token_rejects_personal_access_token_workspace_mismatch() {
+    let dir = tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .and(header("authorization", "Bearer at-workspace-mismatch"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_DISALLOWED)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    let allowed_workspaces = [WORKSPACE_ID_ALLOWED.to_string()];
+
+    let err = super::login_with_access_token(
+        dir.path(),
+        "at-workspace-mismatch",
+        AuthCredentialsStoreMode::File,
+        Some(&allowed_workspaces),
+        /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
+    )
+    .await
+    .expect_err("personal access token workspace mismatch should fail");
+
+    assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
     assert!(
-        auth.thinwedge_api_key.is_none(),
-        "API key should be cleared"
+        !get_auth_file(dir.path()).exists(),
+        "workspace mismatch should not write auth.json"
     );
     server.verify().await;
 }
 
 #[tokio::test]
-async fn login_with_agent_identity_rejects_invalid_jwt() {
+#[serial(thinwedge_auth_env)]
+async fn login_with_access_token_rejects_invalid_personal_access_token() {
     let dir = tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .respond_with(ResponseTemplate::new(403))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
 
-    let err = super::login_with_agent_identity(
+    let err = super::login_with_access_token(
         dir.path(),
-        "not-a-jwt",
+        "at-invalid-login",
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
     )
     .await
-    .expect_err("invalid Agent Identity token should fail");
+    .expect_err("invalid personal access token should fail");
 
     assert_eq!(err.kind(), std::io::ErrorKind::Other);
     assert!(
         !get_auth_file(dir.path()).exists(),
-        "invalid Agent Identity token should not write auth.json"
+        "invalid personal access token should not write auth.json"
+    );
+    server.verify().await;
+}
+
+#[tokio::test]
+async fn login_with_access_token_rejects_invalid_jwt() {
+    let dir = tempdir().unwrap();
+
+    let err = super::login_with_access_token(
+        dir.path(),
+        "not-a-jwt",
+        AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
+        /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
+    )
+    .await
+    .expect_err("invalid access token should fail");
+
+    assert_eq!(err.kind(), std::io::ErrorKind::Other);
+    assert!(
+        !get_auth_file(dir.path()).exists(),
+        "invalid access token should not write auth.json"
     );
 }
 
 #[tokio::test]
-async fn login_with_agent_identity_rejects_unsigned_jwt() {
+async fn login_with_access_token_rejects_unsigned_jwt() {
     let dir = tempdir().unwrap();
-    let record = agent_identity_record("account-123");
+    let record = agent_identity_record(WORKSPACE_ID_ALLOWED);
     let agent_identity = fake_agent_identity_jwt(&record).expect("fake agent identity");
     let server = MockServer::start().await;
     Mock::given(method("GET"))
@@ -159,18 +292,20 @@ async fn login_with_agent_identity_rejects_unsigned_jwt() {
         .await;
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
 
-    super::login_with_agent_identity(
+    super::login_with_access_token(
         dir.path(),
         &agent_identity,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         Some(&chatgpt_base_url),
+        AuthKeyringBackendKind::default(),
     )
     .await
-    .expect_err("unsigned Agent Identity token should fail");
+    .expect_err("unsigned access token should fail");
 
     assert!(
         !get_auth_file(dir.path()).exists(),
-        "unsigned Agent Identity token should not write auth.json"
+        "unsigned access token should not write auth.json"
     );
     server.verify().await;
 }
@@ -179,11 +314,12 @@ async fn login_with_agent_identity_rejects_unsigned_jwt() {
 #[serial(thinwedge_auth_env)]
 async fn missing_auth_json_returns_none() {
     let dir = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let auth = ThinWedgeAuth::from_auth_storage(
         dir.path(),
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
     )
     .await
     .expect("call should succeed");
@@ -194,10 +330,10 @@ async fn missing_auth_json_returns_none() {
 #[serial(thinwedge_auth_env)]
 async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let fake_jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: None,
         },
@@ -209,7 +345,9 @@ async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .unwrap()
@@ -228,7 +366,7 @@ async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
     assert_eq!(
         AuthDotJson {
             auth_mode: None,
-            thinwedge_api_key: None,
+            openai_api_key: None,
             tokens: Some(TokenData {
                 id_token: IdTokenInfo {
                     email: Some("user@example.com".to_string()),
@@ -244,6 +382,8 @@ async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
             }),
             last_refresh: Some(last_refresh),
             agent_identity: None,
+            personal_access_token: None,
+            bedrock_api_key: None,
         },
         auth_dot_json
     );
@@ -253,11 +393,11 @@ async fn pro_account_with_no_api_key_uses_chatgpt_auth() {
 #[serial(thinwedge_auth_env)]
 async fn loads_api_key_from_auth_json() {
     let dir = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let auth_file = dir.path().join("auth.json");
     std::fs::write(
         auth_file,
-        r#"{"THINWEDGE_API_KEY":"sk-test-key","tokens":null,"last_refresh":null}"#,
+        r#"{"OPENAI_API_KEY":"sk-test-key","tokens":null,"last_refresh":null}"#,
     )
     .unwrap();
 
@@ -265,7 +405,9 @@ async fn loads_api_key_from_auth_json() {
         dir.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .unwrap()
@@ -281,20 +423,32 @@ fn logout_removes_auth_file() -> Result<(), std::io::Error> {
     let dir = tempdir()?;
     let auth_dot_json = AuthDotJson {
         auth_mode: Some(ApiAuthMode::ApiKey),
-        thinwedge_api_key: Some("sk-test-key".to_string()),
+        openai_api_key: Some("sk-test-key".to_string()),
         tokens: None,
         last_refresh: None,
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
-    super::save_auth(dir.path(), &auth_dot_json, AuthCredentialsStoreMode::File)?;
+    super::save_auth(
+        dir.path(),
+        &auth_dot_json,
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )?;
     let auth_file = get_auth_file(dir.path());
     assert!(auth_file.exists());
-    assert!(logout(dir.path(), AuthCredentialsStoreMode::File)?);
+    assert!(logout(
+        dir.path(),
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )?);
     assert!(!auth_file.exists());
     Ok(())
 }
 
 #[tokio::test]
+#[serial(thinwedge_auth_env)]
 async fn unauthorized_recovery_reports_mode_and_step_names() {
     let dir = tempdir().unwrap();
     let manager = AuthManager::shared(
@@ -302,6 +456,7 @@ async fn unauthorized_recovery_reports_mode_and_step_names() {
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
     )
     .await;
     let managed = UnauthorizedRecovery {
@@ -327,12 +482,12 @@ async fn unauthorized_recovery_reports_mode_and_step_names() {
 #[serial(thinwedge_auth_env)]
 async fn refresh_failure_is_scoped_to_the_matching_auth_snapshot() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
-            chatgpt_account_id: Some("org_mine".to_string()),
+            chatgpt_account_id: Some(WORKSPACE_ID_ALLOWED.to_string()),
         },
         thinwedge_home.path(),
     )
@@ -342,7 +497,9 @@ async fn refresh_failure_is_scoped_to_the_matching_auth_snapshot() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("load auth")
@@ -361,6 +518,7 @@ async fn refresh_failure_is_scoped_to_the_matching_auth_snapshot() {
         updated_auth_dot_json,
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("updated auth should parse");
@@ -596,7 +754,7 @@ exit 1
 }
 
 struct AuthFileParams {
-    thinwedge_api_key: Option<String>,
+    openai_api_key: Option<String>,
     chatgpt_plan_type: Option<String>,
     chatgpt_account_id: Option<String>,
 }
@@ -605,7 +763,7 @@ fn write_auth_file(params: AuthFileParams, thinwedge_home: &Path) -> std::io::Re
     let fake_jwt = fake_jwt_for_auth_file_params(&params)?;
     let auth_file = get_auth_file(thinwedge_home);
     let auth_json_data = json!({
-        "THINWEDGE_API_KEY": params.thinwedge_api_key,
+        "OPENAI_API_KEY": params.openai_api_key,
         "tokens": {
             "id_token": fake_jwt,
             "access_token": "test-access-token",
@@ -645,7 +803,7 @@ fn fake_jwt_for_auth_file_params(params: &AuthFileParams) -> std::io::Result<Str
     let payload = serde_json::json!({
         "email": "user@example.com",
         "email_verified": true,
-        "https://api.thinwedge.com/auth": auth_payload,
+        "https://api.openai.com/auth": auth_payload,
     });
     let b64 = |b: &[u8]| base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(b);
     let header_b64 = b64(&serde_json::to_vec(&header)?);
@@ -657,11 +815,12 @@ fn fake_jwt_for_auth_file_params(params: &AuthFileParams) -> std::io::Result<Str
 async fn build_config(
     thinwedge_home: &Path,
     forced_login_method: Option<ForcedLoginMethod>,
-    forced_chatgpt_workspace_id: Option<String>,
+    forced_chatgpt_workspace_id: Option<Vec<String>>,
 ) -> AuthConfig {
     AuthConfig {
         thinwedge_home: thinwedge_home.to_path_buf(),
         auth_credentials_store_mode: AuthCredentialsStoreMode::File,
+        keyring_backend_kind: AuthKeyringBackendKind::Direct,
         forced_login_method,
         forced_chatgpt_workspace_id,
         chatgpt_base_url: None,
@@ -707,11 +866,15 @@ impl Drop for EnvVarGuard {
     }
 }
 
+fn remove_access_token_env_var() -> EnvVarGuard {
+    EnvVarGuard::remove(THINWEDGE_ACCESS_TOKEN_ENV_VAR)
+}
+
 #[tokio::test]
 #[serial(thinwedge_auth_env)]
-async fn load_auth_reads_agent_identity_from_env() {
+async fn load_auth_reads_access_token_from_env() {
     let thinwedge_home = tempdir().unwrap();
-    let expected_record = agent_identity_record("account-123");
+    let expected_record = agent_identity_record(WORKSPACE_ID_ALLOWED);
     let agent_identity =
         signed_agent_identity_jwt(&expected_record, json!(expected_record.plan_type))
             .expect("signed agent identity");
@@ -730,7 +893,7 @@ async fn load_auth_reads_agent_identity_from_env() {
         .expect(1)
         .mount(&server)
         .await;
-    let _agent_guard = EnvVarGuard::set(THINWEDGE_AGENT_IDENTITY_ENV_VAR, &agent_identity);
+    let _access_token_guard = EnvVarGuard::set(THINWEDGE_ACCESS_TOKEN_ENV_VAR, &agent_identity);
 
     let chatgpt_base_url = format!("{}/backend-api", server.uri());
     let _authapi_guard = EnvVarGuard::set(
@@ -741,7 +904,9 @@ async fn load_auth_reads_agent_identity_from_env() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         Some(&chatgpt_base_url),
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("env auth should load")
@@ -761,18 +926,203 @@ async fn load_auth_reads_agent_identity_from_env() {
 
 #[tokio::test]
 #[serial(thinwedge_auth_env)]
+async fn load_auth_reads_personal_access_token_from_env() {
+    let thinwedge_home = tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .and(header("authorization", "Bearer at-env-test"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_ALLOWED)),
+        )
+        .expect(2)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    let _access_token_guard = EnvVarGuard::set(THINWEDGE_ACCESS_TOKEN_ENV_VAR, "at-env-test");
+
+    for auth_credentials_store_mode in [
+        AuthCredentialsStoreMode::File,
+        AuthCredentialsStoreMode::Ephemeral,
+    ] {
+        let auth = super::load_auth(
+            thinwedge_home.path(),
+            /*enable_thinwedge_api_key_env*/ false,
+            auth_credentials_store_mode,
+            /*forced_chatgpt_workspace_id*/ None,
+            /*chatgpt_base_url*/ None,
+            AuthKeyringBackendKind::default(),
+        )
+        .await
+        .expect("env auth should load")
+        .expect("env auth should be present");
+
+        assert_eq!(auth.api_auth_mode(), AuthMode::PersonalAccessToken);
+        assert_eq!(
+            auth.get_token()
+                .expect("personal access token should be exposed"),
+            "at-env-test"
+        );
+        assert_eq!(auth.get_account_id().as_deref(), Some(WORKSPACE_ID_ALLOWED));
+        assert_eq!(auth.get_chatgpt_user_id().as_deref(), Some("user-123"));
+        assert_eq!(
+            auth.get_account_email().as_deref(),
+            Some("user@example.com")
+        );
+        assert_eq!(auth.account_plan_type(), Some(AccountPlanType::Business));
+        assert!(auth.is_fedramp_account());
+    }
+    assert!(
+        !get_auth_file(thinwedge_home.path()).exists(),
+        "env auth should not write auth.json"
+    );
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
+async fn auth_manager_rejects_env_personal_access_token_workspace_mismatch() {
+    let thinwedge_home = tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .and(header("authorization", "Bearer at-env-workspace-mismatch"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_DISALLOWED)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    let _access_token_guard =
+        EnvVarGuard::set(THINWEDGE_ACCESS_TOKEN_ENV_VAR, "at-env-workspace-mismatch");
+
+    let manager = AuthManager::new_with_workspace_restriction(
+        thinwedge_home.path().to_path_buf(),
+        /*enable_thinwedge_api_key_env*/ false,
+        AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/
+        Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
+        /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
+    )
+    .await;
+
+    assert_eq!(manager.auth().await, None);
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
+async fn auth_manager_rejects_stored_personal_access_token_workspace_mismatch() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .and(header(
+            "authorization",
+            "Bearer at-stored-workspace-mismatch",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_DISALLOWED)),
+        )
+        .expect(4)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    let _access_token_guard = remove_access_token_env_var();
+
+    for auth_credentials_store_mode in [
+        AuthCredentialsStoreMode::File,
+        AuthCredentialsStoreMode::Ephemeral,
+    ] {
+        let thinwedge_home = tempdir().unwrap();
+        super::login_with_access_token(
+            thinwedge_home.path(),
+            "at-stored-workspace-mismatch",
+            auth_credentials_store_mode,
+            /*forced_chatgpt_workspace_id*/ None,
+            /*chatgpt_base_url*/ None,
+            AuthKeyringBackendKind::default(),
+        )
+        .await
+        .expect("personal access token login should succeed");
+
+        let manager = AuthManager::new_with_workspace_restriction(
+            thinwedge_home.path().to_path_buf(),
+            /*enable_thinwedge_api_key_env*/ false,
+            auth_credentials_store_mode,
+            /*forced_chatgpt_workspace_id*/
+            Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
+            /*chatgpt_base_url*/ None,
+            AuthKeyringBackendKind::default(),
+        )
+        .await;
+
+        assert_eq!(manager.auth().await, None);
+    }
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
+async fn personal_access_token_does_not_offer_unauthorized_recovery() {
+    let thinwedge_home = tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_ALLOWED)),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    let _access_token_guard = EnvVarGuard::set(
+        THINWEDGE_ACCESS_TOKEN_ENV_VAR,
+        "at-no-unauthorized-recovery",
+    );
+    let manager = Arc::new(
+        AuthManager::new(
+            thinwedge_home.path().to_path_buf(),
+            /*enable_thinwedge_api_key_env*/ false,
+            AuthCredentialsStoreMode::File,
+            /*chatgpt_base_url*/ None,
+            AuthKeyringBackendKind::default(),
+        )
+        .await,
+    );
+
+    let recovery = manager.unauthorized_recovery();
+
+    assert!(!recovery.has_next());
+    assert_eq!(recovery.unavailable_reason(), "not_refreshable_auth");
+    manager
+        .refresh_token_from_authority()
+        .await
+        .expect("personal access tokens do not use OAuth refresh");
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
 async fn load_auth_keeps_thinwedge_api_key_env_precedence() {
     let thinwedge_home = tempdir().unwrap();
-    let record = agent_identity_record("account-123");
+    let record = agent_identity_record(WORKSPACE_ID_ALLOWED);
     let agent_identity = fake_agent_identity_jwt(&record).expect("fake agent identity");
-    let _agent_guard = EnvVarGuard::set(THINWEDGE_AGENT_IDENTITY_ENV_VAR, &agent_identity);
+    let _access_token_guard = EnvVarGuard::set(THINWEDGE_ACCESS_TOKEN_ENV_VAR, &agent_identity);
     let _api_key_guard = EnvVarGuard::set(THINWEDGE_API_KEY_ENV_VAR, "sk-env");
 
     let auth = super::load_auth(
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ true,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("env auth should load")
@@ -785,11 +1135,12 @@ async fn load_auth_keeps_thinwedge_api_key_env_precedence() {
 #[serial(thinwedge_auth_env)]
 async fn enforce_login_restrictions_logs_out_for_method_mismatch() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     login_with_api_key(
         thinwedge_home.path(),
         "sk-test",
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )
     .expect("seed api key");
 
@@ -814,12 +1165,12 @@ async fn enforce_login_restrictions_logs_out_for_method_mismatch() {
 #[serial(thinwedge_auth_env)]
 async fn enforce_login_restrictions_logs_out_for_workspace_mismatch() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
-            chatgpt_account_id: Some("org_another_org".to_string()),
+            chatgpt_account_id: Some(WORKSPACE_ID_DISALLOWED.to_string()),
         },
         thinwedge_home.path(),
     )
@@ -828,14 +1179,17 @@ async fn enforce_login_restrictions_logs_out_for_workspace_mismatch() {
     let config = build_config(
         thinwedge_home.path(),
         /*forced_login_method*/ None,
-        Some("org_mine".to_string()),
+        Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
     )
     .await;
 
     let err = super::enforce_login_restrictions(&config)
         .await
         .expect_err("expected workspace mismatch to error");
-    assert!(err.to_string().contains("workspace org_mine"));
+    assert!(
+        err.to_string()
+            .contains(&format!("workspace(s) {WORKSPACE_ID_ALLOWED}"))
+    );
     assert!(
         !thinwedge_home.path().join("auth.json").exists(),
         "auth.json should be removed on mismatch"
@@ -844,14 +1198,63 @@ async fn enforce_login_restrictions_logs_out_for_workspace_mismatch() {
 
 #[tokio::test]
 #[serial(thinwedge_auth_env)]
+async fn enforce_login_restrictions_logs_out_for_personal_access_token_workspace_mismatch() {
+    let thinwedge_home = tempdir().unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(personal_access_token_whoami(WORKSPACE_ID_DISALLOWED)),
+        )
+        .expect(2)
+        .mount(&server)
+        .await;
+    let _access_token_guard = remove_access_token_env_var();
+    let _authapi_guard = EnvVarGuard::set("THINWEDGE_AUTHAPI_BASE_URL", &server.uri());
+    super::login_with_access_token(
+        thinwedge_home.path(),
+        "at-workspace-mismatch",
+        AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
+        /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
+    )
+    .await
+    .expect("personal access token login should succeed");
+
+    let config = AuthConfig {
+        thinwedge_home: thinwedge_home.path().to_path_buf(),
+        auth_credentials_store_mode: AuthCredentialsStoreMode::File,
+        keyring_backend_kind: AuthKeyringBackendKind::default(),
+        forced_login_method: None,
+        forced_chatgpt_workspace_id: Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
+        chatgpt_base_url: None,
+    };
+
+    let err = super::enforce_login_restrictions(&config)
+        .await
+        .expect_err("expected workspace mismatch to error");
+    assert!(err.to_string().contains(&format!(
+        "current credentials belong to {WORKSPACE_ID_DISALLOWED}"
+    )));
+    assert!(
+        !thinwedge_home.path().join("auth.json").exists(),
+        "auth.json should be removed on mismatch"
+    );
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
 async fn enforce_login_restrictions_allows_matching_workspace() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
-            chatgpt_account_id: Some("org_mine".to_string()),
+            chatgpt_account_id: Some(WORKSPACE_ID_ALLOWED.to_string()),
         },
         thinwedge_home.path(),
     )
@@ -860,7 +1263,7 @@ async fn enforce_login_restrictions_allows_matching_workspace() {
     let config = build_config(
         thinwedge_home.path(),
         /*forced_login_method*/ None,
-        Some("org_mine".to_string()),
+        Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
     )
     .await;
 
@@ -875,21 +1278,117 @@ async fn enforce_login_restrictions_allows_matching_workspace() {
 
 #[tokio::test]
 #[serial(thinwedge_auth_env)]
+async fn enforce_login_restrictions_allows_any_matching_workspace_in_list() {
+    let thinwedge_home = tempdir().unwrap();
+    let _jwt = write_auth_file(
+        AuthFileParams {
+            openai_api_key: None,
+            chatgpt_plan_type: Some("pro".to_string()),
+            chatgpt_account_id: Some(WORKSPACE_ID_ALLOWED.to_string()),
+        },
+        thinwedge_home.path(),
+    )
+    .expect("failed to write auth file");
+
+    let config = build_config(
+        thinwedge_home.path(),
+        /*forced_login_method*/ None,
+        Some(vec![
+            WORKSPACE_ID_SECOND_ALLOWED.to_string(),
+            WORKSPACE_ID_ALLOWED.to_string(),
+        ]),
+    )
+    .await;
+
+    super::enforce_login_restrictions(&config)
+        .await
+        .expect("any matching workspace in the allowed list should succeed");
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
+async fn enforce_login_restrictions_logs_out_for_agent_identity_workspace_mismatch() {
+    let thinwedge_home = tempdir().unwrap();
+    let _access_token_guard = remove_access_token_env_var();
+    let record = agent_identity_record(WORKSPACE_ID_DISALLOWED);
+    let agent_identity =
+        signed_agent_identity_jwt(&record, json!(record.plan_type)).expect("signed agent identity");
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/backend-api/wham/agent-identities/jwks"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(test_jwks_body()))
+        .expect(1)
+        .mount(&server)
+        .await;
+    Mock::given(method("POST"))
+        .and(path("/backend-api/v1/agent/agent-runtime-id/task/register"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "task_id": "task-123",
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let chatgpt_base_url = format!("{}/backend-api", server.uri());
+    let _authapi_guard = EnvVarGuard::set(
+        "THINWEDGE_AGENT_IDENTITY_AUTHAPI_BASE_URL",
+        &chatgpt_base_url,
+    );
+    save_auth(
+        thinwedge_home.path(),
+        &AuthDotJson {
+            auth_mode: Some(ApiAuthMode::AgentIdentity),
+            openai_api_key: None,
+            tokens: None,
+            last_refresh: None,
+            agent_identity: Some(agent_identity),
+            personal_access_token: None,
+            bedrock_api_key: None,
+        },
+        AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
+    )
+    .expect("seed agent identity auth");
+
+    let config = AuthConfig {
+        thinwedge_home: thinwedge_home.path().to_path_buf(),
+        auth_credentials_store_mode: AuthCredentialsStoreMode::File,
+        keyring_backend_kind: AuthKeyringBackendKind::Direct,
+        forced_login_method: None,
+        forced_chatgpt_workspace_id: Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
+        chatgpt_base_url: Some(chatgpt_base_url),
+    };
+
+    let err = super::enforce_login_restrictions(&config)
+        .await
+        .expect_err("expected workspace mismatch to error");
+    assert!(err.to_string().contains(&format!(
+        "current credentials belong to {WORKSPACE_ID_DISALLOWED}"
+    )));
+    assert!(
+        !thinwedge_home.path().join("auth.json").exists(),
+        "auth.json should be removed on mismatch"
+    );
+    server.verify().await;
+}
+
+#[tokio::test]
+#[serial(thinwedge_auth_env)]
 async fn enforce_login_restrictions_allows_api_key_if_login_method_not_set_but_forced_chatgpt_workspace_id_is_set()
  {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     login_with_api_key(
         thinwedge_home.path(),
         "sk-test",
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )
     .expect("seed api key");
 
     let config = build_config(
         thinwedge_home.path(),
         /*forced_login_method*/ None,
-        Some("org_mine".to_string()),
+        Some(vec![WORKSPACE_ID_ALLOWED.to_string()]),
     )
     .await;
 
@@ -906,7 +1405,7 @@ async fn enforce_login_restrictions_allows_api_key_if_login_method_not_set_but_f
 #[serial(thinwedge_auth_env)]
 async fn enforce_login_restrictions_blocks_env_api_key_when_chatgpt_required() {
     let _guard = EnvVarGuard::set(THINWEDGE_API_KEY_ENV_VAR, "sk-env");
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let thinwedge_home = tempdir().unwrap();
 
     let config = build_config(
@@ -988,7 +1487,9 @@ fn signed_agent_identity_jwt(
             "plan_type": plan_type,
             "chatgpt_account_is_fedramp": record.chatgpt_account_is_fedramp,
         }),
-        &test_agent_identity_encoding_key()?,
+        &jsonwebtoken::EncodingKey::from_rsa_pem(
+            test_agent_identity_rsa_private_key_pem().as_bytes(),
+        )?,
     )
 }
 
@@ -1005,8 +1506,14 @@ fn test_jwks_body() -> serde_json::Value {
     })
 }
 
-fn test_agent_identity_encoding_key() -> jsonwebtoken::errors::Result<jsonwebtoken::EncodingKey> {
-    jsonwebtoken::EncodingKey::from_rsa_pem(test_agent_identity_rsa_private_key_pem().as_bytes())
+fn personal_access_token_whoami(account_id: &str) -> serde_json::Value {
+    json!({
+        "email": "user@example.com",
+        "chatgpt_user_id": "user-123",
+        "chatgpt_account_id": account_id,
+        "chatgpt_plan_type": "business",
+        "chatgpt_account_is_fedramp": true,
+    })
 }
 
 fn test_agent_identity_rsa_private_key_pem() -> String {
@@ -1095,10 +1602,10 @@ async fn assert_agent_identity_plan_alias(
 #[serial(thinwedge_auth_env)]
 async fn plan_type_maps_known_plan() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("pro".to_string()),
             chatgpt_account_id: None,
         },
@@ -1110,7 +1617,9 @@ async fn plan_type_maps_known_plan() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("load auth")
@@ -1123,10 +1632,10 @@ async fn plan_type_maps_known_plan() {
 #[serial(thinwedge_auth_env)]
 async fn plan_type_maps_self_serve_business_usage_based_plan() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("self_serve_business_usage_based".to_string()),
             chatgpt_account_id: None,
         },
@@ -1138,7 +1647,9 @@ async fn plan_type_maps_self_serve_business_usage_based_plan() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("load auth")
@@ -1154,10 +1665,10 @@ async fn plan_type_maps_self_serve_business_usage_based_plan() {
 #[serial(thinwedge_auth_env)]
 async fn plan_type_maps_enterprise_cbp_usage_based_plan() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("enterprise_cbp_usage_based".to_string()),
             chatgpt_account_id: None,
         },
@@ -1169,7 +1680,9 @@ async fn plan_type_maps_enterprise_cbp_usage_based_plan() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("load auth")
@@ -1185,10 +1698,10 @@ async fn plan_type_maps_enterprise_cbp_usage_based_plan() {
 #[serial(thinwedge_auth_env)]
 async fn plan_type_maps_unknown_to_unknown() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: Some("mystery-tier".to_string()),
             chatgpt_account_id: None,
         },
@@ -1200,7 +1713,9 @@ async fn plan_type_maps_unknown_to_unknown() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("load auth")
@@ -1213,10 +1728,10 @@ async fn plan_type_maps_unknown_to_unknown() {
 #[serial(thinwedge_auth_env)]
 async fn missing_plan_type_maps_to_unknown() {
     let thinwedge_home = tempdir().unwrap();
-    let _agent_guard = EnvVarGuard::remove(THINWEDGE_AGENT_IDENTITY_ENV_VAR);
+    let _access_token_guard = remove_access_token_env_var();
     let _jwt = write_auth_file(
         AuthFileParams {
-            thinwedge_api_key: None,
+            openai_api_key: None,
             chatgpt_plan_type: None,
             chatgpt_account_id: None,
         },
@@ -1228,7 +1743,9 @@ async fn missing_plan_type_maps_to_unknown() {
         thinwedge_home.path(),
         /*enable_thinwedge_api_key_env*/ false,
         AuthCredentialsStoreMode::File,
+        /*forced_chatgpt_workspace_id*/ None,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::Direct,
     )
     .await
     .expect("load auth")

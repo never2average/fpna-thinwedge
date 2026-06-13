@@ -10,11 +10,12 @@ use std::task::Poll;
 use thinwedge_protocol::config_types::ReasoningSummary as ReasoningSummaryConfig;
 use thinwedge_protocol::config_types::Verbosity as VerbosityConfig;
 use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::ModelVerification;
 use thinwedge_protocol::protocol::RateLimitSnapshot;
 use thinwedge_protocol::protocol::TokenUsage;
+use thinwedge_protocol::protocol::TurnModerationMetadataEvent;
 use thinwedge_protocol::protocol::W3cTraceContext;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use tokio::sync::mpsc;
 
 pub const WS_REQUEST_HEADER_TRACEPARENT_CLIENT_METADATA_KEY: &str = "ws_request_header_traceparent";
@@ -31,6 +32,10 @@ pub struct CompactionInput<'a> {
     pub parallel_tool_calls: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning: Option<Reasoning>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub service_tier: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_cache_key: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<TextControls>,
 }
@@ -69,11 +74,13 @@ pub enum ResponseEvent {
     Created,
     OutputItemDone(ResponseItem),
     OutputItemAdded(ResponseItem),
-    /// Emitted when the server includes `ThinWedge-Model` on the stream response.
+    /// Emitted when the server includes `OpenAI-Model` on the stream response.
     /// This can differ from the requested model when backend safety routing applies.
     ServerModel(String),
     /// Emitted when the server recommends additional account verification.
     ModelVerifications(Vec<ModelVerification>),
+    /// Emitted when the server includes moderation metadata for first-party turn presentation.
+    TurnModerationMetadata(TurnModerationMetadataEvent),
     /// Emitted when `X-Reasoning-Included: true` is present on the response,
     /// meaning the server already accounted for past reasoning tokens and the
     /// client should not re-estimate them.
@@ -107,11 +114,21 @@ pub enum ResponseEvent {
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ReasoningContext {
+    Auto,
+    CurrentTurn,
+    AllTurns,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct Reasoning {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub effort: Option<ReasoningEffortConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub summary: Option<ReasoningSummaryConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<ReasoningContext>,
 }
 
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
@@ -123,7 +140,7 @@ pub enum TextFormatType {
 
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
 pub struct TextFormat {
-    /// Format type used by the ThinWedge text controls.
+    /// Format type used by the OpenAI text controls.
     pub r#type: TextFormatType,
     /// When true, the server is expected to strictly validate responses.
     pub strict: bool,
@@ -138,26 +155,26 @@ pub struct TextFormat {
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
 pub struct TextControls {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub verbosity: Option<ThinWedgeVerbosity>,
+    pub verbosity: Option<OpenAiVerbosity>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<TextFormat>,
 }
 
 #[derive(Debug, Serialize, Default, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum ThinWedgeVerbosity {
+pub enum OpenAiVerbosity {
     Low,
     #[default]
     Medium,
     High,
 }
 
-impl From<VerbosityConfig> for ThinWedgeVerbosity {
+impl From<VerbosityConfig> for OpenAiVerbosity {
     fn from(v: VerbosityConfig) -> Self {
         match v {
-            VerbosityConfig::Low => ThinWedgeVerbosity::Low,
-            VerbosityConfig::Medium => ThinWedgeVerbosity::Medium,
-            VerbosityConfig::High => ThinWedgeVerbosity::High,
+            VerbosityConfig::Low => OpenAiVerbosity::Low,
+            VerbosityConfig::Medium => OpenAiVerbosity::Medium,
+            VerbosityConfig::High => OpenAiVerbosity::High,
         }
     }
 }

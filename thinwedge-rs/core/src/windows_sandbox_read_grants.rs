@@ -3,11 +3,12 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
-use thinwedge_protocol::protocol::SandboxPolicy;
+use thinwedge_protocol::models::PermissionProfile;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 pub fn grant_read_root_non_elevated(
-    policy: &SandboxPolicy,
-    policy_cwd: &Path,
+    permission_profile: &PermissionProfile,
+    workspace_roots: &[AbsolutePathBuf],
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
     thinwedge_home: &Path,
@@ -25,8 +26,8 @@ pub fn grant_read_root_non_elevated(
 
     let canonical_root = dunce::canonicalize(read_root)?;
     run_setup_refresh_with_extra_read_roots(
-        policy,
-        policy_cwd,
+        permission_profile,
+        workspace_roots,
         command_cwd,
         env_map,
         thinwedge_home,

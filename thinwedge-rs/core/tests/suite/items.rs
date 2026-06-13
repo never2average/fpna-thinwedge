@@ -1,6 +1,7 @@
 #![cfg(not(target_os = "windows"))]
 
 use anyhow::Ok;
+use core_test_support::PathBufExt;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_image_generation_call;
@@ -18,6 +19,7 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::TestThinWedge;
+use core_test_support::test_thinwedge::local_selections;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
@@ -44,30 +46,28 @@ use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 fn disabled_plan_turn(
     text: &str,
-    model: String,
+    _model: String,
     collaboration_mode: CollaborationMode,
 ) -> anyhow::Result<Op> {
-    let cwd = std::env::current_dir()?;
+    let cwd = std::env::current_dir()?.abs();
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::Disabled, cwd.as_path());
-    Ok(Op::UserTurn {
-        environments: None,
+    Ok(Op::UserInput {
         items: vec![UserInput::Text {
             text: text.into(),
             text_elements: Vec::new(),
         }],
         final_output_json_schema: None,
-        cwd,
-        approval_policy: AskForApproval::Never,
-        approvals_reviewer: None,
-        sandbox_policy,
-        permission_profile,
-        model,
-        effort: None,
-        summary: None,
-        service_tier: None,
-        collaboration_mode: Some(collaboration_mode),
-        personality: None,
+        responsesapi_client_metadata: None,
+        additional_context: Default::default(),
+        thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+            environments: Some(local_selections(cwd)),
+            approval_policy: Some(AskForApproval::Never),
+            sandbox_policy: Some(sandbox_policy),
+            permission_profile,
+            collaboration_mode: Some(collaboration_mode),
+            ..Default::default()
+        },
     })
 }
 
@@ -121,10 +121,11 @@ async fn user_message_item_is_emitted() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![expected_input.clone()],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -176,13 +177,14 @@ async fn assistant_message_item_is_emitted() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "please summarize results".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -237,13 +239,14 @@ async fn reasoning_item_is_emitted() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "explain your reasoning".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -298,16 +301,26 @@ async fn web_search_item_is_emitted() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "find the weather".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
+    let started = wait_for_event_match(&thinwedge, |ev| match ev {
+        EventMsg::ItemStarted(ItemStartedEvent {
+            item: TurnItem::WebSearch(item),
+            started_at_ms,
+            ..
+        }) => Some((item.clone(), *started_at_ms)),
+        _ => None,
+    })
+    .await;
     let begin = wait_for_event_match(&thinwedge, |ev| match ev {
         EventMsg::WebSearchBegin(event) => Some(event.clone()),
         _ => None,
@@ -316,16 +329,20 @@ async fn web_search_item_is_emitted() -> anyhow::Result<()> {
     let completed = wait_for_event_match(&thinwedge, |ev| match ev {
         EventMsg::ItemCompleted(ItemCompletedEvent {
             item: TurnItem::WebSearch(item),
+            completed_at_ms,
             ..
-        }) => Some(item.clone()),
+        }) => Some((item.clone(), *completed_at_ms)),
         _ => None,
     })
     .await;
 
     assert_eq!(begin.call_id, "web-search-1");
-    assert_eq!(completed.id, begin.call_id);
+    assert_eq!(started.0.id, begin.call_id);
+    assert!(started.1 > 0);
+    assert_eq!(completed.0.id, begin.call_id);
+    assert!(completed.1 > 0);
     assert_eq!(
-        completed.action,
+        completed.0.action,
         WebSearchAction::Search {
             query: Some("weather seattle".to_string()),
             queries: None,
@@ -350,7 +367,7 @@ async fn image_generation_call_event_is_emitted() -> anyhow::Result<()> {
     let call_id = "ig_image_saved_to_temp_dir_default";
     let expected_saved_path = image_generation_artifact_path(
         config.thinwedge_home.as_path(),
-        &session_configured.session_id.to_string(),
+        &session_configured.thread_id.to_string(),
         call_id,
     );
     let _ = std::fs::remove_file(&expected_saved_path);
@@ -364,18 +381,37 @@ async fn image_generation_call_event_is_emitted() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "generate a tiny blue square".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
+    let started = wait_for_event_match(&thinwedge, |ev| match ev {
+        EventMsg::ItemStarted(ItemStartedEvent {
+            item: TurnItem::ImageGeneration(item),
+            started_at_ms,
+            ..
+        }) => Some((item.clone(), *started_at_ms)),
+        _ => None,
+    })
+    .await;
     let begin = wait_for_event_match(&thinwedge, |ev| match ev {
         EventMsg::ImageGenerationBegin(event) => Some(event.clone()),
+        _ => None,
+    })
+    .await;
+    let completed = wait_for_event_match(&thinwedge, |ev| match ev {
+        EventMsg::ItemCompleted(ItemCompletedEvent {
+            item: TurnItem::ImageGeneration(item),
+            completed_at_ms,
+            ..
+        }) => Some((item.clone(), *completed_at_ms)),
         _ => None,
     })
     .await;
@@ -386,6 +422,10 @@ async fn image_generation_call_event_is_emitted() -> anyhow::Result<()> {
     .await;
 
     assert_eq!(begin.call_id, call_id);
+    assert_eq!(started.0.id, call_id);
+    assert!(started.1 > 0);
+    assert_eq!(completed.0.id, call_id);
+    assert!(completed.1 > 0);
     assert_eq!(end.call_id, call_id);
     assert_eq!(end.status, "completed");
     assert_eq!(end.revised_prompt, Some("A tiny blue square".to_string()));
@@ -414,7 +454,7 @@ async fn image_generation_call_event_is_emitted_when_image_save_fails() -> anyho
     } = test_thinwedge().build(&server).await?;
     let expected_saved_path = image_generation_artifact_path(
         config.thinwedge_home.as_path(),
-        &session_configured.session_id.to_string(),
+        &session_configured.thread_id.to_string(),
         "ig_invalid",
     );
     let _ = std::fs::remove_file(&expected_saved_path);
@@ -428,13 +468,14 @@ async fn image_generation_call_event_is_emitted_when_image_save_fails() -> anyho
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "generate an image".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -483,13 +524,14 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "please stream text".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -508,11 +550,6 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
         _ => None,
     })
     .await;
-    let legacy_delta = wait_for_event_match(&thinwedge, |ev| match ev {
-        EventMsg::AgentMessageDelta(event) => Some(event.clone()),
-        _ => None,
-    })
-    .await;
     let completed_item = wait_for_event_match(&thinwedge, |ev| match ev {
         EventMsg::ItemCompleted(ItemCompletedEvent {
             item: TurnItem::AgentMessage(item),
@@ -522,12 +559,11 @@ async fn agent_message_content_delta_has_item_metadata() -> anyhow::Result<()> {
     })
     .await;
 
-    let session_id = session_configured.session_id.to_string();
-    assert_eq!(delta_event.thread_id, session_id);
+    let thread_id = session_configured.thread_id.to_string();
+    assert_eq!(delta_event.thread_id, thread_id);
     assert_eq!(delta_event.turn_id, started_turn_id);
     assert_eq!(delta_event.item_id, started_item.id);
     assert_eq!(delta_event.delta, "streamed response");
-    assert_eq!(legacy_delta.delta, "streamed response");
     assert_eq!(completed_item.id, started_item.id);
 
     Ok(())
@@ -590,7 +626,7 @@ async fn plan_mode_emits_plan_item_from_proposed_plan_block() -> anyhow::Result<
 
     assert_eq!(
         plan_delta.thread_id,
-        session_configured.session_id.to_string()
+        session_configured.thread_id.to_string()
     );
     assert_eq!(plan_delta.delta, "- Step 1\n- Step 2\n");
     assert_eq!(plan_completed.text, "- Step 1\n- Step 2\n");
@@ -1072,13 +1108,14 @@ async fn reasoning_content_delta_has_item_metadata() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "reason through it".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -1096,15 +1133,8 @@ async fn reasoning_content_delta_has_item_metadata() -> anyhow::Result<()> {
         _ => None,
     })
     .await;
-    let legacy_delta = wait_for_event_match(&thinwedge, |ev| match ev {
-        EventMsg::AgentReasoningDelta(event) => Some(event.clone()),
-        _ => None,
-    })
-    .await;
-
     assert_eq!(delta_event.item_id, reasoning_item.id);
     assert_eq!(delta_event.delta, "step one");
-    assert_eq!(legacy_delta.delta, "step one");
 
     Ok(())
 }
@@ -1133,13 +1163,14 @@ async fn reasoning_raw_content_delta_respects_flag() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "show raw reasoning".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -1157,15 +1188,8 @@ async fn reasoning_raw_content_delta_respects_flag() -> anyhow::Result<()> {
         _ => None,
     })
     .await;
-    let legacy_delta = wait_for_event_match(&thinwedge, |ev| match ev {
-        EventMsg::AgentReasoningRawContentDelta(event) => Some(event.clone()),
-        _ => None,
-    })
-    .await;
-
     assert_eq!(delta_event.item_id, reasoning_item.id);
     assert_eq!(delta_event.delta, "raw detail");
-    assert_eq!(legacy_delta.delta, "raw detail");
 
     Ok(())
 }

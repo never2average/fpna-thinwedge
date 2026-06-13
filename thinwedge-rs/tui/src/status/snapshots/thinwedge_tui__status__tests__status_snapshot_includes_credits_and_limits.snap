@@ -5,14 +5,14 @@ expression: sanitized
 /status
 
 ╭─────────────────────────────────────────────────────────────────────────────╮
-│  >_ ThinWedge ThinWedge (v0.0.0)                                                   │
+│  >_ OpenAI ThinWedge (v0.0.0)                                                   │
 │                                                                             │
 │ Visit https://chatgpt.com/thinwedge/settings/usage for up-to-date               │
 │ information on rate limits and credits                                      │
 │                                                                             │
 │  Model:            gpt-5.1-thinwedge (reasoning none, summaries auto)           │
 │  Directory: [[workspace]]                                                   │
-│  Permissions:      Custom (workspace-write with network access, on-request) │
+│  Permissions:      Custom (workspace with network access, Ask for approval) │
 │  Agents.md:        <none>                                                   │
 │                                                                             │
 │  Token usage:      2K total  (1.4K input + 600 output)                      │

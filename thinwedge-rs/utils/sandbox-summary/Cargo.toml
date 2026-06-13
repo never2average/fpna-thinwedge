@@ -11,7 +11,11 @@ workspace = true
 thinwedge-core = { workspace = true }
 thinwedge-model-provider-info = { workspace = true }
 thinwedge-protocol = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
 
 [dev-dependencies]
 thinwedge-utils-absolute-path = { workspace = true }
 pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

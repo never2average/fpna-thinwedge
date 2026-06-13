@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { statSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { createRequire } from "node:module";
@@ -41,21 +42,27 @@ export type ThinWedgeExecArgs = {
 
 const INTERNAL_ORIGINATOR_ENV = "THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE";
 const TYPESCRIPT_SDK_ORIGINATOR = "thinwedge_sdk_ts";
-const THINWEDGE_NPM_NAME = "@thinwedge/thinwedge";
+const THINWEDGE_NPM_NAME = "@openai/thinwedge";
 
 const PLATFORM_PACKAGE_BY_TARGET: Record<string, string> = {
-  "x86_64-unknown-linux-musl": "@thinwedge/thinwedge-linux-x64",
-  "aarch64-unknown-linux-musl": "@thinwedge/thinwedge-linux-arm64",
-  "x86_64-apple-darwin": "@thinwedge/thinwedge-darwin-x64",
-  "aarch64-apple-darwin": "@thinwedge/thinwedge-darwin-arm64",
-  "x86_64-pc-windows-msvc": "@thinwedge/thinwedge-win32-x64",
-  "aarch64-pc-windows-msvc": "@thinwedge/thinwedge-win32-arm64",
+  "x86_64-unknown-linux-musl": "@openai/thinwedge-linux-x64",
+  "aarch64-unknown-linux-musl": "@openai/thinwedge-linux-arm64",
+  "x86_64-apple-darwin": "@openai/thinwedge-darwin-x64",
+  "aarch64-apple-darwin": "@openai/thinwedge-darwin-arm64",
+  "x86_64-pc-windows-msvc": "@openai/thinwedge-win32-x64",
+  "aarch64-pc-windows-msvc": "@openai/thinwedge-win32-arm64",
 };
 
 const moduleRequire = createRequire(import.meta.url);
 
+type ThinWedgePathResolution = {
+  executablePath: string;
+  pathDirs: string[];
+};
+
 export class ThinWedgeExec {
   private executablePath: string;
+  private pathDirs: string[];
   private envOverride?: Record<string, string>;
   private configOverrides?: ThinWedgeConfigObject;
 
@@ -64,7 +71,14 @@ export class ThinWedgeExec {
     env?: Record<string, string>,
     configOverrides?: ThinWedgeConfigObject,
   ) {
-    this.executablePath = executablePath || findThinWedgePath();
+    if (executablePath) {
+      this.executablePath = executablePath;
+      this.pathDirs = [];
+    } else {
+      const resolved = findThinWedgePath();
+      this.executablePath = resolved.executablePath;
+      this.pathDirs = resolved.pathDirs;
+    }
     this.envOverride = env;
     this.configOverrides = configOverrides;
   }
@@ -81,7 +95,7 @@ export class ThinWedgeExec {
     if (args.baseUrl) {
       commandArgs.push(
         "--config",
-        `thinwedge_base_url=${toTomlValue(args.baseUrl, "thinwedge_base_url")}`,
+        `openai_base_url=${toTomlValue(args.baseUrl, "openai_base_url")}`,
       );
     }
 
@@ -159,6 +173,9 @@ export class ThinWedgeExec {
     }
     if (args.apiKey) {
       env.THINWEDGE_API_KEY = args.apiKey;
+    }
+    if (this.pathDirs.length > 0) {
+      prependPathDirs(env, this.pathDirs);
     }
 
     const child = spawn(this.executablePath, commandArgs, {
@@ -314,7 +331,7 @@ function isPlainObject(value: unknown): value is ThinWedgeConfigObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function findThinWedgePath() {
+function findThinWedgePath(): ThinWedgePathResolution {
   const { platform, arch } = process;
 
   let targetTriple = null;
@@ -381,9 +398,87 @@ function findThinWedgePath() {
     );
   }
 
-  const archRoot = path.join(vendorRoot, targetTriple);
   const thinwedgeBinaryName = process.platform === "win32" ? "thinwedge.exe" : "thinwedge";
-  const binaryPath = path.join(archRoot, "thinwedge", thinwedgeBinaryName);
+  const nativePackage = resolveNativePackage(vendorRoot, targetTriple, thinwedgeBinaryName);
+  if (!nativePackage) {
+    throw new Error(
+      `Unable to locate ThinWedge CLI binaries for ${targetTriple}. Ensure ${THINWEDGE_NPM_NAME} is installed with optional dependencies.`,
+    );
+  }
 
-  return binaryPath;
+  return nativePackage;
+}
+
+export function resolveNativePackage(
+  vendorRoot: string,
+  targetTriple: string,
+  thinwedgeBinaryName: string,
+): ThinWedgePathResolution | null {
+  const packageRoot = path.join(vendorRoot, targetTriple);
+  const packageBinaryPath = path.join(packageRoot, "bin", thinwedgeBinaryName);
+  if (isFile(packageBinaryPath) && isFile(path.join(packageRoot, "thinwedge-package.json"))) {
+    return {
+      executablePath: packageBinaryPath,
+      pathDirs: existingDirs(path.join(packageRoot, "thinwedge-path")),
+    };
+  }
+
+  const legacyBinaryPath = path.join(packageRoot, "thinwedge", thinwedgeBinaryName);
+  if (isFile(legacyBinaryPath)) {
+    return {
+      executablePath: legacyBinaryPath,
+      pathDirs: existingDirs(path.join(packageRoot, "path")),
+    };
+  }
+
+  return null;
+}
+
+function existingDirs(...dirs: string[]): string[] {
+  return dirs.filter(isDirectory);
+}
+
+export function prependPathDirs(
+  env: Record<string, string>,
+  pathDirs: string[],
+  platform: NodeJS.Platform = process.platform,
+): void {
+  const pathKey = pathEnvKey(env, platform);
+  if (platform === "win32") {
+    for (const key of Object.keys(env)) {
+      if (key.toLowerCase() === "path" && key !== pathKey) {
+        delete env[key];
+      }
+    }
+  }
+
+  const existingEntries = (env[pathKey] ?? "")
+    .split(path.delimiter)
+    .filter((entry) => entry.length > 0 && !pathDirs.includes(entry));
+  env[pathKey] = [...pathDirs, ...existingEntries].join(path.delimiter);
+}
+
+function pathEnvKey(env: Record<string, string>, platform: NodeJS.Platform): string {
+  if (platform !== "win32") {
+    return "PATH";
+  }
+
+  const matchingKeys = Object.keys(env).filter((key) => key.toLowerCase() === "path");
+  return matchingKeys.includes("Path") ? "Path" : (matchingKeys.at(-1) ?? "PATH");
+}
+
+function isFile(filePath: string): boolean {
+  try {
+    return statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function isDirectory(filePath: string): boolean {
+  try {
+    return statSync(filePath).isDirectory();
+  } catch {
+    return false;
+  }
 }

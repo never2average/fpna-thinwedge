@@ -133,7 +133,7 @@ where
     if total == AUTH_HEADER_PREFIX.len() {
         buf.zeroize();
         return Err(anyhow!(
-            "API key must be provided via stdin (e.g. printenv THINWEDGE_API_KEY | thinwedge responses-api-proxy)"
+            "API key must be provided via stdin (e.g. printenv OPENAI_API_KEY | thinwedge responses-api-proxy)"
         ));
     }
 

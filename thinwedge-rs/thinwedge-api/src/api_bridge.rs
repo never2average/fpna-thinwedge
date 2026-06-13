@@ -2,6 +2,7 @@ use crate::TransportError;
 use crate::error::ApiError;
 use crate::rate_limits::parse_promo_message;
 use crate::rate_limits::parse_rate_limit_for_limit;
+use crate::rate_limits::parse_rate_limit_reached_type;
 use base64::Engine;
 use chrono::DateTime;
 use chrono::Utc;
@@ -87,6 +88,8 @@ pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
                                 parse_rate_limit_for_limit(map, limit_id.as_deref())
                             });
                             let promo_message = headers.as_ref().and_then(parse_promo_message);
+                            let rate_limit_reached_type =
+                                headers.as_ref().and_then(parse_rate_limit_reached_type);
                             let resets_at = err
                                 .error
                                 .resets_at
@@ -96,6 +99,7 @@ pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
                                 resets_at,
                                 rate_limits: rate_limits.map(Box::new),
                                 promo_message,
+                                rate_limit_reached_type,
                             });
                         } else if err.error.error_type.as_deref() == Some("usage_not_included") {
                             return ThinWedgeErr::UsageNotIncluded;
@@ -115,7 +119,7 @@ pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
                         request_id: extract_request_id(headers.as_ref()),
                         identity_authorization_error: extract_header(
                             headers.as_ref(),
-                            X_THINWEDGE_AUTHORIZATION_ERROR_HEADER,
+                            X_OPENAI_AUTHORIZATION_ERROR_HEADER,
                         ),
                         identity_error_code: extract_x_error_json_code(headers.as_ref()),
                     })
@@ -125,7 +129,7 @@ pub fn map_api_error(err: ApiError) -> ThinWedgeErr {
                 status: http::StatusCode::INTERNAL_SERVER_ERROR,
                 request_id: None,
             }),
-            TransportError::Timeout => ThinWedgeErr::Timeout,
+            TransportError::Timeout => ThinWedgeErr::RequestTimeout,
             TransportError::Network(msg) | TransportError::Build(msg) => {
                 ThinWedgeErr::Stream(msg, None)
             }
@@ -138,7 +142,7 @@ const ACTIVE_LIMIT_HEADER: &str = "x-thinwedge-active-limit";
 const REQUEST_ID_HEADER: &str = "x-request-id";
 const OAI_REQUEST_ID_HEADER: &str = "x-oai-request-id";
 const CF_RAY_HEADER: &str = "cf-ray";
-const X_THINWEDGE_AUTHORIZATION_ERROR_HEADER: &str = "x-thinwedge-authorization-error";
+const X_OPENAI_AUTHORIZATION_ERROR_HEADER: &str = "x-openai-authorization-error";
 const X_ERROR_JSON_HEADER: &str = "x-error-json";
 const CYBER_POLICY_ERROR_CODE: &str = "cyber_policy";
 const CYBER_POLICY_FALLBACK_MESSAGE: &str =

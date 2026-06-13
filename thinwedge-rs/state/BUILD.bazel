@@ -3,5 +3,10 @@ load("//:defs.bzl", "thinwedge_rust_crate")
 thinwedge_rust_crate(
     name = "state",
     crate_name = "thinwedge_state",
-    compile_data = glob(["logs_migrations/**", "migrations/**"]),
+    compile_data = glob([
+        "goals_migrations/**",
+        "logs_migrations/**",
+        "memory_migrations/**",
+        "migrations/**",
+    ]),
 )

@@ -78,7 +78,8 @@ fn emit_feedback_request_tags_records_sentry_feedback_fields() {
         .set_default();
 
     let auth_env = AuthEnvTelemetry {
-        thinwedge_api_key_env_present: true,
+        openai_api_key_env_present: true,
+        thinwedge_api_key_env_present: false,
         thinwedge_api_key_env_enabled: true,
         provider_env_key_name: Some("configured".to_string()),
         provider_env_key_present: Some(true),
@@ -119,9 +120,14 @@ fn emit_feedback_request_tags_records_sentry_feedback_fields() {
         Some("\"authorization\"")
     );
     assert_eq!(
-        tags.get("auth_env_thinwedge_api_key_present")
+        tags.get("auth_env_openai_api_key_present")
             .map(String::as_str),
         Some("true")
+    );
+    assert_eq!(
+        tags.get("auth_env_thinwedge_api_key_present")
+            .map(String::as_str),
+        Some("false")
     );
     assert_eq!(
         tags.get("auth_env_thinwedge_api_key_enabled")
@@ -316,6 +322,7 @@ fn emit_feedback_request_tags_preserves_auth_env_fields_for_legacy_emitters() {
         .set_default();
 
     let auth_env = AuthEnvTelemetry {
+        openai_api_key_env_present: true,
         thinwedge_api_key_env_present: true,
         thinwedge_api_key_env_enabled: true,
         provider_env_key_name: Some("configured".to_string()),
@@ -376,6 +383,11 @@ fn emit_feedback_request_tags_preserves_auth_env_fields_for_legacy_emitters() {
         Some("\"\"")
     );
     assert_eq!(
+        tags.get("auth_env_openai_api_key_present")
+            .map(String::as_str),
+        Some("true")
+    );
+    assert_eq!(
         tags.get("auth_env_thinwedge_api_key_present")
             .map(String::as_str),
         Some("true")
@@ -419,42 +431,4 @@ fn normalize_thread_name_trims_and_rejects_empty() {
         normalize_thread_name("  my thread  "),
         Some("my thread".to_string())
     );
-}
-
-#[test]
-fn resume_command_prefers_name_over_id() {
-    let thread_id = ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
-    let command = resume_command(Some("my-thread"), Some(thread_id));
-    assert_eq!(command, Some("thinwedge resume my-thread".to_string()));
-}
-
-#[test]
-fn resume_command_with_only_id() {
-    let thread_id = ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap();
-    let command = resume_command(/*thread_name*/ None, Some(thread_id));
-    assert_eq!(
-        command,
-        Some("thinwedge resume 123e4567-e89b-12d3-a456-426614174000".to_string())
-    );
-}
-
-#[test]
-fn resume_command_with_no_name_or_id() {
-    let command = resume_command(/*thread_name*/ None, /*thread_id*/ None);
-    assert_eq!(command, None);
-}
-
-#[test]
-fn resume_command_quotes_thread_name_when_needed() {
-    let command = resume_command(Some("-starts-with-dash"), /*thread_id*/ None);
-    assert_eq!(
-        command,
-        Some("thinwedge resume -- -starts-with-dash".to_string())
-    );
-
-    let command = resume_command(Some("two words"), /*thread_id*/ None);
-    assert_eq!(command, Some("thinwedge resume 'two words'".to_string()));
-
-    let command = resume_command(Some("quote'case"), /*thread_id*/ None);
-    assert_eq!(command, Some("thinwedge resume \"quote'case\"".to_string()));
 }

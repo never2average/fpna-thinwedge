@@ -11,13 +11,11 @@ pub async fn run_windows_app_open_or_install(
     workspace: PathBuf,
     download_url_override: Option<String>,
 ) -> anyhow::Result<()> {
-    if let Some(app_id) = find_thinwedge_app_id().await? {
-        eprintln!("Opening ThinWedge Desktop...");
-        open_installed_thinwedge_app(&app_id).await?;
-        eprintln!(
-            "In ThinWedge Desktop, open workspace {workspace}.",
-            workspace = display_workspace_path(&workspace)
-        );
+    let workspace_path = workspace.display().to_string();
+    let display_workspace = display_workspace_path(&workspace);
+    if thinwedge_app_is_installed().await? {
+        eprintln!("Opening ThinWedge Desktop workspace {display_workspace}...");
+        open_url(&thinwedge_new_thread_url(&workspace_path)).await?;
         return Ok(());
     }
 
@@ -28,14 +26,11 @@ pub async fn run_windows_app_open_or_install(
     if open_url(download_url).await.is_err() && download_url_override.is_none() {
         open_url(THINWEDGE_MICROSOFT_STORE_WEB_URL).await?;
     }
-    eprintln!(
-        "After installing ThinWedge Desktop, open workspace {workspace}.",
-        workspace = display_workspace_path(&workspace)
-    );
+    eprintln!("After installing ThinWedge Desktop, open workspace {display_workspace}.");
     Ok(())
 }
 
-async fn find_thinwedge_app_id() -> anyhow::Result<Option<String>> {
+async fn thinwedge_app_is_installed() -> anyhow::Result<bool> {
     let output = Command::new("powershell.exe")
         .arg("-NoProfile")
         .arg("-Command")
@@ -45,20 +40,10 @@ async fn find_thinwedge_app_id() -> anyhow::Result<Option<String>> {
         .context("failed to invoke `powershell.exe`")?;
 
     if !output.status.success() {
-        return Ok(None);
+        return Ok(false);
     }
 
-    let app_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if app_id.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(app_id))
-    }
-}
-
-async fn open_installed_thinwedge_app(app_id: &str) -> anyhow::Result<()> {
-    let target = format!("shell:AppsFolder\\{app_id}");
-    open_shell_target(&target).await
+    Ok(!String::from_utf8_lossy(&output.stdout).trim().is_empty())
 }
 
 async fn open_url(url: &str) -> anyhow::Result<()> {
@@ -78,15 +63,11 @@ async fn open_url(url: &str) -> anyhow::Result<()> {
     }
 }
 
-async fn open_shell_target(target: &str) -> anyhow::Result<()> {
-    // Explorer can successfully hand off shell targets and still return exit code 1.
-    let _status = Command::new("explorer.exe")
-        .arg(target)
-        .status()
-        .await
-        .with_context(|| format!("failed to open {target}"))?;
-
-    Ok(())
+fn thinwedge_new_thread_url(workspace: &str) -> String {
+    let mut serializer = url::form_urlencoded::Serializer::new(String::new());
+    serializer.append_pair("path", workspace);
+    let query = serializer.finish();
+    format!("thinwedge://threads/new?{query}")
 }
 
 fn display_workspace_path(workspace: &Path) -> String {
@@ -103,6 +84,7 @@ fn display_workspace_path(workspace: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::display_workspace_path;
+    use super::thinwedge_new_thread_url;
     use pretty_assertions::assert_eq;
     use std::path::Path;
 
@@ -127,6 +109,22 @@ mod tests {
         assert_eq!(
             display_workspace_path(Path::new(r"C:\Users\fcoury\code\thinwedge")),
             r"C:\Users\fcoury\code\thinwedge"
+        );
+    }
+
+    #[test]
+    fn thinwedge_new_thread_url_encodes_windows_workspace_path() {
+        assert_eq!(
+            thinwedge_new_thread_url(r"C:\Users\akuma\repos\koba"),
+            r"thinwedge://threads/new?path=C%3A%5CUsers%5Cakuma%5Crepos%5Ckoba"
+        );
+    }
+
+    #[test]
+    fn thinwedge_new_thread_url_preserves_verbatim_workspace_path() {
+        assert_eq!(
+            thinwedge_new_thread_url(r"\\?\C:\Users\akuma\repos\koba"),
+            r"thinwedge://threads/new?path=%5C%5C%3F%5CC%3A%5CUsers%5Cakuma%5Crepos%5Ckoba"
         );
     }
 }

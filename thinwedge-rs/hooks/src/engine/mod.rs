@@ -4,14 +4,6 @@ pub(crate) mod dispatcher;
 pub(crate) mod output_parser;
 pub(crate) mod schema_loader;
 
-use std::collections::HashMap;
-
-use thinwedge_config::ConfigLayerStack;
-use thinwedge_plugin::PluginHookSource;
-use thinwedge_protocol::protocol::HookRunSummary;
-use thinwedge_protocol::protocol::HookSource;
-use thinwedge_utils_absolute_path::AbsolutePathBuf;
-
 use crate::events::compact::PostCompactRequest;
 use crate::events::compact::PreCompactOutcome;
 use crate::events::compact::PreCompactRequest;
@@ -28,6 +20,17 @@ use crate::events::stop::StopOutcome;
 use crate::events::stop::StopRequest;
 use crate::events::user_prompt_submit::UserPromptSubmitOutcome;
 use crate::events::user_prompt_submit::UserPromptSubmitRequest;
+use crate::output_spill::HookOutputSpiller;
+use std::collections::HashMap;
+use thinwedge_config::ConfigLayerStack;
+use thinwedge_plugin::PluginHookSource;
+use thinwedge_protocol::ThreadId;
+use thinwedge_protocol::protocol::HookEventName;
+use thinwedge_protocol::protocol::HookHandlerType;
+use thinwedge_protocol::protocol::HookRunSummary;
+use thinwedge_protocol::protocol::HookSource;
+use thinwedge_protocol::protocol::HookTrustStatus;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 #[derive(Debug, Clone)]
 pub(crate) struct CommandShell {
@@ -38,7 +41,6 @@ pub(crate) struct CommandShell {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ConfiguredHandler {
     pub event_name: thinwedge_protocol::protocol::HookEventName,
-    pub is_managed: bool,
     pub matcher: Option<String>,
     pub command: String,
     pub timeout_sec: u64,
@@ -68,9 +70,30 @@ impl ConfiguredHandler {
             thinwedge_protocol::protocol::HookEventName::PostCompact => "post-compact",
             thinwedge_protocol::protocol::HookEventName::SessionStart => "session-start",
             thinwedge_protocol::protocol::HookEventName::UserPromptSubmit => "user-prompt-submit",
+            thinwedge_protocol::protocol::HookEventName::SubagentStart => "subagent-start",
+            thinwedge_protocol::protocol::HookEventName::SubagentStop => "subagent-stop",
             thinwedge_protocol::protocol::HookEventName::Stop => "stop",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HookListEntry {
+    pub key: String,
+    pub event_name: HookEventName,
+    pub handler_type: HookHandlerType,
+    pub matcher: Option<String>,
+    pub command: Option<String>,
+    pub timeout_sec: u64,
+    pub status_message: Option<String>,
+    pub source_path: AbsolutePathBuf,
+    pub source: HookSource,
+    pub plugin_id: Option<String>,
+    pub display_order: i64,
+    pub enabled: bool,
+    pub is_managed: bool,
+    pub current_hash: String,
+    pub trust_status: HookTrustStatus,
 }
 
 #[derive(Clone)]
@@ -78,11 +101,13 @@ pub(crate) struct ClaudeHooksEngine {
     handlers: Vec<ConfiguredHandler>,
     warnings: Vec<String>,
     shell: CommandShell,
+    output_spiller: HookOutputSpiller,
 }
 
 impl ClaudeHooksEngine {
     pub(crate) fn new(
         enabled: bool,
+        bypass_hook_trust: bool,
         config_layer_stack: Option<&ConfigLayerStack>,
         plugin_hook_sources: Vec<PluginHookSource>,
         plugin_hook_load_warnings: Vec<String>,
@@ -93,6 +118,7 @@ impl ClaudeHooksEngine {
                 handlers: Vec::new(),
                 warnings: Vec::new(),
                 shell,
+                output_spiller: HookOutputSpiller::new(),
             };
         }
 
@@ -101,11 +127,13 @@ impl ClaudeHooksEngine {
             config_layer_stack,
             plugin_hook_sources,
             plugin_hook_load_warnings,
+            bypass_hook_trust,
         );
         Self {
             handlers: discovered.handlers,
             warnings: discovered.warnings,
             shell,
+            output_spiller: HookOutputSpiller::new(),
         }
     }
 
@@ -138,24 +166,28 @@ impl ClaudeHooksEngine {
         crate::events::post_tool_use::preview(&self.handlers, request)
     }
 
-    pub(crate) fn preview_pre_compact(&self, request: &PreCompactRequest) -> Vec<HookRunSummary> {
-        crate::events::compact::preview_pre(&self.handlers, request)
-    }
-
-    pub(crate) fn preview_post_compact(&self, request: &PostCompactRequest) -> Vec<HookRunSummary> {
-        crate::events::compact::preview_post(&self.handlers, request)
-    }
-
     pub(crate) async fn run_session_start(
         &self,
         request: SessionStartRequest,
         turn_id: Option<String>,
     ) -> SessionStartOutcome {
-        crate::events::session_start::run(&self.handlers, &self.shell, request, turn_id).await
+        let session_id = request.session_id;
+        let mut outcome =
+            crate::events::session_start::run(&self.handlers, &self.shell, request, turn_id).await;
+        outcome.additional_contexts = self
+            .maybe_spill_texts(session_id, outcome.additional_contexts)
+            .await;
+        outcome
     }
 
     pub(crate) async fn run_pre_tool_use(&self, request: PreToolUseRequest) -> PreToolUseOutcome {
-        crate::events::pre_tool_use::run(&self.handlers, &self.shell, request).await
+        let session_id = request.session_id;
+        let mut outcome =
+            crate::events::pre_tool_use::run(&self.handlers, &self.shell, request).await;
+        outcome.additional_contexts = self
+            .maybe_spill_texts(session_id, outcome.additional_contexts)
+            .await;
+        outcome
     }
 
     pub(crate) async fn run_permission_request(
@@ -169,11 +201,28 @@ impl ClaudeHooksEngine {
         &self,
         request: PostToolUseRequest,
     ) -> PostToolUseOutcome {
-        crate::events::post_tool_use::run(&self.handlers, &self.shell, request).await
+        let session_id = request.session_id;
+        let mut outcome =
+            crate::events::post_tool_use::run(&self.handlers, &self.shell, request).await;
+        outcome.additional_contexts = self
+            .maybe_spill_texts(session_id, outcome.additional_contexts)
+            .await;
+        outcome.feedback_message = self
+            .maybe_spill_text(session_id, outcome.feedback_message)
+            .await;
+        outcome
+    }
+
+    pub(crate) fn preview_pre_compact(&self, request: &PreCompactRequest) -> Vec<HookRunSummary> {
+        crate::events::compact::preview_pre(&self.handlers, request)
     }
 
     pub(crate) async fn run_pre_compact(&self, request: PreCompactRequest) -> PreCompactOutcome {
         crate::events::compact::run_pre(&self.handlers, &self.shell, request).await
+    }
+
+    pub(crate) fn preview_post_compact(&self, request: &PostCompactRequest) -> Vec<HookRunSummary> {
+        crate::events::compact::preview_post(&self.handlers, request)
     }
 
     pub(crate) async fn run_post_compact(
@@ -194,7 +243,13 @@ impl ClaudeHooksEngine {
         &self,
         request: UserPromptSubmitRequest,
     ) -> UserPromptSubmitOutcome {
-        crate::events::user_prompt_submit::run(&self.handlers, &self.shell, request).await
+        let session_id = request.session_id;
+        let mut outcome =
+            crate::events::user_prompt_submit::run(&self.handlers, &self.shell, request).await;
+        outcome.additional_contexts = self
+            .maybe_spill_texts(session_id, outcome.additional_contexts)
+            .await;
+        outcome
     }
 
     pub(crate) fn preview_stop(&self, request: &StopRequest) -> Vec<HookRunSummary> {
@@ -202,7 +257,35 @@ impl ClaudeHooksEngine {
     }
 
     pub(crate) async fn run_stop(&self, request: StopRequest) -> StopOutcome {
-        crate::events::stop::run(&self.handlers, &self.shell, request).await
+        let session_id = request.session_id;
+        let mut outcome = crate::events::stop::run(&self.handlers, &self.shell, request).await;
+        outcome.continuation_fragments = self
+            .maybe_spill_prompt_fragments(session_id, outcome.continuation_fragments)
+            .await;
+        outcome
+    }
+
+    async fn maybe_spill_texts(&self, session_id: ThreadId, texts: Vec<String>) -> Vec<String> {
+        self.output_spiller
+            .maybe_spill_texts(session_id, texts)
+            .await
+    }
+
+    async fn maybe_spill_text(&self, session_id: ThreadId, text: Option<String>) -> Option<String> {
+        match text {
+            Some(text) => Some(self.output_spiller.maybe_spill_text(session_id, text).await),
+            None => None,
+        }
+    }
+
+    async fn maybe_spill_prompt_fragments(
+        &self,
+        session_id: ThreadId,
+        fragments: Vec<thinwedge_protocol::items::HookPromptFragment>,
+    ) -> Vec<thinwedge_protocol::items::HookPromptFragment> {
+        self.output_spiller
+            .maybe_spill_prompt_fragments(session_id, fragments)
+            .await
     }
 }
 

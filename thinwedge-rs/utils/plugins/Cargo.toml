@@ -17,6 +17,7 @@ workspace = true
 thinwedge-exec-server = { workspace = true }
 thinwedge-login = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-path-uri = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 

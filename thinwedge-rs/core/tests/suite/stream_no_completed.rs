@@ -1,7 +1,6 @@
 //! Verifies that the agent retries when the SSE stream terminates before
 //! delivering a `response.completed` event.
 
-use core_test_support::load_sse_fixture;
 use core_test_support::responses;
 use core_test_support::skip_if_no_network;
 use core_test_support::streaming_sse::StreamingSseChunk;
@@ -14,12 +13,11 @@ use thinwedge_model_provider_info::WireApi;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::user_input::UserInput;
-use thinwedge_utils_cargo_bin::find_resource;
 
 fn sse_incomplete() -> String {
-    let fixture = find_resource!("tests/fixtures/incomplete_sse.json")
-        .unwrap_or_else(|err| panic!("failed to resolve incomplete_sse fixture: {err}"));
-    load_sse_fixture(fixture)
+    responses::sse(vec![serde_json::json!({
+        "type": "response.output_item.done",
+    })])
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -45,7 +43,7 @@ async fn retries_on_early_close() {
     // environment variables.
 
     let model_provider = ModelProviderInfo {
-        name: "thinwedge".into(),
+        name: "openai".into(),
         base_url: Some(format!("{}/v1", server.uri())),
         // Environment variable that should exist in the test environment.
         // ModelClient will return an error if the environment variable for the
@@ -64,7 +62,7 @@ async fn retries_on_early_close() {
         stream_max_retries: Some(1),
         stream_idle_timeout_ms: Some(2000),
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -78,13 +76,14 @@ async fn retries_on_early_close() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();

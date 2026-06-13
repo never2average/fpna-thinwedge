@@ -12,13 +12,14 @@ use std::sync::atomic::Ordering;
 use tempfile::tempdir;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_login::AuthCredentialsStoreMode;
+use thinwedge_login::AuthKeyringBackendKind;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ExternalAuth;
 use thinwedge_login::ExternalAuthRefreshContext;
 use thinwedge_login::ExternalAuthTokens;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::TokenData;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::openai_models::ModelsResponse;
 
 #[path = "model_info_overrides_tests.rs"]
 mod model_info_overrides_tests;
@@ -100,79 +101,8 @@ impl TestModelsEndpoint {
     fn fetch_count(&self) -> usize {
         self.fetch_count.load(Ordering::SeqCst)
     }
-}
 
-#[derive(Debug)]
-struct TestExternalApiKeyAuth;
-
-#[async_trait]
-impl ExternalAuth for TestExternalApiKeyAuth {
-    fn auth_mode(&self) -> AuthMode {
-        AuthMode::ApiKey
-    }
-
-    async fn resolve(&self) -> std::io::Result<Option<ExternalAuthTokens>> {
-        Ok(Some(ExternalAuthTokens::access_token_only(
-            "test-external-api-key",
-        )))
-    }
-
-    async fn refresh(
-        &self,
-        _context: ExternalAuthRefreshContext,
-    ) -> std::io::Result<ExternalAuthTokens> {
-        Ok(ExternalAuthTokens::access_token_only(
-            "test-external-api-key",
-        ))
-    }
-}
-
-#[derive(Debug)]
-struct TestUnresolvedExternalApiKeyAuth;
-
-#[async_trait]
-impl ExternalAuth for TestUnresolvedExternalApiKeyAuth {
-    fn auth_mode(&self) -> AuthMode {
-        AuthMode::ApiKey
-    }
-
-    async fn refresh(
-        &self,
-        _context: ExternalAuthRefreshContext,
-    ) -> std::io::Result<ExternalAuthTokens> {
-        Err(std::io::Error::other("unresolved test auth"))
-    }
-}
-
-#[async_trait]
-impl ModelsEndpointClient for TestModelsEndpoint {
-    fn has_command_auth(&self) -> bool {
-        self.has_command_auth
-    }
-
-    fn uses_bundled_catalog(&self) -> bool {
-        true
-    }
-
-    async fn uses_thinwedge_backend(&self) -> bool {
-        self.uses_thinwedge_backend
-    }
-
-    async fn supports_remote_refresh(&self) -> bool {
-        self.uses_thinwedge_backend || self.has_command_auth
-    }
-
-    async fn cache_identity(&self) -> ModelsCacheProviderIdentity {
-        ModelsCacheProviderIdentity {
-            name: "test-provider".to_string(),
-            base_url: "https://example.test/v1".to_string(),
-        }
-    }
-
-    async fn list_models(
-        &self,
-        _client_version: &str,
-    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
+    async fn list_models(&self) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
         self.fetch_count.fetch_add(1, Ordering::SeqCst);
         let models = self
             .responses
@@ -184,11 +114,72 @@ impl ModelsEndpointClient for TestModelsEndpoint {
     }
 }
 
-fn thinwedge_manager_for_tests(
+#[derive(Debug)]
+struct TestExternalApiKeyAuth;
+
+impl ExternalAuth for TestExternalApiKeyAuth {
+    fn auth_mode(&self) -> AuthMode {
+        AuthMode::ApiKey
+    }
+
+    fn resolve(&self) -> thinwedge_login::ExternalAuthFuture<'_, Option<ExternalAuthTokens>> {
+        Box::pin(async {
+            Ok(Some(ExternalAuthTokens::access_token_only(
+                "test-external-api-key",
+            )))
+        })
+    }
+
+    fn refresh(
+        &self,
+        _context: ExternalAuthRefreshContext,
+    ) -> thinwedge_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+        Box::pin(async {
+            Ok(ExternalAuthTokens::access_token_only(
+                "test-external-api-key",
+            ))
+        })
+    }
+}
+
+#[derive(Debug)]
+struct TestUnresolvedExternalApiKeyAuth;
+
+impl ExternalAuth for TestUnresolvedExternalApiKeyAuth {
+    fn auth_mode(&self) -> AuthMode {
+        AuthMode::ApiKey
+    }
+
+    fn refresh(
+        &self,
+        _context: ExternalAuthRefreshContext,
+    ) -> thinwedge_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+        Box::pin(async { Err(std::io::Error::other("unresolved test auth")) })
+    }
+}
+
+impl ModelsEndpointClient for TestModelsEndpoint {
+    fn has_command_auth(&self) -> bool {
+        self.has_command_auth
+    }
+
+    fn uses_thinwedge_backend(&self) -> ModelsEndpointFuture<'_, bool> {
+        Box::pin(async { self.uses_thinwedge_backend })
+    }
+
+    fn list_models<'a>(
+        &'a self,
+        _client_version: &'a str,
+    ) -> ModelsEndpointFuture<'a, CoreResult<(Vec<ModelInfo>, Option<String>)>> {
+        Box::pin(TestModelsEndpoint::list_models(self))
+    }
+}
+
+fn openai_manager_for_tests(
     thinwedge_home: std::path::PathBuf,
     endpoint_client: Arc<dyn ModelsEndpointClient>,
-) -> ThinWedgeModelsManager {
-    thinwedge_manager_for_tests_with_auth(
+) -> OpenAiModelsManager {
+    openai_manager_for_tests_with_auth(
         thinwedge_home,
         endpoint_client,
         Some(AuthManager::from_auth_for_testing(
@@ -197,31 +188,22 @@ fn thinwedge_manager_for_tests(
     )
 }
 
-fn thinwedge_manager_for_tests_with_auth(
+fn openai_manager_for_tests_with_auth(
     thinwedge_home: std::path::PathBuf,
     endpoint_client: Arc<dyn ModelsEndpointClient>,
     auth_manager: Option<Arc<AuthManager>>,
-) -> ThinWedgeModelsManager {
-    ThinWedgeModelsManager::new(
-        thinwedge_home,
-        endpoint_client,
-        auth_manager,
-        CollaborationModesConfig::default(),
-    )
+) -> OpenAiModelsManager {
+    OpenAiModelsManager::new(thinwedge_home, endpoint_client, auth_manager)
 }
 
 fn static_manager_for_tests(model_catalog: ModelsResponse) -> StaticModelsManager {
-    StaticModelsManager::new(
-        /*auth_manager*/ None,
-        model_catalog,
-        CollaborationModesConfig::default(),
-    )
+    StaticModelsManager::new(/*auth_manager*/ None, model_catalog)
 }
 
 async fn chatgpt_auth_tokens_for_tests(thinwedge_home: &Path) -> ThinWedgeAuth {
     let auth_dot_json = thinwedge_login::AuthDotJson {
         auth_mode: Some(AuthMode::ChatgptAuthTokens),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(TokenData {
             id_token: thinwedge_login::token_data::parse_chatgpt_jwt_claims(
                 "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.\
@@ -235,6 +217,8 @@ c2ln",
         }),
         last_refresh: Some(Utc::now()),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     std::fs::create_dir_all(thinwedge_home).expect("thinwedge home should be created");
     std::fs::write(
@@ -247,6 +231,7 @@ c2ln",
         thinwedge_home,
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
     )
     .await
     .expect("auth should load")
@@ -257,7 +242,7 @@ c2ln",
 async fn get_model_info_tracks_fallback_usage() {
     let thinwedge_home = tempdir().expect("temp dir");
     let config = ModelsManagerConfig::default();
-    let manager = thinwedge_manager_for_tests(
+    let manager = openai_manager_for_tests(
         thinwedge_home.path().to_path_buf(),
         TestModelsEndpoint::new(Vec::new()),
     );
@@ -320,10 +305,25 @@ async fn get_model_info_matches_namespaced_suffix() {
 }
 
 #[tokio::test]
+async fn get_model_info_matches_hyphenated_provider_namespace_suffix() {
+    let config = ModelsManagerConfig::default();
+    let remote = remote_model("gpt-image", "Image", /*priority*/ 0);
+    let manager = static_manager_for_tests(ModelsResponse {
+        models: vec![remote],
+    });
+    let namespaced_model = "openai-thinwedge/gpt-image".to_string();
+
+    let model_info = manager.get_model_info(&namespaced_model, &config).await;
+
+    assert_eq!(model_info.slug, namespaced_model);
+    assert!(!model_info.used_fallback_model_metadata);
+}
+
+#[tokio::test]
 async fn get_model_info_rejects_multi_segment_namespace_suffix_matching() {
     let thinwedge_home = tempdir().expect("temp dir");
     let config = ModelsManagerConfig::default();
-    let manager = thinwedge_manager_for_tests(
+    let manager = openai_manager_for_tests(
         thinwedge_home.path().to_path_buf(),
         TestModelsEndpoint::new(Vec::new()),
     );
@@ -350,8 +350,7 @@ async fn refresh_available_models_sorts_by_priority() {
     ];
     let thinwedge_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
-    let manager =
-        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -377,12 +376,165 @@ async fn refresh_available_models_sorts_by_priority() {
 }
 
 #[tokio::test]
+async fn refresh_available_models_uses_remote_only_catalog_for_chatgpt_auth() {
+    let remote_models = vec![remote_model(
+        "chatgpt-visible-source-of-truth",
+        "ChatGPT Visible",
+        /*priority*/ 0,
+    )];
+    let thinwedge_home = tempdir().expect("temp dir");
+    let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+
+    manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("refresh succeeds");
+
+    assert_eq!(manager.get_remote_models().await, remote_models);
+    assert_eq!(endpoint.fetch_count(), 1, "expected a single model fetch");
+}
+
+#[tokio::test]
+async fn refresh_available_models_uses_cached_remote_only_catalog_for_chatgpt_auth() {
+    let remote_models = vec![remote_model(
+        "chatgpt-cached-source-of-truth",
+        "ChatGPT Cached",
+        /*priority*/ 0,
+    )];
+    let thinwedge_home = tempdir().expect("temp dir");
+    let fetch_endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
+    let fetch_manager =
+        openai_manager_for_tests(thinwedge_home.path().to_path_buf(), fetch_endpoint.clone());
+
+    fetch_manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("initial refresh succeeds");
+
+    let cache_endpoint = TestModelsEndpoint::new(Vec::new());
+    let cache_manager =
+        openai_manager_for_tests(thinwedge_home.path().to_path_buf(), cache_endpoint.clone());
+
+    cache_manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("cached refresh succeeds");
+
+    assert_eq!(cache_manager.get_remote_models().await, remote_models);
+    assert_eq!(
+        cache_endpoint.fetch_count(),
+        0,
+        "fresh cache should avoid a model fetch"
+    );
+}
+
+#[tokio::test]
+async fn get_model_info_uses_fallback_for_bundled_models_when_chatgpt_remote_is_authoritative() {
+    let remote_models = vec![remote_model(
+        "chatgpt-authoritative-model-info",
+        "ChatGPT Model Info",
+        /*priority*/ 0,
+    )];
+    let thinwedge_home = tempdir().expect("temp dir");
+    let endpoint = TestModelsEndpoint::new(vec![remote_models]);
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint);
+    let bundled_slug = load_remote_models_from_file()
+        .expect("bundled models should parse")
+        .first()
+        .expect("bundled models should contain at least one model")
+        .slug
+        .clone();
+
+    manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("refresh succeeds");
+
+    let model_info = manager
+        .get_model_info(&bundled_slug, &ModelsManagerConfig::default())
+        .await;
+
+    assert_eq!(model_info.slug, bundled_slug);
+    assert!(model_info.used_fallback_model_metadata);
+}
+
+#[tokio::test]
+async fn refresh_available_models_preserves_bundled_catalog_for_empty_chatgpt_remote() {
+    let thinwedge_home = tempdir().expect("temp dir");
+    let endpoint = TestModelsEndpoint::new(vec![Vec::new()]);
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint);
+    let expected = load_remote_models_from_file().expect("bundled models should parse");
+
+    manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("refresh succeeds");
+
+    assert_eq!(manager.get_remote_models().await, expected);
+}
+
+#[tokio::test]
+async fn refresh_available_models_merges_hidden_only_chatgpt_remote_with_bundled_catalog() {
+    let hidden_remote = remote_model_with_visibility(
+        "chatgpt-hidden-only",
+        "ChatGPT Hidden",
+        /*priority*/ 0,
+        "hide",
+    );
+    let thinwedge_home = tempdir().expect("temp dir");
+    let endpoint = TestModelsEndpoint::new(vec![vec![hidden_remote.clone()]]);
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint);
+    let mut expected = load_remote_models_from_file().expect("bundled models should parse");
+    expected.push(hidden_remote);
+
+    manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("refresh succeeds");
+
+    assert_eq!(manager.get_remote_models().await, expected);
+}
+
+#[tokio::test]
+async fn refresh_available_models_keeps_merging_for_api_auth() {
+    let remote_models = vec![remote_model(
+        "api-auth-visible-remote",
+        "API Auth Visible",
+        /*priority*/ 0,
+    )];
+    let thinwedge_home = tempdir().expect("temp dir");
+    let endpoint = Arc::new(TestModelsEndpoint {
+        has_command_auth: true,
+        uses_thinwedge_backend: false,
+        responses: Mutex::new(vec![remote_models.clone()].into()),
+        fetch_count: AtomicUsize::new(0),
+    });
+    let manager = openai_manager_for_tests_with_auth(
+        thinwedge_home.path().to_path_buf(),
+        endpoint.clone(),
+        Some(AuthManager::from_auth_for_testing(
+            ThinWedgeAuth::from_api_key("test-api-key"),
+        )),
+    );
+    let mut expected = load_remote_models_from_file().expect("bundled models should parse");
+    expected.extend(remote_models);
+
+    manager
+        .refresh_available_models(RefreshStrategy::OnlineIfUncached)
+        .await
+        .expect("refresh succeeds");
+
+    assert_eq!(manager.get_remote_models().await, expected);
+    assert_eq!(endpoint.fetch_count(), 1, "expected a single model fetch");
+}
+
+#[tokio::test]
 async fn refresh_available_models_uses_cache_when_fresh() {
     let remote_models = vec![remote_model("cached", "Cached", /*priority*/ 5)];
     let thinwedge_home = tempdir().expect("temp dir");
     let endpoint = TestModelsEndpoint::new(vec![remote_models.clone()]);
-    let manager =
-        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -409,8 +561,7 @@ async fn refresh_available_models_refetches_when_cache_stale() {
     let thinwedge_home = tempdir().expect("temp dir");
     let updated_models = vec![remote_model("fresh", "Fresh", /*priority*/ 9)];
     let endpoint = TestModelsEndpoint::new(vec![initial_models.clone(), updated_models.clone()]);
-    let manager =
-        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -444,8 +595,7 @@ async fn refresh_available_models_refetches_when_version_mismatch() {
     let thinwedge_home = tempdir().expect("temp dir");
     let updated_models = vec![remote_model("new", "New", /*priority*/ 2)];
     let endpoint = TestModelsEndpoint::new(vec![initial_models.clone(), updated_models.clone()]);
-    let manager =
-        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+    let manager = openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
 
     manager
         .refresh_available_models(RefreshStrategy::OnlineIfUncached)
@@ -488,7 +638,7 @@ async fn refresh_available_models_drops_removed_remote_models() {
     )];
     let endpoint = TestModelsEndpoint::new(vec![initial_models, refreshed_models]);
     let mut manager =
-        thinwedge_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
+        openai_manager_for_tests(thinwedge_home.path().to_path_buf(), endpoint.clone());
     manager.cache_manager.set_ttl(Duration::ZERO);
 
     manager
@@ -528,7 +678,7 @@ async fn refresh_available_models_skips_network_without_chatgpt_auth() {
         "No Auth",
         /*priority*/ 1,
     )]]);
-    let manager = thinwedge_manager_for_tests_with_auth(
+    let manager = openai_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         /*auth_manager*/ None,
@@ -571,17 +721,6 @@ impl TestAuthAwareModelsEndpoint {
     fn fetch_count(&self) -> usize {
         self.fetch_count.load(Ordering::SeqCst)
     }
-}
-
-#[async_trait]
-impl ModelsEndpointClient for TestAuthAwareModelsEndpoint {
-    fn has_command_auth(&self) -> bool {
-        false
-    }
-
-    fn uses_bundled_catalog(&self) -> bool {
-        true
-    }
 
     async fn uses_thinwedge_backend(&self) -> bool {
         match self.auth_manager.as_ref() {
@@ -594,24 +733,7 @@ impl ModelsEndpointClient for TestAuthAwareModelsEndpoint {
         }
     }
 
-    async fn supports_remote_refresh(&self) -> bool {
-        self.auth_manager
-            .as_ref()
-            .and_then(|auth_manager| auth_manager.auth_cached())
-            .is_some()
-    }
-
-    async fn cache_identity(&self) -> ModelsCacheProviderIdentity {
-        ModelsCacheProviderIdentity {
-            name: "auth-aware-provider".to_string(),
-            base_url: "https://example.test/v1".to_string(),
-        }
-    }
-
-    async fn list_models(
-        &self,
-        _client_version: &str,
-    ) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
+    async fn list_models(&self) -> CoreResult<(Vec<ModelInfo>, Option<String>)> {
         self.fetch_count.fetch_add(1, Ordering::SeqCst);
         let models = self
             .responses
@@ -620,6 +742,23 @@ impl ModelsEndpointClient for TestAuthAwareModelsEndpoint {
             .pop_front()
             .unwrap_or_default();
         Ok((models, None))
+    }
+}
+
+impl ModelsEndpointClient for TestAuthAwareModelsEndpoint {
+    fn has_command_auth(&self) -> bool {
+        false
+    }
+
+    fn uses_thinwedge_backend(&self) -> ModelsEndpointFuture<'_, bool> {
+        Box::pin(TestAuthAwareModelsEndpoint::uses_thinwedge_backend(self))
+    }
+
+    fn list_models<'a>(
+        &'a self,
+        _client_version: &'a str,
+    ) -> ModelsEndpointFuture<'a, CoreResult<(Vec<ModelInfo>, Option<String>)>> {
+        Box::pin(TestAuthAwareModelsEndpoint::list_models(self))
     }
 }
 
@@ -638,7 +777,7 @@ async fn refresh_available_models_skips_network_when_external_api_key_overrides_
             /*priority*/ 1,
         )]],
     );
-    let manager = thinwedge_manager_for_tests_with_auth(
+    let manager = openai_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         Some(auth_manager),
@@ -678,7 +817,7 @@ async fn refresh_available_models_uses_cached_chatgpt_when_external_api_key_is_u
             /*priority*/ 1,
         )]],
     );
-    let manager = thinwedge_manager_for_tests_with_auth(
+    let manager = openai_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         Some(auth_manager),
@@ -714,7 +853,7 @@ async fn refresh_available_models_fetches_with_chatgpt_auth_tokens() {
         /*priority*/ 1,
     )]]);
     let auth = chatgpt_auth_tokens_for_tests(thinwedge_home.path()).await;
-    let manager = thinwedge_manager_for_tests_with_auth(
+    let manager = openai_manager_for_tests_with_auth(
         thinwedge_home.path().to_path_buf(),
         endpoint.clone(),
         Some(AuthManager::from_auth_for_testing(auth)),
@@ -773,7 +912,6 @@ async fn static_manager_reads_latest_auth_mode() {
         ModelsResponse {
             models: vec![chatgpt_only_model, api_model],
         },
-        CollaborationModesConfig::default(),
     );
 
     let chatgpt_models = manager.list_models(RefreshStrategy::Online).await;

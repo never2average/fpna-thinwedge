@@ -27,7 +27,7 @@ base_url = "http://localhost:11434/v1"
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -39,14 +39,14 @@ base_url = "http://localhost:11434/v1"
 fn test_deserialize_azure_model_provider_toml() {
     let azure_provider_toml = r#"
 name = "Azure"
-base_url = "https://xxxxx.thinwedge.azure.com/thinwedge"
-env_key = "AZURE_THINWEDGE_API_KEY"
+base_url = "https://xxxxx.openai.azure.com/openai"
+env_key = "AZURE_OPENAI_API_KEY"
 query_params = { api-version = "2025-04-01-preview" }
         "#;
     let expected_provider = ModelProviderInfo {
         name: "Azure".into(),
-        base_url: Some("https://xxxxx.thinwedge.azure.com/thinwedge".into()),
-        env_key: Some("AZURE_THINWEDGE_API_KEY".into()),
+        base_url: Some("https://xxxxx.openai.azure.com/openai".into()),
+        env_key: Some("AZURE_OPENAI_API_KEY".into()),
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -61,7 +61,7 @@ query_params = { api-version = "2025-04-01-preview" }
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -98,7 +98,7 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -109,9 +109,9 @@ env_http_headers = { "X-Example-Env-Header" = "EXAMPLE_ENV_VAR" }
 #[test]
 fn test_deserialize_chat_wire_api_shows_helpful_error() {
     let provider_toml = r#"
-name = "ThinWedge using Chat Completions"
-base_url = "https://api.example.invalid/v1"
-env_key = "THINWEDGE_API_KEY"
+name = "OpenAI using Chat Completions"
+base_url = "https://api.openai.com/v1"
+env_key = "OPENAI_API_KEY"
 wire_api = "chat"
         "#;
 
@@ -122,8 +122,8 @@ wire_api = "chat"
 #[test]
 fn test_deserialize_websocket_connect_timeout() {
     let provider_toml = r#"
-name = "ThinWedge"
-base_url = "https://api.example.invalid/v1"
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
 websocket_connect_timeout_ms = 15000
 supports_websockets = true
         "#;
@@ -133,18 +133,27 @@ supports_websockets = true
 }
 
 #[test]
-fn test_supports_remote_compaction_for_thinwedge() {
-    let provider = ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None);
+fn test_supports_remote_compaction_for_openai() {
+    let provider = ModelProviderInfo::create_openai_provider(/*base_url*/ None);
 
     assert!(provider.supports_remote_compaction());
+}
+
+#[test]
+fn test_personal_access_token_uses_chatgpt_thinwedge_base_url() {
+    let api_provider = ModelProviderInfo::create_openai_provider(/*base_url*/ None)
+        .to_api_provider(Some(AuthMode::PersonalAccessToken))
+        .expect("OpenAI provider should build API provider");
+
+    assert_eq!(api_provider.base_url, CHATGPT_THINWEDGE_BASE_URL);
 }
 
 #[test]
 fn test_supports_remote_compaction_for_azure_name() {
     let provider = ModelProviderInfo {
         name: "Azure".into(),
-        base_url: Some("https://example.com/thinwedge".into()),
-        env_key: Some("AZURE_THINWEDGE_API_KEY".into()),
+        base_url: Some("https://example.com/openai".into()),
+        env_key: Some("AZURE_OPENAI_API_KEY".into()),
         env_key_instructions: None,
         experimental_bearer_token: None,
         auth: None,
@@ -157,7 +166,7 @@ fn test_supports_remote_compaction_for_azure_name() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -165,7 +174,7 @@ fn test_supports_remote_compaction_for_azure_name() {
 }
 
 #[test]
-fn test_supports_remote_compaction_for_non_thinwedge_non_azure_provider() {
+fn test_supports_remote_compaction_for_non_openai_non_azure_provider() {
     let provider = ModelProviderInfo {
         name: "Example".into(),
         base_url: Some("https://example.com/v1".into()),
@@ -182,7 +191,7 @@ fn test_supports_remote_compaction_for_non_thinwedge_non_azure_provider() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -245,7 +254,7 @@ fn test_create_amazon_bedrock_provider() {
         ModelProviderInfo::create_amazon_bedrock_provider(/*aws*/ None),
         ModelProviderInfo {
             name: "Amazon Bedrock".to_string(),
-            base_url: Some("https://bedrock-mantle.us-east-1.api.aws/thinwedge/v1".to_string()),
+            base_url: Some("https://bedrock-mantle.us-east-1.api.aws/openai/v1".to_string()),
             env_key: None,
             env_key_instructions: None,
             experimental_bearer_token: None,
@@ -256,53 +265,39 @@ fn test_create_amazon_bedrock_provider() {
             }),
             wire_api: WireApi::Responses,
             query_params: None,
-            http_headers: None,
+            http_headers: Some(maplit::hashmap! {
+                AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_HEADER.to_string() =>
+                    AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_VALUE.to_string(),
+            }),
             env_http_headers: None,
             request_max_retries: None,
             stream_max_retries: None,
             stream_idle_timeout_ms: None,
             websocket_connect_timeout_ms: None,
-            requires_thinwedge_auth: false,
+            requires_openai_auth: false,
             supports_websockets: false,
         }
     );
 }
 
 #[test]
-fn test_create_openrouter_provider_uses_openrouter_api_key() {
+fn test_amazon_bedrock_provider_adds_mantle_client_agent_header() {
+    let api_provider = ModelProviderInfo::create_amazon_bedrock_provider(/*aws*/ None)
+        .to_api_provider(/*auth_mode*/ None)
+        .expect("Amazon Bedrock provider should build API provider");
+
     assert_eq!(
-        ModelProviderInfo::create_openrouter_provider(),
-        ModelProviderInfo {
-            name: "OpenRouter".to_string(),
-            base_url: Some("https://openrouter.ai/api/v1".to_string()),
-            env_key: Some("OPENROUTER_API_KEY".to_string()),
-            env_key_instructions: Some(
-                "Set OPENROUTER_API_KEY to an OpenRouter API key.".to_string(),
-            ),
-            experimental_bearer_token: None,
-            auth: None,
-            aws: None,
-            wire_api: WireApi::Responses,
-            query_params: None,
-            http_headers: Some(
-                [("version".to_string(), env!("CARGO_PKG_VERSION").to_string())]
-                    .into_iter()
-                    .collect(),
-            ),
-            env_http_headers: None,
-            request_max_retries: None,
-            stream_max_retries: None,
-            stream_idle_timeout_ms: None,
-            websocket_connect_timeout_ms: None,
-            requires_thinwedge_auth: false,
-            supports_websockets: false,
-        }
+        api_provider
+            .headers
+            .get(AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_HEADER)
+            .and_then(|value| value.to_str().ok()),
+        Some(AMAZON_BEDROCK_MANTLE_CLIENT_AGENT_VALUE)
     );
 }
 
 #[test]
 fn test_built_in_model_providers_include_amazon_bedrock() {
-    let providers = built_in_model_providers(/*thinwedge_base_url*/ None);
+    let providers = built_in_model_providers(/*openai_base_url*/ None);
 
     assert_eq!(
         providers
@@ -322,12 +317,12 @@ fn test_merge_configured_model_providers_adds_custom_provider() {
     let configured_model_providers =
         std::collections::HashMap::from([("custom".to_string(), custom_provider.clone())]);
 
-    let mut expected = built_in_model_providers(/*thinwedge_base_url*/ None);
+    let mut expected = built_in_model_providers(/*openai_base_url*/ None);
     expected.insert("custom".to_string(), custom_provider);
 
     assert_eq!(
         merge_configured_model_providers(
-            built_in_model_providers(/*thinwedge_base_url*/ None),
+            built_in_model_providers(/*openai_base_url*/ None),
             configured_model_providers,
         ),
         Ok(expected)
@@ -347,7 +342,7 @@ fn test_merge_configured_model_providers_applies_amazon_bedrock_profile_override
         },
     )]);
 
-    let mut expected = built_in_model_providers(/*thinwedge_base_url*/ None);
+    let mut expected = built_in_model_providers(/*openai_base_url*/ None);
     expected
         .get_mut(AMAZON_BEDROCK_PROVIDER_ID)
         .expect("Amazon Bedrock provider should be built in")
@@ -358,7 +353,7 @@ fn test_merge_configured_model_providers_applies_amazon_bedrock_profile_override
 
     assert_eq!(
         merge_configured_model_providers(
-            built_in_model_providers(/*thinwedge_base_url*/ None),
+            built_in_model_providers(/*openai_base_url*/ None),
             configured_model_providers,
         ),
         Ok(expected)
@@ -381,7 +376,7 @@ fn test_merge_configured_model_providers_rejects_amazon_bedrock_non_default_fiel
 
     assert_eq!(
         merge_configured_model_providers(
-            built_in_model_providers(/*thinwedge_base_url*/ None),
+            built_in_model_providers(/*openai_base_url*/ None),
             configured_model_providers,
         ),
         Err(
@@ -407,10 +402,10 @@ fn test_merge_configured_model_providers_allows_amazon_bedrock_default_fields() 
 
     assert_eq!(
         merge_configured_model_providers(
-            built_in_model_providers(/*thinwedge_base_url*/ None),
+            built_in_model_providers(/*openai_base_url*/ None),
             configured_model_providers,
         ),
-        Ok(built_in_model_providers(/*thinwedge_base_url*/ None))
+        Ok(built_in_model_providers(/*openai_base_url*/ None))
     );
 }
 
@@ -423,12 +418,12 @@ fn test_validate_provider_aws_rejects_conflicting_auth() {
         }),
         env_key: Some("AWS_BEARER_TOKEN_BEDROCK".to_string()),
         supports_websockets: false,
-        ..ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None)
+        ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
     };
 
     assert_eq!(
         provider.validate(),
-        Err("provider aws cannot be combined with env_key, requires_thinwedge_auth".to_string())
+        Err("provider aws cannot be combined with env_key, requires_openai_auth".to_string())
     );
 }
 
@@ -439,9 +434,9 @@ fn test_validate_provider_aws_rejects_websockets() {
             profile: None,
             region: None,
         }),
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: true,
-        ..ModelProviderInfo::create_thinwedge_provider(/*base_url*/ None)
+        ..ModelProviderInfo::create_openai_provider(/*base_url*/ None)
     };
 
     assert_eq!(

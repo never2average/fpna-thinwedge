@@ -2,12 +2,12 @@
 
 Embed the ThinWedge agent in your workflows and apps.
 
-The TypeScript SDK wraps the `thinwedge` CLI from `@thinwedge/thinwedge`. It spawns the CLI and exchanges JSONL events over stdin/stdout.
+The TypeScript SDK wraps the `thinwedge` CLI from `@openai/thinwedge`. It spawns the CLI and exchanges JSONL events over stdin/stdout.
 
 ## Installation
 
 ```bash
-npm install @thinwedge/thinwedge-sdk
+npm install @openai/thinwedge-sdk
 ```
 
 Requires Node.js 18+.
@@ -15,7 +15,7 @@ Requires Node.js 18+.
 ## Quickstart
 
 ```typescript
-import { ThinWedge } from "@thinwedge/thinwedge-sdk";
+import { ThinWedge } from "@openai/thinwedge-sdk";
 
 const thinwedge = new ThinWedge();
 const thread = thinwedge.startThread();
@@ -69,7 +69,7 @@ const turn = await thread.run("Summarize repository status", { outputSchema: sch
 console.log(turn.finalResponse);
 ```
 
-You can also create a JSON schema from a [Zod schema](https://github.com/colinhacks/zod) using the [`zod-to-json-schema`](https://www.npmjs.com/package/zod-to-json-schema) package and setting the `target` to `"thinwedgeAi"`.
+You can also create a JSON schema from a [Zod schema](https://github.com/colinhacks/zod) using the [`zod-to-json-schema`](https://www.npmjs.com/package/zod-to-json-schema) package and setting the `target` to `"openAi"`.
 
 ```typescript
 const schema = z.object({
@@ -78,7 +78,7 @@ const schema = z.object({
 });
 
 const turn = await thread.run("Summarize repository status", {
-  outputSchema: zodToJsonSchema(schema, { target: "thinwedgeAi" }),
+  outputSchema: zodToJsonSchema(schema, { target: "openAi" }),
 });
 console.log(turn.finalResponse);
 ```
@@ -130,7 +130,7 @@ const thinwedge = new ThinWedge({
 ```
 
 The SDK still injects its required variables (such as `THINWEDGE_API_KEY`) on top of the environment you provide. If you set
-`baseUrl`, the SDK passes it as a `--config thinwedge_base_url=...` override.
+`baseUrl`, the SDK passes it as a `--config openai_base_url=...` override.
 
 ### Passing `--config` overrides
 

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -60,7 +60,7 @@ async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
     write_installed_marketplace(thinwedge_home.path(), "debug")?;
     let installed_root = marketplace_install_root(thinwedge_home.path()).join("debug");
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -98,7 +98,7 @@ async fn marketplace_remove_deletes_config_and_installed_root() -> Result<()> {
 async fn marketplace_remove_rejects_unknown_marketplace() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

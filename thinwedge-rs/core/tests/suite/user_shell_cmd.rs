@@ -10,6 +10,7 @@ use core_test_support::responses::mount_sse_once;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
+use core_test_support::test_thinwedge::local_selections;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
@@ -168,30 +169,35 @@ async fn user_shell_command_does_not_replace_active_turn() -> anyhow::Result<()>
     ]);
     let mock = responses::mount_sse_sequence(&server, vec![first, second]).await;
 
-    let cwd = fixture.cwd.path().to_path_buf();
+    let cwd = fixture.config.cwd.clone();
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::Disabled, cwd.as_path());
 
     fixture
         .thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "run model shell command".to_string(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
-            cwd,
-            approval_policy: AskForApproval::Never,
-            approvals_reviewer: None,
-            sandbox_policy,
-            permission_profile,
-            model: fixture.session_configured.model.clone(),
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(cwd)),
+                approval_policy: Some(AskForApproval::Never),
+                sandbox_policy: Some(sandbox_policy),
+                permission_profile,
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: fixture.session_configured.model.clone(),
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await?;
 
@@ -348,11 +354,13 @@ async fn user_shell_command_does_not_set_network_sandbox_env_var() -> anyhow::Re
     let server = responses::start_mock_server().await;
     let mut builder = core_test_support::test_thinwedge::test_thinwedge().with_config(|config| {
         let file_system_sandbox_policy = config.permissions.file_system_sandbox_policy();
-        config.permissions.permission_profile =
-            thinwedge_config::Constrained::allow_any(PermissionProfile::from_runtime_permissions(
+        config
+            .permissions
+            .set_permission_profile(PermissionProfile::from_runtime_permissions(
                 &file_system_sandbox_policy,
                 NetworkSandboxPolicy::Restricted,
-            ));
+            ))
+            .expect("set permission profile");
     });
     let test = builder.build(&server).await?;
 

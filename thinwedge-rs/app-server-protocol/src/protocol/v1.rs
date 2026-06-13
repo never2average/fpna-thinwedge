@@ -9,6 +9,7 @@ use thinwedge_protocol::config_types::ForcedLoginMethod;
 use thinwedge_protocol::config_types::ReasoningSummary;
 use thinwedge_protocol::config_types::SandboxMode;
 use thinwedge_protocol::config_types::Verbosity;
+use thinwedge_protocol::openai_models::ReasoningEffort;
 use thinwedge_protocol::parse_command::ParsedCommand;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::protocol::FileChange;
@@ -17,11 +18,11 @@ use thinwedge_protocol::protocol::ReviewDecision;
 use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::TurnAbortReason;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use ts_rs::TS;
 
 use crate::protocol::common::AuthMode;
+use crate::protocol::v2::ForcedChatgptWorkspaceIds;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
@@ -46,6 +47,9 @@ pub struct InitializeCapabilities {
     /// Opt into receiving experimental API methods and fields.
     #[serde(default)]
     pub experimental_api: bool,
+    /// Opt into `attestation/generate` requests for upstream `x-oai-attestation`.
+    #[serde(default)]
+    pub request_attestation: bool,
     /// Exact notification method names that should be suppressed for this
     /// connection (for example `thread/started`).
     #[ts(optional = nullable)]
@@ -189,7 +193,7 @@ pub struct ExecOneOffCommandParams {
 pub struct GetAuthStatusResponse {
     pub auth_method: Option<AuthMode>,
     pub auth_token: Option<String>,
-    pub requires_thinwedge_auth: Option<bool>,
+    pub requires_openai_auth: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Serialize, JsonSchema, TS)]
@@ -198,34 +202,19 @@ pub struct UserSavedConfig {
     pub approval_policy: Option<AskForApproval>,
     pub sandbox_mode: Option<SandboxMode>,
     pub sandbox_settings: Option<SandboxSettings>,
-    pub forced_chatgpt_workspace_id: Option<String>,
+    pub forced_chatgpt_workspace_id: Option<ForcedChatgptWorkspaceIds>,
     pub forced_login_method: Option<ForcedLoginMethod>,
     pub model: Option<String>,
     pub model_reasoning_effort: Option<ReasoningEffort>,
     pub model_reasoning_summary: Option<ReasoningSummary>,
     pub model_verbosity: Option<Verbosity>,
     pub tools: Option<Tools>,
-    pub profile: Option<String>,
-    pub profiles: HashMap<String, Profile>,
-}
-
-#[derive(Deserialize, Debug, Clone, PartialEq, Serialize, JsonSchema, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct Profile {
-    pub model: Option<String>,
-    pub model_provider: Option<String>,
-    pub approval_policy: Option<AskForApproval>,
-    pub model_reasoning_effort: Option<ReasoningEffort>,
-    pub model_reasoning_summary: Option<ReasoningSummary>,
-    pub model_verbosity: Option<Verbosity>,
-    pub chatgpt_base_url: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Serialize, JsonSchema, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Tools {
     pub web_search: Option<bool>,
-    pub view_image: Option<bool>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Serialize, JsonSchema, TS)]

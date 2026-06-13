@@ -64,7 +64,7 @@ async fn continue_after_stream_error() {
     // server. Use an existing env var (PATH) to satisfy the auth plumbing
     // without requiring a real secret.
     let provider = ModelProviderInfo {
-        name: "mock-thinwedge".into(),
+        name: "mock-openai".into(),
         base_url: Some(format!("{}/v1", server.uri())),
         env_key: Some("PATH".into()),
         env_key_instructions: None,
@@ -79,7 +79,7 @@ async fn continue_after_stream_error() {
         stream_max_retries: Some(1),
         stream_idle_timeout_ms: Some(2_000),
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -94,13 +94,14 @@ async fn continue_after_stream_error() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "first message".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -115,13 +116,14 @@ async fn continue_after_stream_error() {
     // error above, this submission would be rejected/queued indefinitely.
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "follow up".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();

@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use async_trait::async_trait;
 use bytes::Bytes;
 use futures::StreamExt;
 use http::HeaderMap;
@@ -32,7 +31,6 @@ impl FixtureSseTransport {
     }
 }
 
-#[async_trait]
 impl HttpTransport for FixtureSseTransport {
     async fn execute(&self, _req: Request) -> Result<Response, TransportError> {
         Err(TransportError::Build("execute should not run".to_string()))
@@ -117,7 +115,7 @@ async fn responses_stream_parses_items_and_completed_end_to_end() -> Result<()> 
 
     let body = build_responses_body(vec![item1, item2, completed]);
     let transport = FixtureSseTransport::new(body);
-    let client = ResponsesClient::new(transport, provider("thinwedge"), Arc::new(NoAuth));
+    let client = ResponsesClient::new(transport, provider("openai"), Arc::new(NoAuth));
 
     let mut stream = client
         .stream(

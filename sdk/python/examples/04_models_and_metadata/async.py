@@ -11,7 +11,7 @@ ensure_local_sdk_src()
 
 import asyncio
 
-from thinwedge_app_server import AsyncThinWedge
+from openai_thinwedge import AsyncThinWedge
 
 
 async def main() -> None:
@@ -19,7 +19,7 @@ async def main() -> None:
         print("server:", server_label(thinwedge.metadata))
         models = await thinwedge.models()
         print("models.count:", len(models.data))
-        print("models:", ", ".join(model.id for model in models.data[:5]) or "[none]")
+        print("models:", ", ".join(model.id for model in models.data[:5]))
 
 
 if __name__ == "__main__":

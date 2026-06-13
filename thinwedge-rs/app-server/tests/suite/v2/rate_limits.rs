@@ -1,6 +1,6 @@
 use anyhow::Result;
 use app_test_support::ChatGptAuthFixture;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use pretty_assertions::assert_eq;
@@ -19,6 +19,7 @@ use thinwedge_app_server_protocol::RateLimitWindow;
 use thinwedge_app_server_protocol::RequestId;
 use thinwedge_app_server_protocol::SendAddCreditsNudgeEmailParams;
 use thinwedge_app_server_protocol::SendAddCreditsNudgeEmailResponse;
+use thinwedge_app_server_protocol::SpendControlLimitSnapshot;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_protocol::account::PlanType as AccountPlanType;
 use tokio::time::timeout;
@@ -38,7 +39,7 @@ async fn get_account_rate_limits_requires_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_get_account_rate_limits_request().await?;
@@ -63,7 +64,7 @@ async fn get_account_rate_limits_requires_auth() -> Result<()> {
 async fn get_account_rate_limits_requires_chatgpt_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key(&mut mcp, "sk-test-key").await?;
@@ -128,6 +129,19 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
         "rate_limit_reached_type": {
             "type": "workspace_member_usage_limit_reached",
         },
+        "spend_control": {
+            "reached": false,
+            "individual_limit": {
+                "source": "workspace_spend_controls",
+                "limit": "25000",
+                "used": "8000",
+                "remaining": "17000",
+                "used_percent": 32,
+                "remaining_percent": 68,
+                "reset_after_seconds": 43200,
+                "reset_at": secondary_reset_timestamp,
+            }
+        },
         "additional_rate_limits": [
             {
                 "limit_name": "thinwedge_other",
@@ -155,7 +169,7 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
         .await;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp.send_get_account_rate_limits_request().await?;
@@ -183,6 +197,12 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
                 resets_at: Some(secondary_reset_timestamp),
             }),
             credits: None,
+            individual_limit: Some(SpendControlLimitSnapshot {
+                limit: "25000".to_string(),
+                used: "8000".to_string(),
+                remaining_percent: 68,
+                resets_at: secondary_reset_timestamp,
+            }),
             plan_type: Some(AccountPlanType::Pro),
             rate_limit_reached_type: Some(RateLimitReachedType::WorkspaceMemberUsageLimitReached),
         },
@@ -204,6 +224,12 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
                             resets_at: Some(secondary_reset_timestamp),
                         }),
                         credits: None,
+                        individual_limit: Some(SpendControlLimitSnapshot {
+                            limit: "25000".to_string(),
+                            used: "8000".to_string(),
+                            remaining_percent: 68,
+                            resets_at: secondary_reset_timestamp,
+                        }),
                         plan_type: Some(AccountPlanType::Pro),
                         rate_limit_reached_type: Some(
                             RateLimitReachedType::WorkspaceMemberUsageLimitReached,
@@ -222,6 +248,7 @@ async fn get_account_rate_limits_returns_snapshot() -> Result<()> {
                         }),
                         secondary: None,
                         credits: None,
+                        individual_limit: None,
                         plan_type: Some(AccountPlanType::Pro),
                         rate_limit_reached_type: None,
                     },
@@ -241,7 +268,7 @@ async fn send_add_credits_nudge_email_requires_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -270,7 +297,7 @@ async fn send_add_credits_nudge_email_requires_auth() -> Result<()> {
 async fn send_add_credits_nudge_email_requires_chatgpt_auth() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key(&mut mcp, "sk-test-key").await?;
@@ -325,7 +352,7 @@ async fn send_add_credits_nudge_email_posts_expected_body() -> Result<()> {
         .await;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -369,7 +396,7 @@ async fn send_add_credits_nudge_email_maps_cooldown() -> Result<()> {
         .await;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -413,7 +440,7 @@ async fn send_add_credits_nudge_email_surfaces_backend_failure() -> Result<()> {
         .await;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -443,7 +470,7 @@ async fn send_add_credits_nudge_email_surfaces_backend_failure() -> Result<()> {
     Ok(())
 }
 
-async fn login_with_api_key(mcp: &mut McpProcess, api_key: &str) -> Result<()> {
+async fn login_with_api_key(mcp: &mut TestAppServer, api_key: &str) -> Result<()> {
     let request_id = mcp.send_login_account_api_key_request(api_key).await?;
     let response: JSONRPCResponse = timeout(
         DEFAULT_READ_TIMEOUT,

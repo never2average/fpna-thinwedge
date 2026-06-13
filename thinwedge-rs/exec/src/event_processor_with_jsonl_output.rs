@@ -20,7 +20,6 @@ use thinwedge_protocol::protocol::SessionConfiguredEvent;
 
 use crate::event_processor::EventProcessor;
 pub use crate::event_processor::ThinWedgeStatus;
-pub use crate::event_processor::ThinWedgeStatus as CodexStatus;
 use crate::event_processor::handle_last_message;
 use crate::exec_events::AgentMessageItem;
 use crate::exec_events::CollabAgentState;
@@ -76,7 +75,7 @@ struct RunningTodoList {
 #[derive(Debug, PartialEq)]
 pub struct CollectedThreadEvents {
     pub events: Vec<ThreadEvent>,
-    pub status: CodexStatus,
+    pub status: ThinWedgeStatus,
 }
 
 impl EventProcessorWithJsonOutput {
@@ -171,9 +170,7 @@ impl EventProcessorWithJsonOutput {
                     aggregated_output: aggregated_output.unwrap_or_default(),
                     exit_code,
                     status: match status {
-                        CommandExecutionStatus::InProgress => {
-                            ExecCommandExecutionStatus::InProgress
-                        }
+                        CommandExecutionStatus::InProgress => ExecCommandExecutionStatus::InProgress,
                         CommandExecutionStatus::Completed => ExecCommandExecutionStatus::Completed,
                         CommandExecutionStatus::Failed => ExecCommandExecutionStatus::Failed,
                         CommandExecutionStatus::Declined => ExecCommandExecutionStatus::Declined,
@@ -226,6 +223,7 @@ impl EventProcessorWithJsonOutput {
                     arguments,
                     result: result.map(|result| McpToolCallItemResult {
                         content: result.content,
+                        meta: result.meta,
                         structured_content: result.structured_content,
                     }),
                     error: error.map(|error| McpToolCallItemError {
@@ -257,32 +255,35 @@ impl EventProcessorWithJsonOutput {
                     agents_states: agents_states
                         .into_iter()
                         .map(|(thread_id, state)| {
-                            (thread_id, CollabAgentState {
-                                status: match state.status {
-                                    thinwedge_app_server_protocol::CollabAgentStatus::PendingInit => {
-                                        CollabAgentStatus::PendingInit
-                                    }
-                                    thinwedge_app_server_protocol::CollabAgentStatus::Running => {
-                                        CollabAgentStatus::Running
-                                    }
-                                    thinwedge_app_server_protocol::CollabAgentStatus::Interrupted => {
-                                        CollabAgentStatus::Interrupted
-                                    }
-                                    thinwedge_app_server_protocol::CollabAgentStatus::Completed => {
-                                        CollabAgentStatus::Completed
-                                    }
-                                    thinwedge_app_server_protocol::CollabAgentStatus::Errored => {
-                                        CollabAgentStatus::Errored
-                                    }
-                                    thinwedge_app_server_protocol::CollabAgentStatus::Shutdown => {
-                                        CollabAgentStatus::Shutdown
-                                    }
-                                    thinwedge_app_server_protocol::CollabAgentStatus::NotFound => {
-                                        CollabAgentStatus::NotFound
-                                    }
+                            (
+                                thread_id,
+                                CollabAgentState {
+                                    status: match state.status {
+                                        thinwedge_app_server_protocol::CollabAgentStatus::PendingInit => {
+                                            CollabAgentStatus::PendingInit
+                                        }
+                                        thinwedge_app_server_protocol::CollabAgentStatus::Running => {
+                                            CollabAgentStatus::Running
+                                        }
+                                        thinwedge_app_server_protocol::CollabAgentStatus::Interrupted => {
+                                            CollabAgentStatus::Interrupted
+                                        }
+                                        thinwedge_app_server_protocol::CollabAgentStatus::Completed => {
+                                            CollabAgentStatus::Completed
+                                        }
+                                        thinwedge_app_server_protocol::CollabAgentStatus::Errored => {
+                                            CollabAgentStatus::Errored
+                                        }
+                                        thinwedge_app_server_protocol::CollabAgentStatus::Shutdown => {
+                                            CollabAgentStatus::Shutdown
+                                        }
+                                        thinwedge_app_server_protocol::CollabAgentStatus::NotFound => {
+                                            CollabAgentStatus::NotFound
+                                        }
+                                    },
+                                    message: state.message,
                                 },
-                                message: state.message,
-                            })
+                            )
                         })
                         .collect(),
                     status: match status {
@@ -392,7 +393,7 @@ impl EventProcessorWithJsonOutput {
 
     pub fn thread_started_event(session_configured: &SessionConfiguredEvent) -> ThreadEvent {
         ThreadEvent::ThreadStarted(ThreadStartedEvent {
-            thread_id: session_configured.session_id.to_string(),
+            thread_id: session_configured.thread_id.to_string(),
         })
     }
 
@@ -404,7 +405,7 @@ impl EventProcessorWithJsonOutput {
                     details: ThreadItemDetails::Error(ErrorItem { message }),
                 },
             })],
-            status: CodexStatus::Running,
+            status: ThinWedgeStatus::Running,
         }
     }
 
@@ -427,7 +428,12 @@ impl EventProcessorWithJsonOutput {
                         details: ThreadItemDetails::Error(ErrorItem { message }),
                     },
                 }));
-                CodexStatus::Running
+                ThinWedgeStatus::Running
+            }
+            ServerNotification::Warning(notification) => {
+                let warning = self.collect_warning(notification.message);
+                events.extend(warning.events);
+                warning.status
             }
             ServerNotification::Error(notification) => {
                 let message = match notification.error.additional_details {
@@ -439,7 +445,7 @@ impl EventProcessorWithJsonOutput {
                 let error = ThreadErrorEvent { message };
                 self.last_critical_error = Some(error.clone());
                 events.push(ThreadEvent::Error(error));
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::DeprecationNotice(notification) => {
                 let message = match notification.details {
@@ -454,16 +460,16 @@ impl EventProcessorWithJsonOutput {
                         details: ThreadItemDetails::Error(ErrorItem { message }),
                     },
                 }));
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::HookStarted(_) | ServerNotification::HookCompleted(_) => {
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::ItemStarted(notification) => {
                 if let Some(item) = self.map_started_item(notification.item) {
                     events.push(ThreadEvent::ItemStarted(ItemStartedEvent { item }));
                 }
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::ItemCompleted(notification) => {
                 if let Some(item) = self.map_completed_item_mut(notification.item) {
@@ -474,7 +480,7 @@ impl EventProcessorWithJsonOutput {
                     }
                     events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent { item }));
                 }
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::ModelRerouted(notification) => {
                 events.push(ThreadEvent::ItemCompleted(ItemCompletedEvent {
@@ -488,12 +494,12 @@ impl EventProcessorWithJsonOutput {
                         }),
                     },
                 }));
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
-            ServerNotification::ModelVerification(_) => CodexStatus::Running,
+            ServerNotification::ModelVerification(_) => ThinWedgeStatus::Running,
             ServerNotification::ThreadTokenUsageUpdated(notification) => {
                 self.last_total_token_usage = Some(notification.token_usage);
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::TurnCompleted(notification) => {
                 if let Some(running) = self.running_todo_list.take() {
@@ -518,7 +524,7 @@ impl EventProcessorWithJsonOutput {
                         events.push(ThreadEvent::TurnCompleted(TurnCompletedEvent {
                             usage: self.usage_from_last_total(),
                         }));
-                        CodexStatus::InitiateShutdown
+                        ThinWedgeStatus::InitiateShutdown
                     }
                     TurnStatus::Failed => {
                         self.final_message = None;
@@ -539,17 +545,17 @@ impl EventProcessorWithJsonOutput {
                                 message: "turn failed".to_string(),
                             });
                         events.push(ThreadEvent::TurnFailed(TurnFailedEvent { error }));
-                        CodexStatus::InitiateShutdown
+                        ThinWedgeStatus::InitiateShutdown
                     }
                     TurnStatus::Interrupted => {
                         self.final_message = None;
                         self.emit_final_message_on_shutdown = false;
-                        CodexStatus::InitiateShutdown
+                        ThinWedgeStatus::InitiateShutdown
                     }
-                    TurnStatus::InProgress => CodexStatus::Running,
+                    TurnStatus::InProgress => ThinWedgeStatus::Running,
                 }
             }
-            ServerNotification::TurnDiffUpdated(_) => CodexStatus::Running,
+            ServerNotification::TurnDiffUpdated(_) => ThinWedgeStatus::Running,
             ServerNotification::TurnPlanUpdated(notification) => {
                 let items = Self::map_todo_items(&notification.plan);
                 if let Some(running) = self.running_todo_list.as_mut() {
@@ -574,13 +580,13 @@ impl EventProcessorWithJsonOutput {
                         },
                     }));
                 }
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
             ServerNotification::TurnStarted(_) => {
                 events.push(ThreadEvent::TurnStarted(TurnStartedEvent {}));
-                CodexStatus::Running
+                ThinWedgeStatus::Running
             }
-            _ => CodexStatus::Running,
+            _ => ThinWedgeStatus::Running,
         };
 
         CollectedThreadEvents { events, status }
@@ -597,7 +603,7 @@ impl EventProcessor for EventProcessorWithJsonOutput {
         self.emit(Self::thread_started_event(session_configured));
     }
 
-    fn process_server_notification(&mut self, notification: ServerNotification) -> CodexStatus {
+    fn process_server_notification(&mut self, notification: ServerNotification) -> ThinWedgeStatus {
         let collected = self.collect_thread_events(notification);
         for event in collected.events {
             self.emit(event);
@@ -605,7 +611,7 @@ impl EventProcessor for EventProcessorWithJsonOutput {
         collected.status
     }
 
-    fn process_warning(&mut self, message: String) -> CodexStatus {
+    fn process_warning(&mut self, message: String) -> ThinWedgeStatus {
         let collected = self.collect_warning(message);
         for event in collected.events {
             self.emit(event);

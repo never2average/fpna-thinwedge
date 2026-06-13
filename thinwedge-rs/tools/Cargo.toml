@@ -11,9 +11,13 @@ workspace = true
 thinwedge-app-server-protocol = { workspace = true }
 thinwedge-code-mode = { workspace = true }
 thinwedge-features = { workspace = true }
+thinwedge-file-system = { workspace = true }
 thinwedge-protocol = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-output-truncation = { workspace = true }
 thinwedge-utils-pty = { workspace = true }
+thinwedge-utils-string = { workspace = true }
+jsonptr = { workspace = true }
 rmcp = { workspace = true, default-features = false, features = [
     "base64",
     "macros",
@@ -22,7 +26,13 @@ rmcp = { workspace = true, default-features = false, features = [
 ] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
+thinwedge-utils-cargo-bin = { workspace = true }
 pretty_assertions = { workspace = true }
+
+[lib]
+doctest = false

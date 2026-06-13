@@ -8,8 +8,8 @@
 use std::time::Duration;
 use std::time::Instant;
 
+use thinwedge_app_server_protocol::CommandExecutionSource as ExecCommandSource;
 use thinwedge_protocol::parse_command::ParsedCommand;
-use thinwedge_protocol::protocol::ExecCommandSource;
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct CommandOutput {

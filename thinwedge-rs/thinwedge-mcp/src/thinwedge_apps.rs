@@ -1,11 +1,10 @@
-//! ThinWedge Apps support for the built-in apps MCP server.
+//! ThinWedge Apps support for the host-owned apps MCP server.
 //!
 //! This module owns the pieces that are unique to ChatGPT-hosted app
 //! connectors: cache scoping by authenticated user, disk cache reads/writes,
 //! connector allow-list filtering, and the normalization that turns app
 //! connector/tool metadata into model-visible MCP callable names.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -13,15 +12,15 @@ use crate::mcp::THINWEDGE_APPS_MCP_SERVER_NAME;
 use crate::runtime::emit_duration;
 use crate::tools::MCP_TOOLS_CACHE_WRITE_DURATION_METRIC;
 use crate::tools::ToolInfo;
+use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
 use sha1::Digest;
 use sha1::Sha1;
 use thinwedge_login::ThinWedgeAuth;
+use thinwedge_protocol::mcp::McpServerInfo;
 use thinwedge_utils_plugins::mcp_connector::is_connector_id_allowed;
 use thinwedge_utils_plugins::mcp_connector::sanitize_name;
-
-pub(crate) const THINWEDGE_APPS_TOOLS_CACHE_SCHEMA_VERSION: u8 = 2;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ThinWedgeAppsToolsCacheKey {
@@ -38,16 +37,6 @@ pub fn thinwedge_apps_tools_cache_key(auth: Option<&ThinWedgeAuth>) -> ThinWedge
     }
 }
 
-pub fn filter_non_thinwedge_apps_mcp_tools_only(
-    mcp_tools: &HashMap<String, ToolInfo>,
-) -> HashMap<String, ToolInfo> {
-    mcp_tools
-        .iter()
-        .filter(|(_, tool)| tool.server_name != THINWEDGE_APPS_MCP_SERVER_NAME)
-        .map(|(name, tool)| (name.clone(), tool.clone()))
-        .collect()
-}
-
 #[derive(Clone)]
 pub(crate) struct ThinWedgeAppsToolsCacheContext {
     pub(crate) thinwedge_home: PathBuf,
@@ -55,11 +44,19 @@ pub(crate) struct ThinWedgeAppsToolsCacheContext {
 }
 
 impl ThinWedgeAppsToolsCacheContext {
-    pub(crate) fn cache_path(&self) -> PathBuf {
+    pub(crate) fn tools_cache_path(&self) -> PathBuf {
+        self.cache_path_in(THINWEDGE_APPS_TOOLS_CACHE_DIR)
+    }
+
+    pub(crate) fn server_info_cache_path(&self) -> PathBuf {
+        self.cache_path_in(THINWEDGE_APPS_SERVER_INFO_CACHE_DIR)
+    }
+
+    fn cache_path_in(&self, cache_dir: &str) -> PathBuf {
         let user_key_json = serde_json::to_string(&self.user_key).unwrap_or_default();
         let user_key_hash = sha1_hex(&user_key_json);
         self.thinwedge_home
-            .join(THINWEDGE_APPS_TOOLS_CACHE_DIR)
+            .join(cache_dir)
             .join(format!("{user_key_hash}.json"))
     }
 }
@@ -138,15 +135,16 @@ pub(crate) fn normalize_thinwedge_apps_callable_namespace(
     if server_name == THINWEDGE_APPS_MCP_SERVER_NAME
         && let Some(connector_name) = connector_name
     {
-        format!("mcp__{}__{}", server_name, sanitize_name(connector_name))
+        format!("{}__{}", server_name, sanitize_name(connector_name))
     } else {
-        format!("mcp__{server_name}__")
+        server_name.to_string()
     }
 }
 
 pub(crate) fn write_cached_thinwedge_apps_tools_if_needed(
     server_name: &str,
     cache_context: Option<&ThinWedgeAppsToolsCacheContext>,
+    server_info: &McpServerInfo,
     tools: &[ToolInfo],
 ) {
     if server_name != THINWEDGE_APPS_MCP_SERVER_NAME {
@@ -156,6 +154,9 @@ pub(crate) fn write_cached_thinwedge_apps_tools_if_needed(
     if let Some(cache_context) = cache_context {
         let cache_write_start = Instant::now();
         write_cached_thinwedge_apps_tools(cache_context, tools);
+        if let Err(err) = write_cached_thinwedge_apps_server_info(cache_context, server_info) {
+            tracing::warn!("failed to write ThinWedge Apps server info cache: {err:#}");
+        }
         emit_duration(
             MCP_TOOLS_CACHE_WRITE_DURATION_METRIC,
             cache_write_start.elapsed(),
@@ -180,6 +181,17 @@ pub(crate) fn load_startup_cached_thinwedge_apps_tools_snapshot(
     }
 }
 
+pub(crate) fn load_startup_cached_thinwedge_apps_server_info(
+    server_name: &str,
+    cache_context: Option<&ThinWedgeAppsToolsCacheContext>,
+) -> Option<McpServerInfo> {
+    if server_name != THINWEDGE_APPS_MCP_SERVER_NAME {
+        return None;
+    }
+
+    load_cached_thinwedge_apps_server_info(cache_context?)
+}
+
 #[cfg(test)]
 pub(crate) fn read_cached_thinwedge_apps_tools(
     cache_context: &ThinWedgeAppsToolsCacheContext,
@@ -193,7 +205,7 @@ pub(crate) fn read_cached_thinwedge_apps_tools(
 pub(crate) fn load_cached_thinwedge_apps_tools(
     cache_context: &ThinWedgeAppsToolsCacheContext,
 ) -> CachedThinWedgeAppsToolsLoad {
-    let cache_path = cache_context.cache_path();
+    let cache_path = cache_context.tools_cache_path();
     let bytes = match std::fs::read(cache_path) {
         Ok(bytes) => bytes,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
@@ -215,7 +227,7 @@ pub(crate) fn write_cached_thinwedge_apps_tools(
     cache_context: &ThinWedgeAppsToolsCacheContext,
     tools: &[ToolInfo],
 ) {
-    let cache_path = cache_context.cache_path();
+    let cache_path = cache_context.tools_cache_path();
     if let Some(parent) = cache_path.parent()
         && std::fs::create_dir_all(parent).is_err()
     {
@@ -229,6 +241,42 @@ pub(crate) fn write_cached_thinwedge_apps_tools(
         return;
     };
     let _ = std::fs::write(cache_path, bytes);
+}
+
+pub(crate) fn load_cached_thinwedge_apps_server_info(
+    cache_context: &ThinWedgeAppsToolsCacheContext,
+) -> Option<McpServerInfo> {
+    let bytes = std::fs::read(cache_context.server_info_cache_path()).ok()?;
+    let cache: ThinWedgeAppsServerInfoDiskCache = serde_json::from_slice(&bytes).ok()?;
+    (cache.schema_version == THINWEDGE_APPS_SERVER_INFO_CACHE_SCHEMA_VERSION)
+        .then_some(cache.server_info)
+}
+
+fn write_cached_thinwedge_apps_server_info(
+    cache_context: &ThinWedgeAppsToolsCacheContext,
+    server_info: &McpServerInfo,
+) -> anyhow::Result<()> {
+    let cache_path = cache_context.server_info_cache_path();
+    if let Some(parent) = cache_path.parent() {
+        std::fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create ThinWedge Apps server info cache directory `{}`",
+                parent.display()
+            )
+        })?;
+    }
+    let bytes = serde_json::to_vec_pretty(&ThinWedgeAppsServerInfoDiskCache {
+        schema_version: THINWEDGE_APPS_SERVER_INFO_CACHE_SCHEMA_VERSION,
+        server_info: server_info.clone(),
+    })
+    .context("failed to serialize ThinWedge Apps server info cache")?;
+    std::fs::write(&cache_path, bytes).with_context(|| {
+        format!(
+            "failed to write ThinWedge Apps server info cache `{}`",
+            cache_path.display()
+        )
+    })?;
+    Ok(())
 }
 
 pub(crate) fn filter_disallowed_thinwedge_apps_tools(tools: Vec<ToolInfo>) -> Vec<ToolInfo> {
@@ -248,7 +296,17 @@ struct ThinWedgeAppsToolsDiskCache {
     tools: Vec<ToolInfo>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ThinWedgeAppsServerInfoDiskCache {
+    schema_version: u8,
+    server_info: McpServerInfo,
+}
+
 const THINWEDGE_APPS_TOOLS_CACHE_DIR: &str = "cache/thinwedge_apps_tools";
+pub(crate) const THINWEDGE_APPS_TOOLS_CACHE_SCHEMA_VERSION: u8 = 3;
+
+const THINWEDGE_APPS_SERVER_INFO_CACHE_DIR: &str = "cache/thinwedge_apps_server_info";
+const THINWEDGE_APPS_SERVER_INFO_CACHE_SCHEMA_VERSION: u8 = 1;
 
 fn sha1_hex(s: &str) -> String {
     let mut hasher = Sha1::new();

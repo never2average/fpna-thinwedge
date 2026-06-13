@@ -7,13 +7,14 @@ version.workspace = true
 [lib]
 name = "thinwedge_cloud_tasks_client"
 path = "src/lib.rs"
+test = false
+doctest = false
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-trait = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 thinwedge-api = { workspace = true }
 thinwedge-backend-client = { workspace = true }

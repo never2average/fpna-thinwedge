@@ -8,6 +8,7 @@ description = "ThinWedge exec policy: prefix-based Starlark rules for command de
 [lib]
 name = "thinwedge_execpolicy"
 path = "src/lib.rs"
+doctest = false
 
 [[bin]]
 name = "thinwedge-execpolicy"

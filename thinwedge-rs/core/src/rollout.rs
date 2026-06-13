@@ -1,7 +1,6 @@
 use crate::config::Config;
 pub use thinwedge_rollout::ARCHIVED_SESSIONS_SUBDIR;
 pub use thinwedge_rollout::Cursor;
-pub use thinwedge_rollout::EventPersistenceMode;
 pub use thinwedge_rollout::INTERACTIVE_SESSION_SOURCES;
 pub use thinwedge_rollout::RolloutRecorder;
 pub use thinwedge_rollout::RolloutRecorderParams;
@@ -50,6 +49,7 @@ pub(crate) mod list {
     pub use thinwedge_rollout::find_thread_path_by_id_str;
 }
 
+#[cfg(test)]
 pub(crate) mod recorder {
     pub use thinwedge_rollout::RolloutRecorder;
 }

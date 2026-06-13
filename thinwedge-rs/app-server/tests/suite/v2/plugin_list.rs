@@ -3,17 +3,23 @@ use std::time::Duration;
 use anyhow::Result;
 use anyhow::bail;
 use app_test_support::ChatGptAuthFixture;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
+use flate2::Compression;
+use flate2::write::GzEncoder;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use thinwedge_app_server_protocol::JSONRPCResponse;
 use thinwedge_app_server_protocol::PluginAuthPolicy;
 use thinwedge_app_server_protocol::PluginInstallPolicy;
+use thinwedge_app_server_protocol::PluginInstalledParams;
+use thinwedge_app_server_protocol::PluginInstalledResponse;
+use thinwedge_app_server_protocol::PluginListMarketplaceKind;
 use thinwedge_app_server_protocol::PluginListParams;
 use thinwedge_app_server_protocol::PluginListResponse;
 use thinwedge_app_server_protocol::PluginMarketplaceEntry;
+use thinwedge_app_server_protocol::PluginShareDiscoverability;
 use thinwedge_app_server_protocol::PluginSource;
 use thinwedge_app_server_protocol::PluginSummary;
 use thinwedge_app_server_protocol::RequestId;
@@ -32,7 +38,8 @@ use wiremock::matchers::query_param;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 const TEST_CURATED_PLUGIN_SHA: &str = "0123456789abcdef0123456789abcdef01234567";
-const STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE: &str = ".tmp/app-server-remote-plugin-sync-v1";
+const TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS: &str =
+    "THINWEDGE_TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS";
 const ALTERNATE_MARKETPLACE_RELATIVE_PATH: &str = ".claude-plugin/marketplace.json";
 const ALTERNATE_PLUGIN_MANIFEST_RELATIVE_PATH: &str = ".claude-plugin/plugin.json";
 
@@ -73,7 +80,7 @@ async fn plugin_list_skips_invalid_marketplace_file_and_reports_error() -> Resul
     std::fs::write(marketplace_path.as_path(), "{not json")?;
 
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -86,6 +93,7 @@ async fn plugin_list_skips_invalid_marketplace_file_and_reports_error() -> Resul
     let request_id = mcp
         .send_plugin_list_request(PluginListParams {
             cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -119,9 +127,199 @@ async fn plugin_list_skips_invalid_marketplace_file_and_reports_error() -> Resul
 }
 
 #[tokio::test]
+async fn plugin_installed_includes_installed_plugins_and_explicit_install_suggestions() -> Result<()>
+{
+    let thinwedge_home = TempDir::new()?;
+    write_openai_curated_marketplace(
+        thinwedge_home.path(),
+        &["linear", "computer-use", "not-mentioned"],
+    )?;
+    write_installed_plugin(&thinwedge_home, "openai-curated", "linear")?;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        r#"[features]
+plugins = true
+
+[plugins."linear@openai-curated"]
+enabled = true
+"#,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_installed_request(PluginInstalledParams {
+            cwds: None,
+            install_suggestion_plugin_names: Some(vec!["computer-use".to_string()]),
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginInstalledResponse = to_response(response)?;
+
+    assert_eq!(response.marketplaces.len(), 1);
+    assert_eq!(response.marketplaces[0].name, "openai-curated");
+    assert_eq!(
+        response.marketplaces[0]
+            .plugins
+            .iter()
+            .map(|plugin| (plugin.id.clone(), plugin.installed, plugin.enabled))
+            .collect::<Vec<_>>(),
+        vec![
+            ("linear@openai-curated".to_string(), true, true),
+            ("computer-use@openai-curated".to_string(), false, false),
+        ]
+    );
+    assert_eq!(response.marketplace_load_errors, Vec::new());
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_installed_prefers_remote_curated_conflicts_when_remote_plugin_enabled() -> Result<()>
+{
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_openai_curated_marketplace(thinwedge_home.path(), &["linear", "calendar"])?;
+    write_installed_plugin(&thinwedge_home, "openai-curated", "linear")?;
+    write_installed_plugin(&thinwedge_home, "openai-curated", "calendar")?;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        format!(
+            r#"chatgpt_base_url = "{}/backend-api/"
+
+[features]
+plugins = true
+remote_plugin = true
+plugin_sharing = false
+
+[plugins."linear@openai-curated"]
+enabled = true
+
+[plugins."calendar@openai-curated"]
+enabled = true
+"#,
+            server.uri()
+        ),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+    let mut global_installed_body: serde_json::Value = serde_json::from_str(
+        &remote_installed_plugin_body("", "1.2.3", /*enabled*/ true),
+    )?;
+    let mut remote_only = global_installed_body["plugins"][0].clone();
+    remote_only["id"] = serde_json::json!("plugins~Plugin_11111111111111111111111111111111");
+    remote_only["name"] = serde_json::json!("remote-only");
+    remote_only["release"]["display_name"] = serde_json::json!("Remote Only");
+    global_installed_body["plugins"]
+        .as_array_mut()
+        .expect("installed plugins should be an array")
+        .push(remote_only);
+    let global_installed_body = serde_json::to_string(&global_installed_body)?;
+    mount_remote_installed_plugins(&server, "GLOBAL", &global_installed_body).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let mut app_server = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, app_server.initialize()).await??;
+
+    let request_id = app_server
+        .send_plugin_installed_request(PluginInstalledParams {
+            cwds: None,
+            install_suggestion_plugin_names: None,
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        app_server.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginInstalledResponse = to_response(response)?;
+
+    let local_marketplace = response
+        .marketplaces
+        .iter()
+        .find(|marketplace| marketplace.name == "openai-curated")
+        .expect("expected openai-curated marketplace entry");
+    assert_eq!(
+        local_marketplace
+            .plugins
+            .iter()
+            .map(|plugin| plugin.id.clone())
+            .collect::<Vec<_>>(),
+        vec!["calendar@openai-curated".to_string()]
+    );
+    let remote_marketplace = response
+        .marketplaces
+        .iter()
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected openai-curated-remote marketplace entry");
+    assert_eq!(
+        remote_marketplace
+            .plugins
+            .iter()
+            .map(|plugin| plugin.id.clone())
+            .collect::<Vec<_>>(),
+        vec![
+            "linear@openai-curated-remote".to_string(),
+            "remote-only@openai-curated-remote".to_string(),
+        ]
+    );
+    assert_eq!(response.marketplace_load_errors, Vec::new());
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_installed_ignores_local_cache_without_catalog() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    write_installed_plugin(&thinwedge_home, "openai-curated", "linear")?;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        r#"[features]
+plugins = true
+
+[plugins."linear@openai-curated"]
+enabled = true
+"#,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_installed_request(PluginInstalledParams {
+            cwds: None,
+            install_suggestion_plugin_names: None,
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginInstalledResponse = to_response(response)?;
+
+    assert_eq!(response.marketplaces, Vec::new());
+    assert_eq!(response.marketplace_load_errors, Vec::new());
+    Ok(())
+}
+
+#[tokio::test]
 async fn plugin_list_rejects_relative_cwds() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -193,12 +391,12 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
         valid_repo_root
             .path()
             .join("plugins/valid-plugin/.thinwedge-plugin/plugin.json"),
-        r#"{"name":"valid-plugin"}"#,
+        r#"{"name":"valid-plugin","keywords":["api-key","developer tools"]}"#,
     )?;
     std::fs::write(invalid_marketplace_path.as_path(), "{not json")?;
 
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -214,6 +412,7 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
                 AbsolutePathBuf::try_from(valid_repo_root.path())?,
                 AbsolutePathBuf::try_from(invalid_repo_root.path())?,
             ]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -232,7 +431,10 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
             interface: None,
             plugins: vec![PluginSummary {
                 id: "valid-plugin@valid-marketplace".to_string(),
+                remote_plugin_id: None,
+                local_version: None,
                 name: "valid-plugin".to_string(),
+                share_context: None,
                 source: PluginSource::Local {
                     path: valid_plugin_path,
                 },
@@ -240,7 +442,9 @@ async fn plugin_list_keeps_valid_marketplaces_when_another_marketplace_fails_to_
                 enabled: false,
                 install_policy: PluginInstallPolicy::Available,
                 auth_policy: PluginAuthPolicy::OnInstall,
+                availability: thinwedge_app_server_protocol::PluginAvailability::Available,
                 interface: None,
+                keywords: vec!["api-key".to_string(), "developer tools".to_string()],
             }],
         }]
     );
@@ -302,13 +506,14 @@ async fn plugin_list_returns_empty_when_workspace_thinwedge_plugins_disabled() -
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_string(r#"{"beta_settings":{"plugins":false}}"#),
+            ResponseTemplate::new(200)
+                .set_body_string(r#"{"beta_settings":{"enable_plugins":false}}"#),
         )
         .mount(&server)
         .await;
 
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_without_managed_config_with_env(
+    let mut mcp = TestAppServer::new_without_managed_config_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -321,6 +526,7 @@ async fn plugin_list_returns_empty_when_workspace_thinwedge_plugins_disabled() -
     let request_id = mcp
         .send_plugin_list_request(PluginListParams {
             cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -391,13 +597,14 @@ async fn plugin_list_reuses_cached_workspace_thinwedge_plugins_setting() -> Resu
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_string(r#"{"beta_settings":{"plugins":true}}"#),
+            ResponseTemplate::new(200)
+                .set_body_string(r#"{"beta_settings":{"enable_plugins":true}}"#),
         )
         .mount(&server)
         .await;
 
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_without_managed_config_with_env(
+    let mut mcp = TestAppServer::new_without_managed_config_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -411,6 +618,7 @@ async fn plugin_list_reuses_cached_workspace_thinwedge_plugins_setting() -> Resu
         let request_id = mcp
             .send_plugin_list_request(PluginListParams {
                 cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+                marketplace_kinds: None,
             })
             .await?;
 
@@ -481,7 +689,7 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
     )?;
 
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -494,6 +702,7 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
     let request_id = mcp
         .send_plugin_list_request(PluginListParams {
             cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -513,7 +722,10 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
             plugins: vec![
                 PluginSummary {
                     id: "valid-plugin@alternate-marketplace".to_string(),
+                    remote_plugin_id: None,
+                    local_version: None,
                     name: "valid-plugin".to_string(),
+                    share_context: None,
                     source: PluginSource::Local {
                         path: valid_plugin_path,
                     },
@@ -521,6 +733,7 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
                     enabled: false,
                     install_policy: PluginInstallPolicy::Available,
                     auth_policy: PluginAuthPolicy::OnInstall,
+                    availability: thinwedge_app_server_protocol::PluginAvailability::Available,
                     interface: Some(thinwedge_app_server_protocol::PluginInterface {
                         display_name: Some("Valid Plugin".to_string()),
                         short_description: None,
@@ -540,10 +753,14 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
                         screenshots: Vec::new(),
                         screenshot_urls: Vec::new(),
                     }),
+                    keywords: Vec::new(),
                 },
                 PluginSummary {
                     id: "missing-plugin@alternate-marketplace".to_string(),
+                    remote_plugin_id: None,
+                    local_version: None,
                     name: "missing-plugin".to_string(),
+                    share_context: None,
                     source: PluginSource::Local {
                         path: AbsolutePathBuf::try_from(
                             repo_root.path().join("plugins/missing-plugin"),
@@ -553,7 +770,9 @@ async fn plugin_list_uses_alternate_discoverable_manifest_and_keeps_undiscoverab
                     enabled: false,
                     install_policy: PluginInstallPolicy::Available,
                     auth_policy: PluginAuthPolicy::OnInstall,
+                    availability: thinwedge_app_server_protocol::PluginAvailability::Available,
                     interface: None,
+                    keywords: Vec::new(),
                 },
             ],
         }]
@@ -585,7 +804,7 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
 }"#,
     )?;
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -596,7 +815,10 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
         .await?;
 
     let response: JSONRPCResponse = timeout(
@@ -605,6 +827,79 @@ async fn plugin_list_accepts_omitted_cwds() -> Result<()> {
     )
     .await??;
     let _: PluginListResponse = to_response(response)?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_returns_share_context_for_shared_local_plugin() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let repo_root = TempDir::new()?;
+    let plugin_root = repo_root.path().join("plugins/demo-plugin");
+    std::fs::create_dir_all(repo_root.path().join(".git"))?;
+    std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
+    std::fs::create_dir_all(plugin_root.join(".thinwedge-plugin"))?;
+    write_plugins_enabled_config(thinwedge_home.path())?;
+    std::fs::write(
+        repo_root.path().join(".agents/plugins/marketplace.json"),
+        r#"{
+  "name": "thinwedge-curated",
+  "plugins": [
+    {
+      "name": "demo-plugin",
+      "source": {
+        "source": "local",
+        "path": "./plugins/demo-plugin"
+      }
+    }
+  ]
+}"#,
+    )?;
+    std::fs::write(
+        plugin_root.join(".thinwedge-plugin/plugin.json"),
+        r#"{"name":"demo-plugin","version":"1.2.3"}"#,
+    )?;
+    write_plugin_share_local_path_mapping(
+        thinwedge_home.path(),
+        "plugins_123",
+        &AbsolutePathBuf::try_from(plugin_root)?,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    let plugin = response
+        .marketplaces
+        .iter()
+        .flat_map(|marketplace| marketplace.plugins.iter())
+        .find(|plugin| plugin.name == "demo-plugin")
+        .expect("expected demo-plugin entry");
+    assert_eq!(plugin.remote_plugin_id, None);
+    assert_eq!(plugin.local_version.as_deref(), Some("1.2.3"));
+    let share_context = plugin
+        .share_context
+        .as_ref()
+        .expect("expected share context");
+    assert_eq!(share_context.remote_plugin_id, "plugins_123");
+    assert_eq!(share_context.remote_version, None);
+    assert_eq!(share_context.discoverability, None);
+    assert_eq!(share_context.share_url, None);
+    assert_eq!(share_context.creator_account_user_id, None);
+    assert_eq!(share_context.creator_name, None);
+    assert_eq!(share_context.share_principals, None);
     Ok(())
 }
 
@@ -661,12 +956,13 @@ enabled = false
 "#,
     )?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
         .send_plugin_list_request(PluginListParams {
             cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -815,7 +1111,7 @@ enabled = false
 
     let workspace_default = TempDir::new()?;
     let home = thinwedge_home.path().to_string_lossy().into_owned();
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
             ("HOME", Some(home.as_str())),
@@ -831,6 +1127,7 @@ enabled = false
                 AbsolutePathBuf::try_from(workspace_enabled.path())?,
                 AbsolutePathBuf::try_from(workspace_default.path())?,
             ]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -890,12 +1187,12 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
     "displayName": "Plugin Display Name",
     "shortDescription": "Short description for subtitle",
     "longDescription": "Long description for details page",
-    "developerName": "ThinWedge",
+    "developerName": "OpenAI",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
-    "websiteURL": "https://thinwedge.com/",
-    "privacyPolicyURL": "https://thinwedge.com/policies/row-privacy-policy/",
-    "termsOfServiceURL": "https://thinwedge.com/policies/row-terms-of-use/",
+    "websiteURL": "https://openai.com/",
+    "privacyPolicyURL": "https://openai.com/policies/row-privacy-policy/",
+    "termsOfServiceURL": "https://openai.com/policies/row-terms-of-use/",
     "defaultPrompt": [
       "Starter prompt for trying a plugin",
       "Find my next action"
@@ -908,12 +1205,13 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
 }"##,
     )?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
         .send_plugin_list_request(PluginListParams {
             cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -947,15 +1245,15 @@ async fn plugin_list_returns_plugin_interface_with_absolute_asset_paths() -> Res
     assert_eq!(interface.category.as_deref(), Some("Design"));
     assert_eq!(
         interface.website_url.as_deref(),
-        Some("https://thinwedge.com/")
+        Some("https://openai.com/")
     );
     assert_eq!(
         interface.privacy_policy_url.as_deref(),
-        Some("https://thinwedge.com/policies/row-privacy-policy/")
+        Some("https://openai.com/policies/row-privacy-policy/")
     );
     assert_eq!(
         interface.terms_of_service_url.as_deref(),
-        Some("https://thinwedge.com/policies/row-terms-of-use/")
+        Some("https://openai.com/policies/row-terms-of-use/")
     );
     assert_eq!(
         interface.default_prompt,
@@ -1020,12 +1318,13 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 }"##,
     )?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
         .send_plugin_list_request(PluginListParams {
             cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
         })
         .await?;
 
@@ -1053,10 +1352,130 @@ async fn plugin_list_accepts_legacy_string_default_prompt() -> Result<()> {
 }
 
 #[tokio::test]
-async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
+async fn plugin_list_returns_installed_git_source_interface_from_cache() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let repo_root = TempDir::new()?;
+    let missing_remote_repo = repo_root.path().join("missing-remote-plugin-repo");
+    let missing_remote_repo_url = url::Url::from_directory_path(&missing_remote_repo)
+        .unwrap()
+        .to_string();
+    std::fs::create_dir_all(repo_root.path().join(".git"))?;
+    std::fs::create_dir_all(repo_root.path().join(".agents/plugins"))?;
+    std::fs::write(
+        repo_root.path().join(".agents/plugins/marketplace.json"),
+        format!(
+            r#"{{
+  "name": "debug",
+  "plugins": [
+    {{
+      "name": "toolkit",
+      "source": {{
+        "source": "git-subdir",
+        "url": "{missing_remote_repo_url}",
+        "path": "plugins/toolkit"
+      }},
+      "category": "Developer Tools"
+    }}
+  ]
+}}"#
+        ),
+    )?;
+    let cached_plugin_root = thinwedge_home
+        .path()
+        .join("plugins/cache/debug/toolkit/local");
+    std::fs::create_dir_all(cached_plugin_root.join(".thinwedge-plugin"))?;
+    std::fs::write(
+        cached_plugin_root.join(".thinwedge-plugin/plugin.json"),
+        r##"{
+  "name": "toolkit",
+  "interface": {
+    "displayName": "Toolkit",
+    "shortDescription": "Search cached data",
+    "category": "Cached Category",
+    "brandColor": "#3B82F6",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png"
+  }
+}"##,
+    )?;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        r#"[features]
+plugins = true
+
+[plugins."toolkit@debug"]
+enabled = true
+"#,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: Some(vec![AbsolutePathBuf::try_from(repo_root.path())?]),
+            marketplace_kinds: None,
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    let plugin = response
+        .marketplaces
+        .iter()
+        .flat_map(|marketplace| marketplace.plugins.iter())
+        .find(|plugin| plugin.name == "toolkit")
+        .expect("expected toolkit entry");
+
+    assert_eq!(plugin.id, "toolkit@debug");
+    assert_eq!(plugin.installed, true);
+    assert_eq!(plugin.enabled, true);
+    assert_eq!(
+        plugin.source,
+        PluginSource::Git {
+            url: missing_remote_repo_url,
+            path: Some("plugins/toolkit".to_string()),
+            ref_name: None,
+            sha: None,
+        }
+    );
+    let interface = plugin
+        .interface
+        .as_ref()
+        .expect("expected cached plugin interface");
+    assert_eq!(interface.display_name.as_deref(), Some("Toolkit"));
+    assert_eq!(
+        interface.short_description.as_deref(),
+        Some("Search cached data")
+    );
+    assert_eq!(interface.category.as_deref(), Some("Developer Tools"));
+    assert_eq!(interface.brand_color.as_deref(), Some("#3B82F6"));
+    let canonical_cached_plugin_root = std::fs::canonicalize(&cached_plugin_root)?;
+    assert_eq!(
+        interface.composer_icon,
+        Some(AbsolutePathBuf::try_from(
+            canonical_cached_plugin_root.join("assets/icon.png")
+        )?)
+    );
+    assert_eq!(
+        interface.logo,
+        Some(AbsolutePathBuf::try_from(
+            canonical_cached_plugin_root.join("assets/logo.png")
+        )?)
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn app_server_startup_sync_downloads_remote_installed_plugin_bundles() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
-    write_plugin_sync_config(
+    write_remote_plugin_catalog_config(
         thinwedge_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
@@ -1068,75 +1487,169 @@ async fn app_server_startup_remote_plugin_sync_runs_once() -> Result<()> {
             .chatgpt_account_id("account-123"),
         AuthCredentialsStoreMode::File,
     )?;
-    write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear"])?;
 
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/list"))
-        .and(header("authorization", "Bearer chatgpt-token"))
-        .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(
-            r#"[
-  {"id":"1","name":"linear","marketplace_name":"thinwedge-curated","version":"1.0.0","enabled":true}
-]"#,
-        ))
-        .mount(&server)
-        .await;
-    Mock::given(method("GET"))
-        .and(path("/backend-api/plugins/featured"))
-        .and(query_param("platform", "thinwedge"))
-        .and(header("authorization", "Bearer chatgpt-token"))
-        .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@thinwedge-curated"]"#))
-        .mount(&server)
+    let bundle_url = mount_remote_plugin_bundle(
+        &server,
+        "linear",
+        remote_plugin_bundle_tar_gz_bytes("linear")?,
+    )
+    .await;
+    let remote_app_manifest = serde_json::json!({
+        "apps": {
+            "linear-remote": {
+                "id": "remote-linear-app"
+            }
+        }
+    });
+    let global_installed_body = remote_installed_plugin_body_with_app_manifest(
+        &bundle_url,
+        "1.2.3",
+        /*enabled*/ true,
+        remote_app_manifest.clone(),
+    );
+    mount_remote_installed_plugins(&server, "GLOBAL", &global_installed_body).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
         .await;
 
-    let marker_path = thinwedge_home
+    let installed_path = thinwedge_home
         .path()
-        .join(STARTUP_REMOTE_PLUGIN_SYNC_MARKER_FILE);
+        .join("plugins/cache/openai-curated-remote/linear/1.2.3");
+    let mut mcp = TestAppServer::new_with_env_and_plugin_startup_tasks(
+        thinwedge_home.path(),
+        &[(TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS, Some("1"))],
+    )
+    .await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
-    {
-        let mut mcp = McpProcess::new_with_plugin_startup_tasks(thinwedge_home.path()).await?;
-        timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-
-        wait_for_path_exists(&marker_path).await?;
-        wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1)
-            .await?;
-        let request_id = mcp
-            .send_plugin_list_request(PluginListParams { cwds: None })
-            .await?;
-        let response: JSONRPCResponse = timeout(
-            DEFAULT_TIMEOUT,
-            mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
-        )
-        .await??;
-        let response: PluginListResponse = to_response(response)?;
-        let curated_marketplace = response
-            .marketplaces
-            .into_iter()
-            .find(|marketplace| marketplace.name == "thinwedge-curated")
-            .expect("expected thinwedge-curated marketplace entry");
-        assert_eq!(
-            curated_marketplace
-                .plugins
-                .into_iter()
-                .map(|plugin| (plugin.id, plugin.installed, plugin.enabled))
-                .collect::<Vec<_>>(),
-            vec![("linear@thinwedge-curated".to_string(), true, true)]
-        );
-        wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1)
-            .await?;
-    }
-
+    wait_for_path_exists(&installed_path.join(".thinwedge-plugin/plugin.json")).await?;
+    let installed_plugin_manifest: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(installed_path.join(".thinwedge-plugin/plugin.json"))?,
+    )?;
+    assert_eq!(
+        installed_plugin_manifest["version"],
+        serde_json::json!("1.2.3")
+    );
+    let installed_app_manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(installed_path.join(".app.json"))?)?;
+    assert_eq!(installed_app_manifest, remote_app_manifest);
+    assert!(installed_path.join("skills/plan-work/SKILL.md").is_file());
     let config = std::fs::read_to_string(thinwedge_home.path().join("config.toml"))?;
-    assert!(config.contains(r#"[plugins."linear@thinwedge-curated"]"#));
+    assert!(!config.contains("linear@openai-curated-remote"));
+    Ok(())
+}
 
-    {
-        let mut mcp = McpProcess::new_with_plugin_startup_tasks(thinwedge_home.path()).await?;
-        timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
-    }
+#[tokio::test]
+async fn plugin_list_sync_upgrades_and_removes_remote_installed_plugin_bundles() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_remote_plugin_catalog_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+    write_installed_plugin_with_version(
+        &thinwedge_home,
+        "openai-curated-remote",
+        "linear",
+        "1.0.0",
+    )?;
+    write_installed_plugin_with_version(
+        &thinwedge_home,
+        "openai-curated-remote",
+        "stale",
+        "1.0.0",
+    )?;
 
-    tokio::time::sleep(Duration::from_millis(250)).await;
-    wait_for_remote_plugin_request_count(&server, "/plugins/list", /*expected_count*/ 1).await?;
+    let bundle_url = mount_remote_plugin_bundle(
+        &server,
+        "linear",
+        remote_plugin_bundle_tar_gz_bytes("linear")?,
+    )
+    .await;
+    let remote_app_manifest = serde_json::json!({
+        "apps": {
+            "linear-remote": {
+                "id": "remote-linear-app"
+            }
+        }
+    });
+    let global_installed_body = remote_installed_plugin_body_with_app_manifest(
+        &bundle_url,
+        "1.2.3",
+        /*enabled*/ true,
+        remote_app_manifest.clone(),
+    );
+    mount_remote_plugin_list(&server, "GLOBAL", &global_installed_body).await;
+    mount_remote_plugin_list(&server, "WORKSPACE", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "GLOBAL", &global_installed_body).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let old_path = thinwedge_home
+        .path()
+        .join("plugins/cache/openai-curated-remote/linear/1.0.0");
+    let new_path = thinwedge_home
+        .path()
+        .join("plugins/cache/openai-curated-remote/linear/1.2.3");
+    let stale_path = thinwedge_home
+        .path()
+        .join("plugins/cache/openai-curated-remote/stale");
+
+    let mut mcp = TestAppServer::new_with_env(
+        thinwedge_home.path(),
+        &[(TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS, Some("1"))],
+    )
+    .await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
+        .await?;
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+    let remote_marketplace = response
+        .marketplaces
+        .into_iter()
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected openai-curated-remote marketplace entry");
+    assert_eq!(
+        remote_marketplace
+            .plugins
+            .into_iter()
+            .map(|plugin| (plugin.id, plugin.installed, plugin.enabled))
+            .collect::<Vec<_>>(),
+        vec![("linear@openai-curated-remote".to_string(), true, true)]
+    );
+
+    wait_for_path_exists(&new_path.join(".thinwedge-plugin/plugin.json")).await?;
+    let installed_plugin_manifest: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(new_path.join(".thinwedge-plugin/plugin.json"))?,
+    )?;
+    assert_eq!(
+        installed_plugin_manifest["version"],
+        serde_json::json!("1.2.3")
+    );
+    let installed_app_manifest: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(new_path.join(".app.json"))?)?;
+    assert_eq!(installed_app_manifest, remote_app_manifest);
+    wait_for_path_missing(&old_path).await?;
+    wait_for_path_missing(&stale_path).await?;
+    let config = std::fs::read_to_string(thinwedge_home.path().join("config.toml"))?;
+    assert!(!config.contains("linear@openai-curated-remote"));
     Ok(())
 }
 
@@ -1165,13 +1678,17 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
       "scope": "GLOBAL",
       "installation_policy": "AVAILABLE",
       "authentication_policy": "ON_USE",
+      "status": "ENABLED",
       "release": {
         "display_name": "Linear",
         "description": "Track work in Linear",
         "app_ids": [],
+        "keywords": ["issue-tracking", "project management"],
         "interface": {
           "short_description": "Plan and track work",
           "capabilities": ["Read", "Write"],
+          "default_prompt": "Use the legacy Linear prompt",
+          "default_prompts": ["Create a Linear issue", "Review my Linear projects"],
           "logo_url": "https://example.com/linear.png",
           "screenshot_urls": ["https://example.com/linear-shot.png"]
         },
@@ -1199,6 +1716,7 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
       "scope": "GLOBAL",
       "installation_policy": "AVAILABLE",
       "authentication_policy": "ON_USE",
+      "status": "ENABLED",
       "release": {
         "display_name": "Linear",
         "description": "Track work in Linear",
@@ -1227,6 +1745,7 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
         .and(query_param("limit", "200"))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
+        .and(header("oai-product-sku", "thinwedge"))
         .respond_with(ResponseTemplate::new(200).set_body_string(global_directory_body))
         .mount(&server)
         .await;
@@ -1236,6 +1755,7 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
         .and(query_param("limit", "200"))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
+        .and(header("oai-product-sku", "thinwedge"))
         .respond_with(ResponseTemplate::new(200).set_body_string(empty_page_body))
         .mount(&server)
         .await;
@@ -1244,6 +1764,7 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
         .and(query_param("scope", "GLOBAL"))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
+        .and(header("oai-product-sku", "thinwedge"))
         .respond_with(ResponseTemplate::new(200).set_body_string(global_installed_body))
         .mount(&server)
         .await;
@@ -1252,15 +1773,19 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
         .and(query_param("scope", "WORKSPACE"))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
+        .and(header("oai-product-sku", "thinwedge"))
         .respond_with(ResponseTemplate::new(200).set_body_string(empty_page_body))
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
         .await?;
 
     let response: JSONRPCResponse = timeout(
@@ -1273,25 +1798,33 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
     let remote_marketplace = response
         .marketplaces
         .into_iter()
-        .find(|marketplace| marketplace.name == "chatgpt-global")
-        .expect("expected ChatGPT remote marketplace");
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected openai-curated remote marketplace");
     assert_eq!(remote_marketplace.path, None);
     assert_eq!(
         remote_marketplace
             .interface
             .as_ref()
             .and_then(|interface| interface.display_name.as_deref()),
-        Some("ChatGPT Plugins")
+        Some("OpenAI Curated Remote")
     );
     assert_eq!(remote_marketplace.plugins.len(), 1);
     assert_eq!(
         remote_marketplace.plugins[0].id,
-        "plugins~Plugin_00000000000000000000000000000000"
+        "linear@openai-curated-remote"
+    );
+    assert_eq!(
+        remote_marketplace.plugins[0].remote_plugin_id.as_deref(),
+        Some("plugins~Plugin_00000000000000000000000000000000")
     );
     assert_eq!(remote_marketplace.plugins[0].name, "linear");
     assert_eq!(remote_marketplace.plugins[0].source, PluginSource::Remote);
     assert_eq!(remote_marketplace.plugins[0].installed, true);
     assert_eq!(remote_marketplace.plugins[0].enabled, true);
+    assert_eq!(
+        remote_marketplace.plugins[0].availability,
+        thinwedge_app_server_protocol::PluginAvailability::Available
+    );
     assert_eq!(
         remote_marketplace.plugins[0]
             .interface
@@ -1299,12 +1832,61 @@ async fn plugin_list_includes_remote_marketplaces_when_remote_plugin_enabled() -
             .and_then(|interface| interface.display_name.as_deref()),
         Some("Linear")
     );
+    assert_eq!(
+        remote_marketplace.plugins[0]
+            .interface
+            .as_ref()
+            .and_then(|interface| interface.default_prompt.clone()),
+        Some(vec![
+            "Create a Linear issue".to_string(),
+            "Review my Linear projects".to_string(),
+        ])
+    );
+    assert_eq!(
+        remote_marketplace.plugins[0].keywords,
+        vec![
+            "issue-tracking".to_string(),
+            "project management".to_string()
+        ]
+    );
+    let cache_files = std::fs::read_dir(thinwedge_home.path().join("cache/remote_plugin_catalog"))?
+        .map(|entry| entry.map(|entry| entry.path()))
+        .collect::<Result<Vec<_>, _>>()?;
+    assert_eq!(cache_files.len(), 1);
+    let cached_catalog: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&cache_files[0])?)?;
+    assert_eq!(cached_catalog["schema_version"], serde_json::json!(1));
+    assert_eq!(
+        cached_catalog["plugins"][0]["release"]["interface"]["default_prompts"],
+        serde_json::json!(["Create a Linear issue", "Review my Linear projects"])
+    );
+    let cached_plugin_ids = cached_catalog["plugins"]
+        .as_array()
+        .expect("cached plugins should be an array")
+        .iter()
+        .map(|plugin| plugin["id"].as_str().expect("cached plugin id").to_string())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cached_plugin_ids,
+        vec!["plugins~Plugin_00000000000000000000000000000000".to_string()]
+    );
     assert_eq!(response.featured_plugin_ids, Vec::<String>::new());
+    assert!(
+        !server
+            .received_requests()
+            .await
+            .expect("wiremock should record requests")
+            .iter()
+            .any(|request| request
+                .url
+                .query_pairs()
+                .any(|(name, value)| name == "collection" && value == "vertical"))
+    );
     Ok(())
 }
 
 #[tokio::test]
-async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_name() -> Result<()> {
+async fn plugin_list_uses_cached_global_remote_catalog_and_refreshes_it() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
     write_remote_plugin_catalog_config(
@@ -1319,30 +1901,1019 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
             .chatgpt_account_id("account-123"),
         AuthCredentialsStoreMode::File,
     )?;
-    let local_plugin_root = thinwedge_home
-        .path()
-        .join(".agents/plugins/plugins/local-linear/.thinwedge-plugin");
-    std::fs::create_dir_all(&local_plugin_root)?;
-    std::fs::write(
-        thinwedge_home
-            .path()
-            .join(".agents/plugins/marketplace.json"),
-        r#"{
-  "name": "chatgpt-global",
+
+    let cached_remote_plugin_id = "plugins~Plugin_00000000000000000000000000000000";
+    let refreshed_remote_plugin_id = "plugins~Plugin_11111111111111111111111111111111";
+    let cached_body =
+        remote_plugin_list_body(cached_remote_plugin_id, "linear", "Linear", "Plan work");
+    let refreshed_body = remote_plugin_list_body(
+        refreshed_remote_plugin_id,
+        "notion",
+        "Notion",
+        "Capture notes",
+    );
+    mount_remote_plugin_list(&server, "GLOBAL", &cached_body).await;
+    mount_remote_installed_plugins(&server, "GLOBAL", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
+        .await?;
+    let response: PluginListResponse = to_response(
+        timeout(
+            DEFAULT_TIMEOUT,
+            mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+        )
+        .await??,
+    )?;
+    let remote_marketplace = response
+        .marketplaces
+        .iter()
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected warmed remote marketplace");
+    assert_eq!(
+        remote_marketplace.plugins[0].id,
+        "linear@openai-curated-remote"
+    );
+    wait_for_remote_plugin_request_count(&server, "/ps/plugins/list", /*expected_count*/ 1).await?;
+    wait_for_cached_remote_catalog_plugin_ids(thinwedge_home.path(), &[cached_remote_plugin_id])
+        .await?;
+
+    server.reset().await;
+    mount_remote_plugin_list(&server, "GLOBAL", &refreshed_body).await;
+    mount_remote_installed_plugins(&server, "GLOBAL", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
+        .await?;
+    let response: PluginListResponse = to_response(
+        timeout(
+            DEFAULT_TIMEOUT,
+            mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+        )
+        .await??,
+    )?;
+    let remote_marketplace = response
+        .marketplaces
+        .iter()
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected cached remote marketplace");
+    assert_eq!(
+        remote_marketplace.plugins[0].id,
+        "linear@openai-curated-remote"
+    );
+    wait_for_remote_plugin_request_count(&server, "/ps/plugins/list", /*expected_count*/ 1).await?;
+    wait_for_cached_remote_catalog_plugin_ids(thinwedge_home.path(), &[refreshed_remote_plugin_id])
+        .await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_includes_openai_curated_remote_collection_when_requested() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_plugins_enabled_config_with_base_url(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let collection_body = r#"{
   "plugins": [
     {
-      "name": "local-linear",
-      "source": {
-        "source": "local",
-        "path": "./plugins/local-linear"
+      "id": "plugins~Plugin_00000000000000000000000000000000",
+      "name": "linear",
+      "scope": "GLOBAL",
+      "installation_policy": "AVAILABLE",
+      "authentication_policy": "ON_USE",
+      "status": "ENABLED",
+      "release": {
+        "display_name": "Linear",
+        "description": "Track work in Linear",
+        "app_ids": [],
+        "interface": {
+          "short_description": "Plan and track work",
+          "capabilities": ["Read", "Write"]
+        },
+        "skills": []
       }
     }
-  ]
-}"#,
+  ],
+  "pagination": {
+    "limit": 50,
+    "next_page_token": null
+  }
+}"#;
+    mount_openai_curated_remote_collection_plugin_list(&server, collection_body).await;
+    mount_remote_installed_plugins(&server, "GLOBAL", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::Vertical]),
+        })
+        .await?;
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    let remote_marketplace = response
+        .marketplaces
+        .into_iter()
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected openai-curated remote marketplace");
+    assert_eq!(remote_marketplace.path, None);
+    assert_eq!(
+        remote_marketplace
+            .interface
+            .as_ref()
+            .and_then(|interface| interface.display_name.as_deref()),
+        Some("OpenAI Curated Remote")
+    );
+    assert_eq!(remote_marketplace.plugins.len(), 1);
+    let plugin = &remote_marketplace.plugins[0];
+    assert_eq!(plugin.id, "linear@openai-curated-remote");
+    assert_eq!(
+        plugin.remote_plugin_id.as_deref(),
+        Some("plugins~Plugin_00000000000000000000000000000000")
+    );
+    assert_eq!(plugin.name, "linear");
+    assert_eq!(plugin.source, PluginSource::Remote);
+    assert_eq!(plugin.installed, false);
+    assert_eq!(plugin.enabled, false);
+
+    let requests = server
+        .received_requests()
+        .await
+        .expect("wiremock should record requests");
+    assert!(requests.iter().any(|request| {
+        request.method == "GET"
+            && request.url.path().ends_with("/ps/plugins/list")
+            && request
+                .url
+                .query_pairs()
+                .any(|(name, value)| name == "collection" && value == "vertical")
+    }));
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_fail_opens_openai_curated_remote_collection_errors() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_plugins_enabled_config_with_base_url(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
     )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    Mock::given(method("GET"))
+        .and(path("/backend-api/ps/plugins/list"))
+        .and(query_param("scope", "GLOBAL"))
+        .and(query_param("limit", "200"))
+        .and(query_param("collection", "vertical"))
+        .and(header("authorization", "Bearer chatgpt-token"))
+        .and(header("chatgpt-account-id", "account-123"))
+        .respond_with(ResponseTemplate::new(500).set_body_string("temporary failure"))
+        .mount(&server)
+        .await;
+    mount_remote_installed_plugins(&server, "GLOBAL", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::Vertical]),
+        })
+        .await?;
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert!(
+        response
+            .marketplaces
+            .iter()
+            .all(|marketplace| marketplace.name != "openai-curated-remote")
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_does_not_query_openai_curated_remote_collection_by_default() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_plugins_enabled_config_with_base_url(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
+        .await?;
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert!(
+        response
+            .marketplaces
+            .iter()
+            .all(|marketplace| marketplace.name != "openai-curated-remote")
+    );
+    assert!(
+        server
+            .received_requests()
+            .await
+            .expect("wiremock should record requests")
+            .iter()
+            .all(|request| !request
+                .url
+                .query_pairs()
+                .any(|(name, value)| name == "collection" && value == "vertical"))
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_vertical_kind_noops_when_remote_plugin_enabled() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_remote_plugin_catalog_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::Vertical]),
+        })
+        .await?;
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert!(
+        response
+            .marketplaces
+            .iter()
+            .all(|marketplace| marketplace.name != "openai-curated-remote")
+    );
+    assert!(
+        server
+            .received_requests()
+            .await
+            .expect("wiremock should record requests")
+            .iter()
+            .all(|request| !request
+                .url
+                .query_pairs()
+                .any(|(name, value)| name == "collection" && value == "vertical"))
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_does_not_append_global_remote_when_marketplace_kinds_are_explicit()
+-> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_remote_plugin_catalog_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::Local]),
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert!(
+        response
+            .marketplaces
+            .iter()
+            .all(|marketplace| marketplace.name != "openai-curated-remote")
+    );
+    wait_for_remote_plugin_request_count(&server, "/ps/plugins/list", /*expected_count*/ 0).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_installed_includes_remote_shared_with_me_plugins() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
     std::fs::write(
-        local_plugin_root.join("plugin.json"),
-        r#"{"name":"local-linear"}"#,
+        thinwedge_home.path().join("config.toml"),
+        format!(
+            r#"chatgpt_base_url = "{}/backend-api/"
+
+[features]
+plugins = true
+remote_plugin = false
+plugin_sharing = true
+"#,
+            server.uri()
+        ),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+    let mut workspace_installed_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_22222222222222222222222222222222",
+            "shared-linear",
+            "Shared Linear",
+            "PRIVATE",
+            /*enabled*/ Some(true),
+        ))?;
+    let unlisted_installed_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_33333333333333333333333333333333",
+            "unlisted-linear",
+            "Unlisted Linear",
+            "UNLISTED",
+            /*enabled*/ Some(false),
+        ))?;
+    workspace_installed_body["plugins"]
+        .as_array_mut()
+        .expect("installed plugins should be an array")
+        .push(unlisted_installed_body["plugins"][0].clone());
+    let workspace_installed_body = serde_json::to_string(&workspace_installed_body)?;
+    let global_installed_body = remote_installed_plugin_body("", "1.2.3", /*enabled*/ true);
+    mount_remote_installed_plugins(&server, "GLOBAL", &global_installed_body).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", &workspace_installed_body).await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_installed_request(PluginInstalledParams {
+            cwds: None,
+            install_suggestion_plugin_names: None,
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginInstalledResponse = to_response(response)?;
+
+    assert_eq!(response.marketplaces.len(), 1);
+    let marketplace = &response.marketplaces[0];
+    assert_eq!(marketplace.name, "workspace-shared-with-me");
+    assert_eq!(
+        marketplace
+            .interface
+            .as_ref()
+            .and_then(|interface| interface.display_name.as_deref()),
+        Some("Shared with me")
+    );
+    assert_eq!(
+        marketplace
+            .plugins
+            .iter()
+            .map(|plugin| (plugin.id.clone(), plugin.installed, plugin.enabled))
+            .collect::<Vec<_>>(),
+        vec![
+            (
+                "shared-linear@workspace-shared-with-me".to_string(),
+                true,
+                true
+            ),
+            (
+                "unlisted-linear@workspace-shared-with-me".to_string(),
+                true,
+                false
+            )
+        ]
+    );
+    wait_for_remote_installed_scope_request(&server, "WORKSPACE").await?;
+    wait_for_remote_installed_scope_request(&server, "GLOBAL").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_installed_includes_workspace_directory_without_plugin_sharing() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        format!(
+            r#"chatgpt_base_url = "{}/backend-api/"
+
+[features]
+plugins = true
+remote_plugin = false
+plugin_sharing = false
+"#,
+            server.uri()
+        ),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+    let mut workspace_installed_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_11111111111111111111111111111111",
+            "workspace-linear",
+            "Workspace Linear",
+            "LISTED",
+            /*enabled*/ Some(true),
+        ))?;
+    let shared_installed_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_22222222222222222222222222222222",
+            "shared-linear",
+            "Shared Linear",
+            "PRIVATE",
+            /*enabled*/ Some(true),
+        ))?;
+    workspace_installed_body["plugins"]
+        .as_array_mut()
+        .expect("installed plugins should be an array")
+        .push(shared_installed_body["plugins"][0].clone());
+    let workspace_installed_body = serde_json::to_string(&workspace_installed_body)?;
+    mount_remote_installed_plugins(&server, "GLOBAL", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", &workspace_installed_body).await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_installed_request(PluginInstalledParams {
+            cwds: None,
+            install_suggestion_plugin_names: None,
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginInstalledResponse = to_response(response)?;
+
+    assert_eq!(response.marketplaces.len(), 1);
+    let marketplace = &response.marketplaces[0];
+    assert_eq!(marketplace.name, "workspace-directory");
+    assert_eq!(
+        marketplace
+            .plugins
+            .iter()
+            .map(|plugin| (plugin.id.clone(), plugin.installed, plugin.enabled))
+            .collect::<Vec<_>>(),
+        vec![(
+            "workspace-linear@workspace-directory".to_string(),
+            true,
+            true
+        )]
+    );
+    wait_for_remote_installed_scope_request(&server, "WORKSPACE").await?;
+    wait_for_remote_installed_scope_request(&server, "GLOBAL").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_installed_starts_remote_installed_bundle_sync() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        format!(
+            r#"chatgpt_base_url = "{}/backend-api/"
+
+[features]
+plugins = true
+remote_plugin = true
+plugin_sharing = false
+"#,
+            server.uri()
+        ),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let bundle_url = mount_remote_plugin_bundle(
+        &server,
+        "linear",
+        remote_plugin_bundle_tar_gz_bytes("linear")?,
+    )
+    .await;
+    let global_installed_body =
+        remote_installed_plugin_body(&bundle_url, "1.2.3", /*enabled*/ true);
+    mount_remote_installed_plugins(&server, "GLOBAL", &global_installed_body).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", empty_remote_installed_plugins_body())
+        .await;
+
+    let mut mcp = TestAppServer::new_with_env(
+        thinwedge_home.path(),
+        &[(TEST_ALLOW_HTTP_REMOTE_PLUGIN_BUNDLE_DOWNLOADS, Some("1"))],
+    )
+    .await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let plugin_installed_request_id = mcp
+        .send_plugin_installed_request(PluginInstalledParams {
+            cwds: None,
+            install_suggestion_plugin_names: None,
+        })
+        .await?;
+    let response: PluginInstalledResponse = to_response(
+        timeout(
+            DEFAULT_TIMEOUT,
+            mcp.read_stream_until_response_message(RequestId::Integer(plugin_installed_request_id)),
+        )
+        .await??,
+    )?;
+
+    assert_eq!(response.marketplaces.len(), 1);
+    assert_eq!(response.marketplaces[0].name, "openai-curated-remote");
+    assert_eq!(
+        response.marketplaces[0]
+            .plugins
+            .iter()
+            .map(|plugin| (plugin.id.clone(), plugin.installed, plugin.enabled))
+            .collect::<Vec<_>>(),
+        vec![("linear@openai-curated-remote".to_string(), true, true)]
+    );
+    let installed_path = thinwedge_home
+        .path()
+        .join("plugins/cache/openai-curated-remote/linear/1.2.3/.thinwedge-plugin/plugin.json");
+    wait_for_path_exists(&installed_path).await?;
+    wait_for_remote_installed_scope_request(&server, "GLOBAL").await?;
+    wait_for_remote_installed_scope_request(&server, "WORKSPACE").await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_fetches_workspace_directory_kind_without_remote_plugin_flag() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_plugins_enabled_config_with_base_url(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let workspace_plugin_body = workspace_remote_plugin_page_body(
+        "plugins~Plugin_11111111111111111111111111111111",
+        "workspace-linear",
+        "Workspace Linear",
+        "LISTED",
+        /*enabled*/ None,
+    );
+    let workspace_installed_body = workspace_remote_plugin_page_body(
+        "plugins~Plugin_11111111111111111111111111111111",
+        "workspace-linear",
+        "Workspace Linear",
+        "LISTED",
+        /*enabled*/ Some(false),
+    );
+    mount_remote_plugin_list(&server, "WORKSPACE", &workspace_plugin_body).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", &workspace_installed_body).await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::WorkspaceDirectory]),
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert_eq!(response.marketplaces.len(), 1);
+    let marketplace = &response.marketplaces[0];
+    assert_eq!(marketplace.name, "workspace-directory");
+    assert_eq!(
+        marketplace
+            .interface
+            .as_ref()
+            .and_then(|interface| interface.display_name.as_deref()),
+        Some("Workspace Directory")
+    );
+    assert_eq!(marketplace.plugins.len(), 1);
+    assert_eq!(
+        marketplace.plugins[0].id,
+        "workspace-linear@workspace-directory"
+    );
+    assert_eq!(
+        marketplace.plugins[0].remote_plugin_id.as_deref(),
+        Some("plugins~Plugin_11111111111111111111111111111111")
+    );
+    assert_eq!(marketplace.plugins[0].name, "workspace-linear");
+    assert_eq!(marketplace.plugins[0].installed, true);
+    assert_eq!(marketplace.plugins[0].enabled, false);
+    assert!(
+        !server
+            .received_requests()
+            .await
+            .expect("wiremock should record requests")
+            .iter()
+            .any(|request| request
+                .url
+                .query()
+                .is_some_and(|query| query.contains("scope=GLOBAL")))
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_fetches_shared_with_me_kind() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_plugins_enabled_config_with_base_url(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let mut shared_plugin_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_22222222222222222222222222222222",
+            "shared-linear",
+            "Shared Linear",
+            "PRIVATE",
+            /*enabled*/ None,
+        ))?;
+    shared_plugin_body["plugins"][0]["share_principals"] = serde_json::Value::Null;
+    let shared_unlisted_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_44444444444444444444444444444444",
+            "shared-unlisted-linear",
+            "Shared Unlisted Linear",
+            "UNLISTED",
+            /*enabled*/ None,
+        ))?;
+    shared_plugin_body["plugins"]
+        .as_array_mut()
+        .expect("shared plugins should be an array")
+        .push(shared_unlisted_body["plugins"][0].clone());
+    let shared_plugin_body = serde_json::to_string(&shared_plugin_body)?;
+    let mut workspace_installed_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_22222222222222222222222222222222",
+            "shared-linear",
+            "Shared Linear",
+            "PRIVATE",
+            /*enabled*/ Some(true),
+        ))?;
+    let unlisted_installed_body: serde_json::Value =
+        serde_json::from_str(&workspace_remote_plugin_page_body(
+            "plugins~Plugin_33333333333333333333333333333333",
+            "unlisted-linear",
+            "Unlisted Linear",
+            "UNLISTED",
+            /*enabled*/ Some(false),
+        ))?;
+    workspace_installed_body["plugins"]
+        .as_array_mut()
+        .expect("installed plugins should be an array")
+        .push(unlisted_installed_body["plugins"][0].clone());
+    let workspace_installed_body = serde_json::to_string(&workspace_installed_body)?;
+    mount_shared_workspace_plugins(&server, &shared_plugin_body).await;
+    mount_remote_installed_plugins(&server, "GLOBAL", empty_remote_installed_plugins_body()).await;
+    mount_remote_installed_plugins(&server, "WORKSPACE", &workspace_installed_body).await;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::SharedWithMe]),
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert_eq!(response.marketplaces.len(), 2);
+    let marketplace = response
+        .marketplaces
+        .iter()
+        .find(|marketplace| marketplace.name == "workspace-shared-with-me-private")
+        .expect("expected private shared-with-me marketplace");
+    assert_eq!(
+        marketplace
+            .interface
+            .as_ref()
+            .and_then(|interface| interface.display_name.as_deref()),
+        Some("Shared with me")
+    );
+    assert_eq!(marketplace.plugins.len(), 2);
+    assert_eq!(
+        marketplace.plugins[0].id,
+        "shared-linear@workspace-shared-with-me"
+    );
+    assert_eq!(
+        marketplace.plugins[0].remote_plugin_id.as_deref(),
+        Some("plugins~Plugin_22222222222222222222222222222222")
+    );
+    assert_eq!(marketplace.plugins[0].name, "shared-linear");
+    assert_eq!(marketplace.plugins[0].installed, true);
+    assert_eq!(marketplace.plugins[0].enabled, true);
+    let share_context = marketplace.plugins[0]
+        .share_context
+        .as_ref()
+        .expect("expected share context");
+    assert_eq!(
+        share_context.remote_plugin_id,
+        "plugins~Plugin_22222222222222222222222222222222"
+    );
+    assert_eq!(share_context.remote_version.as_deref(), Some("1.2.3"));
+    assert_eq!(
+        share_context.discoverability,
+        Some(PluginShareDiscoverability::Private)
+    );
+    assert_eq!(
+        share_context.creator_account_user_id.as_deref(),
+        Some("user-gavin__account-123")
+    );
+    assert_eq!(share_context.creator_name.as_deref(), Some("Gavin"));
+    assert_eq!(
+        share_context.share_url.as_deref(),
+        Some("https://chatgpt.example/plugins/share/share-key-1")
+    );
+    assert_eq!(share_context.share_principals, None);
+    assert_eq!(
+        marketplace.plugins[1].id,
+        "shared-unlisted-linear@workspace-shared-with-me"
+    );
+    assert_eq!(
+        marketplace.plugins[1].remote_plugin_id.as_deref(),
+        Some("plugins~Plugin_44444444444444444444444444444444")
+    );
+    assert_eq!(marketplace.plugins[1].name, "shared-unlisted-linear");
+    assert_eq!(marketplace.plugins[1].installed, false);
+    assert_eq!(marketplace.plugins[1].enabled, false);
+    let share_context = marketplace.plugins[1]
+        .share_context
+        .as_ref()
+        .expect("expected share context");
+    assert_eq!(
+        share_context.remote_plugin_id,
+        "plugins~Plugin_44444444444444444444444444444444"
+    );
+    assert_eq!(
+        share_context.discoverability,
+        Some(PluginShareDiscoverability::Unlisted)
+    );
+
+    let marketplace = response
+        .marketplaces
+        .iter()
+        .find(|marketplace| marketplace.name == "workspace-shared-with-me-unlisted")
+        .expect("expected unlisted shared-with-me marketplace");
+    assert_eq!(
+        marketplace
+            .interface
+            .as_ref()
+            .and_then(|interface| interface.display_name.as_deref()),
+        Some("Shared with me (unlisted)")
+    );
+    assert_eq!(marketplace.plugins.len(), 1);
+    assert_eq!(
+        marketplace.plugins[0].id,
+        "unlisted-linear@workspace-shared-with-me"
+    );
+    assert_eq!(
+        marketplace.plugins[0].remote_plugin_id.as_deref(),
+        Some("plugins~Plugin_33333333333333333333333333333333")
+    );
+    assert_eq!(marketplace.plugins[0].name, "unlisted-linear");
+    assert_eq!(marketplace.plugins[0].installed, true);
+    assert_eq!(marketplace.plugins[0].enabled, false);
+    let share_context = marketplace.plugins[0]
+        .share_context
+        .as_ref()
+        .expect("expected share context");
+    assert_eq!(
+        share_context.remote_plugin_id,
+        "plugins~Plugin_33333333333333333333333333333333"
+    );
+    assert_eq!(share_context.remote_version.as_deref(), Some("1.2.3"));
+    assert_eq!(
+        share_context.discoverability,
+        Some(PluginShareDiscoverability::Unlisted)
+    );
+    wait_for_remote_installed_scope_request(&server, "WORKSPACE").await?;
+    wait_for_remote_installed_scope_request(&server, "GLOBAL").await?;
+    wait_for_remote_plugin_request_count(&server, "/ps/plugins/list", /*expected_count*/ 0).await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_omits_shared_with_me_kind_when_plugin_sharing_disabled() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        format!(
+            r#"chatgpt_base_url = "{}/backend-api/"
+
+[features]
+plugins = true
+plugin_sharing = false
+"#,
+            server.uri()
+        ),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: Some(vec![PluginListMarketplaceKind::SharedWithMe]),
+        })
+        .await?;
+
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginListResponse = to_response(response)?;
+
+    assert_eq!(
+        response,
+        PluginListResponse {
+            marketplaces: Vec::new(),
+            marketplace_load_errors: Vec::new(),
+            featured_plugin_ids: Vec::new(),
+        }
+    );
+    wait_for_remote_plugin_request_count(
+        &server,
+        "/ps/plugins/workspace/shared",
+        /*expected_count*/ 0,
+    )
+    .await?;
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_list_marks_remote_plugin_disabled_by_admin() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_remote_plugin_catalog_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
     )?;
 
     let global_directory_body = r#"{
@@ -1353,6 +2924,7 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
       "scope": "GLOBAL",
       "installation_policy": "AVAILABLE",
       "authentication_policy": "ON_USE",
+      "status": "DISABLED_BY_ADMIN",
       "release": {
         "display_name": "Linear",
         "description": "Track work in Linear",
@@ -1367,6 +2939,31 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
     "next_page_token": null
   }
 }"#;
+    let global_installed_body = r#"{
+  "plugins": [
+    {
+      "id": "plugins~Plugin_00000000000000000000000000000000",
+      "name": "linear",
+      "scope": "GLOBAL",
+      "installation_policy": "AVAILABLE",
+      "authentication_policy": "ON_USE",
+      "status": "DISABLED_BY_ADMIN",
+      "release": {
+        "display_name": "Linear",
+        "description": "Track work in Linear",
+        "app_ids": [],
+        "interface": {},
+        "skills": []
+      },
+      "enabled": true,
+      "disabled_skill_names": []
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "next_page_token": null
+  }
+}"#;
     let empty_page_body = r#"{
   "plugins": [],
   "pagination": {
@@ -1374,6 +2971,7 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
     "next_page_token": null
   }
 }"#;
+
     for (scope, body) in [
         ("GLOBAL", global_directory_body),
         ("WORKSPACE", empty_page_body),
@@ -1388,22 +2986,28 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
             .mount(&server)
             .await;
     }
-    for scope in ["GLOBAL", "WORKSPACE"] {
+    for (scope, body) in [
+        ("GLOBAL", global_installed_body),
+        ("WORKSPACE", empty_page_body),
+    ] {
         Mock::given(method("GET"))
             .and(path("/backend-api/ps/plugins/installed"))
             .and(query_param("scope", scope))
             .and(header("authorization", "Bearer chatgpt-token"))
             .and(header("chatgpt-account-id", "account-123"))
-            .respond_with(ResponseTemplate::new(200).set_body_string(empty_page_body))
+            .respond_with(ResponseTemplate::new(200).set_body_string(body))
             .mount(&server)
             .await;
     }
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
         .await?;
 
     let response: JSONRPCResponse = timeout(
@@ -1412,20 +3016,21 @@ async fn plugin_list_remote_marketplace_replaces_local_marketplace_with_same_nam
     )
     .await??;
     let response: PluginListResponse = to_response(response)?;
-    let matching_marketplaces = response
+    let remote_marketplace = response
         .marketplaces
-        .iter()
-        .filter(|marketplace| marketplace.name == "chatgpt-global")
-        .collect::<Vec<_>>();
-
-    assert_eq!(matching_marketplaces.len(), 1);
-    assert_eq!(matching_marketplaces[0].path, None);
-    assert_eq!(matching_marketplaces[0].plugins.len(), 1);
+        .into_iter()
+        .find(|marketplace| marketplace.name == "openai-curated-remote")
+        .expect("expected ChatGPT remote marketplace");
+    let plugin = remote_marketplace
+        .plugins
+        .first()
+        .expect("expected remote plugin");
+    assert_eq!(plugin.installed, true);
+    assert_eq!(plugin.enabled, true);
     assert_eq!(
-        matching_marketplaces[0].plugins[0].source,
-        PluginSource::Remote
+        plugin.availability,
+        thinwedge_app_server_protocol::PluginAvailability::DisabledByAdmin
     );
-    assert_eq!(matching_marketplaces[0].plugins[0].name, "linear");
     Ok(())
 }
 
@@ -1455,11 +3060,14 @@ remote_plugin = true
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
         .await?;
 
     let response: JSONRPCResponse = timeout(
@@ -1482,20 +3090,23 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
         thinwedge_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
-    write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
+    write_openai_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
         .and(query_param("platform", "thinwedge"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@thinwedge-curated"]"#))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
         .await?;
 
     let response: JSONRPCResponse = timeout(
@@ -1507,7 +3118,7 @@ async fn plugin_list_fetches_featured_plugin_ids_without_chatgpt_auth() -> Resul
 
     assert_eq!(
         response.featured_plugin_ids,
-        vec!["linear@thinwedge-curated".to_string()]
+        vec!["linear@openai-curated".to_string()]
     );
     Ok(())
 }
@@ -1520,22 +3131,25 @@ async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() ->
         thinwedge_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
-    write_thinwedge_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
+    write_openai_curated_marketplace(thinwedge_home.path(), &["linear", "gmail"])?;
 
     Mock::given(method("GET"))
         .and(path("/backend-api/plugins/featured"))
         .and(query_param("platform", "thinwedge"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@thinwedge-curated"]"#))
+        .respond_with(ResponseTemplate::new(200).set_body_string(r#"["linear@openai-curated"]"#))
         .expect(1)
         .mount(&server)
         .await;
 
-    let mut mcp = McpProcess::new_with_plugin_startup_tasks(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new_with_plugin_startup_tasks(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
     wait_for_featured_plugin_request_count(&server, /*expected_count*/ 1).await?;
 
     let request_id = mcp
-        .send_plugin_list_request(PluginListParams { cwds: None })
+        .send_plugin_list_request(PluginListParams {
+            cwds: None,
+            marketplace_kinds: None,
+        })
         .await?;
 
     let response: JSONRPCResponse = timeout(
@@ -1547,7 +3161,7 @@ async fn plugin_list_uses_warmed_featured_plugin_ids_cache_on_first_request() ->
 
     assert_eq!(
         response.featured_plugin_ids,
-        vec!["linear@thinwedge-curated".to_string()]
+        vec!["linear@openai-curated".to_string()]
     );
     Ok(())
 }
@@ -1598,6 +3212,75 @@ async fn wait_for_remote_plugin_request_count(
     Ok(())
 }
 
+async fn wait_for_remote_installed_scope_request(server: &MockServer, scope: &str) -> Result<()> {
+    timeout(DEFAULT_TIMEOUT, async {
+        loop {
+            let Some(requests) = server.received_requests().await else {
+                bail!("wiremock did not record requests");
+            };
+            if requests.iter().any(|request| {
+                request.method == "GET"
+                    && request.url.path().ends_with("/ps/plugins/installed")
+                    && request
+                        .url
+                        .query_pairs()
+                        .any(|(name, value)| name == "scope" && value == scope)
+            }) {
+                return Ok::<(), anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    Ok(())
+}
+
+async fn wait_for_cached_remote_catalog_plugin_ids(
+    thinwedge_home: &std::path::Path,
+    expected_plugin_ids: &[&str],
+) -> Result<()> {
+    let mut expected_plugin_ids = expected_plugin_ids
+        .iter()
+        .copied()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    expected_plugin_ids.sort();
+    timeout(DEFAULT_TIMEOUT, async {
+        loop {
+            let plugin_ids = cached_remote_catalog_plugin_ids(thinwedge_home)?;
+            if plugin_ids == expected_plugin_ids {
+                return Ok::<(), anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    Ok(())
+}
+
+fn cached_remote_catalog_plugin_ids(thinwedge_home: &std::path::Path) -> Result<Vec<String>> {
+    let cache_dir = thinwedge_home.join("cache/remote_plugin_catalog");
+    if !cache_dir.exists() {
+        return Ok(Vec::new());
+    }
+    let mut plugin_ids = Vec::new();
+    for entry in std::fs::read_dir(cache_dir)? {
+        let path = entry?.path();
+        let cached_catalog: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
+        let Some(plugins) = cached_catalog["plugins"].as_array() else {
+            continue;
+        };
+        plugin_ids.extend(
+            plugins
+                .iter()
+                .filter_map(|plugin| plugin["id"].as_str())
+                .map(str::to_string),
+        );
+    }
+    plugin_ids.sort();
+    Ok(plugin_ids)
+}
+
 async fn wait_for_path_exists(path: &std::path::Path) -> Result<()> {
     timeout(DEFAULT_TIMEOUT, async {
         loop {
@@ -1611,17 +3294,301 @@ async fn wait_for_path_exists(path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
+async fn wait_for_path_missing(path: &std::path::Path) -> Result<()> {
+    timeout(DEFAULT_TIMEOUT, async {
+        loop {
+            if !path.exists() {
+                return Ok::<(), anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    Ok(())
+}
+
+async fn mount_remote_plugin_list(server: &MockServer, scope: &str, body: &str) {
+    Mock::given(method("GET"))
+        .and(path("/backend-api/ps/plugins/list"))
+        .and(query_param("scope", scope))
+        .and(query_param("limit", "200"))
+        .and(header("authorization", "Bearer chatgpt-token"))
+        .and(header("chatgpt-account-id", "account-123"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(body))
+        .mount(server)
+        .await;
+}
+
+fn remote_plugin_list_body(
+    remote_plugin_id: &str,
+    plugin_name: &str,
+    display_name: &str,
+    short_description: &str,
+) -> String {
+    format!(
+        r#"{{
+  "plugins": [
+    {{
+      "id": "{remote_plugin_id}",
+      "name": "{plugin_name}",
+      "scope": "GLOBAL",
+      "installation_policy": "AVAILABLE",
+      "authentication_policy": "ON_USE",
+      "status": "ENABLED",
+      "release": {{
+        "version": "1.2.3",
+        "display_name": "{display_name}",
+        "description": "{display_name}",
+        "app_ids": [],
+        "interface": {{
+          "short_description": "{short_description}",
+          "capabilities": ["Read"]
+        }},
+        "skills": []
+      }}
+    }}
+  ],
+  "pagination": {{
+    "limit": 50,
+    "next_page_token": null
+  }}
+}}"#
+    )
+}
+
+async fn mount_openai_curated_remote_collection_plugin_list(server: &MockServer, body: &str) {
+    Mock::given(method("GET"))
+        .and(path("/backend-api/ps/plugins/list"))
+        .and(query_param("scope", "GLOBAL"))
+        .and(query_param("limit", "200"))
+        .and(query_param("collection", "vertical"))
+        .and(header("authorization", "Bearer chatgpt-token"))
+        .and(header("chatgpt-account-id", "account-123"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(body))
+        .mount(server)
+        .await;
+}
+
+async fn mount_shared_workspace_plugins(server: &MockServer, body: &str) {
+    Mock::given(method("GET"))
+        .and(path("/backend-api/ps/plugins/workspace/shared"))
+        .and(query_param("limit", "200"))
+        .and(header("authorization", "Bearer chatgpt-token"))
+        .and(header("chatgpt-account-id", "account-123"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(body))
+        .mount(server)
+        .await;
+}
+
+async fn mount_remote_installed_plugins(server: &MockServer, scope: &str, body: &str) {
+    Mock::given(method("GET"))
+        .and(path("/backend-api/ps/plugins/installed"))
+        .and(query_param("scope", scope))
+        .and(header("authorization", "Bearer chatgpt-token"))
+        .and(header("chatgpt-account-id", "account-123"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(body))
+        .mount(server)
+        .await;
+}
+
+fn empty_remote_installed_plugins_body() -> &'static str {
+    r#"{
+  "plugins": [],
+  "pagination": {
+    "limit": 50,
+    "next_page_token": null
+  }
+}"#
+}
+
+fn workspace_remote_plugin_page_body(
+    remote_plugin_id: &str,
+    plugin_name: &str,
+    display_name: &str,
+    discoverability: &str,
+    enabled: Option<bool>,
+) -> String {
+    let enabled_field = enabled
+        .map(|enabled| format!(r#", "enabled": {enabled}, "disabled_skill_names": []"#))
+        .unwrap_or_default();
+    format!(
+        r#"{{
+  "plugins": [
+    {{
+      "id": "{remote_plugin_id}",
+      "name": "{plugin_name}",
+      "scope": "WORKSPACE",
+      "discoverability": "{discoverability}",
+      "creator_account_user_id": "user-gavin__account-123",
+      "share_url": "https://chatgpt.example/plugins/share/share-key-1",
+      "installation_policy": "AVAILABLE",
+      "authentication_policy": "ON_USE",
+      "status": "ENABLED",
+      "creator_name": "Gavin",
+      "share_principals": [
+        {{
+          "principal_type": "user",
+          "principal_id": "user-gavin__account-123",
+          "role": "owner",
+          "name": "Gavin"
+        }},
+        {{
+          "principal_type": "user",
+          "principal_id": "user-ada__account-123",
+          "role": "reader",
+          "name": "Ada"
+        }}
+      ],
+      "release": {{
+        "version": "1.2.3",
+        "display_name": "{display_name}",
+        "description": "Track work",
+        "app_ids": [],
+        "interface": {{}},
+        "skills": []
+      }}{enabled_field}
+    }}
+  ],
+  "pagination": {{
+    "limit": 50,
+    "next_page_token": null
+  }}
+}}"#
+    )
+}
+
+fn remote_installed_plugin_body(
+    bundle_download_url: &str,
+    release_version: &str,
+    enabled: bool,
+) -> String {
+    remote_installed_plugin_body_with_optional_app_manifest(
+        bundle_download_url,
+        release_version,
+        enabled,
+        /*app_manifest*/ None,
+    )
+}
+
+fn remote_installed_plugin_body_with_app_manifest(
+    bundle_download_url: &str,
+    release_version: &str,
+    enabled: bool,
+    app_manifest: serde_json::Value,
+) -> String {
+    remote_installed_plugin_body_with_optional_app_manifest(
+        bundle_download_url,
+        release_version,
+        enabled,
+        Some(app_manifest),
+    )
+}
+
+fn remote_installed_plugin_body_with_optional_app_manifest(
+    bundle_download_url: &str,
+    release_version: &str,
+    enabled: bool,
+    app_manifest: Option<serde_json::Value>,
+) -> String {
+    let app_manifest_field = app_manifest
+        .map(|manifest| format!(r#"        "app_manifest": {manifest},"#))
+        .unwrap_or_default();
+    format!(
+        r#"{{
+  "plugins": [
+    {{
+      "id": "plugins~Plugin_00000000000000000000000000000000",
+      "name": "linear",
+      "scope": "GLOBAL",
+      "installation_policy": "AVAILABLE",
+      "authentication_policy": "ON_USE",
+      "release": {{
+        "version": "{release_version}",
+        "display_name": "Linear",
+        "description": "Track work in Linear",
+        "bundle_download_url": "{bundle_download_url}",
+        "app_ids": [],
+{app_manifest_field}
+        "interface": {{}},
+        "skills": []
+      }},
+      "enabled": {enabled},
+      "disabled_skill_names": []
+    }}
+  ],
+  "pagination": {{
+    "limit": 50,
+    "next_page_token": null
+  }}
+}}"#
+    )
+}
+
+async fn mount_remote_plugin_bundle(
+    server: &MockServer,
+    plugin_name: &str,
+    body: Vec<u8>,
+) -> String {
+    let bundle_path = format!("/bundles/{plugin_name}.tar.gz");
+    Mock::given(method("GET"))
+        .and(path(bundle_path.as_str()))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("content-type", "application/gzip")
+                .set_body_bytes(body),
+        )
+        .mount(server)
+        .await;
+    format!("{}{bundle_path}", server.uri())
+}
+
+fn remote_plugin_bundle_tar_gz_bytes(plugin_name: &str) -> Result<Vec<u8>> {
+    let manifest = format!(r#"{{"name":"{plugin_name}"}}"#);
+    let skill = "---\nname: plan-work\ndescription: Track work in Linear.\n---\n\n# Plan Work\n";
+    let encoder = GzEncoder::new(Vec::new(), Compression::default());
+    let mut tar = tar::Builder::new(encoder);
+    for (path, contents, mode) in [
+        (
+            ".thinwedge-plugin/plugin.json",
+            manifest.as_bytes(),
+            /*mode*/ 0o644,
+        ),
+        (
+            "skills/plan-work/SKILL.md",
+            skill.as_bytes(),
+            /*mode*/ 0o644,
+        ),
+    ] {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(contents.len() as u64);
+        header.set_mode(mode);
+        header.set_cksum();
+        tar.append_data(&mut header, path, contents)?;
+    }
+    Ok(tar.into_inner()?.finish()?)
+}
+
 fn write_installed_plugin(
     thinwedge_home: &TempDir,
     marketplace_name: &str,
     plugin_name: &str,
+) -> Result<()> {
+    write_installed_plugin_with_version(thinwedge_home, marketplace_name, plugin_name, "local")
+}
+
+fn write_installed_plugin_with_version(
+    thinwedge_home: &TempDir,
+    marketplace_name: &str,
+    plugin_name: &str,
+    plugin_version: &str,
 ) -> Result<()> {
     let plugin_root = thinwedge_home
         .path()
         .join("plugins/cache")
         .join(marketplace_name)
         .join(plugin_name)
-        .join("local/.thinwedge-plugin");
+        .join(plugin_version)
+        .join(".thinwedge-plugin");
     std::fs::create_dir_all(&plugin_root)?;
     std::fs::write(
         plugin_root.join("plugin.json"),
@@ -1643,13 +3610,13 @@ chatgpt_base_url = "{base_url}"
 [features]
 plugins = true
 
-[plugins."linear@thinwedge-curated"]
+[plugins."linear@openai-curated"]
 enabled = false
 
-[plugins."gmail@thinwedge-curated"]
+[plugins."gmail@openai-curated"]
 enabled = false
 
-[plugins."calendar@thinwedge-curated"]
+[plugins."calendar@openai-curated"]
 enabled = true
 "#
         ),
@@ -1674,7 +3641,7 @@ remote_plugin = true
     )
 }
 
-fn write_thinwedge_curated_marketplace(
+fn write_openai_curated_marketplace(
     thinwedge_home: &std::path::Path,
     plugin_names: &[&str],
 ) -> std::io::Result<()> {
@@ -1700,7 +3667,7 @@ fn write_thinwedge_curated_marketplace(
         curated_root.join(".agents/plugins/marketplace.json"),
         format!(
             r#"{{
-  "name": "thinwedge-curated",
+  "name": "openai-curated",
   "plugins": [
 {plugins}
   ]
@@ -1722,4 +3689,25 @@ fn write_thinwedge_curated_marketplace(
         format!("{TEST_CURATED_PLUGIN_SHA}\n"),
     )?;
     Ok(())
+}
+
+fn write_plugin_share_local_path_mapping(
+    thinwedge_home: &std::path::Path,
+    remote_plugin_id: &str,
+    plugin_path: &AbsolutePathBuf,
+) -> std::io::Result<()> {
+    let mut local_plugin_paths_by_remote_plugin_id = serde_json::Map::new();
+    local_plugin_paths_by_remote_plugin_id.insert(
+        remote_plugin_id.to_string(),
+        serde_json::to_value(plugin_path).map_err(std::io::Error::other)?,
+    );
+    let contents = serde_json::to_string_pretty(&serde_json::json!({
+        "localPluginPathsByRemotePluginId": local_plugin_paths_by_remote_plugin_id,
+    }))
+    .map_err(std::io::Error::other)?;
+    std::fs::create_dir_all(thinwedge_home.join(".tmp"))?;
+    std::fs::write(
+        thinwedge_home.join(".tmp/plugin-share-local-paths-v1.json"),
+        format!("{contents}\n"),
+    )
 }

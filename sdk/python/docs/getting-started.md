@@ -1,36 +1,64 @@
 # Getting Started
 
-This is the fastest path from install to a multi-turn thread using the public SDK surface.
+This guide gets a published OpenAI ThinWedge Python SDK beta installation running
+with a multi-turn thread.
 
-The SDK is experimental. Treat the API, bundled runtime strategy, and packaging details as unstable until the first public release.
+## 1. Install
 
-## 1) Install
-
-From repo root:
+Install the SDK:
 
 ```bash
-cd sdk/python
-uv sync
-source .venv/bin/activate
+pip install openai-thinwedge
 ```
 
 Requirements:
 
 - Python `>=3.10`
-- uv
-- installed `thinwedge-thinwedge-cli-bin` runtime package, or an explicit `thinwedge_bin` override
-- local ThinWedge auth/session configured
+- An existing ThinWedge account session, or one of the login flows below
 
-## 2) Run your first turn (sync)
+The SDK installs its compatible `openai-thinwedge-cli-bin` runtime dependency
+automatically. While beta releases are the only published SDK releases, this
+normal install command selects the latest beta. After a stable release exists,
+use `pip install --pre openai-thinwedge` to opt into a newer prerelease.
+
+## 2. Authenticate When Needed
+
+Existing ThinWedge authentication is reused automatically. For ChatGPT browser
+login:
 
 ```python
-from thinwedge_app_server import ThinWedge
+from openai_thinwedge import ThinWedge
 
 with ThinWedge() as thinwedge:
-    server = thinwedge.metadata.serverInfo
-    print("Server:", None if server is None else server.name, None if server is None else server.version)
+    login = thinwedge.login_chatgpt()
+    print(login.auth_url)
+    print(login.wait().success)
+```
 
-    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+For device-code login:
+
+```python
+with ThinWedge() as thinwedge:
+    login = thinwedge.login_chatgpt_device_code()
+    print(login.verification_url, login.user_code)
+    print(login.wait().success)
+```
+
+For API-key login:
+
+```python
+with ThinWedge() as thinwedge:
+    thinwedge.login_api_key("sk-...")
+    print(thinwedge.account().account)
+```
+
+## 3. Run A Turn
+
+```python
+from openai_thinwedge import ThinWedge, Sandbox
+
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_start(sandbox=Sandbox.workspace_write)
     result = thread.run("Say hello in one sentence.")
 
     print("Thread:", thread.id)
@@ -38,43 +66,66 @@ with ThinWedge() as thinwedge:
     print("Items:", len(result.items))
 ```
 
-What happened:
+`Thread.run(...)` starts a turn, waits for completion, and returns
+`TurnResult`. Plain strings are shorthand for `TextInput(...)`.
 
-- `ThinWedge()` started and initialized `thinwedge app-server`.
-- `thread_start(...)` created a thread.
-- `thread.run("...")` started a turn, consumed events until completion, and returned the final assistant response plus collected items and usage.
-- `result.final_response` is `None` when no final-answer or phase-less assistant message item completes for the turn.
-- use `thread.turn(...)` when you need a `TurnHandle` for streaming, steering, interrupting, or turn IDs/status
-- one client can have only one active turn consumer (`thread.run(...)`, `TurnHandle.stream()`, or `TurnHandle.run()`) at a time in the current experimental build
+Use `Thread.turn(...)` when you need a `TurnHandle` for streaming, steering,
+or interrupting an active turn.
 
-## 3) Continue the same thread (multi-turn)
+## 4. Choose Sandbox Access
+
+Use one enum for the initial thread and later turn overrides:
 
 ```python
-from thinwedge_app_server import ThinWedge
+from openai_thinwedge import ThinWedge, Sandbox
 
 with ThinWedge() as thinwedge:
-    thread = thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
-
-    first = thread.run("Summarize Rust ownership in 2 bullets.")
-    second = thread.run("Now explain it to a Python developer.")
-
-    print("first:", first.final_response)
-    print("second:", second.final_response)
+    thread = thinwedge.thread_start(sandbox=Sandbox.workspace_write)
+    thread.run("Make the requested changes.")
+    review = thread.run("Review the diff only.", sandbox=Sandbox.read_only)
 ```
 
-## 4) Async parity
+Available presets:
 
-Use `async with AsyncThinWedge()` as the normal async entrypoint. `AsyncThinWedge`
-initializes lazily, and context entry makes startup/shutdown explicit.
+- `Sandbox.read_only`: read files without allowing writes.
+- `Sandbox.workspace_write`: read files and write inside the workspace and
+  configured writable roots; this is the normal default for workspace work.
+- `Sandbox.full_access`: run without filesystem access restrictions.
+
+When `sandbox=` is omitted, ThinWedge uses its configured default. A turn override
+also applies to subsequent turns on that thread.
+
+## 5. Continue A Thread
+
+```python
+from openai_thinwedge import ThinWedge
+
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_start()
+    thread.run("Summarize Rust ownership in two bullets.")
+    result = thread.run("Now explain it to a Python developer.")
+    print(result.final_response)
+```
+
+To resume a stored thread later:
+
+```python
+with ThinWedge() as thinwedge:
+    thread = thinwedge.thread_resume("thr_123")
+    print(thread.run("Continue where we left off.").final_response)
+```
+
+## 6. Use The Async Client
 
 ```python
 import asyncio
-from thinwedge_app_server import AsyncThinWedge
+
+from openai_thinwedge import AsyncThinWedge, Sandbox
 
 
 async def main() -> None:
     async with AsyncThinWedge() as thinwedge:
-        thread = await thinwedge.thread_start(model="gpt-5.4", config={"model_reasoning_effort": "high"})
+        thread = await thinwedge.thread_start(sandbox=Sandbox.workspace_write)
         result = await thread.run("Continue where we left off.")
         print(result.final_response)
 
@@ -82,29 +133,36 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-## 5) Resume an existing thread
+## 7. Get Help
+
+Python's built-in documentation tools cover the curated SDK surface:
 
 ```python
-from thinwedge_app_server import ThinWedge
+import openai_thinwedge
+from openai_thinwedge import ThinWedge, ThinWedgeConfig
 
-THREAD_ID = "thr_123"  # replace with a real id
-
-with ThinWedge() as thinwedge:
-    thread = thinwedge.thread_resume(THREAD_ID)
-    result = thread.run("Continue where we left off.")
-    print(result.final_response)
+help(openai_thinwedge)
+help(ThinWedge)
+help(ThinWedgeConfig)
 ```
 
-## 6) Generated models
-
-The convenience wrappers live at the package root, but the canonical app-server models live under:
-
-```python
-from thinwedge_app_server.generated.v2_all import Turn, TurnStatus, ThreadReadResponse
+```bash
+python -m pydoc openai_thinwedge
 ```
 
-## 7) Next stops
+## Developing From This Repository
 
-- API surface and signatures: `docs/api-reference.md`
-- Common decisions/pitfalls: `docs/faq.md`
-- End-to-end runnable examples: `examples/README.md`
+Contributors working from a checkout can install development dependencies from
+the repository:
+
+```bash
+cd sdk/python
+uv sync --group dev
+source .venv/bin/activate
+```
+
+## Next Stops
+
+- [API reference](https://github.com/openai/thinwedge/blob/main/sdk/python/docs/api-reference.md)
+- [FAQ](https://github.com/openai/thinwedge/blob/main/sdk/python/docs/faq.md)
+- [Runnable examples](https://github.com/openai/thinwedge/blob/main/sdk/python/examples/README.md)

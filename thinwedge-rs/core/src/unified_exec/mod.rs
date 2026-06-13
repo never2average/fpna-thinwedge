@@ -29,14 +29,19 @@ use std::sync::Weak;
 
 use rand::Rng;
 use rand::rng;
+use thinwedge_exec_server::Environment;
 use thinwedge_network_proxy::NetworkProxy;
 use thinwedge_protocol::models::AdditionalPermissionProfile;
+use thinwedge_tools::UnifiedExecShellMode;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
+use thinwedge_utils_output_truncation::TruncationPolicy;
 use tokio::sync::Mutex;
 
 use crate::sandboxing::SandboxPermissions;
 use crate::session::session::Session;
 use crate::session::turn_context::TurnContext;
+use crate::shell::ShellType;
+use crate::tools::network_approval::DeferredNetworkApproval;
 
 mod async_watcher;
 mod errors;
@@ -66,9 +71,6 @@ pub(crate) const UNIFIED_EXEC_OUTPUT_MAX_BYTES: usize = 1024 * 1024; // 1 MiB
 pub(crate) const UNIFIED_EXEC_OUTPUT_MAX_TOKENS: usize = UNIFIED_EXEC_OUTPUT_MAX_BYTES / 4;
 pub(crate) const MAX_UNIFIED_EXEC_PROCESSES: usize = 64;
 
-// Send a warning message to the models when it reaches this number of processes.
-pub(crate) const WARNING_UNIFIED_EXEC_PROCESSES: usize = 60;
-
 pub(crate) struct UnifiedExecContext {
     pub session: Arc<Session>,
     pub turn: Arc<TurnContext>,
@@ -88,11 +90,15 @@ impl UnifiedExecContext {
 #[derive(Debug)]
 pub(crate) struct ExecCommandRequest {
     pub command: Vec<String>,
+    pub shell_type: ShellType,
     pub hook_command: String,
     pub process_id: i32,
     pub yield_time_ms: u64,
     pub max_output_tokens: Option<usize>,
-    pub workdir: Option<AbsolutePathBuf>,
+    pub cwd: AbsolutePathBuf,
+    pub sandbox_cwd: AbsolutePathBuf,
+    pub environment: Arc<Environment>,
+    pub shell_mode: UnifiedExecShellMode,
     pub network: Option<NetworkProxy>,
     pub tty: bool,
     pub sandbox_permissions: SandboxPermissions,
@@ -108,6 +114,7 @@ pub(crate) struct WriteStdinRequest<'a> {
     pub input: &'a str,
     pub yield_time_ms: u64,
     pub max_output_tokens: Option<usize>,
+    pub truncation_policy: TruncationPolicy,
 }
 
 #[derive(Default)]
@@ -148,9 +155,11 @@ struct ProcessEntry {
     process: Arc<UnifiedExecProcess>,
     call_id: String,
     process_id: i32,
+    cwd: AbsolutePathBuf,
+    initial_exec_command_active: Arc<std::sync::atomic::AtomicBool>,
     hook_command: String,
     tty: bool,
-    network_approval_id: Option<String>,
+    network_approval: Option<DeferredNetworkApproval>,
     session: Weak<Session>,
     last_used: tokio::time::Instant,
 }

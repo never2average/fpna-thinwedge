@@ -13,7 +13,7 @@ from _bootstrap import (
 
 ensure_local_sdk_src()
 
-from thinwedge_app_server import ThinWedge
+from openai_thinwedge import ThinWedge
 
 with ThinWedge(config=runtime_config()) as thinwedge:
     print("Server:", server_label(thinwedge.metadata))

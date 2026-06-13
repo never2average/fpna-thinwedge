@@ -4,27 +4,26 @@ use clap::Parser;
 use clap_complete::Shell;
 use clap_complete::generate;
 use owo_colors::OwoColorize;
+use std::collections::HashSet;
 use std::io::IsTerminal;
+use std::io::Write;
 use std::path::PathBuf;
+use std::sync::Arc;
 use supports_color::Stream;
+use thinwedge_app_server_daemon::BootstrapOptions as AppServerBootstrapOptions;
+use thinwedge_app_server_daemon::LifecycleCommand as AppServerLifecycleCommand;
+use thinwedge_app_server_daemon::RemoteControlMode as AppServerRemoteControlMode;
 use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_arg0::arg0_dispatch_or_else;
 use thinwedge_chatgpt::apply_command::ApplyCommand;
 use thinwedge_chatgpt::apply_command::run_apply_command;
-use thinwedge_cli::ArdentCli;
-use thinwedge_cli::DbSandboxCli;
-use thinwedge_cli::LandlockCommand;
-use thinwedge_cli::SeatbeltCommand;
-use thinwedge_cli::WindowsCommand;
-use thinwedge_cli::read_agent_identity_from_stdin;
+use thinwedge_cli::read_access_token_from_stdin;
 use thinwedge_cli::read_api_key_from_stdin;
-use thinwedge_cli::run_ardent_cli;
-use thinwedge_cli::run_db_sandbox_cli;
 use thinwedge_cli::run_login_status;
-use thinwedge_cli::run_login_with_agent_identity;
+use thinwedge_cli::run_login_with_access_token;
 use thinwedge_cli::run_login_with_api_key;
+use thinwedge_cli::run_login_with_chatgpt;
 use thinwedge_cli::run_login_with_device_code;
-use thinwedge_cli::run_login_with_preferred_api_key;
 use thinwedge_cli::run_logout;
 use thinwedge_cloud_tasks::Cli as CloudTasksCli;
 use thinwedge_exec::Cli as ExecCli;
@@ -35,35 +34,54 @@ use thinwedge_responses_api_proxy::Args as ResponsesApiProxyArgs;
 use thinwedge_rollout_trace::REDUCED_STATE_FILE_NAME;
 use thinwedge_rollout_trace::replay_bundle;
 use thinwedge_state::StateRuntime;
-use thinwedge_state::state_db_path;
+use thinwedge_state::memories_db_path;
 use thinwedge_tui::AppExitInfo;
 use thinwedge_tui::Cli as TuiCli;
 use thinwedge_tui::ExitReason;
 use thinwedge_tui::UpdateAction;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use thinwedge_utils_cli::CliConfigOverrides;
+use thinwedge_utils_cli::ProfileV2Name;
+use thinwedge_utils_cli::SharedCliOptions;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod app_cmd;
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod desktop_app;
+mod doctor;
 mod marketplace_cmd;
 mod mcp_cmd;
+mod plugin_cmd;
+mod remote_control_cmd;
+#[cfg(target_os = "windows")]
+mod sandbox_setup;
+mod state_db_recovery;
 #[cfg(not(windows))]
 mod wsl_paths;
 
-use crate::marketplace_cmd::MarketplaceCli;
 use crate::mcp_cmd::McpCli;
+use crate::plugin_cmd::PluginCli;
+use crate::plugin_cmd::PluginSubcommand;
+use crate::remote_control_cmd::RemoteControlCommand;
+use doctor::DoctorCommand;
+use state_db_recovery as local_state_db;
 
+use thinwedge_config::LoaderOverrides;
 use thinwedge_core::build_models_manager;
-use thinwedge_core::config::Config;
+use thinwedge_core::config::ConfigBuilder;
 use thinwedge_core::config::ConfigOverrides;
 use thinwedge_core::config::edit::ConfigEditsBuilder;
 use thinwedge_core::config::find_thinwedge_home;
+use thinwedge_core::config::resolve_profile_v2_config_path;
 use thinwedge_features::FEATURES;
 use thinwedge_features::Stage;
 use thinwedge_features::is_known_feature_key;
+use thinwedge_home::ThinWedgeHomeUserInstructionsProvider;
 use thinwedge_login::AuthManager;
-use thinwedge_login::read_preferred_api_key_from_env;
+use thinwedge_login::ThinWedgeAuth;
+use thinwedge_login::read_thinwedge_access_token_from_env;
 use thinwedge_memories_write::clear_memory_roots_contents;
 use thinwedge_models_manager::bundled_models_response;
-use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use thinwedge_models_manager::manager::RefreshStrategy;
 use thinwedge_protocol::protocol::AskForApproval;
 use thinwedge_protocol::user_input::UserInput;
@@ -75,7 +93,6 @@ use thinwedge_terminal_detection::TerminalName;
 #[derive(Debug, Parser)]
 #[clap(
     author,
-    name = "thinwedge",
     version,
     // If a sub‑command is given, ignore requirements of the default args.
     subcommand_negates_reqs = true,
@@ -109,20 +126,13 @@ enum Subcommand {
     Exec(ExecCli),
 
     /// Run a code review non-interactively.
-    Review(ReviewArgs),
+    Review(ReviewCommand),
 
     /// Manage login.
     Login(LoginCommand),
 
     /// Remove stored authentication credentials.
     Logout(LogoutCommand),
-
-    /// Manage optional Ardent database sandboxes for finance agents.
-    Ardent(ArdentCli),
-
-    /// Configure and preflight DB sandbox providers for finance agents.
-    #[clap(name = "db-sandbox")]
-    DbSandbox(DbSandboxCli),
 
     /// Manage external MCP servers for ThinWedge.
     Mcp(McpCli),
@@ -131,10 +141,17 @@ enum Subcommand {
     Plugin(PluginCli),
 
     /// Start ThinWedge as an MCP server (stdio).
-    McpServer,
+    McpServer(McpServerCommand),
 
     /// [experimental] Run the app server or related tooling.
     AppServer(AppServerCommand),
+
+    /// [experimental] Manage the app-server daemon with remote control enabled.
+    RemoteControl(RemoteControlCommand),
+
+    /// Launch the ThinWedge desktop app (opens the app installer if missing).
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    App(app_cmd::AppCommand),
 
     /// Generate shell completion scripts.
     Completion(CompletionCommand),
@@ -142,8 +159,11 @@ enum Subcommand {
     /// Update ThinWedge to the latest version.
     Update,
 
+    /// Diagnose local ThinWedge installation, config, auth, and runtime health.
+    Doctor(DoctorCommand),
+
     /// Run commands within a ThinWedge-provided sandbox.
-    Sandbox(SandboxArgs),
+    Sandbox(HostSandboxArgs),
 
     /// Debugging tools.
     Debug(DebugCommand),
@@ -152,12 +172,21 @@ enum Subcommand {
     #[clap(hide = true)]
     Execpolicy(ExecpolicyCommand),
 
-    /// Apply the latest diff produced by the ThinWedge agent as a `git apply` to your local working tree.
+    /// Apply the latest diff produced by ThinWedge agent as a `git apply` to your local working tree.
     #[clap(visible_alias = "a")]
     Apply(ApplyCommand),
 
     /// Resume a previous interactive session (picker by default; use --last to continue the most recent).
     Resume(ResumeCommand),
+
+    /// Archive a saved session by id or session name.
+    Archive(SessionArchiveCommand),
+
+    /// Permanently delete a saved session by id or session name.
+    Delete(DeleteCommand),
+
+    /// Unarchive a saved session by id or session name.
+    Unarchive(SessionArchiveCommand),
 
     /// Fork a previous interactive session (picker by default; use --last to fork the most recent).
     Fork(ForkCommand),
@@ -179,22 +208,6 @@ enum Subcommand {
 
     /// Inspect feature flags.
     Features(FeaturesCli),
-}
-
-#[derive(Debug, Parser)]
-#[command(bin_name = "thinwedge plugin")]
-struct PluginCli {
-    #[clap(flatten)]
-    pub config_overrides: CliConfigOverrides,
-
-    #[command(subcommand)]
-    subcommand: PluginSubcommand,
-}
-
-#[derive(Debug, clap::Subcommand)]
-enum PluginSubcommand {
-    /// Manage plugin marketplaces for ThinWedge.
-    Marketplace(MarketplaceCli),
 }
 
 #[derive(Debug, Parser)]
@@ -267,6 +280,23 @@ struct DebugModelsCommand {
 }
 
 #[derive(Debug, Parser)]
+struct ReviewCommand {
+    /// Error out when config.toml contains fields that are not recognized by this version of ThinWedge.
+    #[arg(long = "strict-config", default_value_t = false)]
+    strict_config: bool,
+
+    #[clap(flatten)]
+    args: ReviewArgs,
+}
+
+#[derive(Debug, Parser)]
+struct McpServerCommand {
+    /// Error out when config.toml contains fields that are not recognized by this version of ThinWedge.
+    #[arg(long = "strict-config", default_value_t = false)]
+    strict_config: bool,
+}
+
+#[derive(Debug, Parser)]
 struct DebugTraceReduceCommand {
     /// Trace bundle directory containing manifest.json and trace.jsonl.
     #[arg(value_name = "TRACE_BUNDLE")]
@@ -279,7 +309,7 @@ struct DebugTraceReduceCommand {
 
 #[derive(Debug, Parser)]
 struct ResumeCommand {
-    /// Conversation/session id (UUID) or thread name. UUIDs take precedence if it parses.
+    /// Session id (UUID) or session name. UUIDs take precedence if it parses.
     /// If omitted, use --last to pick the most recent recorded session.
     #[arg(value_name = "SESSION_ID")]
     session_id: Option<String>,
@@ -300,7 +330,43 @@ struct ResumeCommand {
     remote: InteractiveRemoteOptions,
 
     #[clap(flatten)]
-    config_overrides: TuiCli,
+    config_overrides: SessionTuiCli,
+}
+
+#[derive(Debug, Parser)]
+struct SessionArchiveCommand {
+    /// Session id (UUID) or session name. UUIDs take precedence if it parses.
+    #[arg(value_name = "SESSION")]
+    target: String,
+
+    #[clap(flatten)]
+    remote: InteractiveRemoteOptions,
+
+    #[clap(flatten)]
+    config_overrides: SessionArchiveConfigOverrides,
+}
+
+#[derive(Debug, Args, Clone, Default)]
+struct SessionArchiveConfigOverrides {
+    #[clap(flatten)]
+    shared: SharedCliOptions,
+
+    /// Error out when config.toml contains fields that are not recognized by this version of ThinWedge.
+    #[arg(long = "strict-config", default_value_t = false)]
+    strict_config: bool,
+
+    #[clap(flatten)]
+    config_overrides: CliConfigOverrides,
+}
+
+#[derive(Debug, Args)]
+struct DeleteCommand {
+    #[clap(flatten)]
+    session: SessionArchiveCommand,
+
+    /// Delete without prompting. SESSION must be a UUID.
+    #[arg(long, default_value_t = false)]
+    force: bool,
 }
 
 #[derive(Debug, Parser)]
@@ -311,7 +377,7 @@ struct ForkCommand {
     session_id: Option<String>,
 
     /// Fork the most recent session without showing the picker.
-    #[arg(long = "last", default_value_t = false, conflicts_with = "session_id")]
+    #[arg(long = "last", default_value_t = false)]
     last: bool,
 
     /// Show all sessions (disables cwd filtering and shows CWD column).
@@ -322,27 +388,58 @@ struct ForkCommand {
     remote: InteractiveRemoteOptions,
 
     #[clap(flatten)]
-    config_overrides: TuiCli,
+    config_overrides: SessionTuiCli,
 }
 
+/// TUI arguments for session commands where a parsed prompt implies an explicit session id.
+///
+/// This keeps `--last PROMPT` valid while rejecting `--last SESSION_ID PROMPT`.
+#[derive(Debug)]
+struct SessionTuiCli(TuiCli);
+
+impl Args for SessionTuiCli {
+    fn augment_args(cmd: clap::Command) -> clap::Command {
+        TuiCli::augment_args(cmd).mut_arg("prompt", |arg| arg.conflicts_with("last"))
+    }
+
+    fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
+        TuiCli::augment_args_for_update(cmd).mut_arg("prompt", |arg| arg.conflicts_with("last"))
+    }
+}
+
+impl clap::FromArgMatches for SessionTuiCli {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        TuiCli::from_arg_matches(matches).map(Self)
+    }
+
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        self.0.update_from_arg_matches(matches)
+    }
+}
+
+#[cfg(target_os = "macos")]
+type HostSandboxArgs = thinwedge_cli::SeatbeltCommand;
+#[cfg(target_os = "linux")]
+type HostSandboxArgs = thinwedge_cli::LandlockCommand;
+#[cfg(target_os = "windows")]
+type HostSandboxArgs = thinwedge_cli::WindowsCommand;
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+type HostSandboxArgs = UnsupportedSandboxArgs;
+
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 #[derive(Debug, Parser)]
-struct SandboxArgs {
-    #[command(subcommand)]
-    cmd: SandboxCommand,
-}
+struct UnsupportedSandboxArgs {
+    /// Layer $THINWEDGE_HOME/<name>.config.toml on top of the base user config.
+    #[arg(long = "profile", short = 'p')]
+    pub config_profile: Option<ProfileV2Name>,
 
-#[derive(Debug, clap::Subcommand)]
-enum SandboxCommand {
-    /// Run a command under Seatbelt (macOS only).
-    #[clap(visible_alias = "seatbelt")]
-    Macos(SeatbeltCommand),
+    #[clap(skip)]
+    pub config_overrides: CliConfigOverrides,
 
-    /// Run a command under the Linux sandbox (bubblewrap by default).
-    #[clap(visible_alias = "landlock")]
-    Linux(LandlockCommand),
-
-    /// Run a command under Windows restricted token (Windows only).
-    Windows(WindowsCommand),
+    /// Full command args to run under the host sandbox.
+    #[arg(trailing_var_arg = true)]
+    pub command: Vec<String>,
 }
 
 #[derive(Debug, Parser)]
@@ -365,27 +462,27 @@ struct LoginCommand {
 
     #[arg(
         long = "with-api-key",
-        help = "Read the API token from stdin (e.g. `printenv OPENROUTER_API_KEY | thinwedge login --with-api-key`)"
+        help = "Read the API key from stdin (e.g. `printenv OPENAI_API_KEY | thinwedge login --with-api-key`)"
     )]
     with_api_key: bool,
 
     #[arg(
-        long = "with-agent-identity",
-        help = "Read the experimental Agent Identity token from stdin (e.g. `printenv THINWEDGE_AGENT_IDENTITY | thinwedge login --with-agent-identity`)"
+        long = "with-access-token",
+        help = "Read the access token from stdin (e.g. `printenv THINWEDGE_ACCESS_TOKEN | thinwedge login --with-access-token`)"
     )]
-    with_agent_identity: bool,
+    with_access_token: bool,
 
     #[arg(
         long = "api-key",
         num_args = 0..=1,
         default_missing_value = "",
         value_name = "API_KEY",
-        help = "(deprecated) Previously accepted the API token directly; now exits with guidance to use --with-api-key",
+        help = "(deprecated) Previously accepted the API key directly; now exits with guidance to use --with-api-key",
         hide = true
     )]
     api_key: Option<String>,
 
-    #[arg(long = "device-auth", hide = true)]
+    #[arg(long = "device-auth")]
     use_device_code: bool,
 
     /// EXPERIMENTAL: Use custom OAuth issuer base URL (advanced)
@@ -419,6 +516,10 @@ struct AppServerCommand {
     #[command(subcommand)]
     subcommand: Option<AppServerSubcommand>,
 
+    /// Error out when config.toml contains fields that are not recognized by this version of ThinWedge.
+    #[arg(long = "strict-config", default_value_t = false)]
+    strict_config: bool,
+
     /// Transport endpoint URL. Supported values: `stdio://` (default),
     /// `unix://`, `unix://PATH`, `ws://IP:PORT`, `off`.
     #[arg(
@@ -427,6 +528,14 @@ struct AppServerCommand {
         default_value = thinwedge_app_server::AppServerTransport::DEFAULT_LISTEN_URL
     )]
     listen: thinwedge_app_server::AppServerTransport,
+
+    /// Use stdio as the transport (equivalent to `--listen stdio://`).
+    #[arg(long = "stdio", conflicts_with = "listen")]
+    stdio: bool,
+
+    /// Enable remote control for this app-server process without changing persistence.
+    #[arg(long = "remote-control", hide = true)]
+    remote_control: bool,
 
     /// Controls whether analytics are enabled by default.
     ///
@@ -442,7 +551,7 @@ struct AppServerCommand {
     /// enabled = false
     /// ```
     ///
-    /// See https://developers.thinwedge.com/thinwedge/config-advanced/#metrics for more details.
+    /// See https://developers.openai.com/thinwedge/config-advanced/#metrics for more details.
     #[arg(long = "analytics-default-enabled")]
     analytics_default_enabled: bool,
 
@@ -452,18 +561,37 @@ struct AppServerCommand {
 
 #[derive(Debug, Parser)]
 struct ExecServerCommand {
-    /// Transport endpoint URL. Supported values: `ws://IP:PORT` (default).
-    #[arg(
-        long = "listen",
-        value_name = "URL",
-        default_value = "ws://127.0.0.1:0"
-    )]
-    listen: String,
+    /// Error out when config.toml contains fields that are not recognized by this version of ThinWedge.
+    #[arg(long = "strict-config", default_value_t = false)]
+    strict_config: bool,
+
+    /// Transport endpoint URL. Supported values: `ws://IP:PORT` (default), `stdio`, `stdio://`.
+    #[arg(long = "listen", value_name = "URL", conflicts_with = "remote")]
+    listen: Option<String>,
+
+    /// Register this exec-server as a remote environment using the given base URL.
+    #[arg(long = "remote", value_name = "URL", requires = "environment_id")]
+    remote: Option<String>,
+
+    /// Environment id to attach to when registering remotely.
+    #[arg(long = "environment-id", value_name = "ID")]
+    environment_id: Option<String>,
+
+    /// Human-readable environment name.
+    #[arg(long = "name", value_name = "NAME")]
+    name: Option<String>,
+
+    /// Use Agent Identity auth from THINWEDGE_ACCESS_TOKEN for remote registration.
+    #[arg(long = "use-agent-identity-auth", requires = "remote")]
+    use_agent_identity_auth: bool,
 }
 
 #[derive(Debug, clap::Subcommand)]
 #[allow(clippy::enum_variant_names)]
 enum AppServerSubcommand {
+    /// Manage the local app-server daemon.
+    Daemon(AppServerDaemonCommand),
+
     /// Proxy stdio bytes to the running app-server control socket.
     Proxy(AppServerProxyCommand),
 
@@ -479,10 +607,51 @@ enum AppServerSubcommand {
 }
 
 #[derive(Debug, Args)]
+struct AppServerDaemonCommand {
+    #[command(subcommand)]
+    subcommand: AppServerDaemonSubcommand,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum AppServerDaemonSubcommand {
+    /// Install durable local app-server management for SSH-driven use.
+    Bootstrap(AppServerBootstrapCommand),
+
+    /// Start the local app server daemon if it is not already running.
+    Start,
+
+    /// Restart the local app server daemon.
+    Restart,
+
+    /// Enable remote control for future starts and a currently running managed daemon.
+    EnableRemoteControl,
+
+    /// Disable remote control for future starts and a currently running managed daemon.
+    DisableRemoteControl,
+
+    /// Stop the local app server daemon.
+    Stop,
+
+    /// Print local CLI and running app-server versions as JSON.
+    Version,
+
+    /// [internal] Run the detached pid-backed standalone updater loop.
+    #[clap(hide = true)]
+    PidUpdateLoop,
+}
+
+#[derive(Debug, Args)]
 struct AppServerProxyCommand {
     /// Path to the app-server Unix domain socket to connect to.
     #[arg(long = "sock", value_name = "SOCKET_PATH", value_parser = parse_socket_path)]
     socket_path: Option<AbsolutePathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct AppServerBootstrapCommand {
+    /// Launch the managed app-server with remote control enabled.
+    #[arg(long = "remote-control")]
+    remote_control: bool,
 }
 
 #[derive(Debug, Args)]
@@ -531,29 +700,28 @@ fn parse_socket_path(raw: &str) -> Result<AbsolutePathBuf, String> {
 }
 
 fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<String> {
+    let is_fatal = matches!(&exit_info.exit_reason, ExitReason::Fatal(_));
     let AppExitInfo {
         token_usage,
         thread_id: conversation_id,
+        resume_hint,
         ..
     } = exit_info;
 
     let mut lines = Vec::new();
     if !token_usage.is_zero() {
-        lines.push(format!(
-            "{}",
-            thinwedge_protocol::protocol::FinalOutput::from(token_usage)
-        ));
+        lines.push(token_usage.to_string());
     }
 
-    if let Some(resume_cmd) =
-        thinwedge_core::util::resume_command(/*thread_name*/ None, conversation_id)
-    {
+    if let Some(resume_cmd) = resume_hint {
         let command = if color_enabled {
             resume_cmd.cyan().to_string()
         } else {
             resume_cmd
         };
         lines.push(format!("To continue this session, run {command}"));
+    } else if is_fatal && let Some(conversation_id) = conversation_id {
+        lines.push(format!("Session ID: {conversation_id}"));
     }
 
     lines
@@ -561,18 +729,22 @@ fn format_exit_messages(exit_info: AppExitInfo, color_enabled: bool) -> Vec<Stri
 
 /// Handle the app exit and print the results. Optionally run the update action.
 fn handle_app_exit(exit_info: AppExitInfo) -> anyhow::Result<()> {
-    match exit_info.exit_reason {
+    let is_fatal = match &exit_info.exit_reason {
         ExitReason::Fatal(message) => {
             eprintln!("ERROR: {message}");
-            std::process::exit(1);
+            true
         }
-        ExitReason::UserRequested => { /* normal exit */ }
-    }
+        ExitReason::UserRequested => false,
+    };
 
     let update_action = exit_info.update_action;
     let color_enabled = supports_color::on(Stream::Stdout).is_some();
     for line in format_exit_messages(exit_info, color_enabled) {
         println!("{line}");
+    }
+    if is_fatal {
+        std::io::stdout().flush()?;
+        std::process::exit(1);
     }
     if let Some(action) = update_action {
         run_update_action(action)?;
@@ -635,7 +807,7 @@ fn run_update_command() -> anyhow::Result<()> {
     {
         let Some(action) = thinwedge_tui::get_update_action() else {
             anyhow::bail!(
-                "Could not detect the ThinWedge installation method. Please update manually via the ThinWedge GitHub releases or npm package."
+                "Could not detect the ThinWedge installation method. Please update manually: https://developers.openai.com/thinwedge/cli/"
             );
         };
         run_update_action(action)
@@ -644,6 +816,50 @@ fn run_update_command() -> anyhow::Result<()> {
 
 fn run_execpolicycheck(cmd: ExecPolicyCheckCommand) -> anyhow::Result<()> {
     cmd.run()
+}
+
+async fn run_session_archive_cli_command(
+    action: thinwedge_tui::SessionArchiveAction,
+    cmd: SessionArchiveCommand,
+    mut interactive: TuiCli,
+    root_config_overrides: CliConfigOverrides,
+    root_remote: Option<String>,
+    root_remote_auth_token_env: Option<String>,
+    arg0_paths: Arg0DispatchPaths,
+) -> anyhow::Result<String> {
+    let SessionArchiveCommand {
+        target,
+        remote,
+        config_overrides,
+    } = cmd;
+    interactive =
+        finalize_session_archive_interactive(interactive, root_config_overrides, config_overrides);
+    let explicit_remote_endpoint = resolve_remote_endpoint(
+        remote.remote.or(root_remote),
+        remote.remote_auth_token_env.or(root_remote_auth_token_env),
+    )?;
+    thinwedge_tui::run_session_archive_command(
+        action,
+        target,
+        thinwedge_tui::SessionArchiveCommandOptions {
+            cli: interactive,
+            arg0_paths,
+            explicit_remote_endpoint,
+        },
+    )
+    .await
+    .map_err(|err| anyhow::anyhow!("{err}"))
+}
+
+fn delete_action(target: &str, force: bool) -> anyhow::Result<thinwedge_tui::SessionArchiveAction> {
+    if force && thinwedge_protocol::ThreadId::from_string(target).is_err() {
+        anyhow::bail!("--force requires a session UUID; names must be confirmed interactively");
+    }
+    let confirmation = match force {
+        true => thinwedge_tui::DeleteConfirmation::Skip,
+        false => thinwedge_tui::DeleteConfirmation::Prompt,
+    };
+    Ok(thinwedge_tui::SessionArchiveAction::Delete(confirmation))
 }
 
 async fn run_debug_app_server_command(cmd: DebugAppServerCommand) -> anyhow::Result<()> {
@@ -674,9 +890,9 @@ struct FeatureToggles {
 
 #[derive(Debug, Default, Parser, Clone)]
 struct InteractiveRemoteOptions {
-    /// Connect the TUI to a remote app server websocket endpoint.
+    /// Connect the TUI to a remote app server endpoint.
     ///
-    /// Accepted forms: `ws://host:port` or `wss://host:port`.
+    /// Accepted forms: `ws://host:port`, `wss://host:port`, `unix://`, or `unix://PATH`.
     #[arg(long = "remote", value_name = "ADDR")]
     remote: Option<String>,
 
@@ -742,13 +958,17 @@ fn stage_str(stage: Stage) -> &'static str {
 }
 
 fn main() -> anyhow::Result<()> {
-    arg0_dispatch_or_else(|arg0_paths: Arg0DispatchPaths| async move {
-        cli_main(arg0_paths).await?;
+    let remote_control_disabled = thinwedge_app_server::take_remote_control_disabled_env();
+    arg0_dispatch_or_else(move |arg0_paths: Arg0DispatchPaths| async move {
+        cli_main(arg0_paths, remote_control_disabled).await?;
         Ok(())
     })
 }
 
-async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
+async fn cli_main(
+    arg0_paths: Arg0DispatchPaths,
+    remote_control_disabled: bool,
+) -> anyhow::Result<()> {
     let MultitoolCli {
         config_overrides: mut root_config_overrides,
         feature_toggles,
@@ -762,6 +982,11 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     root_config_overrides.raw_overrides.extend(toggle_overrides);
     let root_remote = remote.remote;
     let root_remote_auth_token_env = remote.remote_auth_token_env;
+    let root_strict_config = interactive.strict_config;
+    reject_root_strict_config_for_subcommand(root_strict_config, &subcommand)?;
+    if let Some(subcommand) = subcommand.as_ref() {
+        profile_v2_for_subcommand(&interactive, subcommand)?;
+    }
 
     match subcommand {
         None => {
@@ -787,33 +1012,46 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             exec_cli
                 .shared
                 .inherit_exec_root_options(&interactive.shared);
+            exec_cli.strict_config |= root_strict_config;
             prepend_config_flags(
                 &mut exec_cli.config_overrides,
                 root_config_overrides.clone(),
             );
             thinwedge_exec::run_main(exec_cli, arg0_paths.clone()).await?;
         }
-        Some(Subcommand::Review(review_args)) => {
+        Some(Subcommand::Review(ReviewCommand {
+            strict_config,
+            args: review_args,
+        })) => {
             reject_remote_mode_for_subcommand(
                 root_remote.as_deref(),
                 root_remote_auth_token_env.as_deref(),
                 "review",
             )?;
             let mut exec_cli = ExecCli::try_parse_from(["thinwedge", "exec"])?;
+            exec_cli
+                .shared
+                .inherit_exec_root_options(&interactive.shared);
             exec_cli.command = Some(ExecCommand::Review(review_args));
+            exec_cli.strict_config = strict_config || root_strict_config;
             prepend_config_flags(
                 &mut exec_cli.config_overrides,
                 root_config_overrides.clone(),
             );
             thinwedge_exec::run_main(exec_cli, arg0_paths.clone()).await?;
         }
-        Some(Subcommand::McpServer) => {
+        Some(Subcommand::McpServer(McpServerCommand { strict_config })) => {
             reject_remote_mode_for_subcommand(
                 root_remote.as_deref(),
                 root_remote_auth_token_env.as_deref(),
                 "mcp-server",
             )?;
-            thinwedge_mcp_server::run_main(arg0_paths.clone(), root_config_overrides).await?;
+            thinwedge_mcp_server::run_main(
+                arg0_paths.clone(),
+                root_config_overrides,
+                strict_config || root_strict_config,
+            )
+            .await?;
         }
         Some(Subcommand::Mcp(mut mcp_cli)) => {
             reject_remote_mode_for_subcommand(
@@ -823,7 +1061,9 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             )?;
             // Propagate any root-level config overrides (e.g. `-c key=value`).
             prepend_config_flags(&mut mcp_cli.config_overrides, root_config_overrides.clone());
-            mcp_cli.run().await?;
+            let loader_overrides =
+                loader_overrides_for_profile(interactive.config_profile_v2.as_ref())?;
+            mcp_cli.run(loader_overrides).await?;
         }
         Some(Subcommand::Plugin(plugin_cli)) => {
             reject_remote_mode_for_subcommand(
@@ -837,19 +1077,42 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             } = plugin_cli;
             prepend_config_flags(&mut config_overrides, root_config_overrides.clone());
             match subcommand {
+                PluginSubcommand::Add(args) => {
+                    let overrides = config_overrides
+                        .parse_overrides()
+                        .map_err(anyhow::Error::msg)?;
+                    plugin_cmd::run_plugin_add(overrides, args).await?;
+                }
+                PluginSubcommand::List(args) => {
+                    let overrides = config_overrides
+                        .parse_overrides()
+                        .map_err(anyhow::Error::msg)?;
+                    plugin_cmd::run_plugin_list(overrides, args).await?;
+                }
                 PluginSubcommand::Marketplace(mut marketplace_cli) => {
                     prepend_config_flags(&mut marketplace_cli.config_overrides, config_overrides);
                     marketplace_cli.run().await?;
+                }
+                PluginSubcommand::Remove(args) => {
+                    let overrides = config_overrides
+                        .parse_overrides()
+                        .map_err(anyhow::Error::msg)?;
+                    plugin_cmd::run_plugin_remove(overrides, args).await?;
                 }
             }
         }
         Some(Subcommand::AppServer(app_server_cli)) => {
             let AppServerCommand {
                 subcommand,
+                strict_config: app_server_strict_config,
                 listen,
+                stdio,
+                remote_control,
                 analytics_default_enabled,
                 auth,
             } = app_server_cli;
+            let strict_config = app_server_strict_config || root_strict_config;
+            reject_strict_config_for_app_server_subcommand(strict_config, subcommand.as_ref())?;
             reject_remote_mode_for_app_server_subcommand(
                 root_remote.as_deref(),
                 root_remote_auth_token_env.as_deref(),
@@ -857,19 +1120,75 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             )?;
             match subcommand {
                 None => {
-                    let transport = listen;
+                    let transport = if stdio {
+                        thinwedge_app_server::AppServerTransport::Stdio
+                    } else {
+                        listen
+                    };
                     let auth = auth.try_into_settings()?;
-                    thinwedge_app_server::run_main_with_transport(
+                    let runtime_options = thinwedge_app_server::AppServerRuntimeOptions {
+                        remote_control_startup_mode: match (remote_control, remote_control_disabled)
+                        {
+                            (true, _) => {
+                                thinwedge_app_server::RemoteControlStartupMode::EnabledEphemeral
+                            }
+                            (false, true) => {
+                                thinwedge_app_server::RemoteControlStartupMode::DisabledEphemeral
+                            }
+                            (false, false) => {
+                                thinwedge_app_server::RemoteControlStartupMode::ResolvePersisted
+                            }
+                        },
+                        ..Default::default()
+                    };
+                    thinwedge_app_server::run_main_with_transport_options(
                         arg0_paths.clone(),
                         root_config_overrides,
-                        thinwedge_config::LoaderOverrides::default(),
+                        LoaderOverrides::default(),
+                        strict_config,
                         analytics_default_enabled,
                         transport,
                         thinwedge_protocol::protocol::SessionSource::VSCode,
                         auth,
+                        runtime_options,
                     )
                     .await?;
                 }
+                Some(AppServerSubcommand::Daemon(daemon_cli)) => match daemon_cli.subcommand {
+                    AppServerDaemonSubcommand::Start => {
+                        print_app_server_daemon_output(AppServerLifecycleCommand::Start).await?;
+                    }
+                    AppServerDaemonSubcommand::Bootstrap(bootstrap_cli) => {
+                        let output =
+                            thinwedge_app_server_daemon::bootstrap(AppServerBootstrapOptions {
+                                remote_control_enabled: bootstrap_cli.remote_control,
+                            })
+                            .await?;
+                        println!("{}", serde_json::to_string(&output)?);
+                    }
+                    AppServerDaemonSubcommand::Restart => {
+                        print_app_server_daemon_output(AppServerLifecycleCommand::Restart).await?;
+                    }
+                    AppServerDaemonSubcommand::EnableRemoteControl => {
+                        print_app_server_remote_control_output(AppServerRemoteControlMode::Enabled)
+                            .await?;
+                    }
+                    AppServerDaemonSubcommand::DisableRemoteControl => {
+                        print_app_server_remote_control_output(
+                            AppServerRemoteControlMode::Disabled,
+                        )
+                        .await?;
+                    }
+                    AppServerDaemonSubcommand::Stop => {
+                        print_app_server_daemon_output(AppServerLifecycleCommand::Stop).await?;
+                    }
+                    AppServerDaemonSubcommand::Version => {
+                        print_app_server_daemon_output(AppServerLifecycleCommand::Version).await?;
+                    }
+                    AppServerDaemonSubcommand::PidUpdateLoop => {
+                        thinwedge_app_server_daemon::run_pid_update_loop().await?;
+                    }
+                },
                 Some(AppServerSubcommand::Proxy(proxy_cli)) => {
                     let socket_path = match proxy_cli.socket_path {
                         Some(socket_path) => socket_path,
@@ -902,6 +1221,29 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 }
             }
         }
+        Some(Subcommand::RemoteControl(remote_control_cli)) => {
+            let subcommand_name = remote_control_cli.subcommand_name();
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                subcommand_name,
+            )?;
+            remote_control_cmd::run(
+                remote_control_cli,
+                arg0_paths.clone(),
+                root_config_overrides,
+            )
+            .await?;
+        }
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        Some(Subcommand::App(app_cli)) => {
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "app",
+            )?;
+            app_cmd::run_app(app_cli).await?;
+        }
         Some(Subcommand::Resume(ResumeCommand {
             session_id,
             last,
@@ -910,6 +1252,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             remote,
             config_overrides,
         })) => {
+            let SessionTuiCli(config_overrides) = config_overrides;
             interactive = finalize_resume_interactive(
                 interactive,
                 root_config_overrides.clone(),
@@ -930,6 +1273,46 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             .await?;
             handle_app_exit(exit_info)?;
         }
+        Some(Subcommand::Archive(cmd)) => {
+            let output = run_session_archive_cli_command(
+                thinwedge_tui::SessionArchiveAction::Archive,
+                cmd,
+                interactive,
+                root_config_overrides.clone(),
+                root_remote.clone(),
+                root_remote_auth_token_env.clone(),
+                arg0_paths.clone(),
+            )
+            .await?;
+            println!("{output}");
+        }
+        Some(Subcommand::Delete(DeleteCommand { session, force })) => {
+            let action = delete_action(&session.target, force)?;
+            let output = run_session_archive_cli_command(
+                action,
+                session,
+                interactive,
+                root_config_overrides.clone(),
+                root_remote.clone(),
+                root_remote_auth_token_env.clone(),
+                arg0_paths.clone(),
+            )
+            .await?;
+            println!("{output}");
+        }
+        Some(Subcommand::Unarchive(cmd)) => {
+            let output = run_session_archive_cli_command(
+                thinwedge_tui::SessionArchiveAction::Unarchive,
+                cmd,
+                interactive,
+                root_config_overrides.clone(),
+                root_remote.clone(),
+                root_remote_auth_token_env.clone(),
+                arg0_paths.clone(),
+            )
+            .await?;
+            println!("{output}");
+        }
         Some(Subcommand::Fork(ForkCommand {
             session_id,
             last,
@@ -937,6 +1320,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             remote,
             config_overrides,
         })) => {
+            let SessionTuiCli(config_overrides) = config_overrides;
             interactive = finalize_fork_interactive(
                 interactive,
                 root_config_overrides.clone(),
@@ -971,9 +1355,9 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     run_login_status(login_cli.config_overrides).await;
                 }
                 None => {
-                    if login_cli.with_api_key && login_cli.with_agent_identity {
+                    if login_cli.with_api_key && login_cli.with_access_token {
                         eprintln!(
-                            "Choose one login credential source: --with-api-key or --with-agent-identity."
+                            "Choose one login credential source: --with-api-key or --with-access-token."
                         );
                         std::process::exit(1);
                     } else if login_cli.use_device_code {
@@ -985,38 +1369,17 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                         .await;
                     } else if login_cli.api_key.is_some() {
                         eprintln!(
-                            "The --api-key flag is no longer supported. Pipe the token instead, e.g. `printenv OPENROUTER_API_KEY | thinwedge login --with-api-key`."
+                            "The --api-key flag is no longer supported. Pipe the key instead, e.g. `printenv OPENAI_API_KEY | thinwedge login --with-api-key`."
                         );
                         std::process::exit(1);
                     } else if login_cli.with_api_key {
                         let api_key = read_api_key_from_stdin();
                         run_login_with_api_key(login_cli.config_overrides, api_key).await;
-                    } else if login_cli.with_agent_identity {
-                        let agent_identity = read_agent_identity_from_stdin();
-                        run_login_with_agent_identity(login_cli.config_overrides, agent_identity)
-                            .await;
-                    } else if read_preferred_api_key_from_env().is_none()
-                        && std::io::stdin().is_terminal()
-                        && std::io::stderr().is_terminal()
-                    {
-                        eprintln!(
-                            "OPENROUTER_API_KEY is not set. Opening ThinWedge's interactive login."
-                        );
-                        let mut login_interactive = TuiCli::parse_from(["thinwedge"]);
-                        prepend_config_flags(
-                            &mut login_interactive.config_overrides,
-                            login_cli.config_overrides,
-                        );
-                        let exit_info = run_interactive_tui(
-                            login_interactive,
-                            root_remote.clone(),
-                            root_remote_auth_token_env.clone(),
-                            arg0_paths.clone(),
-                        )
-                        .await?;
-                        handle_app_exit(exit_info)?;
+                    } else if login_cli.with_access_token {
+                        let access_token = read_access_token_from_stdin();
+                        run_login_with_access_token(login_cli.config_overrides, access_token).await;
                     } else {
-                        run_login_with_preferred_api_key(login_cli.config_overrides).await;
+                        run_login_with_chatgpt(login_cli.config_overrides).await;
                     }
                 }
             }
@@ -1032,30 +1395,6 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_config_overrides.clone(),
             );
             run_logout(logout_cli.config_overrides).await;
-        }
-        Some(Subcommand::Ardent(mut ardent_cli)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "ardent",
-            )?;
-            prepend_config_flags(
-                &mut ardent_cli.config_overrides,
-                root_config_overrides.clone(),
-            );
-            run_ardent_cli(ardent_cli).await?;
-        }
-        Some(Subcommand::DbSandbox(mut db_sandbox_cli)) => {
-            reject_remote_mode_for_subcommand(
-                root_remote.as_deref(),
-                root_remote_auth_token_env.as_deref(),
-                "db-sandbox",
-            )?;
-            prepend_config_flags(
-                &mut db_sandbox_cli.config_overrides,
-                root_config_overrides.clone(),
-            );
-            run_db_sandbox_cli(db_sandbox_cli).await?;
         }
         Some(Subcommand::Completion(completion_cli)) => {
             reject_remote_mode_for_subcommand(
@@ -1073,6 +1412,20 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             )?;
             run_update_command()?;
         }
+        Some(Subcommand::Doctor(doctor_cli)) => {
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "doctor",
+            )?;
+            doctor::run_doctor(
+                doctor_cli,
+                root_config_overrides.clone(),
+                &interactive,
+                &arg0_paths,
+            )
+            .await?;
+        }
         Some(Subcommand::Cloud(mut cloud_cli)) => {
             reject_remote_mode_for_subcommand(
                 root_remote.as_deref(),
@@ -1089,56 +1442,58 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
             )
             .await?;
         }
-        Some(Subcommand::Sandbox(sandbox_args)) => match sandbox_args.cmd {
-            SandboxCommand::Macos(mut seatbelt_cli) => {
+        Some(Subcommand::Sandbox(mut sandbox_cli)) => {
+            #[cfg(target_os = "windows")]
+            if let Some(setup_cli) = sandbox_setup::parse_setup_command(&sandbox_cli.command)? {
                 reject_remote_mode_for_subcommand(
                     root_remote.as_deref(),
                     root_remote_auth_token_env.as_deref(),
-                    "sandbox macos",
+                    "sandbox setup",
                 )?;
-                prepend_config_flags(
-                    &mut seatbelt_cli.config_overrides,
-                    root_config_overrides.clone(),
-                );
-                thinwedge_cli::run_command_under_seatbelt(
-                    seatbelt_cli,
-                    arg0_paths.thinwedge_linux_sandbox_exe.clone(),
-                )
-                .await?;
+                sandbox_setup::run(setup_cli).await?;
+                return Ok(());
             }
-            SandboxCommand::Linux(mut landlock_cli) => {
-                reject_remote_mode_for_subcommand(
-                    root_remote.as_deref(),
-                    root_remote_auth_token_env.as_deref(),
-                    "sandbox linux",
-                )?;
-                prepend_config_flags(
-                    &mut landlock_cli.config_overrides,
-                    root_config_overrides.clone(),
-                );
-                thinwedge_cli::run_command_under_landlock(
-                    landlock_cli,
-                    arg0_paths.thinwedge_linux_sandbox_exe.clone(),
-                )
-                .await?;
+            reject_remote_mode_for_subcommand(
+                root_remote.as_deref(),
+                root_remote_auth_token_env.as_deref(),
+                "sandbox",
+            )?;
+            let config_profile = sandbox_cli
+                .config_profile
+                .as_ref()
+                .or(interactive.config_profile_v2.as_ref());
+            let loader_overrides = loader_overrides_for_profile(config_profile)?;
+            prepend_config_flags(
+                &mut sandbox_cli.config_overrides,
+                root_config_overrides.clone(),
+            );
+            #[cfg(target_os = "macos")]
+            thinwedge_cli::run_command_under_seatbelt(
+                sandbox_cli,
+                arg0_paths.thinwedge_linux_sandbox_exe.clone(),
+                loader_overrides,
+            )
+            .await?;
+            #[cfg(target_os = "linux")]
+            thinwedge_cli::run_command_under_landlock(
+                sandbox_cli,
+                arg0_paths.thinwedge_linux_sandbox_exe.clone(),
+                loader_overrides,
+            )
+            .await?;
+            #[cfg(target_os = "windows")]
+            thinwedge_cli::run_command_under_windows_sandbox(
+                sandbox_cli,
+                arg0_paths.thinwedge_linux_sandbox_exe.clone(),
+                loader_overrides,
+            )
+            .await?;
+            #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+            {
+                let _ = loader_overrides;
+                anyhow::bail!("`thinwedge sandbox` is not supported on this operating system");
             }
-            SandboxCommand::Windows(mut windows_cli) => {
-                reject_remote_mode_for_subcommand(
-                    root_remote.as_deref(),
-                    root_remote_auth_token_env.as_deref(),
-                    "sandbox windows",
-                )?;
-                prepend_config_flags(
-                    &mut windows_cli.config_overrides,
-                    root_config_overrides.clone(),
-                );
-                thinwedge_cli::run_command_under_windows(
-                    windows_cli,
-                    arg0_paths.thinwedge_linux_sandbox_exe.clone(),
-                )
-                .await?;
-            }
-        },
+        }
         Some(Subcommand::Debug(DebugCommand { subcommand })) => match subcommand {
             DebugSubcommand::Models(cmd) => {
                 reject_remote_mode_for_subcommand(
@@ -1184,7 +1539,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     root_remote_auth_token_env.as_deref(),
                     "debug clear-memories",
                 )?;
-                run_debug_clear_memories_command(&root_config_overrides, &interactive).await?;
+                run_debug_clear_memories_command(&root_config_overrides).await?;
             }
         },
         Some(Subcommand::Execpolicy(ExecpolicyCommand { sub })) => match sub {
@@ -1233,7 +1588,9 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                 root_remote_auth_token_env.as_deref(),
                 "exec-server",
             )?;
-            run_exec_server_command(cmd, &arg0_paths).await?;
+            let strict_config = cmd.strict_config || root_strict_config;
+            run_exec_server_command(cmd, &arg0_paths, &root_config_overrides, strict_config)
+                .await?;
         }
         Some(Subcommand::Features(FeaturesCli { sub })) => match sub {
             FeaturesSubcommand::List => {
@@ -1242,7 +1599,6 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     root_remote_auth_token_env.as_deref(),
                     "features list",
                 )?;
-                // Respect root-level `-c` overrides plus top-level flags like `--profile`.
                 let mut cli_kv_overrides = root_config_overrides
                     .parse_overrides()
                     .map_err(anyhow::Error::msg)?;
@@ -1255,17 +1611,10 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     ));
                 }
 
-                // Thread through relevant top-level flags (at minimum, `--profile`).
-                let overrides = ConfigOverrides {
-                    config_profile: interactive.config_profile.clone(),
-                    ..Default::default()
-                };
-
-                let config = Config::load_with_cli_overrides_and_harness_overrides(
-                    cli_kv_overrides,
-                    overrides,
-                )
-                .await?;
+                let config = ConfigBuilder::default()
+                    .cli_overrides(cli_kv_overrides)
+                    .build()
+                    .await?;
                 let mut rows = Vec::with_capacity(FEATURES.len());
                 let mut name_width = 0;
                 let mut stage_width = 0;
@@ -1289,7 +1638,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     root_remote_auth_token_env.as_deref(),
                     "features enable",
                 )?;
-                enable_feature_in_config(&interactive, &feature).await?;
+                enable_feature_in_config(&feature).await?;
             }
             FeaturesSubcommand::Disable(FeatureSetArgs { feature }) => {
                 reject_remote_mode_for_subcommand(
@@ -1297,7 +1646,7 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
                     root_remote_auth_token_env.as_deref(),
                     "features disable",
                 )?;
-                disable_feature_in_config(&interactive, &feature).await?;
+                disable_feature_in_config(&feature).await?;
             }
         },
     }
@@ -1305,9 +1654,38 @@ async fn cli_main(arg0_paths: Arg0DispatchPaths) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn profile_v2_for_subcommand<'a>(
+    interactive: &'a TuiCli,
+    subcommand: &Subcommand,
+) -> anyhow::Result<Option<&'a ProfileV2Name>> {
+    let Some(profile_v2) = interactive.config_profile_v2.as_ref() else {
+        return Ok(None);
+    };
+
+    match subcommand {
+        Subcommand::Exec(_)
+        | Subcommand::Review(_)
+        | Subcommand::Resume(_)
+        | Subcommand::Archive(_)
+        | Subcommand::Delete(_)
+        | Subcommand::Unarchive(_)
+        | Subcommand::Fork(_)
+        | Subcommand::Mcp(_)
+        | Subcommand::Sandbox(_)
+        | Subcommand::Debug(DebugCommand {
+            subcommand: DebugSubcommand::PromptInput(_),
+        }) => Ok(Some(profile_v2)),
+        _ => anyhow::bail!(
+            "--profile only applies to runtime commands and `thinwedge mcp`: `thinwedge`, `thinwedge exec`, `thinwedge review`, `thinwedge resume`, `thinwedge archive`, `thinwedge delete`, `thinwedge unarchive`, `thinwedge fork`, `thinwedge mcp`, `thinwedge sandbox`, and `thinwedge debug prompt-input`."
+        ),
+    }
+}
+
 async fn run_exec_server_command(
     cmd: ExecServerCommand,
     arg0_paths: &Arg0DispatchPaths,
+    root_config_overrides: &CliConfigOverrides,
+    strict_config: bool,
 ) -> anyhow::Result<()> {
     let thinwedge_self_exe = arg0_paths
         .thinwedge_self_exe
@@ -1317,29 +1695,168 @@ async fn run_exec_server_command(
         thinwedge_self_exe,
         arg0_paths.thinwedge_linux_sandbox_exe.clone(),
     )?;
-    thinwedge_exec_server::run_main(&cmd.listen, runtime_paths)
-        .await
-        .map_err(anyhow::Error::from_boxed)
+    if let Some(base_url) = cmd.remote {
+        let environment_id = cmd
+            .environment_id
+            .ok_or_else(|| anyhow::anyhow!("--environment-id is required when --remote is set"))?;
+        let config = load_exec_server_config(root_config_overrides, strict_config).await?;
+        let auth_provider =
+            load_exec_server_remote_auth_provider(&config, &base_url, cmd.use_agent_identity_auth)
+                .await?;
+        let mut remote_config = thinwedge_exec_server::RemoteEnvironmentConfig::new(
+            base_url,
+            environment_id,
+            auth_provider,
+        )?;
+        if let Some(name) = cmd.name {
+            remote_config.name = name;
+        }
+        thinwedge_exec_server::run_remote_environment(remote_config, runtime_paths).await?;
+        Ok(())
+    } else {
+        if strict_config {
+            // Local exec-server startup does not consume Config, but strict
+            // mode should still reject unknown fields before opening a listener.
+            let _validated_config =
+                load_exec_server_config(root_config_overrides, strict_config).await?;
+        }
+        let listen_url = cmd
+            .listen
+            .as_deref()
+            .unwrap_or(thinwedge_exec_server::DEFAULT_LISTEN_URL);
+        thinwedge_exec_server::run_main(listen_url, runtime_paths)
+            .await
+            .map_err(anyhow::Error::from_boxed)
+    }
 }
 
-async fn enable_feature_in_config(interactive: &TuiCli, feature: &str) -> anyhow::Result<()> {
+async fn load_exec_server_remote_auth_provider(
+    config: &thinwedge_core::config::Config,
+    base_url: &str,
+    use_agent_identity_auth: bool,
+) -> anyhow::Result<thinwedge_api::SharedAuthProvider> {
+    if use_agent_identity_auth {
+        let agent_identity_jwt = read_thinwedge_access_token_from_env().ok_or_else(|| {
+            anyhow::anyhow!(
+                "THINWEDGE_ACCESS_TOKEN is required when --use-agent-identity-auth is set"
+            )
+        })?;
+        let auth = ThinWedgeAuth::from_agent_identity_jwt(
+            &agent_identity_jwt,
+            Some(&config.chatgpt_base_url),
+        )
+        .await?;
+        return Ok(thinwedge_model_provider::auth_provider_from_auth(&auth));
+    }
+
+    let auth = load_exec_server_remote_auth(
+        config,
+        "remote exec-server registration requires ChatGPT authentication or API key authentication; run `thinwedge login` or set THINWEDGE_API_KEY",
+    )
+    .await?;
+
+    if !is_supported_exec_server_remote_auth(&auth) {
+        anyhow::bail!(
+            "remote exec-server registration requires ChatGPT authentication or API key authentication; Agent Identity auth requires --use-agent-identity-auth"
+        );
+    }
+
+    if auth.is_api_key_auth() {
+        validate_api_key_remote_host(base_url)?;
+    }
+
+    Ok(thinwedge_model_provider::auth_provider_from_auth(&auth))
+}
+
+fn is_supported_exec_server_remote_auth(auth: &ThinWedgeAuth) -> bool {
+    auth.is_chatgpt_auth() || auth.is_api_key_auth()
+}
+
+fn validate_api_key_remote_host(base_url: &str) -> anyhow::Result<()> {
+    let url = url::Url::parse(base_url)
+        .map_err(|err| anyhow::anyhow!("invalid remote exec-server registration URL: {err}"))?;
+    let host = url.host().ok_or_else(|| {
+        anyhow::anyhow!("remote exec-server registration URL must include a host")
+    })?;
+
+    let is_loopback = match &host {
+        url::Host::Domain(host) => host.eq_ignore_ascii_case("localhost"),
+        url::Host::Ipv4(ip) => ip.is_loopback(),
+        url::Host::Ipv6(ip) => ip.is_loopback(),
+    };
+    let is_openai_host = match &host {
+        url::Host::Domain(host) => ["openai.com", "openai.org"].into_iter().any(|domain| {
+            host.eq_ignore_ascii_case(domain)
+                || host.to_ascii_lowercase().ends_with(&format!(".{domain}"))
+        }),
+        _ => false,
+    };
+    let is_allowed = match url.scheme() {
+        "https" => is_loopback || is_openai_host,
+        "http" => is_loopback,
+        _ => false,
+    };
+
+    if !is_allowed {
+        anyhow::bail!(
+            "remote exec-server API-key authentication is restricted to HTTPS openai.com and openai.org hosts and subdomains or loopback hosts"
+        );
+    }
+
+    Ok(())
+}
+
+async fn load_exec_server_config(
+    root_config_overrides: &CliConfigOverrides,
+    strict_config: bool,
+) -> anyhow::Result<thinwedge_core::config::Config> {
+    let cli_kv_overrides = root_config_overrides
+        .parse_overrides()
+        .map_err(anyhow::Error::msg)?;
+    Ok(ConfigBuilder::default()
+        .cli_overrides(cli_kv_overrides)
+        .strict_config(strict_config)
+        .build()
+        .await?)
+}
+
+async fn load_exec_server_remote_auth(
+    config: &thinwedge_core::config::Config,
+    missing_auth_error: &'static str,
+) -> anyhow::Result<thinwedge_login::ThinWedgeAuth> {
+    let auth_manager =
+        AuthManager::shared_from_config(config, /*enable_thinwedge_api_key_env*/ true).await;
+
+    let auth = match auth_manager.auth().await {
+        Some(auth) => auth,
+        None => {
+            auth_manager.reload().await;
+            auth_manager
+                .auth()
+                .await
+                .ok_or_else(|| anyhow::anyhow!(missing_auth_error))?
+        }
+    };
+
+    Ok(auth)
+}
+
+async fn enable_feature_in_config(feature: &str) -> anyhow::Result<()> {
     FeatureToggles::validate_feature(feature)?;
     let thinwedge_home = find_thinwedge_home()?;
     ConfigEditsBuilder::new(&thinwedge_home)
-        .with_profile(interactive.config_profile.as_deref())
         .set_feature_enabled(feature, /*enabled*/ true)
         .apply()
         .await?;
     println!("Enabled feature `{feature}` in config.toml.");
-    maybe_print_under_development_feature_warning(&thinwedge_home, interactive, feature);
+    maybe_print_under_development_feature_warning(&thinwedge_home, feature);
     Ok(())
 }
 
-async fn disable_feature_in_config(interactive: &TuiCli, feature: &str) -> anyhow::Result<()> {
+async fn disable_feature_in_config(feature: &str) -> anyhow::Result<()> {
     FeatureToggles::validate_feature(feature)?;
     let thinwedge_home = find_thinwedge_home()?;
     ConfigEditsBuilder::new(&thinwedge_home)
-        .with_profile(interactive.config_profile.as_deref())
         .set_feature_enabled(feature, /*enabled*/ false)
         .apply()
         .await?;
@@ -1347,15 +1864,23 @@ async fn disable_feature_in_config(interactive: &TuiCli, feature: &str) -> anyho
     Ok(())
 }
 
-fn maybe_print_under_development_feature_warning(
-    thinwedge_home: &std::path::Path,
-    interactive: &TuiCli,
-    feature: &str,
-) {
-    if interactive.config_profile.is_some() {
-        return;
+fn loader_overrides_for_profile(
+    profile_v2: Option<&ProfileV2Name>,
+) -> anyhow::Result<LoaderOverrides> {
+    match profile_v2 {
+        Some(profile_v2) => {
+            let thinwedge_home = find_thinwedge_home()?;
+            Ok(LoaderOverrides {
+                user_config_path: Some(resolve_profile_v2_config_path(&thinwedge_home, profile_v2)),
+                user_config_profile: Some(profile_v2.clone()),
+                ..Default::default()
+            })
+        }
+        None => Ok(LoaderOverrides::default()),
     }
+}
 
+fn maybe_print_under_development_feature_warning(thinwedge_home: &std::path::Path, feature: &str) {
     let Some(spec) = FEATURES.iter().find(|spec| spec.key == feature) else {
         return;
     };
@@ -1389,6 +1914,7 @@ async fn run_debug_prompt_input_command(
     interactive: TuiCli,
     arg0_paths: Arg0DispatchPaths,
 ) -> anyhow::Result<()> {
+    let loader_overrides = loader_overrides_for_profile(interactive.config_profile_v2.as_ref())?;
     let shared = interactive.shared.into_inner();
     let mut cli_kv_overrides = root_config_overrides
         .parse_overrides()
@@ -1412,7 +1938,6 @@ async fn run_debug_prompt_input_command(
     };
     let overrides = ConfigOverrides {
         model: shared.model,
-        config_profile: shared.config_profile,
         approval_policy,
         sandbox_mode,
         cwd: shared.cwd,
@@ -1421,17 +1946,22 @@ async fn run_debug_prompt_input_command(
         main_execve_wrapper_exe: arg0_paths.main_execve_wrapper_exe,
         show_raw_agent_reasoning: shared.oss.then_some(true),
         ephemeral: Some(true),
+        bypass_hook_trust: shared.bypass_hook_trust.then_some(true),
         additional_writable_roots: shared.add_dir,
         ..Default::default()
     };
-    let config =
-        Config::load_with_cli_overrides_and_harness_overrides(cli_kv_overrides, overrides).await?;
+    let config = ConfigBuilder::default()
+        .cli_overrides(cli_kv_overrides)
+        .harness_overrides(overrides)
+        .loader_overrides(loader_overrides)
+        .build()
+        .await?;
 
     let mut input = shared
         .images
         .into_iter()
         .chain(cmd.images)
-        .map(|path| UserInput::LocalImage { path })
+        .map(|path| UserInput::LocalImage { path, detail: None })
         .collect::<Vec<_>>();
     if let Some(prompt) = cmd.prompt.or(interactive.prompt) {
         input.push(UserInput::Text {
@@ -1440,7 +1970,16 @@ async fn run_debug_prompt_input_command(
         });
     }
 
-    let prompt_input = thinwedge_core::build_prompt_input(config, input).await?;
+    let user_instructions_provider = Arc::new(ThinWedgeHomeUserInstructionsProvider::new(
+        config.thinwedge_home.clone(),
+    ));
+    let prompt_input = thinwedge_core::build_prompt_input(
+        config,
+        input,
+        /*state_db*/ None,
+        user_instructions_provider,
+    )
+    .await?;
     println!("{}", serde_json::to_string_pretty(&prompt_input)?);
 
     Ok(())
@@ -1456,11 +1995,13 @@ async fn run_debug_models_command(
         let cli_overrides = root_config_overrides
             .parse_overrides()
             .map_err(anyhow::Error::msg)?;
-        let config = Config::load_with_cli_overrides(cli_overrides).await?;
+        let config = ConfigBuilder::default()
+            .cli_overrides(cli_overrides)
+            .build()
+            .await?;
         let auth_manager =
             AuthManager::shared_from_config(&config, /*enable_thinwedge_api_key_env*/ true).await;
-        let models_manager =
-            build_models_manager(&config, auth_manager, CollaborationModesConfig::default());
+        let models_manager = build_models_manager(&config, auth_manager);
         models_manager
             .raw_model_catalog(RefreshStrategy::OnlineIfUncached)
             .await
@@ -1473,34 +2014,25 @@ async fn run_debug_models_command(
 
 async fn run_debug_clear_memories_command(
     root_config_overrides: &CliConfigOverrides,
-    interactive: &TuiCli,
 ) -> anyhow::Result<()> {
     let cli_kv_overrides = root_config_overrides
         .parse_overrides()
         .map_err(anyhow::Error::msg)?;
-    let overrides = ConfigOverrides {
-        config_profile: interactive.config_profile.clone(),
-        ..Default::default()
-    };
-    let config =
-        Config::load_with_cli_overrides_and_harness_overrides(cli_kv_overrides, overrides).await?;
+    let config = ConfigBuilder::default()
+        .cli_overrides(cli_kv_overrides)
+        .build()
+        .await?;
 
-    let state_path = state_db_path(config.sqlite_home.as_path());
-    let mut cleared_state_db = false;
-    if tokio::fs::try_exists(&state_path).await? {
-        let state_db =
-            StateRuntime::init(config.sqlite_home.clone(), config.model_provider_id.clone())
-                .await?;
-        state_db.clear_memory_data().await?;
-        cleared_state_db = true;
-    }
+    let memories_path = memories_db_path(config.sqlite_home.as_path());
+    let cleared_memories_db =
+        StateRuntime::clear_memory_data_in_sqlite_home(config.sqlite_home.as_path()).await?;
 
     clear_memory_roots_contents(&config.thinwedge_home).await?;
 
-    let mut message = if cleared_state_db {
-        format!("Cleared memory state from {}.", state_path.display())
+    let mut message = if cleared_memories_db {
+        format!("Cleared memory state from {}.", memories_path.display())
     } else {
-        format!("No state db found at {}.", state_path.display())
+        format!("No memories db found at {}.", memories_path.display())
     };
     message.push_str(&format!(
         " Cleared memory directories under {}.",
@@ -1518,9 +2050,7 @@ fn prepend_config_flags(
     subcommand_config_overrides: &mut CliConfigOverrides,
     cli_config_overrides: CliConfigOverrides,
 ) {
-    subcommand_config_overrides
-        .raw_overrides
-        .splice(0..0, cli_config_overrides.raw_overrides);
+    subcommand_config_overrides.prepend_root_overrides(cli_config_overrides);
 }
 
 fn reject_remote_mode_for_subcommand(
@@ -1541,21 +2071,143 @@ fn reject_remote_mode_for_subcommand(
     Ok(())
 }
 
+fn reject_root_strict_config_for_subcommand(
+    strict_config: bool,
+    subcommand: &Option<Subcommand>,
+) -> anyhow::Result<()> {
+    if !strict_config {
+        return Ok(());
+    }
+
+    match unsupported_subcommand_name_for_strict_config(subcommand) {
+        Some(subcommand_name) => {
+            reject_strict_config_for_unsupported_subcommand(strict_config, subcommand_name)
+        }
+        None => Ok(()),
+    }
+}
+
+/// Return the selected subcommand name when a root-level `--strict-config`
+/// flag should be rejected after parsing.
+///
+/// `--strict-config` is parsed on the root interactive CLI so commands like
+/// `thinwedge --strict-config` continue to work for the TUI and for wrappers that
+/// forward root options into another command shape. Clap will still accept that
+/// root flag before the dispatcher knows which subcommand the user selected, so
+/// unsupported subcommands need an explicit post-parse reject path.
+///
+/// `Some(...)` returns the user-facing command name fragment to embed in the
+/// rejection error, such as `cloud` or `app-server proxy`. `None` means the
+/// selected command is allowed to inherit root `--strict-config`.
+fn unsupported_subcommand_name_for_strict_config(
+    subcommand: &Option<Subcommand>,
+) -> Option<&'static str> {
+    match subcommand {
+        None
+        | Some(Subcommand::Exec(_))
+        | Some(Subcommand::Review(_))
+        | Some(Subcommand::McpServer(_))
+        | Some(Subcommand::ExecServer(_))
+        | Some(Subcommand::Resume(_))
+        | Some(Subcommand::Archive(_))
+        | Some(Subcommand::Delete(_))
+        | Some(Subcommand::Unarchive(_))
+        | Some(Subcommand::Fork(_))
+        | Some(Subcommand::Doctor(_)) => None,
+        Some(Subcommand::AppServer(app_server)) if app_server.subcommand.is_none() => None,
+        Some(Subcommand::AppServer(app_server)) => {
+            Some(app_server_subcommand_name(app_server.subcommand.as_ref()))
+        }
+        Some(Subcommand::RemoteControl(remote_control)) => Some(remote_control.subcommand_name()),
+        Some(Subcommand::Mcp(_)) => Some("mcp"),
+        Some(Subcommand::Plugin(_)) => Some("plugin"),
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
+        Some(Subcommand::App(_)) => Some("app"),
+        Some(Subcommand::Login(_)) => Some("login"),
+        Some(Subcommand::Logout(_)) => Some("logout"),
+        Some(Subcommand::Completion(_)) => Some("completion"),
+        Some(Subcommand::Update) => Some("update"),
+        Some(Subcommand::Cloud(_)) => Some("cloud"),
+        Some(Subcommand::Sandbox(_)) => Some("sandbox"),
+        Some(Subcommand::Debug(_)) => Some("debug"),
+        Some(Subcommand::Execpolicy(_)) => Some("execpolicy"),
+        Some(Subcommand::Apply(_)) => Some("apply"),
+        Some(Subcommand::ResponsesApiProxy(_)) => Some("responses-api-proxy"),
+        Some(Subcommand::StdioToUds(_)) => Some("stdio-to-uds"),
+        Some(Subcommand::Features(_)) => Some("features"),
+    }
+}
+
+fn reject_strict_config_for_app_server_subcommand(
+    strict_config: bool,
+    subcommand: Option<&AppServerSubcommand>,
+) -> anyhow::Result<()> {
+    if subcommand.is_none() {
+        return Ok(());
+    }
+    reject_strict_config_for_unsupported_subcommand(
+        strict_config,
+        app_server_subcommand_name(subcommand),
+    )
+}
+
+fn reject_strict_config_for_unsupported_subcommand(
+    strict_config: bool,
+    subcommand: &str,
+) -> anyhow::Result<()> {
+    if strict_config {
+        anyhow::bail!("`--strict-config` is not supported for `thinwedge {subcommand}`");
+    }
+    Ok(())
+}
+
 fn reject_remote_mode_for_app_server_subcommand(
     remote: Option<&str>,
     remote_auth_token_env: Option<&str>,
     subcommand: Option<&AppServerSubcommand>,
 ) -> anyhow::Result<()> {
-    let subcommand_name = match subcommand {
+    let subcommand_name = app_server_subcommand_name(subcommand);
+    reject_remote_mode_for_subcommand(remote, remote_auth_token_env, subcommand_name)
+}
+
+fn app_server_subcommand_name(subcommand: Option<&AppServerSubcommand>) -> &'static str {
+    match subcommand {
         None => "app-server",
+        Some(AppServerSubcommand::Daemon(daemon)) => match daemon.subcommand {
+            AppServerDaemonSubcommand::Bootstrap(_) => "app-server daemon bootstrap",
+            AppServerDaemonSubcommand::Start => "app-server daemon start",
+            AppServerDaemonSubcommand::Restart => "app-server daemon restart",
+            AppServerDaemonSubcommand::EnableRemoteControl => {
+                "app-server daemon enable-remote-control"
+            }
+            AppServerDaemonSubcommand::DisableRemoteControl => {
+                "app-server daemon disable-remote-control"
+            }
+            AppServerDaemonSubcommand::Stop => "app-server daemon stop",
+            AppServerDaemonSubcommand::Version => "app-server daemon version",
+            AppServerDaemonSubcommand::PidUpdateLoop => "app-server daemon pid-update-loop",
+        },
         Some(AppServerSubcommand::Proxy(_)) => "app-server proxy",
         Some(AppServerSubcommand::GenerateTs(_)) => "app-server generate-ts",
         Some(AppServerSubcommand::GenerateJsonSchema(_)) => "app-server generate-json-schema",
         Some(AppServerSubcommand::GenerateInternalJsonSchema(_)) => {
             "app-server generate-internal-json-schema"
         }
-    };
-    reject_remote_mode_for_subcommand(remote, remote_auth_token_env, subcommand_name)
+    }
+}
+
+async fn print_app_server_daemon_output(command: AppServerLifecycleCommand) -> anyhow::Result<()> {
+    let output = thinwedge_app_server_daemon::run(command).await?;
+    println!("{}", serde_json::to_string(&output)?);
+    Ok(())
+}
+
+async fn print_app_server_remote_control_output(
+    mode: AppServerRemoteControlMode,
+) -> anyhow::Result<()> {
+    let output = thinwedge_app_server_daemon::set_remote_control(mode).await?;
+    println!("{}", serde_json::to_string(&output)?);
+    Ok(())
 }
 
 fn read_remote_auth_token_from_env_var_with<F>(
@@ -1607,29 +2259,94 @@ async fn run_interactive_tui(
         }
     }
 
-    let normalized_remote = remote
-        .as_deref()
-        .map(thinwedge_tui::normalize_remote_addr)
-        .transpose()
-        .map_err(std::io::Error::other)?;
-    if remote_auth_token_env.is_some() && normalized_remote.is_none() {
-        return Ok(AppExitInfo::fatal(
-            "`--remote-auth-token-env` requires `--remote`.",
-        ));
+    let remote_endpoint = match resolve_remote_endpoint(remote, remote_auth_token_env) {
+        Ok(remote_endpoint) => remote_endpoint,
+        Err(err) if is_remote_auth_usage_error(&err) => {
+            return Ok(AppExitInfo::fatal(err.to_string()));
+        }
+        Err(err) => return Err(err),
+    };
+    let start_tui = || {
+        thinwedge_tui::run_main(
+            interactive.clone(),
+            arg0_paths.clone(),
+            thinwedge_config::LoaderOverrides::default(),
+            remote_endpoint.clone(),
+        )
+    };
+    let mut attempted_backups = HashSet::new();
+    loop {
+        let err = match start_tui().await {
+            Ok(exit_info) => return Ok(exit_info),
+            Err(err) => err,
+        };
+        let Some(startup_error) = local_state_db::startup_error(&err) else {
+            return Err(err);
+        };
+        if local_state_db::is_locked(startup_error.detail()) {
+            local_state_db::print_locked_guidance(startup_error);
+            return Ok(AppExitInfo::fatal(startup_error.to_string()));
+        }
+        if !local_state_db::is_auto_backup_recoverable(startup_error) {
+            local_state_db::print_diagnostic_guidance(startup_error);
+            return Ok(AppExitInfo::fatal(startup_error.to_string()));
+        }
+        if !attempted_backups.insert(startup_error.database_path().to_path_buf()) {
+            local_state_db::print_diagnostic_guidance(startup_error);
+            return Ok(AppExitInfo::fatal(startup_error.to_string()));
+        }
+
+        local_state_db::print_auto_backup_start(startup_error);
+        match local_state_db::backup_files_for_fresh_start(startup_error).await {
+            Ok(backups) => local_state_db::confirm_fresh_start_rebuild(startup_error, &backups)?,
+            Err(backup_err) => {
+                local_state_db::print_diagnostic_guidance(startup_error);
+                return Ok(AppExitInfo::fatal(format!(
+                    "failed to move damaged ThinWedge local database files into a backup folder automatically: {backup_err}"
+                )));
+            }
+        }
     }
-    let remote_auth_token = remote_auth_token_env
+}
+
+fn resolve_remote_endpoint(
+    remote: Option<String>,
+    remote_auth_token_env: Option<String>,
+) -> std::io::Result<Option<thinwedge_tui::RemoteAppServerEndpoint>> {
+    let mut remote_endpoint = remote
         .as_deref()
-        .map(read_remote_auth_token_from_env_var)
+        .map(thinwedge_tui::resolve_remote_addr)
         .transpose()
         .map_err(std::io::Error::other)?;
-    thinwedge_tui::run_main(
-        interactive,
-        arg0_paths,
-        thinwedge_config::LoaderOverrides::default(),
-        normalized_remote,
-        remote_auth_token,
-    )
-    .await
+    if let Some(remote_auth_token_env) = remote_auth_token_env {
+        let Some(endpoint) = remote_endpoint.as_mut() else {
+            return Err(std::io::Error::other(
+                "`--remote-auth-token-env` requires `--remote`.",
+            ));
+        };
+        if !thinwedge_tui::remote_addr_supports_auth_token(endpoint) {
+            return Err(std::io::Error::other(
+                "`--remote-auth-token-env` requires a `wss://` or loopback `ws://` remote.",
+            ));
+        }
+        let auth_token = read_remote_auth_token_from_env_var(&remote_auth_token_env)
+            .map_err(std::io::Error::other)?;
+        let thinwedge_tui::RemoteAppServerEndpoint::WebSocket {
+            auth_token: slot, ..
+        } = endpoint
+        else {
+            return Err(std::io::Error::other(
+                "`--remote-auth-token-env` requires a `wss://` or loopback `ws://` remote.",
+            ));
+        };
+        *slot = Some(auth_token);
+    }
+    Ok(remote_endpoint)
+}
+
+fn is_remote_auth_usage_error(err: &std::io::Error) -> bool {
+    err.to_string()
+        .starts_with("`--remote-auth-token-env` requires")
 }
 
 fn confirm(prompt: &str) -> std::io::Result<bool> {
@@ -1649,11 +2366,18 @@ fn finalize_resume_interactive(
     last: bool,
     show_all: bool,
     include_non_interactive: bool,
-    resume_cli: TuiCli,
+    mut resume_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so resume shares the same
     // configuration surface area as `thinwedge` without additional flags.
-    let resume_session_id = session_id;
+    // Clap assigns the first positional to `session_id`. With `--last`, reinterpret it as the
+    // prompt when no second positional prompt was provided.
+    let resume_session_id = if last && resume_cli.prompt.is_none() {
+        resume_cli.prompt = session_id;
+        None
+    } else {
+        session_id
+    };
     interactive.resume_picker = resume_session_id.is_none() && !last;
     interactive.resume_last = last;
     interactive.resume_session_id = resume_session_id;
@@ -1676,11 +2400,18 @@ fn finalize_fork_interactive(
     session_id: Option<String>,
     last: bool,
     show_all: bool,
-    fork_cli: TuiCli,
+    mut fork_cli: TuiCli,
 ) -> TuiCli {
     // Start with the parsed interactive CLI so fork shares the same
     // configuration surface area as `thinwedge` without additional flags.
-    let fork_session_id = session_id;
+    // Clap assigns the first positional to `session_id`. With `--last`, reinterpret it as the
+    // prompt when no second positional prompt was provided.
+    let fork_session_id = if last && fork_cli.prompt.is_none() {
+        fork_cli.prompt = session_id;
+        None
+    } else {
+        session_id
+    };
     interactive.fork_picker = fork_session_id.is_none() && !last;
     interactive.fork_last = last;
     interactive.fork_session_id = fork_session_id;
@@ -1695,12 +2426,35 @@ fn finalize_fork_interactive(
     interactive
 }
 
-/// Merge flags provided to `thinwedge resume`/`thinwedge fork` so they take precedence over any
-/// root-level flags. Only overrides fields explicitly set on the subcommand-scoped
-/// CLI. Also appends `-c key=value` overrides with highest precedence.
+fn finalize_session_archive_interactive(
+    mut interactive: TuiCli,
+    root_config_overrides: CliConfigOverrides,
+    archive_cli: SessionArchiveConfigOverrides,
+) -> TuiCli {
+    let SessionArchiveConfigOverrides {
+        shared,
+        strict_config,
+        config_overrides,
+    } = archive_cli;
+    interactive.shared.apply_subcommand_overrides(shared);
+    if strict_config {
+        interactive.strict_config = true;
+    }
+    interactive
+        .config_overrides
+        .raw_overrides
+        .extend(config_overrides.raw_overrides);
+    prepend_config_flags(&mut interactive.config_overrides, root_config_overrides);
+    interactive
+}
+
+/// Merge flags provided to runtime wrapper commands so they take precedence over any root-level
+/// flags. Only overrides fields explicitly set on the subcommand-scoped CLI. Also appends
+/// `-c key=value` overrides with highest precedence.
 fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli) {
     let TuiCli {
         shared,
+        strict_config,
         approval_policy,
         web_search,
         prompt,
@@ -1715,6 +2469,9 @@ fn merge_interactive_cli_flags(interactive: &mut TuiCli, subcommand_cli: TuiCli)
     }
     if web_search {
         interactive.web_search = true;
+    }
+    if strict_config {
+        interactive.strict_config = true;
     }
     if let Some(prompt) = prompt {
         // Normalize CRLF/CR to LF so CLI-provided text can't leak `\r` into TUI state.
@@ -1739,7 +2496,64 @@ mod tests {
     use assert_matches::assert_matches;
     use pretty_assertions::assert_eq;
     use thinwedge_protocol::ThreadId;
-    use thinwedge_protocol::protocol::TokenUsage;
+    use thinwedge_tui::TokenUsage;
+
+    #[test]
+    fn exec_server_remote_auth_accepts_api_key_auth() {
+        let auth = ThinWedgeAuth::from_api_key("sk-test");
+
+        assert!(is_supported_exec_server_remote_auth(&auth));
+    }
+
+    #[test]
+    fn exec_server_remote_api_key_auth_accepts_https_openai_domains() {
+        for base_url in [
+            "https://openai.com/api",
+            "https://service.openai.com/api",
+            "https://openai.org/api",
+            "https://service.openai.org/api",
+        ] {
+            assert!(validate_api_key_remote_host(base_url).is_ok());
+        }
+    }
+
+    #[test]
+    fn exec_server_remote_api_key_auth_accepts_http_loopback() {
+        for base_url in [
+            "http://localhost:8098/api",
+            "http://127.0.0.1:8098/api",
+            "http://[::1]:8098/api",
+        ] {
+            assert!(validate_api_key_remote_host(base_url).is_ok());
+        }
+    }
+
+    #[test]
+    fn exec_server_remote_api_key_auth_rejects_http_openai_domain() {
+        for base_url in [
+            "http://service.openai.com/api",
+            "http://service.openai.org/api",
+        ] {
+            let error = validate_api_key_remote_host(base_url)
+                .expect_err("reject plaintext OpenAI destination");
+
+            assert_eq!(
+                error.to_string(),
+                "remote exec-server API-key authentication is restricted to HTTPS openai.com and openai.org hosts and subdomains or loopback hosts"
+            );
+        }
+    }
+
+    #[test]
+    fn exec_server_remote_api_key_auth_rejects_suffix_spoof() {
+        let error = validate_api_key_remote_host("https://service.openai.org.evil.example/api")
+            .expect_err("reject suffix spoof");
+
+        assert_eq!(
+            error.to_string(),
+            "remote exec-server API-key authentication is restricted to HTTPS openai.com and openai.org hosts and subdomains or loopback hosts"
+        );
+    }
 
     fn finalize_resume_from_args(args: &[&str]) -> TuiCli {
         let cli = MultitoolCli::try_parse_from(args).expect("parse");
@@ -1762,6 +2576,7 @@ mod tests {
         else {
             unreachable!()
         };
+        let SessionTuiCli(resume_cli) = resume_cli;
 
         finalize_resume_interactive(
             interactive,
@@ -1794,8 +2609,98 @@ mod tests {
         else {
             unreachable!()
         };
+        let SessionTuiCli(fork_cli) = fork_cli;
 
         finalize_fork_interactive(interactive, root_overrides, session_id, last, all, fork_cli)
+    }
+
+    fn finalize_archive_from_args(args: &[&str]) -> (String, TuiCli, InteractiveRemoteOptions) {
+        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let MultitoolCli {
+            interactive,
+            config_overrides: root_overrides,
+            subcommand,
+            feature_toggles: _,
+            remote: _,
+        } = cli;
+
+        let Subcommand::Archive(SessionArchiveCommand {
+            target,
+            remote,
+            config_overrides: archive_cli,
+        }) = subcommand.expect("archive present")
+        else {
+            unreachable!()
+        };
+
+        (
+            target,
+            finalize_session_archive_interactive(interactive, root_overrides, archive_cli),
+            remote,
+        )
+    }
+
+    fn profile_v2_for_args(args: &[&str]) -> anyhow::Result<Option<String>> {
+        let cli = MultitoolCli::try_parse_from(args).expect("parse");
+        let Some(subcommand) = cli.subcommand.as_ref() else {
+            return Ok(cli
+                .interactive
+                .config_profile_v2
+                .as_ref()
+                .map(std::string::ToString::to_string));
+        };
+        Ok(profile_v2_for_subcommand(&cli.interactive, subcommand)?.map(ToString::to_string))
+    }
+
+    #[test]
+    fn profile_v2_is_rejected_for_config_management_subcommands() {
+        assert!(
+            profile_v2_for_args(&["thinwedge", "--profile", "work", "features", "list"]).is_err()
+        );
+    }
+
+    #[test]
+    fn profile_v2_is_allowed_for_runtime_subcommands() {
+        assert_eq!(
+            profile_v2_for_args(&["thinwedge", "--profile", "work", "resume"])
+                .expect("resume supports profile-v2")
+                .as_deref(),
+            Some("work")
+        );
+        assert_eq!(
+            profile_v2_for_args(&["thinwedge", "--profile", "work", "debug", "prompt-input"])
+                .expect("debug prompt-input supports profile-v2")
+                .as_deref(),
+            Some("work")
+        );
+        assert_eq!(
+            profile_v2_for_args(&["thinwedge", "--profile", "work", "mcp", "list"])
+                .expect("mcp supports profile-v2")
+                .as_deref(),
+            Some("work")
+        );
+        assert_eq!(
+            profile_v2_for_args(&["thinwedge", "--profile", "work", "sandbox"])
+                .expect("sandbox supports config profile")
+                .as_deref(),
+            Some("work")
+        );
+    }
+
+    #[test]
+    fn import_remains_an_interactive_prompt() {
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "import"]).expect("parse");
+
+        assert!(cli.subcommand.is_none());
+        assert_eq!(cli.interactive.prompt.as_deref(), Some("import"));
+    }
+
+    #[test]
+    fn profile_v2_rejects_non_plain_names_at_parse_time() {
+        assert!(
+            MultitoolCli::try_parse_from(["thinwedge", "--profile", "nested/work", "resume"])
+                .is_err()
+        );
     }
 
     #[test]
@@ -1823,7 +2728,7 @@ mod tests {
     }
 
     #[test]
-    fn exec_resume_accepts_output_last_message_flag_after_subcommand() {
+    fn exec_resume_accepts_output_flags_after_subcommand() {
         let cli = MultitoolCli::try_parse_from([
             "thinwedge",
             "exec",
@@ -1831,6 +2736,8 @@ mod tests {
             "session-123",
             "-o",
             "/tmp/resume-output.md",
+            "--output-schema",
+            "/tmp/schema.json",
             "re-review",
         ])
         .expect("parse should succeed");
@@ -1845,6 +2752,10 @@ mod tests {
         assert_eq!(
             exec.last_message_file,
             Some(std::path::PathBuf::from("/tmp/resume-output.md"))
+        );
+        assert_eq!(
+            exec.output_schema,
+            Some(std::path::PathBuf::from("/tmp/schema.json"))
         );
         assert_eq!(args.session_id.as_deref(), Some("session-123"));
         assert_eq!(args.prompt.as_deref(), Some("re-review"));
@@ -1944,6 +2855,7 @@ mod tests {
 
         for (subcommand, usage) in [
             ("add", "Usage: thinwedge plugin marketplace add"),
+            ("list", "Usage: thinwedge plugin marketplace list"),
             ("upgrade", "Usage: thinwedge plugin marketplace upgrade"),
             ("remove", "Usage: thinwedge plugin marketplace remove"),
         ] {
@@ -1982,17 +2894,102 @@ mod tests {
     }
 
     #[test]
+    fn plugin_add_parses_under_plugin() {
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "plugin",
+            "add",
+            "sample",
+            "--marketplace",
+            "debug",
+        ])
+        .expect("parse");
+
+        assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
+    }
+
+    #[test]
+    fn plugin_list_parses_under_plugin() {
+        let cli =
+            MultitoolCli::try_parse_from(["thinwedge", "plugin", "list", "--marketplace", "debug"])
+                .expect("parse");
+
+        assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
+    }
+
+    #[test]
+    fn plugin_remove_parses_under_plugin() {
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "plugin",
+            "remove",
+            "sample",
+            "--marketplace",
+            "debug",
+        ])
+        .expect("parse");
+
+        assert!(matches!(cli.subcommand, Some(Subcommand::Plugin(_))));
+    }
+
+    #[test]
     fn update_parses_as_update_subcommand() {
         let cli = MultitoolCli::try_parse_from(["thinwedge", "update"]).expect("parse");
         assert!(matches!(cli.subcommand, Some(Subcommand::Update)));
     }
 
     #[test]
-    fn sandbox_macos_parses_permissions_profile() {
+    fn archive_merges_scoped_tui_flags() {
+        let (target, interactive, remote) = finalize_archive_from_args(
+            [
+                "thinwedge",
+                "-C",
+                "/root",
+                "archive",
+                "--remote",
+                "unix://archive.sock",
+                "--strict-config",
+                "--dangerously-bypass-hook-trust",
+                "-m",
+                "gpt-5.1-test",
+                "-p",
+                "work",
+                "-C",
+                "/archive",
+                "my-thread",
+            ]
+            .as_ref(),
+        );
+
+        assert_eq!(target, "my-thread");
+        assert_eq!(remote.remote.as_deref(), Some("unix://archive.sock"));
+        assert_eq!(interactive.model.as_deref(), Some("gpt-5.1-test"));
+        assert_eq!(interactive.config_profile_v2.as_deref(), Some("work"));
+        assert_eq!(
+            interactive.cwd.as_deref(),
+            Some(std::path::Path::new("/archive"))
+        );
+        assert!(interactive.strict_config);
+        assert!(interactive.bypass_hook_trust);
+    }
+
+    #[test]
+    fn delete_force_requires_uuid() {
+        assert!(delete_action("123e4567-e89b-12d3-a456-426614174000", true).is_ok());
+
+        let err = delete_action("my-thread", true).expect_err("name should require prompt");
+        assert_eq!(
+            err.to_string(),
+            "--force requires a session UUID; names must be confirmed interactively"
+        );
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+    #[test]
+    fn sandbox_parses_permissions_profile() {
         let cli = MultitoolCli::try_parse_from([
             "thinwedge",
             "sandbox",
-            "macos",
             "--permissions-profile",
             ":workspace",
             "--",
@@ -2000,20 +2997,60 @@ mod tests {
         ])
         .expect("parse");
 
-        let Some(Subcommand::Sandbox(SandboxArgs {
-            cmd: SandboxCommand::Macos(command),
-        })) = cli.subcommand
-        else {
-            panic!("expected sandbox macos command");
+        let Some(Subcommand::Sandbox(command)) = cli.subcommand else {
+            panic!("expected sandbox command");
         };
 
         assert_eq!(command.permissions_profile.as_deref(), Some(":workspace"));
         assert_eq!(command.command, vec!["echo"]);
     }
 
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
     #[test]
-    fn sandbox_macos_rejects_explicit_profile_controls_without_profile() {
-        let err = MultitoolCli::try_parse_from(["thinwedge", "sandbox", "macos", "-C", "/tmp"])
+    fn sandbox_parses_permissions_profile_short_alias() {
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "sandbox",
+            "-P",
+            ":workspace",
+            "--",
+            "echo",
+        ])
+        .expect("parse");
+
+        let Some(Subcommand::Sandbox(command)) = cli.subcommand else {
+            panic!("expected sandbox command");
+        };
+
+        assert_eq!(command.permissions_profile.as_deref(), Some(":workspace"));
+        assert_eq!(command.command, vec!["echo"]);
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+    #[test]
+    fn sandbox_parses_config_profile() {
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "sandbox",
+            "--profile",
+            "work",
+            "--",
+            "echo",
+        ])
+        .expect("parse");
+
+        let Some(Subcommand::Sandbox(command)) = cli.subcommand else {
+            panic!("expected sandbox command");
+        };
+
+        assert_eq!(command.config_profile.as_deref(), Some("work"));
+        assert_eq!(command.command, vec!["echo"]);
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))]
+    #[test]
+    fn sandbox_rejects_explicit_profile_controls_without_profile() {
+        let err = MultitoolCli::try_parse_from(["thinwedge", "sandbox", "-C", "/tmp"])
             .expect_err("parse should fail");
 
         assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
@@ -2066,8 +3103,7 @@ mod tests {
 
     #[test]
     fn sandbox_full_auto_no_longer_parses() {
-        let result =
-            MultitoolCli::try_parse_from(["thinwedge", "sandbox", "linux", "--full-auto", "--"]);
+        let result = MultitoolCli::try_parse_from(["thinwedge", "sandbox", "--full-auto", "--"]);
 
         assert!(result.is_err());
     }
@@ -2078,12 +3114,13 @@ mod tests {
             total_tokens: 2,
             ..Default::default()
         };
+        let thread_id = conversation_id
+            .map(ThreadId::from_string)
+            .map(Result::unwrap);
         AppExitInfo {
             token_usage,
-            thread_id: conversation_id
-                .map(ThreadId::from_string)
-                .map(Result::unwrap),
-            thread_name: thread_name.map(str::to_string),
+            thread_id,
+            resume_hint: thinwedge_utils_cli::resume_hint(thread_name, thread_id),
             update_action: None,
             exit_reason: ExitReason::UserRequested,
         }
@@ -2094,12 +3131,46 @@ mod tests {
         let exit_info = AppExitInfo {
             token_usage: TokenUsage::default(),
             thread_id: None,
-            thread_name: None,
+            resume_hint: None,
             update_action: None,
             exit_reason: ExitReason::UserRequested,
         };
         let lines = format_exit_messages(exit_info, /*color_enabled*/ false);
         assert!(lines.is_empty());
+    }
+
+    #[test]
+    fn format_exit_messages_includes_session_id_for_fatal_exit_without_resume_hint() {
+        let exit_info = AppExitInfo {
+            token_usage: TokenUsage::default(),
+            thread_id: Some(ThreadId::from_string("123e4567-e89b-12d3-a456-426614174000").unwrap()),
+            resume_hint: None,
+            update_action: None,
+            exit_reason: ExitReason::Fatal("boom".to_string()),
+        };
+        let lines = format_exit_messages(exit_info, /*color_enabled*/ false);
+        assert_eq!(
+            lines,
+            vec!["Session ID: 123e4567-e89b-12d3-a456-426614174000".to_string()]
+        );
+    }
+
+    #[test]
+    fn format_exit_messages_includes_resume_hint_for_fatal_exit() {
+        let mut exit_info = sample_exit_info(
+            Some("123e4567-e89b-12d3-a456-426614174000"),
+            /*thread_name*/ None,
+        );
+        exit_info.exit_reason = ExitReason::Fatal("boom".to_string());
+        let lines = format_exit_messages(exit_info, /*color_enabled*/ false);
+        assert_eq!(
+            lines,
+            vec![
+                "Token usage: total=2 input=0 output=2".to_string(),
+                "To continue this session, run thinwedge resume 123e4567-e89b-12d3-a456-426614174000"
+                    .to_string(),
+            ]
+        );
     }
 
     #[test]
@@ -2131,7 +3202,7 @@ mod tests {
     }
 
     #[test]
-    fn format_exit_messages_uses_id_even_when_thread_has_name() {
+    fn format_exit_messages_names_picker_item_when_thread_has_name() {
         let exit_info = sample_exit_info(
             Some("123e4567-e89b-12d3-a456-426614174000"),
             Some("my-thread"),
@@ -2141,8 +3212,7 @@ mod tests {
             lines,
             vec![
                 "Token usage: total=2 input=0 output=2".to_string(),
-                "To continue this session, run thinwedge resume 123e4567-e89b-12d3-a456-426614174000"
-                    .to_string(),
+                "To continue this session, run thinwedge resume, then select my-thread (123e4567-e89b-12d3-a456-426614174000)".to_string(),
             ]
         );
     }
@@ -2177,12 +3247,52 @@ mod tests {
     }
 
     #[test]
+    fn resume_last_accepts_prompt_positional() {
+        let interactive = finalize_resume_from_args(
+            ["thinwedge", "resume", "--last", "/compact focus on auth"].as_ref(),
+        );
+
+        assert!(!interactive.resume_picker);
+        assert!(interactive.resume_last);
+        assert_eq!(interactive.resume_session_id, None);
+        assert_eq!(
+            interactive.prompt.as_deref(),
+            Some("/compact focus on auth")
+        );
+    }
+
+    #[test]
+    fn resume_last_rejects_explicit_session_and_prompt() {
+        let err = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "resume",
+            "--last",
+            "1234",
+            "continue here",
+        ])
+        .expect_err("--last with an explicit session and prompt should be rejected");
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
     fn resume_picker_logic_with_session_id() {
         let interactive = finalize_resume_from_args(["thinwedge", "resume", "1234"].as_ref());
         assert!(!interactive.resume_picker);
         assert!(!interactive.resume_last);
         assert_eq!(interactive.resume_session_id.as_deref(), Some("1234"));
         assert!(!interactive.resume_show_all);
+    }
+
+    #[test]
+    fn resume_with_session_id_accepts_prompt_positional() {
+        let interactive =
+            finalize_resume_from_args(["thinwedge", "resume", "1234", "continue here"].as_ref());
+
+        assert!(!interactive.resume_picker);
+        assert!(!interactive.resume_last);
+        assert_eq!(interactive.resume_session_id.as_deref(), Some("1234"));
+        assert_eq!(interactive.prompt.as_deref(), Some("continue here"));
     }
 
     #[test]
@@ -2218,9 +3328,10 @@ mod tests {
                 "-m",
                 "gpt-5.1-test",
                 "-p",
-                "my-profile",
+                "my-config",
                 "-C",
                 "/tmp",
+                "--strict-config",
                 "-i",
                 "/tmp/a.png,/tmp/b.png",
             ]
@@ -2229,7 +3340,7 @@ mod tests {
 
         assert_eq!(interactive.model.as_deref(), Some("gpt-5.1-test"));
         assert!(interactive.oss);
-        assert_eq!(interactive.config_profile.as_deref(), Some("my-profile"));
+        assert_eq!(interactive.config_profile_v2.as_deref(), Some("my-config"));
         assert_matches!(
             interactive.sandbox_mode,
             Some(thinwedge_utils_cli::SandboxModeCliArg::WorkspaceWrite)
@@ -2243,6 +3354,7 @@ mod tests {
             Some(std::path::Path::new("/tmp"))
         );
         assert!(interactive.web_search);
+        assert!(interactive.strict_config);
         let has_a = interactive
             .images
             .iter()
@@ -2274,6 +3386,18 @@ mod tests {
     }
 
     #[test]
+    fn resume_merges_bypass_hook_trust_flag() {
+        let interactive = finalize_resume_from_args(
+            ["thinwedge", "resume", "--dangerously-bypass-hook-trust"].as_ref(),
+        );
+
+        assert!(interactive.bypass_hook_trust);
+        assert!(interactive.resume_picker);
+        assert!(!interactive.resume_last);
+        assert_eq!(interactive.resume_session_id, None);
+    }
+
+    #[test]
     fn fork_picker_logic_none_and_not_last() {
         let interactive = finalize_fork_from_args(["thinwedge", "fork"].as_ref());
         assert!(interactive.fork_picker);
@@ -2292,12 +3416,47 @@ mod tests {
     }
 
     #[test]
+    fn fork_last_accepts_prompt_positional() {
+        let interactive = finalize_fork_from_args(
+            ["thinwedge", "fork", "--last", "/compact focus on auth"].as_ref(),
+        );
+
+        assert!(!interactive.fork_picker);
+        assert!(interactive.fork_last);
+        assert_eq!(interactive.fork_session_id, None);
+        assert_eq!(
+            interactive.prompt.as_deref(),
+            Some("/compact focus on auth")
+        );
+    }
+
+    #[test]
+    fn fork_last_rejects_explicit_session_and_prompt() {
+        let err =
+            MultitoolCli::try_parse_from(["thinwedge", "fork", "--last", "1234", "continue here"])
+                .expect_err("--last with an explicit session and prompt should be rejected");
+
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
     fn fork_picker_logic_with_session_id() {
         let interactive = finalize_fork_from_args(["thinwedge", "fork", "1234"].as_ref());
         assert!(!interactive.fork_picker);
         assert!(!interactive.fork_last);
         assert_eq!(interactive.fork_session_id.as_deref(), Some("1234"));
         assert!(!interactive.fork_show_all);
+    }
+
+    #[test]
+    fn fork_with_session_id_accepts_prompt_positional() {
+        let interactive =
+            finalize_fork_from_args(["thinwedge", "fork", "1234", "continue here"].as_ref());
+
+        assert!(!interactive.fork_picker);
+        assert!(!interactive.fork_last);
+        assert_eq!(interactive.fork_session_id.as_deref(), Some("1234"));
+        assert_eq!(interactive.prompt.as_deref(), Some("continue here"));
     }
 
     #[test]
@@ -2311,10 +3470,18 @@ mod tests {
     fn app_server_analytics_default_disabled_without_flag() {
         let app_server = app_server_from_args(["thinwedge", "app-server"].as_ref());
         assert!(!app_server.analytics_default_enabled);
+        assert!(!app_server.remote_control);
         assert_eq!(
             app_server.listen,
             thinwedge_app_server::AppServerTransport::Stdio
         );
+    }
+
+    #[test]
+    fn app_server_remote_control_startup_flag_enables_remote_control() {
+        let enabled =
+            app_server_from_args(["thinwedge", "app-server", "--remote-control"].as_ref());
+        assert!(enabled.remote_control);
     }
 
     #[test]
@@ -2326,10 +3493,124 @@ mod tests {
     }
 
     #[test]
-    fn remote_flag_parses_for_interactive_root() {
-        let cli = MultitoolCli::try_parse_from(["thinwedge", "--remote", "ws://127.0.0.1:4500"])
+    fn strict_config_parses_for_supported_commands() {
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "--strict-config"]).expect("parse");
+        assert!(cli.interactive.strict_config);
+
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "mcp-server", "--strict-config"])
             .expect("parse");
-        assert_eq!(cli.remote.remote.as_deref(), Some("ws://127.0.0.1:4500"));
+        assert_matches!(
+            cli.subcommand,
+            Some(Subcommand::McpServer(McpServerCommand {
+                strict_config: true,
+            }))
+        );
+
+        let cli = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "review",
+            "--strict-config",
+            "--uncommitted",
+        ])
+        .expect("parse");
+        assert_matches!(
+            cli.subcommand,
+            Some(Subcommand::Review(ReviewCommand {
+                strict_config: true,
+                ..
+            }))
+        );
+
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "exec-server", "--strict-config"])
+            .expect("parse");
+        assert_matches!(
+            cli.subcommand,
+            Some(Subcommand::ExecServer(ExecServerCommand {
+                strict_config: true,
+                ..
+            }))
+        );
+    }
+
+    #[test]
+    fn root_strict_config_is_supported_for_exec_server() {
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "--strict-config", "exec-server"])
+            .expect("parse");
+
+        reject_root_strict_config_for_subcommand(cli.interactive.strict_config, &cli.subcommand)
+            .expect("exec-server should support root --strict-config");
+    }
+
+    #[test]
+    fn root_strict_config_is_rejected_for_unsupported_subcommands() {
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "--strict-config", "mcp", "list"])
+            .expect("parse");
+        let err = reject_root_strict_config_for_subcommand(
+            cli.interactive.strict_config,
+            &cli.subcommand,
+        )
+        .expect_err("mcp should not support root --strict-config");
+
+        assert_eq!(
+            err.to_string(),
+            "`--strict-config` is not supported for `thinwedge mcp`"
+        );
+
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "--strict-config", "remote-control"])
+            .expect("parse");
+        let err = reject_root_strict_config_for_subcommand(
+            cli.interactive.strict_config,
+            &cli.subcommand,
+        )
+        .expect_err("remote-control should not support root --strict-config");
+
+        assert_eq!(
+            err.to_string(),
+            "`--strict-config` is not supported for `thinwedge remote-control`"
+        );
+    }
+
+    #[test]
+    fn app_server_subcommands_reject_strict_config() {
+        let app_server =
+            app_server_from_args(["thinwedge", "app-server", "--strict-config", "proxy"].as_ref());
+        let err = reject_strict_config_for_app_server_subcommand(
+            app_server.strict_config,
+            app_server.subcommand.as_ref(),
+        )
+        .expect_err("app-server proxy should not support --strict-config");
+
+        assert_eq!(
+            err.to_string(),
+            "`--strict-config` is not supported for `thinwedge app-server proxy`"
+        );
+    }
+
+    #[test]
+    fn reject_remote_flag_for_remote_control() {
+        let cli =
+            MultitoolCli::try_parse_from(["thinwedge", "--remote", "unix://", "remote-control"])
+                .expect("parse");
+        let Some(Subcommand::RemoteControl(remote_control)) = &cli.subcommand else {
+            panic!("expected remote-control subcommand");
+        };
+        assert_eq!(remote_control.subcommand_name(), "remote-control");
+
+        let err = reject_remote_mode_for_subcommand(
+            cli.remote.remote.as_deref(),
+            cli.remote.remote_auth_token_env.as_deref(),
+            "remote-control",
+        )
+        .expect_err("remote-control should reject root --remote");
+
+        assert!(err.to_string().contains("remote-control"));
+    }
+
+    #[test]
+    fn remote_flag_parses_for_interactive_root() {
+        let cli = MultitoolCli::try_parse_from(["thinwedge", "--remote", "unix://thinwedge.sock"])
+            .expect("parse");
+        assert_eq!(cli.remote.remote.as_deref(), Some("unix://thinwedge.sock"));
     }
 
     #[test]
@@ -2354,7 +3635,7 @@ mod tests {
             "thinwedge",
             "resume",
             "--remote",
-            "ws://127.0.0.1:4500",
+            "unix://thinwedge.sock",
         ])
         .expect("parse");
         let Subcommand::Resume(ResumeCommand { remote, .. }) =
@@ -2362,7 +3643,7 @@ mod tests {
         else {
             panic!("expected resume subcommand");
         };
-        assert_eq!(remote.remote.as_deref(), Some("ws://127.0.0.1:4500"));
+        assert_eq!(remote.remote.as_deref(), Some("unix://thinwedge.sock"));
     }
 
     #[test]
@@ -2460,6 +3741,25 @@ mod tests {
     }
 
     #[test]
+    fn app_server_stdio_flag_parses() {
+        let app_server = app_server_from_args(["thinwedge", "app-server", "--stdio"].as_ref());
+        assert!(app_server.stdio);
+    }
+
+    #[test]
+    fn app_server_stdio_flag_conflicts_with_listen() {
+        let err = MultitoolCli::try_parse_from([
+            "thinwedge",
+            "app-server",
+            "--stdio",
+            "--listen",
+            "stdio://",
+        ])
+        .expect_err("--stdio and --listen should be rejected together");
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
     fn app_server_listen_unix_socket_url_parses() {
         let app_server =
             app_server_from_args(["thinwedge", "app-server", "--listen", "unix://"].as_ref());
@@ -2520,6 +3820,79 @@ mod tests {
     }
 
     #[test]
+    fn app_server_daemon_subcommands_parse() {
+        assert!(matches!(
+            app_server_from_args(
+                [
+                    "thinwedge",
+                    "app-server",
+                    "daemon",
+                    "bootstrap",
+                    "--remote-control"
+                ]
+                .as_ref()
+            )
+            .subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::Bootstrap(AppServerBootstrapCommand {
+                    remote_control: true
+                })
+            }))
+        ));
+        assert!(matches!(
+            app_server_from_args(["thinwedge", "app-server", "daemon", "start"].as_ref())
+                .subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::Start
+            }))
+        ));
+        assert!(matches!(
+            app_server_from_args(["thinwedge", "app-server", "daemon", "restart"].as_ref())
+                .subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::Restart
+            }))
+        ));
+        assert!(matches!(
+            app_server_from_args(
+                ["thinwedge", "app-server", "daemon", "enable-remote-control"].as_ref()
+            )
+            .subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::EnableRemoteControl
+            }))
+        ));
+        assert!(matches!(
+            app_server_from_args(
+                [
+                    "thinwedge",
+                    "app-server",
+                    "daemon",
+                    "disable-remote-control"
+                ]
+                .as_ref()
+            )
+            .subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::DisableRemoteControl
+            }))
+        ));
+        assert!(matches!(
+            app_server_from_args(["thinwedge", "app-server", "daemon", "stop"].as_ref()).subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::Stop
+            }))
+        ));
+        assert!(matches!(
+            app_server_from_args(["thinwedge", "app-server", "daemon", "version"].as_ref())
+                .subcommand,
+            Some(AppServerSubcommand::Daemon(AppServerDaemonCommand {
+                subcommand: AppServerDaemonSubcommand::Version
+            }))
+        ));
+    }
+
+    #[test]
     fn app_server_proxy_sock_path_parses() {
         let app_server = app_server_from_args(
             [
@@ -2553,6 +3926,20 @@ mod tests {
         )
         .expect_err("app-server proxy should reject --remote-auth-token-env");
         assert!(err.to_string().contains("app-server proxy"));
+    }
+
+    #[test]
+    fn reject_remote_auth_token_env_for_app_server_version() {
+        let subcommand = AppServerSubcommand::Daemon(AppServerDaemonCommand {
+            subcommand: AppServerDaemonSubcommand::Version,
+        });
+        let err = reject_remote_mode_for_app_server_subcommand(
+            /*remote*/ None,
+            Some("THINWEDGE_REMOTE_AUTH_TOKEN"),
+            Some(&subcommand),
+        )
+        .expect_err("app-server daemon version should reject --remote-auth-token-env");
+        assert!(err.to_string().contains("app-server daemon version"));
     }
 
     #[test]
@@ -2698,5 +4085,39 @@ mod tests {
             .to_overrides()
             .expect_err("feature should be rejected");
         assert_eq!(err.to_string(), "Unknown feature flag: does_not_exist");
+    }
+
+    #[test]
+    fn strict_config_with_unknown_enable_errors() {
+        let err = strict_config_feature_toggle_error(["--enable", "does_not_exist"].as_ref());
+        assert_eq!(err.to_string(), "Unknown feature flag: does_not_exist");
+    }
+
+    #[test]
+    fn strict_config_with_unknown_disable_errors() {
+        let err = strict_config_feature_toggle_error(["--disable", "does_not_exist"].as_ref());
+        assert_eq!(err.to_string(), "Unknown feature flag: does_not_exist");
+    }
+
+    #[test]
+    fn strict_config_with_compound_enable_errors() {
+        let err = strict_config_feature_toggle_error(
+            ["--enable", "multi_agent_v2.subagent_usage_hint_text"].as_ref(),
+        );
+        assert_eq!(
+            err.to_string(),
+            "Unknown feature flag: multi_agent_v2.subagent_usage_hint_text"
+        );
+    }
+
+    fn strict_config_feature_toggle_error(args: &[&str]) -> anyhow::Error {
+        let cli_args = std::iter::once("thinwedge")
+            .chain(std::iter::once("--strict-config"))
+            .chain(args.iter().copied());
+        let cli = MultitoolCli::try_parse_from(cli_args).expect("parse should succeed");
+        assert!(cli.interactive.strict_config);
+        cli.feature_toggles
+            .to_overrides()
+            .expect_err("feature should be rejected")
     }
 }

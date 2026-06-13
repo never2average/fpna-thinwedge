@@ -1,10 +1,12 @@
-//! Shared plugin identifiers and telemetry-facing summaries.
+//! Shared plugin package models, source providers, identifiers, and telemetry summaries.
 
 pub use thinwedge_utils_plugins::mention_syntax;
 pub use thinwedge_utils_plugins::plugin_namespace_for_skill_path;
 
 mod load_outcome;
+pub mod manifest;
 mod plugin_id;
+mod provider;
 
 pub use load_outcome::EffectiveSkillRoots;
 pub use load_outcome::LoadedPlugin;
@@ -13,6 +15,11 @@ pub use load_outcome::prompt_safe_plugin_description;
 pub use plugin_id::PluginId;
 pub use plugin_id::PluginIdError;
 pub use plugin_id::validate_plugin_segment;
+pub use provider::PluginProvider;
+pub use provider::PluginResourceLocator;
+pub use provider::ResolvedPlugin;
+pub use provider::ResolvedPluginError;
+pub use provider::ResolvedPluginLocation;
 use thinwedge_config::HookEventsToml;
 use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
@@ -42,6 +49,9 @@ pub struct PluginHookSource {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PluginTelemetryMetadata {
     pub plugin_id: PluginId,
+    /// Optional backend identifier for remote plugins, used when analytics
+    /// should report the remote id instead of the local plugin cache id.
+    pub remote_plugin_id: Option<String>,
     pub capability_summary: Option<PluginCapabilitySummary>,
 }
 
@@ -49,6 +59,7 @@ impl PluginTelemetryMetadata {
     pub fn from_plugin_id(plugin_id: &PluginId) -> Self {
         Self {
             plugin_id: plugin_id.clone(),
+            remote_plugin_id: None,
             capability_summary: None,
         }
     }
@@ -60,6 +71,7 @@ impl PluginCapabilitySummary {
             .ok()
             .map(|plugin_id| PluginTelemetryMetadata {
                 plugin_id,
+                remote_plugin_id: None,
                 capability_summary: Some(self.clone()),
             })
     }

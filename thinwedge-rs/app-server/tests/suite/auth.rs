@@ -1,6 +1,6 @@
 use anyhow::Result;
 use app_test_support::ChatGptAuthFixture;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
 use chrono::Duration;
@@ -21,6 +21,7 @@ use tokio::time::timeout;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
+use wiremock::matchers::header;
 use wiremock::matchers::method;
 use wiremock::matchers::path;
 
@@ -30,11 +31,11 @@ const DEFAULT_READ_TIMEOUT: std::time::Duration = std::time::Duration::from_secs
 
 fn create_config_toml_custom_provider(
     thinwedge_home: &Path,
-    requires_thinwedge_auth: bool,
+    requires_openai_auth: bool,
 ) -> std::io::Result<()> {
     let config_toml = thinwedge_home.join("config.toml");
-    let requires_line = if requires_thinwedge_auth {
-        "requires_thinwedge_auth = true\n"
+    let requires_line = if requires_openai_auth {
+        "requires_openai_auth = true\n"
     } else {
         ""
     };
@@ -95,7 +96,7 @@ shell_snapshot = false
     std::fs::write(config_toml, contents)
 }
 
-async fn login_with_api_key_via_request(mcp: &mut McpProcess, api_key: &str) -> Result<()> {
+async fn login_with_api_key_via_request(mcp: &mut TestAppServer, api_key: &str) -> Result<()> {
     let request_id = mcp.send_login_account_api_key_request(api_key).await?;
 
     let resp: JSONRPCResponse = timeout(
@@ -114,7 +115,7 @@ async fn get_auth_status_no_auth() -> Result<()> {
     create_config_toml(thinwedge_home.path())?;
 
     let mut mcp =
-        McpProcess::new_with_env(thinwedge_home.path(), &[("THINWEDGE_API_KEY", None)]).await?;
+        TestAppServer::new_with_env(thinwedge_home.path(), &[("OPENAI_API_KEY", None)]).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -140,7 +141,7 @@ async fn get_auth_status_with_api_key() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path())?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -164,14 +165,72 @@ async fn get_auth_status_with_api_key() -> Result<()> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn get_auth_status_with_personal_access_token_omits_token() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    create_config_toml(thinwedge_home.path())?;
+
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/v1/user-auth-credential/whoami"))
+        .and(header("Authorization", "Bearer at-test-token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "email": "user@example.com",
+            "chatgpt_user_id": "user-123",
+            "chatgpt_account_id": "account-123",
+            "chatgpt_plan_type": "pro",
+            "chatgpt_account_is_fedramp": false,
+        })))
+        .expect(1..)
+        .mount(&server)
+        .await;
+
+    let authapi_base_url = server.uri();
+    let mut mcp = TestAppServer::new_with_env(
+        thinwedge_home.path(),
+        &[
+            ("OPENAI_API_KEY", None),
+            ("THINWEDGE_ACCESS_TOKEN", Some("at-test-token")),
+            (
+                "THINWEDGE_AUTHAPI_BASE_URL",
+                Some(authapi_base_url.as_str()),
+            ),
+        ],
+    )
+    .await?;
+    timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_get_auth_status_request(GetAuthStatusParams {
+            include_token: Some(true),
+            refresh_token: Some(false),
+        })
+        .await?;
+
+    let resp: JSONRPCResponse = timeout(
+        DEFAULT_READ_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let status: GetAuthStatusResponse = to_response(resp)?;
+    assert_eq!(
+        status,
+        GetAuthStatusResponse {
+            auth_method: Some(AuthMode::PersonalAccessToken),
+            auth_token: None,
+            requires_openai_auth: Some(true),
+        }
+    );
+
+    server.verify().await;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    create_config_toml_custom_provider(
-        thinwedge_home.path(),
-        /*requires_thinwedge_auth*/ false,
-    )?;
+    create_config_toml_custom_provider(thinwedge_home.path(), /*requires_openai_auth*/ false)?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -192,9 +251,9 @@ async fn get_auth_status_with_api_key_when_auth_not_required() -> Result<()> {
     assert_eq!(status.auth_method, None, "expected no auth method");
     assert_eq!(status.auth_token, None, "expected no token");
     assert_eq!(
-        status.requires_thinwedge_auth,
+        status.requires_openai_auth,
         Some(false),
-        "requires_thinwedge_auth should be false",
+        "requires_openai_auth should be false",
     );
     Ok(())
 }
@@ -204,7 +263,7 @@ async fn get_auth_status_with_api_key_no_include_token() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path())?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -232,7 +291,7 @@ async fn get_auth_status_with_api_key_refresh_requested() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     create_config_toml(thinwedge_home.path())?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     login_with_api_key_via_request(&mut mcp, "sk-test-key").await?;
@@ -255,7 +314,7 @@ async fn get_auth_status_with_api_key_refresh_requested() -> Result<()> {
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::ApiKey),
             auth_token: Some("sk-test-key".to_string()),
-            requires_thinwedge_auth: Some(true),
+            requires_openai_auth: Some(true),
         }
     );
     Ok(())
@@ -288,10 +347,10 @@ async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result
         .await;
 
     let refresh_url = format!("{}/oauth/token", server.uri());
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
-            ("THINWEDGE_API_KEY", None),
+            ("OPENAI_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_url.as_str()),
@@ -319,7 +378,7 @@ async fn get_auth_status_omits_token_after_permanent_refresh_failure() -> Result
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: None,
-            requires_thinwedge_auth: Some(true),
+            requires_openai_auth: Some(true),
         }
     );
 
@@ -370,10 +429,10 @@ async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result
         .await;
 
     let refresh_url = format!("{}/oauth/token", server.uri());
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
-            ("THINWEDGE_API_KEY", None),
+            ("OPENAI_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_url.as_str()),
@@ -401,7 +460,7 @@ async fn get_auth_status_omits_token_after_proactive_refresh_failure() -> Result
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: None,
-            requires_thinwedge_auth: Some(true),
+            requires_openai_auth: Some(true),
         }
     );
 
@@ -437,10 +496,10 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
         .await;
 
     let refresh_url = format!("{}/oauth/token", server.uri());
-    let mut mcp = McpProcess::new_with_env(
+    let mut mcp = TestAppServer::new_with_env(
         thinwedge_home.path(),
         &[
-            ("THINWEDGE_API_KEY", None),
+            ("OPENAI_API_KEY", None),
             (
                 REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR,
                 Some(refresh_url.as_str()),
@@ -468,7 +527,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: None,
-            requires_thinwedge_auth: Some(true),
+            requires_openai_auth: Some(true),
         }
     );
 
@@ -501,7 +560,7 @@ async fn get_auth_status_returns_token_after_proactive_refresh_recovery() -> Res
         GetAuthStatusResponse {
             auth_method: Some(AuthMode::Chatgpt),
             auth_token: Some("recovered-access-token".to_string()),
-            requires_thinwedge_auth: Some(true),
+            requires_openai_auth: Some(true),
         }
     );
 
@@ -514,7 +573,7 @@ async fn login_api_key_rejected_when_forced_chatgpt() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     create_config_toml_forced_login(thinwedge_home.path(), "chatgpt")?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_READ_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp

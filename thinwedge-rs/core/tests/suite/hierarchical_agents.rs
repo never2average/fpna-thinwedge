@@ -5,6 +5,7 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::test_thinwedge::test_thinwedge;
 use thinwedge_features::Feature;
+use thinwedge_utils_path_uri::PathUri;
 
 const HIERARCHICAL_AGENTS_SNIPPET: &str =
     "Files called AGENTS.md commonly appear in many places inside a container";
@@ -27,12 +28,13 @@ async fn hierarchical_agents_appends_to_project_doc_in_user_instructions() {
         })
         .with_workspace_setup(|cwd, fs| async move {
             let agents_md = cwd.join("AGENTS.md");
-            fs.write_file(&agents_md, b"be nice".to_vec(), /*sandbox*/ None)
+            let agents_md_uri = PathUri::from_path(&agents_md)?;
+            fs.write_file(&agents_md_uri, b"be nice".to_vec(), /*sandbox*/ None)
                 .await?;
             Ok::<(), anyhow::Error>(())
         });
     let test = builder
-        .build_remote_aware(&server)
+        .build_with_remote_env(&server)
         .await
         .expect("build test thinwedge");
 
@@ -42,7 +44,7 @@ async fn hierarchical_agents_appends_to_project_doc_in_user_instructions() {
     let user_messages = request.message_input_texts("user");
     let instructions = user_messages
         .iter()
-        .find(|text| text.starts_with("# AGENTS.md instructions for "))
+        .find(|text| text.starts_with("# AGENTS.md instructions"))
         .expect("instructions message");
     assert!(
         instructions.contains("be nice"),
@@ -76,7 +78,7 @@ async fn hierarchical_agents_emits_when_no_project_doc() {
             .expect("test config should allow feature update");
     });
     let test = builder
-        .build_remote_aware(&server)
+        .build_with_remote_env(&server)
         .await
         .expect("build test thinwedge");
 
@@ -86,7 +88,7 @@ async fn hierarchical_agents_emits_when_no_project_doc() {
     let user_messages = request.message_input_texts("user");
     let instructions = user_messages
         .iter()
-        .find(|text| text.starts_with("# AGENTS.md instructions for "))
+        .find(|text| text.starts_with("# AGENTS.md instructions"))
         .expect("instructions message");
     assert!(
         instructions.contains(HIERARCHICAL_AGENTS_SNIPPET),

@@ -3,6 +3,10 @@ load("//:defs.bzl", "thinwedge_rust_crate")
 thinwedge_rust_crate(
     name = "v8-poc",
     crate_name = "thinwedge_v8_poc",
+    crate_features = select({
+        "@rules_rs//rs/experimental/platforms/constraints:windows_msvc": [],
+        "//conditions:default": ["sandbox"],
+    }),
     deps_extra = ["@crates//:v8"],
 )
 

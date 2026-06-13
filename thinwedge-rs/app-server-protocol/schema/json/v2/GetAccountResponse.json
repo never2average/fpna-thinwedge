@@ -90,12 +90,12 @@
         }
       ]
     },
-    "requiresThinwedgeAuth": {
+    "requiresOpenaiAuth": {
       "type": "boolean"
     }
   },
   "required": [
-    "requiresThinwedgeAuth"
+    "requiresOpenaiAuth"
   ],
   "title": "GetAccountResponse",
   "type": "object"

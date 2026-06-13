@@ -1,7 +1,6 @@
 #![allow(warnings, clippy::all)]
 
 use super::*;
-use crate::config::RolloutConfig;
 use chrono::DateTime;
 use chrono::NaiveDateTime;
 use chrono::Timelike;
@@ -24,16 +23,6 @@ use thinwedge_state::BackfillStatus;
 use thinwedge_state::ThreadMetadataBuilder;
 use uuid::Uuid;
 
-fn test_config(thinwedge_home: PathBuf) -> RolloutConfig {
-    RolloutConfig {
-        sqlite_home: thinwedge_home.clone(),
-        cwd: thinwedge_home.clone(),
-        thinwedge_home,
-        model_provider_id: "test-provider".to_string(),
-        generate_memories: true,
-    }
-}
-
 #[tokio::test]
 async fn extract_metadata_from_rollout_uses_session_meta() {
     let dir = tempdir().expect("tempdir");
@@ -46,18 +35,21 @@ async fn extract_metadata_from_rollout_uses_session_meta() {
     let session_meta = SessionMeta {
         id,
         forked_from_id: None,
+        parent_thread_id: None,
         timestamp: "2026-01-27T12:34:56Z".to_string(),
         cwd: dir.path().to_path_buf(),
         originator: "cli".to_string(),
         cli_version: "0.0.0".to_string(),
         source: SessionSource::default(),
+        thread_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
-        model_provider: Some("thinwedge".to_string()),
+        model_provider: Some("openai".to_string()),
         base_instructions: None,
         dynamic_tools: None,
         memory_mode: None,
+        multi_agent_version: None,
     };
     let session_meta_line = SessionMetaLine {
         meta: session_meta,
@@ -71,13 +63,13 @@ async fn extract_metadata_from_rollout_uses_session_meta() {
     let mut file = File::create(&path).expect("create rollout");
     writeln!(file, "{json}").expect("write rollout");
 
-    let outcome = extract_metadata_from_rollout(&path, "thinwedge")
+    let outcome = extract_metadata_from_rollout(&path, "openai")
         .await
         .expect("extract");
 
     let builder = builder_from_session_meta(&session_meta_line, path.as_path()).expect("builder");
-    let mut expected = builder.build("thinwedge");
-    apply_rollout_item(&mut expected, &rollout_line.item, "thinwedge");
+    let mut expected = builder.build("openai");
+    apply_rollout_item(&mut expected, &rollout_line.item, "openai");
     expected.updated_at = file_modified_time_utc(&path).await.expect("mtime");
 
     assert_eq!(outcome.metadata, expected);
@@ -97,21 +89,25 @@ async fn extract_metadata_from_rollout_returns_latest_memory_mode() {
     let session_meta = SessionMeta {
         id,
         forked_from_id: None,
+        parent_thread_id: None,
         timestamp: "2026-01-27T12:34:56Z".to_string(),
         cwd: dir.path().to_path_buf(),
         originator: "cli".to_string(),
         cli_version: "0.0.0".to_string(),
         source: SessionSource::default(),
+        thread_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
-        model_provider: Some("thinwedge".to_string()),
+        model_provider: Some("openai".to_string()),
         base_instructions: None,
         dynamic_tools: None,
         memory_mode: None,
+        multi_agent_version: None,
     };
     let polluted_meta = SessionMeta {
         memory_mode: Some("polluted".to_string()),
+        multi_agent_version: None,
         ..session_meta.clone()
     };
     let lines = vec![
@@ -140,7 +136,7 @@ async fn extract_metadata_from_rollout_returns_latest_memory_mode() {
         .expect("write rollout line");
     }
 
-    let outcome = extract_metadata_from_rollout(&path, "thinwedge")
+    let outcome = extract_metadata_from_rollout(&path, "openai")
         .await
         .expect("extract");
 
@@ -157,6 +153,7 @@ fn builder_from_items_falls_back_to_filename() {
     let items = vec![RolloutItem::Compacted(CompactedItem {
         message: "noop".to_string(),
         replacement_history: None,
+        window_id: None,
     })];
 
     let builder = builder_from_items(items.as_slice(), path.as_path()).expect("builder");
@@ -212,8 +209,7 @@ async fn backfill_sessions_resumes_from_watermark_and_marks_complete() {
     ))
     .await;
 
-    let config = test_config(thinwedge_home.clone());
-    backfill_sessions(runtime.as_ref(), &config).await;
+    backfill_sessions(runtime.as_ref(), thinwedge_home.as_path(), "test-provider").await;
 
     let first_id = ThreadId::from_string(&first_uuid.to_string()).expect("first thread id");
     let second_id = ThreadId::from_string(&second_uuid.to_string()).expect("second thread id");
@@ -260,7 +256,7 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
         Some(GitInfo {
             commit_hash: Some(thinwedge_git_utils::GitSha::new("rollout-sha")),
             branch: Some("rollout-branch".to_string()),
-            repository_url: Some("git@example.com:thinwedge/thinwedge.git".to_string()),
+            repository_url: Some("git@example.com:openai/thinwedge.git".to_string()),
         }),
     );
 
@@ -281,8 +277,7 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
         .await
         .expect("existing metadata upsert");
 
-    let config = test_config(thinwedge_home.clone());
-    backfill_sessions(runtime.as_ref(), &config).await;
+    backfill_sessions(runtime.as_ref(), thinwedge_home.as_path(), "test-provider").await;
 
     let persisted = runtime
         .get_thread(thread_id)
@@ -293,7 +288,7 @@ async fn backfill_sessions_preserves_existing_git_branch_and_fills_missing_git_f
     assert_eq!(persisted.git_branch.as_deref(), Some("sqlite-branch"));
     assert_eq!(
         persisted.git_origin_url.as_deref(),
-        Some("git@example.com:thinwedge/thinwedge.git")
+        Some("git@example.com:openai/thinwedge.git")
     );
 }
 
@@ -317,8 +312,7 @@ async fn backfill_sessions_normalizes_cwd_before_upsert() {
             .await
             .expect("initialize runtime");
 
-    let config = test_config(thinwedge_home.clone());
-    backfill_sessions(runtime.as_ref(), &config).await;
+    backfill_sessions(runtime.as_ref(), thinwedge_home.as_path(), "test-provider").await;
 
     let thread_id = ThreadId::from_string(&thread_uuid.to_string()).expect("thread id");
     let stored = runtime
@@ -363,11 +357,13 @@ fn write_rollout_in_sessions_with_cwd(
     let session_meta = SessionMeta {
         id,
         forked_from_id: None,
+        parent_thread_id: None,
         timestamp: event_ts.to_string(),
         cwd,
         originator: "cli".to_string(),
         cli_version: "0.0.0".to_string(),
         source: SessionSource::default(),
+        thread_source: None,
         agent_path: None,
         agent_nickname: None,
         agent_role: None,
@@ -375,6 +371,7 @@ fn write_rollout_in_sessions_with_cwd(
         base_instructions: None,
         dynamic_tools: None,
         memory_mode: None,
+        multi_agent_version: None,
     };
     let session_meta_line = SessionMetaLine {
         meta: session_meta,

@@ -1,0 +1,25 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-extension-api"
+version.workspace = true
+
+[lib]
+name = "thinwedge_extension_api"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-config = { workspace = true }
+thinwedge-context-fragments = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-tools = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

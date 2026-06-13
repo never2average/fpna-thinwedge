@@ -1,0 +1,33 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-memories-extension"
+version.workspace = true
+
+[lib]
+name = "thinwedge_memories_extension"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-core = { workspace = true }
+thinwedge-extension-api = { workspace = true }
+thinwedge-features = { workspace = true }
+thinwedge-otel = { workspace = true }
+thinwedge-tools = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-output-truncation = { workspace = true }
+thinwedge-utils-template = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["fs", "macros"] }

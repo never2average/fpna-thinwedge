@@ -7,13 +7,14 @@ use core_test_support::responses::ResponseMock;
 use core_test_support::responses::ResponsesRequest;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
-use core_test_support::responses::ev_function_call;
+use core_test_support::responses::ev_function_call_with_namespace;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::mount_sse_once_match;
 use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::TestThinWedge;
+use core_test_support::test_thinwedge::local_selections;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use pretty_assertions::assert_eq;
@@ -42,11 +43,16 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
         &server,
         |req: &wiremock::Request| {
             request_body_contains(req, PARENT_PROMPT)
-                && request_header(req, "x-thinwedge-subagent").is_none()
+                && request_header(req, "x-openai-subagent").is_none()
         },
         sse(vec![
             ev_response_created("resp-parent-1"),
-            ev_function_call(SPAWN_CALL_ID, "spawn_agent", &spawn_args),
+            ev_function_call_with_namespace(
+                SPAWN_CALL_ID,
+                "multi_agent_v1",
+                "spawn_agent",
+                &spawn_args,
+            ),
             ev_completed("resp-parent-1"),
         ]),
     )
@@ -56,7 +62,7 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
         |req: &wiremock::Request| {
             request_body_contains(req, CHILD_PROMPT)
                 && !request_body_contains(req, SPAWN_CALL_ID)
-                && request_header(req, "x-thinwedge-subagent") == Some("collab_spawn")
+                && request_header(req, "x-openai-subagent") == Some("collab_spawn")
         },
         sse(vec![
             ev_response_created("resp-child-1"),
@@ -69,7 +75,7 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
         &server,
         |req: &wiremock::Request| {
             request_body_contains(req, SPAWN_CALL_ID)
-                && request_header(req, "x-thinwedge-subagent").is_none()
+                && request_header(req, "x-openai-subagent").is_none()
         },
         sse(vec![
             ev_response_created("resp-parent-2"),
@@ -89,14 +95,13 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     submit_turn_with_timeout(&test, PARENT_PROMPT).await?;
 
     let parent = wait_for_matching_request(&parent_mock, "parent request", |request| {
-        request.body_contains_text(PARENT_PROMPT)
-            && request.header("x-thinwedge-subagent").is_none()
+        request.body_contains_text(PARENT_PROMPT) && request.header("x-openai-subagent").is_none()
     })
     .await?;
     let child = wait_for_matching_request(&child_mock, "child request", |request| {
         request.body_contains_text(CHILD_PROMPT)
             && !request.body_contains_text(SPAWN_CALL_ID)
-            && request.header("x-thinwedge-subagent").as_deref() == Some("collab_spawn")
+            && request.header("x-openai-subagent").as_deref() == Some("collab_spawn")
     })
     .await?;
 
@@ -112,13 +117,23 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
     assert_eq!(parent_generation, 0);
     assert_eq!(child_generation, 0);
     assert!(child_thread_id != parent_thread_id);
-    assert_eq!(parent.header("x-thinwedge-subagent"), None);
+    assert_eq!(parent.header("x-openai-subagent"), None);
     assert_eq!(
-        child.header("x-thinwedge-subagent").as_deref(),
+        child.header("x-openai-subagent").as_deref(),
         Some("collab_spawn")
     );
     assert_eq!(
         child.header("x-thinwedge-parent-thread-id").as_deref(),
+        Some(parent_thread_id)
+    );
+    let child_turn_metadata: serde_json::Value = serde_json::from_str(
+        &child
+            .header("x-thinwedge-turn-metadata")
+            .ok_or_else(|| anyhow!("child request missing x-thinwedge-turn-metadata"))?,
+    )?;
+    assert!(child_turn_metadata.get("forked_from_thread_id").is_none());
+    assert_eq!(
+        child_turn_metadata["parent_thread_id"].as_str(),
         Some(parent_thread_id)
     );
 
@@ -127,28 +142,33 @@ async fn responses_api_parent_and_subagent_requests_include_identity_headers() -
 
 async fn submit_turn_with_timeout(test: &TestThinWedge, prompt: &str) -> Result<()> {
     let session_model = test.session_configured.model.clone();
-    let cwd = test.config.cwd.to_path_buf();
+    let cwd = test.config.cwd.clone();
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::workspace_write(), cwd.as_path());
     test.thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: prompt.into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
-            cwd,
-            approval_policy: AskForApproval::OnRequest,
-            approvals_reviewer: None,
-            sandbox_policy,
-            permission_profile,
-            model: session_model,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(cwd)),
+                approval_policy: Some(AskForApproval::OnRequest),
+                sandbox_policy: Some(sandbox_policy),
+                permission_profile,
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: session_model,
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await?;
 

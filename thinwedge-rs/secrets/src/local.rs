@@ -35,6 +35,20 @@ use super::keyring_service;
 
 const SECRETS_VERSION: u8 = 1;
 const LOCAL_SECRETS_FILENAME: &str = "local.age";
+const THINWEDGE_AUTH_SECRETS_FILENAME: &str = "thinwedge_auth.age";
+const MCP_OAUTH_SECRETS_FILENAME: &str = "mcp_oauth.age";
+
+/// Selects the local encrypted file used by a `LocalSecretsBackend`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum LocalSecretsNamespace {
+    /// General managed secrets stored in `local.age`.
+    #[default]
+    ManagedSecrets,
+    /// ThinWedge authentication credentials used by the CLI, TUI, app server, and other clients.
+    ThinWedgeAuth,
+    /// OAuth credentials for external MCP servers.
+    McpOAuth,
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 struct SecretsFile {
@@ -55,13 +69,27 @@ impl SecretsFile {
 pub struct LocalSecretsBackend {
     thinwedge_home: PathBuf,
     keyring_store: Arc<dyn KeyringStore>,
+    namespace: LocalSecretsNamespace,
 }
 
 impl LocalSecretsBackend {
     pub fn new(thinwedge_home: PathBuf, keyring_store: Arc<dyn KeyringStore>) -> Self {
+        Self::new_with_namespace(
+            thinwedge_home,
+            keyring_store,
+            LocalSecretsNamespace::ManagedSecrets,
+        )
+    }
+
+    pub fn new_with_namespace(
+        thinwedge_home: PathBuf,
+        keyring_store: Arc<dyn KeyringStore>,
+        namespace: LocalSecretsNamespace,
+    ) -> Self {
         Self {
             thinwedge_home,
             keyring_store,
+            namespace,
         }
     }
 
@@ -112,7 +140,12 @@ impl LocalSecretsBackend {
     }
 
     fn secrets_path(&self) -> PathBuf {
-        self.secrets_dir().join(LOCAL_SECRETS_FILENAME)
+        let filename = match self.namespace {
+            LocalSecretsNamespace::ManagedSecrets => LOCAL_SECRETS_FILENAME,
+            LocalSecretsNamespace::ThinWedgeAuth => THINWEDGE_AUTH_SECRETS_FILENAME,
+            LocalSecretsNamespace::McpOAuth => MCP_OAUTH_SECRETS_FILENAME,
+        };
+        self.secrets_dir().join(filename)
     }
 
     fn load_file(&self) -> Result<SecretsFile> {
@@ -208,8 +241,15 @@ fn write_file_atomically(path: &Path, contents: &[u8]) -> Result<()> {
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |duration| duration.as_nanos());
+    let filename = path.file_name().with_context(|| {
+        format!(
+            "failed to compute filename for secrets file at {}",
+            path.display()
+        )
+    })?;
     let tmp_path = dir.join(format!(
-        ".{LOCAL_SECRETS_FILENAME}.tmp-{}-{nonce}",
+        ".{}.tmp-{}-{nonce}",
+        filename.to_string_lossy(),
         std::process::id()
     ));
 
@@ -406,6 +446,58 @@ mod tests {
             .collect();
         assert_eq!(filenames, vec![LOCAL_SECRETS_FILENAME.to_string()]);
         assert_eq!(backend.get(&scope, &name)?, Some("two".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn local_namespaces_write_separate_files() -> Result<()> {
+        let thinwedge_home = tempfile::tempdir().expect("tempdir");
+        let keyring = Arc::new(MockKeyringStore::default());
+        let thinwedge_auth_backend = LocalSecretsBackend::new_with_namespace(
+            thinwedge_home.path().to_path_buf(),
+            keyring.clone(),
+            LocalSecretsNamespace::ThinWedgeAuth,
+        );
+        let mcp_backend = LocalSecretsBackend::new_with_namespace(
+            thinwedge_home.path().to_path_buf(),
+            keyring,
+            LocalSecretsNamespace::McpOAuth,
+        );
+        let scope = SecretScope::Global;
+        let name = SecretName::new("TEST_SECRET")?;
+
+        thinwedge_auth_backend.set(&scope, &name, "thinwedge-auth-value")?;
+        mcp_backend.set(&scope, &name, "mcp-value")?;
+
+        assert_eq!(
+            thinwedge_auth_backend.get(&scope, &name)?,
+            Some("thinwedge-auth-value".to_string())
+        );
+        assert_eq!(
+            mcp_backend.get(&scope, &name)?,
+            Some("mcp-value".to_string())
+        );
+        assert!(
+            thinwedge_home
+                .path()
+                .join("secrets")
+                .join("thinwedge_auth.age")
+                .exists()
+        );
+        assert!(
+            thinwedge_home
+                .path()
+                .join("secrets")
+                .join("mcp_oauth.age")
+                .exists()
+        );
+        assert!(
+            !thinwedge_home
+                .path()
+                .join("secrets")
+                .join("local.age")
+                .exists()
+        );
         Ok(())
     }
 }

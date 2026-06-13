@@ -2,14 +2,14 @@ use core_test_support::responses::start_mock_server;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use pretty_assertions::assert_eq;
+use thinwedge_protocol::openai_models::ReasoningEffort;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 
 const CONFIG_TOML: &str = "config.toml";
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn override_turn_context_does_not_persist_when_config_exists() {
+async fn thread_settings_update_does_not_persist_when_config_exists() {
     let server = start_mock_server().await;
     let initial_contents = "model = \"gpt-4o\"\n";
     let mut builder = test_thinwedge()
@@ -24,23 +24,16 @@ async fn override_turn_context_does_not_persist_when_config_exists() {
     let thinwedge = test.thinwedge.clone();
     let config_path = test.home.path().join(CONFIG_TOML);
 
-    thinwedge
-        .submit(Op::OverrideTurnContext {
-            cwd: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            permission_profile: None,
-            windows_sandbox_level: None,
+    core_test_support::submit_thread_settings(
+        &thinwedge,
+        thinwedge_protocol::protocol::ThreadSettingsOverrides {
             model: Some("o3".to_string()),
             effort: Some(Some(ReasoningEffort::High)),
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
-        })
-        .await
-        .expect("submit override");
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("submit override");
 
     thinwedge
         .submit(Op::Shutdown)
@@ -55,7 +48,7 @@ async fn override_turn_context_does_not_persist_when_config_exists() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn override_turn_context_does_not_create_config_file() {
+async fn thread_settings_update_does_not_create_config_file() {
     let server = start_mock_server().await;
     let mut builder = test_thinwedge();
     let test = builder.build(&server).await.expect("create conversation");
@@ -66,23 +59,16 @@ async fn override_turn_context_does_not_create_config_file() {
         "test setup should start without config"
     );
 
-    thinwedge
-        .submit(Op::OverrideTurnContext {
-            cwd: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            permission_profile: None,
-            windows_sandbox_level: None,
+    core_test_support::submit_thread_settings(
+        &thinwedge,
+        thinwedge_protocol::protocol::ThreadSettingsOverrides {
             model: Some("o3".to_string()),
             effort: Some(Some(ReasoningEffort::Medium)),
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
-        })
-        .await
-        .expect("submit override");
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("submit override");
 
     thinwedge
         .submit(Op::Shutdown)

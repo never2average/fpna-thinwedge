@@ -3,124 +3,233 @@ use std::future::Future;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering;
 
-use crate::config_api::ConfigApi;
+use crate::attestation::app_server_attestation_provider;
 use crate::config_manager::ConfigManager;
 use crate::connection_rpc_gate::ConnectionRpcGate;
-use crate::device_key_api::DeviceKeyApi;
 use crate::error_code::invalid_request;
-use crate::external_agent_config_api::ExternalAgentConfigApi;
-use crate::fs_api::FsApi;
+use crate::extensions::ThreadExtensionDependencies;
+use crate::extensions::app_server_extension_event_sink;
+use crate::extensions::guardian_agent_spawner;
+use crate::extensions::thread_extensions;
 use crate::fs_watch::FsWatchManager;
 use crate::outgoing_message::ConnectionId;
 use crate::outgoing_message::ConnectionRequestId;
 use crate::outgoing_message::OutgoingMessageSender;
 use crate::outgoing_message::RequestContext;
+use crate::request_processors::AccountRequestProcessor;
+use crate::request_processors::AppsRequestProcessor;
+use crate::request_processors::CatalogRequestProcessor;
+use crate::request_processors::CommandExecRequestProcessor;
+use crate::request_processors::ConfigRequestProcessor;
+use crate::request_processors::EnvironmentRequestProcessor;
+use crate::request_processors::ExternalAgentConfigRequestProcessor;
+use crate::request_processors::FeedbackRequestProcessor;
+use crate::request_processors::FsRequestProcessor;
+use crate::request_processors::GitRequestProcessor;
+use crate::request_processors::InitializeRequestProcessor;
+use crate::request_processors::MarketplaceRequestProcessor;
+use crate::request_processors::McpRequestProcessor;
+use crate::request_processors::PluginRequestProcessor;
+use crate::request_processors::ProcessExecRequestProcessor;
+use crate::request_processors::RemoteControlRequestProcessor;
+use crate::request_processors::SearchRequestProcessor;
+use crate::request_processors::ThreadGoalRequestProcessor;
+use crate::request_processors::ThreadRequestProcessor;
+use crate::request_processors::TurnRequestProcessor;
+use crate::request_processors::WindowsSandboxRequestProcessor;
 use crate::request_serialization::QueuedInitializedRequest;
 use crate::request_serialization::RequestSerializationQueueKey;
 use crate::request_serialization::RequestSerializationQueues;
-use crate::thinwedge_message_processor::ThinWedgeMessageProcessor;
-use crate::thinwedge_message_processor::ThinWedgeMessageProcessorArgs;
+use crate::skills_watcher::SkillsWatcher;
+use crate::thread_state::ConnectionCapabilities;
+use crate::thread_state::ThreadStateManager;
 use crate::transport::AppServerTransport;
-use crate::transport::ConnectionOrigin;
 use crate::transport::RemoteControlHandle;
-use axum::http::HeaderValue;
-use futures::FutureExt;
 use thinwedge_analytics::AnalyticsEventsClient;
 use thinwedge_analytics::AppServerRpcTransport;
-use thinwedge_app_server_protocol::AppListUpdatedNotification;
-use thinwedge_app_server_protocol::ClientInfo;
+use thinwedge_app_server_protocol::AuthMode as LoginAuthMode;
+use thinwedge_app_server_protocol::ChatgptAuthTokensRefreshParams;
+use thinwedge_app_server_protocol::ChatgptAuthTokensRefreshReason;
+use thinwedge_app_server_protocol::ChatgptAuthTokensRefreshResponse;
 use thinwedge_app_server_protocol::ClientNotification;
 use thinwedge_app_server_protocol::ClientRequest;
-use thinwedge_app_server_protocol::ConfigBatchWriteParams;
-use thinwedge_app_server_protocol::ConfigValueWriteParams;
+use thinwedge_app_server_protocol::ClientResponsePayload;
 use thinwedge_app_server_protocol::ConfigWarningNotification;
-use thinwedge_app_server_protocol::DeviceKeyCreateParams;
-use thinwedge_app_server_protocol::DeviceKeyPublicParams;
-use thinwedge_app_server_protocol::DeviceKeySignParams;
 use thinwedge_app_server_protocol::ExperimentalApi;
-use thinwedge_app_server_protocol::ExperimentalFeatureEnablementSetParams;
-use thinwedge_app_server_protocol::ExternalAgentConfigImportCompletedNotification;
-use thinwedge_app_server_protocol::ExternalAgentConfigImportParams;
-use thinwedge_app_server_protocol::ExternalAgentConfigImportResponse;
-use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItem;
-use thinwedge_app_server_protocol::ExternalAgentConfigMigrationItemType;
-use thinwedge_app_server_protocol::InitializeResponse;
 use thinwedge_app_server_protocol::JSONRPCError;
 use thinwedge_app_server_protocol::JSONRPCErrorError;
 use thinwedge_app_server_protocol::JSONRPCNotification;
 use thinwedge_app_server_protocol::JSONRPCRequest;
 use thinwedge_app_server_protocol::JSONRPCResponse;
-use thinwedge_app_server_protocol::ModelProviderCapabilitiesReadResponse;
-use thinwedge_app_server_protocol::ServerNotification;
+use thinwedge_app_server_protocol::ServerRequestPayload;
 use thinwedge_app_server_protocol::experimental_required_message;
 use thinwedge_arg0::Arg0DispatchPaths;
-use thinwedge_chatgpt::connectors;
+use thinwedge_chatgpt::workspace_settings;
 use thinwedge_core::ThreadManager;
 use thinwedge_core::config::Config;
 use thinwedge_exec_server::EnvironmentManager;
-use thinwedge_features::Feature;
 use thinwedge_feedback::ThinWedgeFeedback;
+use thinwedge_goal_extension::GoalService;
+use thinwedge_home::ThinWedgeHomeUserInstructionsProvider;
 use thinwedge_login::AuthManager;
-use thinwedge_login::default_client::SetOriginatorError;
-use thinwedge_login::default_client::USER_AGENT_SUFFIX;
-use thinwedge_login::default_client::get_thinwedge_user_agent;
-use thinwedge_login::default_client::set_default_client_residency_requirement;
-use thinwedge_login::default_client::set_default_originator;
-use thinwedge_model_provider::create_model_provider;
-use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
+use thinwedge_login::auth::ExternalAuth;
+use thinwedge_login::auth::ExternalAuthRefreshContext;
+use thinwedge_login::auth::ExternalAuthRefreshReason;
+use thinwedge_login::auth::ExternalAuthTokens;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::W3cTraceContext;
+use thinwedge_rollout::StateDbHandle;
 use thinwedge_state::log_db::LogDbLayer;
+use tokio::sync::Mutex;
+use tokio::sync::Semaphore;
 use tokio::sync::broadcast;
 use tokio::sync::watch;
+use tokio::time::Duration;
+use tokio::time::timeout;
+use tokio_util::sync::CancellationToken;
 use tracing::Instrument;
+
+const EXTERNAL_AUTH_REFRESH_TIMEOUT: Duration = Duration::from_secs(10);
+const CONNECTION_RPC_DRAIN_TIMEOUT: Duration = Duration::from_secs(/*secs*/ 30);
+
+fn deserialize_client_request(
+    request: &JSONRPCRequest,
+) -> Result<ClientRequest, JSONRPCErrorError> {
+    serde_json::to_value(request)
+        .map_err(|err| invalid_request(format!("Invalid request: {err}")))
+        .and_then(|request_json| {
+            serde_json::from_value(request_json)
+                .map_err(|err| invalid_request(format!("Invalid request: {err}")))
+        })
+}
+
+#[derive(Clone)]
+struct ExternalAuthRefreshBridge {
+    outgoing: Arc<OutgoingMessageSender>,
+}
+
+impl ExternalAuthRefreshBridge {
+    fn map_reason(reason: ExternalAuthRefreshReason) -> ChatgptAuthTokensRefreshReason {
+        match reason {
+            ExternalAuthRefreshReason::Unauthorized => ChatgptAuthTokensRefreshReason::Unauthorized,
+        }
+    }
+
+    async fn refresh(
+        &self,
+        context: ExternalAuthRefreshContext,
+    ) -> std::io::Result<ExternalAuthTokens> {
+        let params = ChatgptAuthTokensRefreshParams {
+            reason: Self::map_reason(context.reason),
+            previous_account_id: context.previous_account_id,
+        };
+
+        let (request_id, rx) = self
+            .outgoing
+            .send_request(ServerRequestPayload::ChatgptAuthTokensRefresh(params))
+            .await;
+
+        let result = match timeout(EXTERNAL_AUTH_REFRESH_TIMEOUT, rx).await {
+            Ok(result) => {
+                // Two failure scenarios:
+                // 1) `oneshot::Receiver` failed (sender dropped) => request canceled/channel closed.
+                // 2) client answered with JSON-RPC error payload => propagate code/message.
+                let result = result.map_err(|err| {
+                    std::io::Error::other(format!("auth refresh request canceled: {err}"))
+                })?;
+                result.map_err(|err| {
+                    std::io::Error::other(format!(
+                        "auth refresh request failed: code={} message={}",
+                        err.code, err.message
+                    ))
+                })?
+            }
+            Err(_) => {
+                let _canceled = self.outgoing.cancel_request(&request_id).await;
+                return Err(std::io::Error::other(format!(
+                    "auth refresh request timed out after {}s",
+                    EXTERNAL_AUTH_REFRESH_TIMEOUT.as_secs()
+                )));
+            }
+        };
+
+        let response: ChatgptAuthTokensRefreshResponse =
+            serde_json::from_value(result).map_err(std::io::Error::other)?;
+
+        Ok(ExternalAuthTokens::chatgpt(
+            response.access_token,
+            response.chatgpt_account_id,
+            response.chatgpt_plan_type,
+        ))
+    }
+}
+
+impl ExternalAuth for ExternalAuthRefreshBridge {
+    fn auth_mode(&self) -> LoginAuthMode {
+        LoginAuthMode::Chatgpt
+    }
+
+    fn refresh(
+        &self,
+        context: ExternalAuthRefreshContext,
+    ) -> thinwedge_login::ExternalAuthFuture<'_, ExternalAuthTokens> {
+        Box::pin(ExternalAuthRefreshBridge::refresh(self, context))
+    }
+}
 
 pub(crate) struct MessageProcessor {
     outgoing: Arc<OutgoingMessageSender>,
-    thinwedge_message_processor: ThinWedgeMessageProcessor,
-    thread_manager: Arc<ThreadManager>,
-    config_api: ConfigApi,
-    device_key_api: DeviceKeyApi,
-    external_agent_config_api: ExternalAgentConfigApi,
-    fs_api: FsApi,
-    auth_manager: Arc<AuthManager>,
-    analytics_events_client: AnalyticsEventsClient,
-    fs_watch_manager: FsWatchManager,
-    config: Arc<Config>,
-    config_warnings: Arc<Vec<ConfigWarningNotification>>,
-    rpc_transport: AppServerRpcTransport,
-    remote_control_handle: Option<RemoteControlHandle>,
+    skills_watcher: Arc<SkillsWatcher>,
+    account_processor: AccountRequestProcessor,
+    apps_processor: AppsRequestProcessor,
+    catalog_processor: CatalogRequestProcessor,
+    command_exec_processor: CommandExecRequestProcessor,
+    process_exec_processor: ProcessExecRequestProcessor,
+    config_processor: ConfigRequestProcessor,
+    environment_processor: EnvironmentRequestProcessor,
+    external_agent_config_processor: ExternalAgentConfigRequestProcessor,
+    feedback_processor: FeedbackRequestProcessor,
+    fs_processor: FsRequestProcessor,
+    git_processor: GitRequestProcessor,
+    initialize_processor: InitializeRequestProcessor,
+    marketplace_processor: MarketplaceRequestProcessor,
+    mcp_processor: McpRequestProcessor,
+    plugin_processor: PluginRequestProcessor,
+    remote_control_processor: RemoteControlRequestProcessor,
+    search_processor: SearchRequestProcessor,
+    thread_goal_processor: ThreadGoalRequestProcessor,
+    thread_processor: ThreadRequestProcessor,
+    turn_processor: TurnRequestProcessor,
+    windows_sandbox_processor: WindowsSandboxRequestProcessor,
     request_serialization_queues: RequestSerializationQueues,
 }
 
 #[derive(Debug)]
 pub(crate) struct ConnectionSessionState {
-    origin: ConnectionOrigin,
     pub(crate) rpc_gate: Arc<ConnectionRpcGate>,
     initialized: OnceLock<InitializedConnectionSessionState>,
 }
 
 #[derive(Debug)]
-struct InitializedConnectionSessionState {
-    experimental_api_enabled: bool,
-    opted_out_notification_methods: HashSet<String>,
-    app_server_client_name: String,
-    client_version: String,
+pub(crate) struct InitializedConnectionSessionState {
+    pub(crate) experimental_api_enabled: bool,
+    pub(crate) opted_out_notification_methods: HashSet<String>,
+    pub(crate) app_server_client_name: String,
+    pub(crate) client_version: String,
+    pub(crate) request_attestation: bool,
 }
 
 impl Default for ConnectionSessionState {
     fn default() -> Self {
-        Self::new(ConnectionOrigin::WebSocket)
+        Self::new()
     }
 }
 
 impl ConnectionSessionState {
-    pub(crate) fn new(origin: ConnectionOrigin) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            origin,
             rpc_gate: Arc::new(ConnectionRpcGate::new()),
             initialized: OnceLock::new(),
         }
@@ -128,10 +237,6 @@ impl ConnectionSessionState {
 
     pub(crate) fn initialized(&self) -> bool {
         self.initialized.get().is_some()
-    }
-
-    fn allows_device_key_requests(&self) -> bool {
-        self.origin.allows_device_key_requests()
     }
 
     pub(crate) fn experimental_api_enabled(&self) -> bool {
@@ -159,22 +264,31 @@ impl ConnectionSessionState {
             .map(|session| session.client_version.as_str())
     }
 
-    fn initialize(&self, session: InitializedConnectionSessionState) -> Result<(), ()> {
+    pub(crate) fn request_attestation(&self) -> bool {
+        self.initialized
+            .get()
+            .is_some_and(|session| session.request_attestation)
+    }
+
+    pub(crate) fn initialize(&self, session: InitializedConnectionSessionState) -> Result<(), ()> {
         self.initialized.set(session).map_err(|_| ())
     }
 }
 
 pub(crate) struct MessageProcessorArgs {
     pub(crate) outgoing: Arc<OutgoingMessageSender>,
+    pub(crate) analytics_events_client: AnalyticsEventsClient,
     pub(crate) arg0_paths: Arg0DispatchPaths,
     pub(crate) config: Arc<Config>,
     pub(crate) config_manager: ConfigManager,
     pub(crate) environment_manager: Arc<EnvironmentManager>,
     pub(crate) feedback: ThinWedgeFeedback,
     pub(crate) log_db: Option<LogDbLayer>,
+    pub(crate) state_db: Option<StateDbHandle>,
     pub(crate) config_warnings: Vec<ConfigWarningNotification>,
     pub(crate) session_source: SessionSource,
     pub(crate) auth_manager: Arc<AuthManager>,
+    pub(crate) installation_id: String,
     pub(crate) rpc_transport: AppServerRpcTransport,
     pub(crate) remote_control_handle: Option<RemoteControlHandle>,
     pub(crate) plugin_startup_tasks: crate::PluginStartupTasks,
@@ -186,97 +300,270 @@ impl MessageProcessor {
     pub(crate) fn new(args: MessageProcessorArgs) -> Self {
         let MessageProcessorArgs {
             outgoing,
+            analytics_events_client,
             arg0_paths,
             config,
             config_manager,
             environment_manager,
             feedback,
             log_db,
+            state_db,
             config_warnings,
             session_source,
             auth_manager,
+            installation_id,
             rpc_transport,
             remote_control_handle,
             plugin_startup_tasks,
         } = args;
-        let analytics_events_client = AnalyticsEventsClient::new(
-            Arc::clone(&auth_manager),
-            config.chatgpt_base_url.trim_end_matches('/').to_string(),
-            config.analytics_enabled,
+        auth_manager.set_external_auth(Arc::new(ExternalAuthRefreshBridge {
+            outgoing: outgoing.clone(),
+        }));
+        let thread_state_manager = ThreadStateManager::new();
+        // The thread store is intentionally process-scoped. Config reloads can
+        // affect per-thread behavior, but they must not move newly started,
+        // resumed, or forked threads to a different persistence backend/root.
+        let thread_store =
+            thinwedge_core::thread_store_from_config(config.as_ref(), state_db.clone());
+        let environment_manager_for_requests = Arc::clone(&environment_manager);
+        let environment_manager_for_extensions = Arc::clone(&environment_manager);
+        let restriction_product = session_source.restriction_product();
+        let executor_skill_provider: Arc<dyn thinwedge_skills_extension::SkillProvider> = Arc::new(
+            thinwedge_skills_extension::ExecutorSkillProvider::new_with_restriction_product(
+                environment_manager_for_extensions,
+                restriction_product,
+            ),
         );
-        let thread_manager = Arc::new(ThreadManager::new(
-            config.as_ref(),
-            auth_manager.clone(),
-            session_source,
-            CollaborationModesConfig {
-                default_mode_request_user_input: config
-                    .features
-                    .enabled(Feature::DefaultModeRequestUserInput),
-            },
-            environment_manager,
-            Some(analytics_events_client.clone()),
-        ));
+        let goal_service = Arc::new(GoalService::new());
+        let thread_manager = Arc::new_cyclic(|thread_manager| {
+            ThreadManager::new(
+                config.as_ref(),
+                auth_manager.clone(),
+                session_source,
+                environment_manager,
+                thread_extensions(
+                    guardian_agent_spawner(thread_manager.clone()),
+                    ThreadExtensionDependencies {
+                        event_sink: app_server_extension_event_sink(
+                            outgoing.clone(),
+                            thread_state_manager.clone(),
+                        ),
+                        auth_manager: auth_manager.clone(),
+                        state_db: state_db.clone(),
+                        analytics_events_client: analytics_events_client.clone(),
+                        thread_manager: thread_manager.clone(),
+                        goal_service: Arc::clone(&goal_service),
+                        executor_skill_provider: Arc::clone(&executor_skill_provider),
+                        thread_store: Arc::clone(&thread_store),
+                    },
+                ),
+                Arc::new(ThinWedgeHomeUserInstructionsProvider::new(
+                    config.thinwedge_home.clone(),
+                )),
+                Some(analytics_events_client.clone()),
+                Arc::clone(&thread_store),
+                state_db.clone(),
+                installation_id,
+                Some(app_server_attestation_provider(
+                    outgoing.clone(),
+                    thread_state_manager.clone(),
+                )),
+            )
+        });
         thread_manager
             .plugins_manager()
             .set_analytics_events_client(analytics_events_client.clone());
+        let skills_watcher = SkillsWatcher::new(thread_manager.skills_manager(), outgoing.clone());
 
-        let thinwedge_message_processor =
-            ThinWedgeMessageProcessor::new(ThinWedgeMessageProcessorArgs {
-                auth_manager: auth_manager.clone(),
-                thread_manager: Arc::clone(&thread_manager),
-                outgoing: outgoing.clone(),
-                analytics_events_client: analytics_events_client.clone(),
-                arg0_paths,
-                config: Arc::clone(&config),
-                config_manager: config_manager.clone(),
-                feedback,
-                log_db,
-            });
+        let pending_thread_unloads = Arc::new(Mutex::new(HashSet::new()));
+        let thread_watch_manager =
+            crate::thread_status::ThreadWatchManager::new_with_outgoing(outgoing.clone());
+        let thread_list_state_permit = Arc::new(Semaphore::new(/*permits*/ 1));
+        let workspace_settings_cache =
+            Arc::new(workspace_settings::WorkspaceSettingsCache::default());
+        let app_list_shutdown_token = CancellationToken::new();
+        let account_processor = AccountRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            Arc::clone(&config),
+            config_manager.clone(),
+        );
+        let apps_processor = AppsRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            config_manager.clone(),
+            Arc::clone(&workspace_settings_cache),
+            app_list_shutdown_token,
+        );
+        let catalog_processor = CatalogRequestProcessor::new(
+            outgoing.clone(),
+            Arc::clone(&skills_watcher),
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            Arc::clone(&config),
+            config_manager.clone(),
+            Arc::clone(&workspace_settings_cache),
+        );
+        let command_exec_processor = CommandExecRequestProcessor::new(
+            arg0_paths.clone(),
+            Arc::clone(&config),
+            outgoing.clone(),
+            config_manager.clone(),
+            Arc::clone(&environment_manager_for_requests),
+        );
+        let process_exec_processor = ProcessExecRequestProcessor::new(
+            outgoing.clone(),
+            Arc::clone(&environment_manager_for_requests),
+        );
+        let feedback_processor = FeedbackRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            Arc::clone(&config),
+            feedback,
+            log_db.clone(),
+            state_db.clone(),
+        );
+        let git_processor = GitRequestProcessor::new();
+        let initialize_processor = InitializeRequestProcessor::new(
+            outgoing.clone(),
+            analytics_events_client.clone(),
+            Arc::clone(&config),
+            config_warnings,
+            rpc_transport,
+        );
+        let marketplace_processor = MarketplaceRequestProcessor::new(
+            Arc::clone(&config),
+            config_manager.clone(),
+            Arc::clone(&thread_manager),
+        );
+        let mcp_processor = McpRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            config_manager.clone(),
+        );
+        let plugin_processor = PluginRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            analytics_events_client.clone(),
+            config_manager.clone(),
+            workspace_settings_cache,
+        );
+        let remote_control_processor = RemoteControlRequestProcessor::new(remote_control_handle);
+        let search_processor = SearchRequestProcessor::new(outgoing.clone());
+        let thread_goal_processor = ThreadGoalRequestProcessor::new(
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            Arc::clone(&config),
+            thread_state_manager.clone(),
+            state_db.clone(),
+            Arc::clone(&goal_service),
+        );
+        let thread_processor = ThreadRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            arg0_paths.clone(),
+            Arc::clone(&config),
+            config_manager.clone(),
+            Arc::clone(&thread_store),
+            Arc::clone(&pending_thread_unloads),
+            thread_state_manager.clone(),
+            thread_watch_manager.clone(),
+            Arc::clone(&thread_list_state_permit),
+            thread_goal_processor.clone(),
+            state_db,
+            log_db,
+            Arc::clone(&skills_watcher),
+        );
+        let turn_processor = TurnRequestProcessor::new(
+            auth_manager.clone(),
+            Arc::clone(&thread_manager),
+            outgoing.clone(),
+            analytics_events_client.clone(),
+            arg0_paths.clone(),
+            Arc::clone(&config),
+            config_manager.clone(),
+            pending_thread_unloads,
+            thread_state_manager,
+            thread_watch_manager,
+            thread_list_state_permit,
+            Arc::clone(&skills_watcher),
+        );
         if matches!(plugin_startup_tasks, crate::PluginStartupTasks::Start) {
             // Keep plugin startup warmups aligned at app-server startup.
-            // TODO(xl): Move into PluginManager once this no longer depends on config feature gating.
+            let on_effective_plugins_changed =
+                plugin_processor.effective_plugins_changed_callback();
             thread_manager
                 .plugins_manager()
-                .maybe_start_plugin_startup_tasks_for_config(&config, auth_manager.clone());
+                .maybe_start_plugin_startup_tasks_for_config(
+                    &config.plugins_config_input(),
+                    auth_manager,
+                    Some(on_effective_plugins_changed),
+                );
         }
-        let config_api = ConfigApi::new(
-            config_manager,
+        let config_processor = ConfigRequestProcessor::new(
+            outgoing.clone(),
+            config_manager.clone(),
             thread_manager.clone(),
-            analytics_events_client.clone(),
+            analytics_events_client,
         );
-        let device_key_api =
-            DeviceKeyApi::new(config.sqlite_home.clone(), config.model_provider_id.clone());
-        let external_agent_config_api =
-            ExternalAgentConfigApi::new(config.thinwedge_home.to_path_buf());
-        let fs_api = FsApi::new(
-            thread_manager
-                .environment_manager()
-                .local_environment()
-                .get_filesystem(),
+        let external_agent_config_processor = ExternalAgentConfigRequestProcessor::new(
+            outgoing.clone(),
+            Arc::clone(&thread_manager),
+            Arc::clone(&thread_store),
+            config_manager.clone(),
+            config_processor.clone(),
+            arg0_paths,
+            config.thinwedge_home.to_path_buf(),
         );
-        let fs_watch_manager = FsWatchManager::new(outgoing.clone());
+        let environment_processor =
+            EnvironmentRequestProcessor::new(thread_manager.environment_manager());
+        let fs_processor = FsRequestProcessor::new(
+            Arc::clone(&environment_manager_for_requests),
+            FsWatchManager::new(outgoing.clone()),
+        );
+        let windows_sandbox_processor = WindowsSandboxRequestProcessor::new(
+            outgoing.clone(),
+            Arc::clone(&config),
+            config_manager,
+        );
 
         Self {
             outgoing,
-            thinwedge_message_processor,
-            thread_manager: Arc::clone(&thread_manager),
-            config_api,
-            device_key_api,
-            external_agent_config_api,
-            fs_api,
-            auth_manager,
-            analytics_events_client,
-            fs_watch_manager,
-            config,
-            config_warnings: Arc::new(config_warnings),
-            rpc_transport,
-            remote_control_handle,
+            skills_watcher,
+            account_processor,
+            apps_processor,
+            catalog_processor,
+            command_exec_processor,
+            process_exec_processor,
+            config_processor,
+            environment_processor,
+            external_agent_config_processor,
+            feedback_processor,
+            fs_processor,
+            git_processor,
+            initialize_processor,
+            marketplace_processor,
+            mcp_processor,
+            plugin_processor,
+            remote_control_processor,
+            search_processor,
+            thread_goal_processor,
+            thread_processor,
+            turn_processor,
+            windows_sandbox_processor,
             request_serialization_queues: RequestSerializationQueues::default(),
         }
     }
 
     pub(crate) fn clear_runtime_references(&self) {
-        self.auth_manager.clear_external_auth();
+        self.account_processor.clear_external_auth();
+        self.apps_processor.shutdown();
+        self.skills_watcher.shutdown();
     }
 
     pub(crate) async fn process_request(
@@ -307,26 +594,24 @@ impl MessageProcessor {
             Arc::clone(&self.outgoing),
             request_context.clone(),
             async {
-                let result = async {
-                    let request_json = serde_json::to_value(&request)
-                        .map_err(|err| invalid_request(format!("Invalid request: {err}")))?;
-                    let thinwedge_request =
-                        serde_json::from_value::<ClientRequest>(request_json)
-                            .map_err(|err| invalid_request(format!("Invalid request: {err}")))?;
-                    // Websocket callers finalize outbound readiness in lib.rs after mirroring
-                    // session state into outbound state and sending initialize notifications to
-                    // this specific connection. Passing `None` avoids marking the connection
-                    // ready too early from inside the shared request handler.
-                    self.handle_client_request(
-                        request_id.clone(),
-                        thinwedge_request,
-                        Arc::clone(&session),
-                        /*outbound_initialized*/ None,
-                        request_context.clone(),
-                    )
-                    .await
-                }
-                .await;
+                let thinwedge_request = deserialize_client_request(&request);
+                let result = match thinwedge_request {
+                    Ok(thinwedge_request) => {
+                        // Websocket callers finalize outbound readiness in lib.rs after mirroring
+                        // session state into outbound state and sending initialize notifications to
+                        // this specific connection. Passing `None` avoids marking the connection
+                        // ready too early from inside the shared request handler.
+                        self.handle_client_request(
+                            request_id.clone(),
+                            thinwedge_request,
+                            Arc::clone(&session),
+                            /*outbound_initialized*/ None,
+                            request_context.clone(),
+                        )
+                        .await
+                    }
+                    Err(error) => Err(error),
+                };
                 if let Err(error) = result {
                     self.outgoing.send_error(request_id.clone(), error).await;
                 }
@@ -410,35 +695,37 @@ impl MessageProcessor {
     }
 
     pub(crate) fn thread_created_receiver(&self) -> broadcast::Receiver<ThreadId> {
-        self.thinwedge_message_processor.thread_created_receiver()
+        self.thread_processor.thread_created_receiver()
     }
 
     pub(crate) async fn send_initialize_notifications_to_connection(
         &self,
         connection_id: ConnectionId,
     ) {
-        for notification in self.config_warnings.iter().cloned() {
-            self.outgoing
-                .send_server_notification_to_connections(
-                    &[connection_id],
-                    ServerNotification::ConfigWarning(notification),
-                )
-                .await;
-        }
+        self.initialize_processor
+            .send_initialize_notifications_to_connection(connection_id)
+            .await;
     }
 
-    pub(crate) async fn connection_initialized(&self, connection_id: ConnectionId) {
-        self.thinwedge_message_processor
-            .connection_initialized(connection_id)
+    pub(crate) async fn connection_initialized(
+        &self,
+        connection_id: ConnectionId,
+        request_attestation: bool,
+    ) {
+        self.thread_processor
+            .connection_initialized(
+                connection_id,
+                ConnectionCapabilities {
+                    request_attestation,
+                },
+            )
             .await;
     }
 
     pub(crate) async fn send_initialize_notifications(&self) {
-        for notification in self.config_warnings.iter().cloned() {
-            self.outgoing
-                .send_server_notification(ServerNotification::ConfigWarning(notification))
-                .await;
-        }
+        self.initialize_processor
+            .send_initialize_notifications()
+            .await;
     }
 
     pub(crate) async fn try_attach_thread_listener(
@@ -446,29 +733,25 @@ impl MessageProcessor {
         thread_id: ThreadId,
         connection_ids: Vec<ConnectionId>,
     ) {
-        self.thinwedge_message_processor
+        self.thread_processor
             .try_attach_thread_listener(thread_id, connection_ids)
             .await;
     }
 
     pub(crate) async fn drain_background_tasks(&self) {
-        self.thinwedge_message_processor
-            .drain_background_tasks()
-            .await;
+        self.thread_processor.drain_background_tasks().await;
     }
 
     pub(crate) async fn cancel_active_login(&self) {
-        self.thinwedge_message_processor.cancel_active_login().await;
+        self.account_processor.cancel_active_login().await;
     }
 
     pub(crate) async fn clear_all_thread_listeners(&self) {
-        self.thinwedge_message_processor
-            .clear_all_thread_listeners()
-            .await;
+        self.thread_processor.clear_all_thread_listeners().await;
     }
 
     pub(crate) async fn shutdown_threads(&self) {
-        self.thinwedge_message_processor.shutdown_threads().await;
+        self.thread_processor.shutdown_threads().await;
     }
 
     pub(crate) async fn connection_closed(
@@ -476,16 +759,32 @@ impl MessageProcessor {
         connection_id: ConnectionId,
         session_state: &ConnectionSessionState,
     ) {
-        session_state.rpc_gate.shutdown().await;
+        if timeout(
+            CONNECTION_RPC_DRAIN_TIMEOUT,
+            session_state.rpc_gate.shutdown(),
+        )
+        .await
+        .is_err()
+        {
+            tracing::warn!(
+                ?connection_id,
+                timeout_seconds = CONNECTION_RPC_DRAIN_TIMEOUT.as_secs(),
+                "timed out waiting for connection RPCs to drain"
+            );
+        }
         self.outgoing.connection_closed(connection_id).await;
-        self.fs_watch_manager.connection_closed(connection_id).await;
-        self.thinwedge_message_processor
+        self.fs_processor.connection_closed(connection_id).await;
+        self.command_exec_processor
             .connection_closed(connection_id)
             .await;
+        self.process_exec_processor
+            .connection_closed(connection_id)
+            .await;
+        self.thread_processor.connection_closed(connection_id).await;
     }
 
     pub(crate) fn subscribe_running_assistant_turn_count(&self) -> watch::Receiver<usize> {
-        self.thinwedge_message_processor
+        self.thread_processor
             .subscribe_running_assistant_turn_count()
     }
 
@@ -515,110 +814,24 @@ impl MessageProcessor {
     ) -> Result<(), JSONRPCErrorError> {
         let connection_id = connection_request_id.connection_id;
         if let ClientRequest::Initialize { request_id, params } = thinwedge_request {
-            // Handle Initialize internally so ThinWedgeMessageProcessor does not have to concern
-            // itself with the `initialized` bool.
-            let connection_request_id = ConnectionRequestId {
-                connection_id,
-                request_id,
-            };
-            if session.initialized() {
-                return Err(invalid_request("Already initialized"));
-            }
-
-            // TODO(maxj): Revisit capability scoping for `experimental_api_enabled`.
-            // Current behavior is per-connection. Reviewer feedback notes this can
-            // create odd cross-client behavior (for example dynamic tool calls on a
-            // shared thread when another connected client did not opt into
-            // experimental API). Proposed direction is instance-global first-write-wins
-            // with initialize-time mismatch rejection.
-            let analytics_initialize_params = params.clone();
-            let (experimental_api_enabled, opt_out_notification_methods) = match params.capabilities
-            {
-                Some(capabilities) => (
-                    capabilities.experimental_api,
-                    capabilities
-                        .opt_out_notification_methods
-                        .unwrap_or_default(),
-                ),
-                None => (false, Vec::new()),
-            };
-            let ClientInfo {
-                name,
-                title: _title,
-                version,
-            } = params.client_info;
-            // Validate before committing; set_default_originator validates while
-            // mutating process-global metadata.
-            if HeaderValue::from_str(&name).is_err() {
-                return Err(invalid_request(format!(
-                    "Invalid clientInfo.name: '{name}'. Must be a valid HTTP header value."
-                )));
-            }
-            let originator = name.clone();
-            let user_agent_suffix = format!("{name}; {version}");
-            let thinwedge_home = self.config.thinwedge_home.clone();
-            if session
-                .initialize(InitializedConnectionSessionState {
-                    experimental_api_enabled,
-                    opted_out_notification_methods: opt_out_notification_methods
-                        .into_iter()
-                        .collect(),
-                    app_server_client_name: name.clone(),
-                    client_version: version,
-                })
-                .is_err()
-            {
-                return Err(invalid_request("Already initialized"));
-            }
-
-            // Only the request that wins session initialization may mutate
-            // process-global client metadata.
-            if let Err(error) = set_default_originator(originator.clone()) {
-                match error {
-                    SetOriginatorError::InvalidHeaderValue => {
-                        tracing::warn!(
-                            client_info_name = %name,
-                            "validated clientInfo.name was rejected while setting originator"
-                        );
-                    }
-                    SetOriginatorError::AlreadyInitialized => {
-                        // No-op. This is expected to happen if the originator is already set via env var.
-                        // TODO(owen): Once we remove support for THINWEDGE_INTERNAL_ORIGINATOR_OVERRIDE,
-                        // this will be an unexpected state and we can return a JSON-RPC error indicating
-                        // internal server error.
-                    }
-                }
-            }
-            self.analytics_events_client.track_initialize(
-                connection_id.0,
-                analytics_initialize_params,
-                originator,
-                self.rpc_transport,
-            );
-            set_default_client_residency_requirement(self.config.enforce_residency.value());
-            if let Ok(mut suffix) = USER_AGENT_SUFFIX.lock() {
-                *suffix = Some(user_agent_suffix);
-            }
-
-            let user_agent = get_thinwedge_user_agent();
-            let response = InitializeResponse {
-                user_agent,
-                thinwedge_home,
-                platform_family: std::env::consts::FAMILY.to_string(),
-                platform_os: std::env::consts::OS.to_string(),
-            };
-
-            self.outgoing
-                .send_response(connection_request_id, response)
-                .await;
-
-            if let Some(outbound_initialized) = outbound_initialized {
-                // In-process clients can complete readiness immediately here. The
-                // websocket path defers this until lib.rs finishes transport-layer
-                // initialize handling for the specific connection.
-                outbound_initialized.store(true, Ordering::Release);
-                self.thinwedge_message_processor
-                    .connection_initialized(connection_id)
+            let connection_initialized = self
+                .initialize_processor
+                .initialize(
+                    connection_id,
+                    request_id,
+                    params,
+                    &session,
+                    outbound_initialized,
+                )
+                .await?;
+            if connection_initialized {
+                self.thread_processor
+                    .connection_initialized(
+                        connection_id,
+                        ConnectionCapabilities {
+                            request_attestation: session.request_attestation(),
+                        },
+                    )
                     .await;
             }
             return Ok(());
@@ -650,20 +863,15 @@ impl MessageProcessor {
             return Err(invalid_request(experimental_required_message(reason)));
         }
         let connection_id = connection_request_id.connection_id;
-        if let ClientRequest::TurnStart { request_id, .. }
-        | ClientRequest::TurnSteer { request_id, .. } = &thinwedge_request
-        {
-            self.analytics_events_client.track_request(
-                connection_id.0,
-                request_id.clone(),
-                thinwedge_request.clone(),
-            );
-        }
+        self.initialize_processor.track_initialized_request(
+            connection_id,
+            connection_request_id.request_id.clone(),
+            &thinwedge_request,
+        );
 
         let serialization_scope = thinwedge_request.serialization_scope();
         let app_server_client_name = session.app_server_client_name().map(str::to_string);
         let client_version = session.client_version().map(str::to_string);
-        let device_key_requests_allowed = session.allows_device_key_requests();
         let error_request_id = connection_request_id.clone();
         let rpc_gate = Arc::clone(&session.rpc_gate);
         let processor = Arc::clone(self);
@@ -679,7 +887,6 @@ impl MessageProcessor {
                         request_context,
                         app_server_client_name,
                         client_version,
-                        device_key_requests_allowed,
                     )
                     .await;
                 if let Err(error) = result {
@@ -690,9 +897,9 @@ impl MessageProcessor {
         );
 
         if let Some(scope) = serialization_scope {
-            let key = RequestSerializationQueueKey::from_scope(connection_id, scope);
+            let (key, access) = RequestSerializationQueueKey::from_scope(connection_id, scope);
             self.request_serialization_queues
-                .enqueue(key, request)
+                .enqueue(key, access, request)
                 .await;
         } else {
             tokio::spawn(async move {
@@ -709,541 +916,558 @@ impl MessageProcessor {
         request_context: RequestContext,
         app_server_client_name: Option<String>,
         client_version: Option<String>,
-        device_key_requests_allowed: bool,
     ) -> Result<(), JSONRPCErrorError> {
         let connection_id = connection_request_id.connection_id;
-        let request_id_for_connection = |request_id| ConnectionRequestId {
+        let request_id = ConnectionRequestId {
             connection_id,
-            request_id,
+            request_id: thinwedge_request.id().clone(),
         };
 
-        match thinwedge_request {
-            ClientRequest::ConfigRead { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.config_api.read(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::ExternalAgentConfigDetect { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.external_agent_config_api.detect(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::ExternalAgentConfigImport { request_id, params } => {
-                self.handle_external_agent_config_import(
-                    request_id_for_connection(request_id),
-                    params,
-                )
-                .await?;
-            }
-            ClientRequest::ConfigValueWrite { request_id, params } => {
-                self.handle_config_value_write(request_id_for_connection(request_id), params)
-                    .await;
-            }
-            ClientRequest::ConfigBatchWrite { request_id, params } => {
-                self.handle_config_batch_write(request_id_for_connection(request_id), params)
-                    .await;
-            }
-            ClientRequest::ExperimentalFeatureEnablementSet { request_id, params } => {
-                self.handle_experimental_feature_enablement_set(
-                    request_id_for_connection(request_id),
-                    params,
-                )
-                .await;
-            }
-            ClientRequest::ConfigRequirementsRead {
-                request_id,
-                params: _,
-            } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.config_api.config_requirements_read().await,
-                    )
-                    .await;
-            }
-            ClientRequest::DeviceKeyCreate { request_id, params } => {
-                self.handle_device_key_create(
-                    request_id_for_connection(request_id),
-                    params,
-                    device_key_requests_allowed,
-                );
-            }
-            ClientRequest::DeviceKeyPublic { request_id, params } => {
-                self.handle_device_key_public(
-                    request_id_for_connection(request_id),
-                    params,
-                    device_key_requests_allowed,
-                );
-            }
-            ClientRequest::DeviceKeySign { request_id, params } => {
-                self.handle_device_key_sign(
-                    request_id_for_connection(request_id),
-                    params,
-                    device_key_requests_allowed,
-                );
-            }
-            ClientRequest::FsReadFile { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.read_file(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsWriteFile { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.write_file(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsCreateDirectory { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.create_directory(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsGetMetadata { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.get_metadata(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsReadDirectory { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.read_directory(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsRemove { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.remove(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsCopy { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_api.copy(params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsWatch { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_watch_manager.watch(connection_id, params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::FsUnwatch { request_id, params } => {
-                self.outgoing
-                    .send_result(
-                        request_id_for_connection(request_id),
-                        self.fs_watch_manager.unwatch(connection_id, params).await,
-                    )
-                    .await;
-            }
-            ClientRequest::ModelProviderCapabilitiesRead {
-                request_id,
-                params: _,
-            } => {
-                self.handle_model_provider_capabilities_read(request_id_for_connection(request_id))
-                    .await;
-            }
-            other => {
-                // Box the delegated future so this wrapper's async state machine does not
-                // inline the full `ThinWedgeMessageProcessor::process_request` future, which
-                // can otherwise push worker-thread stack usage over the edge.
-                self.thinwedge_message_processor
-                    .process_request(
-                        connection_id,
-                        other,
-                        app_server_client_name,
-                        client_version,
-                        request_context,
-                    )
-                    .boxed()
-                    .await;
-            }
-        }
-        Ok(())
-    }
-
-    async fn handle_model_provider_capabilities_read(&self, request_id: ConnectionRequestId) {
-        let result = async {
-            let config = self
-                .config_api
-                .load_latest_config(/*fallback_cwd*/ None)
-                .await?;
-            let provider = create_model_provider(config.model_provider, /*auth_manager*/ None);
-            let capabilities = provider.capabilities();
-            Ok::<_, JSONRPCErrorError>(ModelProviderCapabilitiesReadResponse {
-                namespace_tools: capabilities.namespace_tools,
-                image_generation: capabilities.image_generation,
-                web_search: capabilities.web_search,
-            })
-        }
-        .await;
-        self.outgoing.send_result(request_id, result).await;
-    }
-
-    async fn handle_config_value_write(
-        &self,
-        request_id: ConnectionRequestId,
-        params: ConfigValueWriteParams,
-    ) {
-        let result = self.config_api.write_value(params).await;
-        self.handle_config_mutation_result(request_id, result).await
-    }
-
-    async fn handle_config_batch_write(
-        &self,
-        request_id: ConnectionRequestId,
-        params: ConfigBatchWriteParams,
-    ) {
-        let result = self.config_api.batch_write(params).await;
-        self.handle_config_mutation_result(request_id, result).await;
-    }
-
-    async fn handle_experimental_feature_enablement_set(
-        &self,
-        request_id: ConnectionRequestId,
-        params: ExperimentalFeatureEnablementSetParams,
-    ) {
-        let should_refresh_apps_list = params.enablement.get("apps").copied() == Some(true);
-        let result = self
-            .config_api
-            .set_experimental_feature_enablement(params)
-            .await;
-        let is_ok = result.is_ok();
-        self.handle_config_mutation_result(request_id, result).await;
-        if should_refresh_apps_list && is_ok {
-            self.refresh_apps_list_after_experimental_feature_enablement_set()
-                .await;
-        }
-    }
-
-    async fn refresh_apps_list_after_experimental_feature_enablement_set(&self) {
-        let config = match self
-            .config_api
-            .load_latest_config(/*fallback_cwd*/ None)
-            .await
-        {
-            Ok(config) => config,
-            Err(error) => {
-                tracing::warn!(
-                    "failed to load config for apps list refresh after experimental feature enablement: {}",
-                    error.message
-                );
-                return;
-            }
-        };
-        let auth = self.auth_manager.auth().await;
-        if !config.features.apps_enabled_for_auth(
-            auth.as_ref()
-                .is_some_and(thinwedge_login::ThinWedgeAuth::uses_thinwedge_backend),
-        ) {
-            return;
-        }
-
-        let outgoing = Arc::clone(&self.outgoing);
-        let environment_manager = self.thread_manager.environment_manager();
-        tokio::spawn(async move {
-            let (all_connectors_result, accessible_connectors_result) = tokio::join!(
-                connectors::list_all_connectors_with_options(&config, /*force_refetch*/ true),
-                connectors::list_accessible_connectors_from_mcp_tools_with_environment_manager(
-                    &config,
-                    /*force_refetch*/ true,
-                    &environment_manager,
-                ),
-            );
-            let all_connectors = match all_connectors_result {
-                Ok(connectors) => connectors,
-                Err(err) => {
-                    tracing::warn!(
-                        "failed to force-refresh directory apps after experimental feature enablement: {err:#}"
-                    );
-                    return;
+        let result: Result<Option<ClientResponsePayload>, JSONRPCErrorError> =
+            match thinwedge_request {
+                ClientRequest::Initialize { .. } => {
+                    panic!("Initialize should be handled before initialized request dispatch");
                 }
-            };
-            let accessible_connectors = match accessible_connectors_result {
-                Ok(status) => status.connectors,
-                Err(err) => {
-                    tracing::warn!(
-                        "failed to force-refresh accessible apps after experimental feature enablement: {err:#}"
-                    );
-                    return;
-                }
-            };
-
-            let data = connectors::with_app_enabled_state(
-                connectors::merge_connectors_with_accessible(
-                    all_connectors,
-                    accessible_connectors,
-                    /*all_connectors_loaded*/ true,
-                ),
-                &config,
-            );
-            outgoing
-                .send_server_notification(ServerNotification::AppListUpdated(
-                    AppListUpdatedNotification { data },
-                ))
-                .await;
-        });
-    }
-
-    async fn handle_config_mutation_result<T: serde::Serialize>(
-        &self,
-        request_id: ConnectionRequestId,
-        result: std::result::Result<T, JSONRPCErrorError>,
-    ) {
-        match result {
-            Ok(response) => {
-                self.handle_config_mutation().await;
-                self.outgoing.send_response(request_id, response).await;
-            }
-            Err(error) => self.outgoing.send_error(request_id, error).await,
-        }
-    }
-
-    async fn handle_config_mutation(&self) {
-        self.thinwedge_message_processor.handle_config_mutation();
-        let Some(remote_control_handle) = &self.remote_control_handle else {
-            return;
-        };
-
-        match self
-            .config_api
-            .load_latest_config(/*fallback_cwd*/ None)
-            .await
-        {
-            Ok(config) => {
-                remote_control_handle.set_enabled(config.features.enabled(Feature::RemoteControl));
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "failed to load config for remote control enablement refresh after config mutation: {}",
-                    error.message
-                );
-            }
-        }
-    }
-
-    fn handle_device_key_create(
-        &self,
-        request_id: ConnectionRequestId,
-        params: DeviceKeyCreateParams,
-        device_key_requests_allowed: bool,
-    ) {
-        self.spawn_device_key_request(
-            request_id,
-            "device/key/create",
-            device_key_requests_allowed,
-            move |device_key_api| async move { device_key_api.create(params).await },
-        );
-    }
-
-    fn handle_device_key_public(
-        &self,
-        request_id: ConnectionRequestId,
-        params: DeviceKeyPublicParams,
-        device_key_requests_allowed: bool,
-    ) {
-        self.spawn_device_key_request(
-            request_id,
-            "device/key/public",
-            device_key_requests_allowed,
-            move |device_key_api| async move { device_key_api.public(params).await },
-        );
-    }
-
-    fn handle_device_key_sign(
-        &self,
-        request_id: ConnectionRequestId,
-        params: DeviceKeySignParams,
-        device_key_requests_allowed: bool,
-    ) {
-        self.spawn_device_key_request(
-            request_id,
-            "device/key/sign",
-            device_key_requests_allowed,
-            move |device_key_api| async move { device_key_api.sign(params).await },
-        );
-    }
-
-    fn spawn_device_key_request<R, F, Fut>(
-        &self,
-        request_id: ConnectionRequestId,
-        method: &'static str,
-        device_key_requests_allowed: bool,
-        run_request: F,
-    ) where
-        R: serde::Serialize + Send + 'static,
-        F: FnOnce(DeviceKeyApi) -> Fut + Send + 'static,
-        Fut: Future<Output = Result<R, JSONRPCErrorError>> + Send + 'static,
-    {
-        let device_key_api = self.device_key_api.clone();
-        let outgoing = Arc::clone(&self.outgoing);
-        tokio::spawn(async move {
-            let result = async {
-                if !device_key_requests_allowed {
-                    return Err(invalid_request(format!(
-                        "{method} is not available over remote transports"
-                    )));
-                }
-                run_request(device_key_api).await
-            }
-            .await;
-            outgoing.send_result(request_id, result).await;
-        });
-    }
-
-    async fn handle_external_agent_config_import(
-        &self,
-        request_id: ConnectionRequestId,
-        params: ExternalAgentConfigImportParams,
-    ) -> Result<(), JSONRPCErrorError> {
-        let needs_runtime_refresh = migration_items_need_runtime_refresh(&params.migration_items);
-        let has_plugin_imports = params.migration_items.iter().any(|item| {
-            matches!(
-                item.item_type,
-                ExternalAgentConfigMigrationItemType::Plugins
-            )
-        });
-        let pending_session_imports = self
-            .external_agent_config_api
-            .prepare_pending_session_imports(&params)?;
-        let pending_plugin_imports = self.external_agent_config_api.import(params).await?;
-        if needs_runtime_refresh {
-            self.handle_config_mutation().await;
-        }
-        for pending_session_import in pending_session_imports {
-            let imported_thread_id = self
-                .thinwedge_message_processor
-                .import_external_agent_session(pending_session_import.session)
-                .await?;
-            self.external_agent_config_api
-                .record_imported_session(&pending_session_import.source_path, imported_thread_id);
-        }
-        self.outgoing
-            .send_response(request_id, ExternalAgentConfigImportResponse {})
-            .await;
-
-        if !has_plugin_imports {
-            return Ok(());
-        }
-
-        if pending_plugin_imports.is_empty() {
-            self.outgoing
-                .send_server_notification(ServerNotification::ExternalAgentConfigImportCompleted(
-                    ExternalAgentConfigImportCompletedNotification {},
-                ))
-                .await;
-            return Ok(());
-        }
-
-        let external_agent_config_api = self.external_agent_config_api.clone();
-        let outgoing = Arc::clone(&self.outgoing);
-        let thread_manager = Arc::clone(&self.thread_manager);
-        tokio::spawn(async move {
-            for pending_plugin_import in pending_plugin_imports {
-                match external_agent_config_api
-                    .complete_pending_plugin_import(pending_plugin_import)
+                ClientRequest::ConfigRead { params, .. } => self
+                    .config_processor
+                    .read(params)
                     .await
-                {
-                    Ok(()) => {}
-                    Err(error) => {
-                        tracing::warn!(
-                            error = %error.message,
-                            "external agent config plugin import failed"
-                        );
-                    }
+                    .map(|response| Some(response.into())),
+                ClientRequest::WindowsSandboxReadiness { .. } => self
+                    .windows_sandbox_processor
+                    .windows_sandbox_readiness()
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::ExternalAgentConfigDetect { params, .. } => self
+                    .external_agent_config_processor
+                    .detect(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::ExternalAgentConfigImport { params, .. } => self
+                    .external_agent_config_processor
+                    .import(request_id.clone(), params)
+                    .await
+                    .map(|()| None),
+                ClientRequest::ConfigValueWrite { params, .. } => {
+                    self.config_processor.value_write(params).await.map(Some)
                 }
-            }
-            thread_manager.plugins_manager().clear_cache();
-            thread_manager.skills_manager().clear_cache();
-            outgoing
-                .send_server_notification(ServerNotification::ExternalAgentConfigImportCompleted(
-                    ExternalAgentConfigImportCompletedNotification {},
-                ))
-                .await;
-        });
+                ClientRequest::ConfigBatchWrite { params, .. } => {
+                    self.config_processor.batch_write(params).await.map(Some)
+                }
+                ClientRequest::ExperimentalFeatureEnablementSet { params, .. } => {
+                    self.config_processor
+                        .experimental_feature_enablement_set(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::RemoteControlEnable { params, .. } => self
+                    .remote_control_processor
+                    .enable(
+                        params.is_some_and(|params| params.ephemeral),
+                        app_server_client_name.as_deref(),
+                    )
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::RemoteControlDisable { params, .. } => self
+                    .remote_control_processor
+                    .disable(
+                        params.is_some_and(|params| params.ephemeral),
+                        app_server_client_name.as_deref(),
+                    )
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::RemoteControlStatusRead { .. } => self
+                    .remote_control_processor
+                    .status_read()
+                    .map(|response| Some(response.into())),
+                ClientRequest::RemoteControlPairingStart { params, .. } => self
+                    .remote_control_processor
+                    .pairing_start(params, app_server_client_name.as_deref())
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::RemoteControlPairingStatus { params, .. } => self
+                    .remote_control_processor
+                    .pairing_status(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::RemoteControlClientsList { params, .. } => self
+                    .remote_control_processor
+                    .clients_list(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::RemoteControlClientsRevoke { params, .. } => self
+                    .remote_control_processor
+                    .clients_revoke(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::ConfigRequirementsRead { params: _, .. } => self
+                    .config_processor
+                    .config_requirements_read()
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::EnvironmentAdd { params, .. } => {
+                    self.environment_processor.environment_add(params).await
+                }
+                ClientRequest::FsReadFile { params, .. } => self
+                    .fs_processor
+                    .read_file(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsWriteFile { params, .. } => self
+                    .fs_processor
+                    .write_file(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsCreateDirectory { params, .. } => self
+                    .fs_processor
+                    .create_directory(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsGetMetadata { params, .. } => self
+                    .fs_processor
+                    .get_metadata(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsReadDirectory { params, .. } => self
+                    .fs_processor
+                    .read_directory(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsRemove { params, .. } => self
+                    .fs_processor
+                    .remove(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsCopy { params, .. } => self
+                    .fs_processor
+                    .copy(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsWatch { params, .. } => self
+                    .fs_processor
+                    .watch(connection_id, params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FsUnwatch { params, .. } => self
+                    .fs_processor
+                    .unwatch(connection_id, params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::ModelProviderCapabilitiesRead { params: _, .. } => self
+                    .config_processor
+                    .model_provider_capabilities_read()
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::ThreadStart { params, .. } => {
+                    self.thread_processor
+                        .thread_start(
+                            request_id.clone(),
+                            params,
+                            app_server_client_name.clone(),
+                            client_version.clone(),
+                            request_context,
+                        )
+                        .await
+                }
+                ClientRequest::ThreadUnsubscribe { params, .. } => {
+                    self.thread_processor
+                        .thread_unsubscribe(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadResume { params, .. } => {
+                    self.thread_processor
+                        .thread_resume(
+                            request_id.clone(),
+                            params,
+                            app_server_client_name.clone(),
+                            client_version.clone(),
+                        )
+                        .await
+                }
+                ClientRequest::ThreadFork { params, .. } => {
+                    self.thread_processor
+                        .thread_fork(
+                            request_id.clone(),
+                            params,
+                            app_server_client_name.clone(),
+                            client_version.clone(),
+                        )
+                        .await
+                }
+                ClientRequest::ThreadArchive { params, .. } => {
+                    self.thread_processor
+                        .thread_archive(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ThreadDelete { params, .. } => {
+                    self.thread_processor
+                        .thread_delete(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ThreadIncrementElicitation { params, .. } => {
+                    self.thread_processor
+                        .thread_increment_elicitation(params)
+                        .await
+                }
+                ClientRequest::ThreadDecrementElicitation { params, .. } => {
+                    self.thread_processor
+                        .thread_decrement_elicitation(params)
+                        .await
+                }
+                ClientRequest::ThreadSetName { params, .. } => {
+                    self.thread_processor
+                        .thread_set_name(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ThreadGoalSet { params, .. } => {
+                    self.thread_goal_processor
+                        .thread_goal_set(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ThreadGoalGet { params, .. } => {
+                    self.thread_goal_processor.thread_goal_get(params).await
+                }
+                ClientRequest::ThreadGoalClear { params, .. } => {
+                    self.thread_goal_processor
+                        .thread_goal_clear(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ThreadMetadataUpdate { params, .. } => {
+                    self.thread_processor.thread_metadata_update(params).await
+                }
+                ClientRequest::ThreadSettingsUpdate { params, .. } => {
+                    self.turn_processor
+                        .thread_settings_update(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadMemoryModeSet { params, .. } => {
+                    self.thread_processor.thread_memory_mode_set(params).await
+                }
+                ClientRequest::MemoryReset { .. } => self.thread_processor.memory_reset().await,
+                ClientRequest::ThreadUnarchive { params, .. } => {
+                    self.thread_processor
+                        .thread_unarchive(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ThreadCompactStart { params, .. } => {
+                    self.thread_processor
+                        .thread_compact_start(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadBackgroundTerminalsClean { params, .. } => {
+                    self.thread_processor
+                        .thread_background_terminals_clean(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadBackgroundTerminalsList { params, .. } => {
+                    self.thread_processor
+                        .thread_background_terminals_list(params)
+                        .await
+                }
+                ClientRequest::ThreadBackgroundTerminalsTerminate { params, .. } => {
+                    self.thread_processor
+                        .thread_background_terminals_terminate(params)
+                        .await
+                }
+                ClientRequest::ThreadRollback { params, .. } => {
+                    self.thread_processor
+                        .thread_rollback(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadList { params, .. } => {
+                    self.thread_processor.thread_list(params).await
+                }
+                ClientRequest::ThreadSearch { params, .. } => {
+                    self.thread_processor.thread_search(params).await
+                }
+                ClientRequest::ThreadLoadedList { params, .. } => {
+                    self.thread_processor.thread_loaded_list(params).await
+                }
+                ClientRequest::ThreadRead { params, .. } => {
+                    self.thread_processor.thread_read(params).await
+                }
+                ClientRequest::ThreadTurnsList { params, .. } => {
+                    self.thread_processor.thread_turns_list(params).await
+                }
+                ClientRequest::ThreadTurnsItemsList { params, .. } => {
+                    self.thread_processor.thread_turns_items_list(params).await
+                }
+                ClientRequest::ThreadShellCommand { params, .. } => {
+                    self.thread_processor
+                        .thread_shell_command(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadApproveGuardianDeniedAction { params, .. } => {
+                    self.thread_processor
+                        .thread_approve_guardian_denied_action(&request_id, params)
+                        .await
+                }
+                ClientRequest::GetConversationSummary { params, .. } => {
+                    self.thread_processor.conversation_summary(params).await
+                }
+                ClientRequest::SkillsList { params, .. } => {
+                    self.catalog_processor.skills_list(params).await
+                }
+                ClientRequest::SkillsExtraRootsSet { params, .. } => {
+                    self.catalog_processor.skills_extra_roots_set(params).await
+                }
+                ClientRequest::HooksList { params, .. } => {
+                    self.catalog_processor.hooks_list(params).await
+                }
+                ClientRequest::MarketplaceAdd { params, .. } => {
+                    self.marketplace_processor.marketplace_add(params).await
+                }
+                ClientRequest::MarketplaceRemove { params, .. } => {
+                    self.marketplace_processor.marketplace_remove(params).await
+                }
+                ClientRequest::MarketplaceUpgrade { params, .. } => {
+                    self.marketplace_processor.marketplace_upgrade(params).await
+                }
+                ClientRequest::PluginList { params, .. } => {
+                    self.plugin_processor.plugin_list(params).await
+                }
+                ClientRequest::PluginInstalled { params, .. } => {
+                    self.plugin_processor.plugin_installed(params).await
+                }
+                ClientRequest::PluginRead { params, .. } => {
+                    self.plugin_processor.plugin_read(params).await
+                }
+                ClientRequest::PluginSkillRead { params, .. } => {
+                    self.plugin_processor.plugin_skill_read(params).await
+                }
+                ClientRequest::PluginShareSave { params, .. } => {
+                    self.plugin_processor.plugin_share_save(params).await
+                }
+                ClientRequest::PluginShareUpdateTargets { params, .. } => {
+                    self.plugin_processor
+                        .plugin_share_update_targets(params)
+                        .await
+                }
+                ClientRequest::PluginShareList { params, .. } => {
+                    self.plugin_processor.plugin_share_list(params).await
+                }
+                ClientRequest::PluginShareCheckout { params, .. } => {
+                    self.plugin_processor.plugin_share_checkout(params).await
+                }
+                ClientRequest::PluginShareDelete { params, .. } => {
+                    self.plugin_processor.plugin_share_delete(params).await
+                }
+                ClientRequest::AppsList { params, .. } => {
+                    self.apps_processor.apps_list(&request_id, params).await
+                }
+                ClientRequest::SkillsConfigWrite { params, .. } => {
+                    self.catalog_processor.skills_config_write(params).await
+                }
+                ClientRequest::PluginInstall { params, .. } => {
+                    self.plugin_processor.plugin_install(params).await
+                }
+                ClientRequest::PluginUninstall { params, .. } => {
+                    self.plugin_processor.plugin_uninstall(params).await
+                }
+                ClientRequest::ModelList { params, .. } => {
+                    self.catalog_processor.model_list(params).await
+                }
+                ClientRequest::ExperimentalFeatureList { params, .. } => {
+                    self.catalog_processor
+                        .experimental_feature_list(params)
+                        .await
+                }
+                ClientRequest::PermissionProfileList { params, .. } => {
+                    self.catalog_processor.permission_profile_list(params).await
+                }
+                ClientRequest::CollaborationModeList { params, .. } => {
+                    self.catalog_processor.collaboration_mode_list(params).await
+                }
+                ClientRequest::MockExperimentalMethod { params, .. } => {
+                    self.catalog_processor
+                        .mock_experimental_method(params)
+                        .await
+                }
+                ClientRequest::TurnStart { params, .. } => {
+                    self.turn_processor
+                        .turn_start(
+                            request_id.clone(),
+                            params,
+                            app_server_client_name.clone(),
+                            client_version.clone(),
+                        )
+                        .await
+                }
+                ClientRequest::ThreadInjectItems { params, .. } => {
+                    self.turn_processor.thread_inject_items(params).await
+                }
+                ClientRequest::TurnSteer { params, .. } => {
+                    self.turn_processor.turn_steer(&request_id, params).await
+                }
+                ClientRequest::TurnInterrupt { params, .. } => {
+                    self.turn_processor
+                        .turn_interrupt(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadRealtimeStart { params, .. } => {
+                    self.turn_processor
+                        .thread_realtime_start(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadRealtimeAppendAudio { params, .. } => {
+                    self.turn_processor
+                        .thread_realtime_append_audio(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadRealtimeAppendText { params, .. } => {
+                    self.turn_processor
+                        .thread_realtime_append_text(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadRealtimeStop { params, .. } => {
+                    self.turn_processor
+                        .thread_realtime_stop(&request_id, params)
+                        .await
+                }
+                ClientRequest::ThreadRealtimeListVoices { params: _, .. } => {
+                    self.turn_processor.thread_realtime_list_voices().await
+                }
+                ClientRequest::ReviewStart { params, .. } => {
+                    self.turn_processor.review_start(&request_id, params).await
+                }
+                ClientRequest::McpServerOauthLogin { params, .. } => {
+                    self.mcp_processor.mcp_server_oauth_login(params).await
+                }
+                ClientRequest::McpServerRefresh { params, .. } => {
+                    self.mcp_processor.mcp_server_refresh(params).await
+                }
+                ClientRequest::McpServerStatusList { params, .. } => {
+                    self.mcp_processor
+                        .mcp_server_status_list(&request_id, params)
+                        .await
+                }
+                ClientRequest::McpResourceRead { params, .. } => {
+                    self.mcp_processor
+                        .mcp_resource_read(&request_id, params)
+                        .await
+                }
+                ClientRequest::McpServerToolCall { params, .. } => {
+                    self.mcp_processor
+                        .mcp_server_tool_call(&request_id, params)
+                        .await
+                }
+                ClientRequest::WindowsSandboxSetupStart { params, .. } => {
+                    self.windows_sandbox_processor
+                        .windows_sandbox_setup_start(&request_id, params)
+                        .await
+                }
+                ClientRequest::LoginAccount { params, .. } => {
+                    self.account_processor
+                        .login_account(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::LogoutAccount { .. } => {
+                    self.account_processor
+                        .logout_account(request_id.clone())
+                        .await
+                }
+                ClientRequest::CancelLoginAccount { params, .. } => {
+                    self.account_processor.cancel_login_account(params).await
+                }
+                ClientRequest::GetAccount { params, .. } => {
+                    self.account_processor.get_account(params).await
+                }
+                ClientRequest::GetAuthStatus { params, .. } => {
+                    self.account_processor.get_auth_status(params).await
+                }
+                ClientRequest::GetAccountRateLimits { .. } => {
+                    self.account_processor.get_account_rate_limits().await
+                }
+                ClientRequest::GetAccountTokenUsage { .. } => {
+                    self.account_processor.get_account_token_usage().await
+                }
+                ClientRequest::SendAddCreditsNudgeEmail { params, .. } => {
+                    self.account_processor
+                        .send_add_credits_nudge_email(params)
+                        .await
+                }
+                ClientRequest::GitDiffToRemote { params, .. } => {
+                    self.git_processor.git_diff_to_remote(params).await
+                }
+                ClientRequest::FuzzyFileSearch { params, .. } => self
+                    .search_processor
+                    .fuzzy_file_search(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FuzzyFileSearchSessionStart { params, .. } => self
+                    .search_processor
+                    .fuzzy_file_search_session_start_response(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FuzzyFileSearchSessionUpdate { params, .. } => self
+                    .search_processor
+                    .fuzzy_file_search_session_update_response(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::FuzzyFileSearchSessionStop { params, .. } => self
+                    .search_processor
+                    .fuzzy_file_search_session_stop(params)
+                    .await
+                    .map(|response| Some(response.into())),
+                ClientRequest::OneOffCommandExec { params, .. } => {
+                    self.command_exec_processor
+                        .one_off_command_exec(&request_id, params)
+                        .await
+                }
+                ClientRequest::CommandExecWrite { params, .. } => {
+                    self.command_exec_processor
+                        .command_exec_write(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::CommandExecResize { params, .. } => {
+                    self.command_exec_processor
+                        .command_exec_resize(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::CommandExecTerminate { params, .. } => {
+                    self.command_exec_processor
+                        .command_exec_terminate(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ProcessSpawn { params, .. } => self
+                    .process_exec_processor
+                    .process_spawn(request_id.clone(), params)
+                    .await
+                    .map(|()| None),
+                ClientRequest::ProcessWriteStdin { params, .. } => {
+                    self.process_exec_processor
+                        .process_write_stdin(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ProcessKill { params, .. } => {
+                    self.process_exec_processor
+                        .process_kill(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::ProcessResizePty { params, .. } => {
+                    self.process_exec_processor
+                        .process_resize_pty(request_id.clone(), params)
+                        .await
+                }
+                ClientRequest::FeedbackUpload { params, .. } => {
+                    self.feedback_processor.feedback_upload(params).await
+                }
+            };
 
+        match result {
+            Ok(Some(response)) => {
+                self.outgoing
+                    .send_response_as(request_id.clone(), response)
+                    .await;
+            }
+            Ok(None) => {}
+            Err(error) => {
+                self.outgoing.send_error(request_id.clone(), error).await;
+            }
+        }
         Ok(())
     }
 }
 
-fn migration_items_need_runtime_refresh(items: &[ExternalAgentConfigMigrationItem]) -> bool {
-    items.iter().any(|item| {
-        matches!(
-            item.item_type,
-            ExternalAgentConfigMigrationItemType::Config
-                | ExternalAgentConfigMigrationItemType::Skills
-                | ExternalAgentConfigMigrationItemType::McpServerConfig
-                | ExternalAgentConfigMigrationItemType::Hooks
-                | ExternalAgentConfigMigrationItemType::Commands
-                | ExternalAgentConfigMigrationItemType::Plugins
-        )
-    })
-}
-
 #[cfg(test)]
-mod tracing_tests;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn migration_item(
-        item_type: ExternalAgentConfigMigrationItemType,
-    ) -> ExternalAgentConfigMigrationItem {
-        ExternalAgentConfigMigrationItem {
-            item_type,
-            description: String::new(),
-            cwd: None,
-            details: None,
-        }
-    }
-
-    #[test]
-    fn migration_items_that_update_runtime_sources_trigger_refresh() {
-        assert!(migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::Config,
-        )]));
-        assert!(migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::Skills,
-        )]));
-        assert!(migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::McpServerConfig,
-        )]));
-        assert!(migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::Hooks,
-        )]));
-        assert!(migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::Commands,
-        )]));
-        assert!(migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::Plugins,
-        )]));
-        assert!(!migration_items_need_runtime_refresh(&[migration_item(
-            ExternalAgentConfigMigrationItemType::Sessions,
-        )]));
-    }
-}
+#[path = "message_processor_tracing_tests.rs"]
+mod message_processor_tracing_tests;

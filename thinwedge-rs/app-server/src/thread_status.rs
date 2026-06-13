@@ -722,6 +722,7 @@ mod tests {
         let (outgoing_tx, mut outgoing_rx) = mpsc::channel(8);
         let manager = ThreadWatchManager::new_with_outgoing(Arc::new(OutgoingMessageSender::new(
             outgoing_tx,
+            thinwedge_analytics::AnalyticsEventsClient::disabled(),
         )));
 
         manager
@@ -764,6 +765,7 @@ mod tests {
         let (outgoing_tx, mut outgoing_rx) = mpsc::channel(8);
         let manager = ThreadWatchManager::new_with_outgoing(Arc::new(OutgoingMessageSender::new(
             outgoing_tx,
+            thinwedge_analytics::AnalyticsEventsClient::disabled(),
         )));
 
         manager
@@ -890,7 +892,9 @@ mod tests {
     ) -> Thread {
         Thread {
             id: thread_id.to_string(),
+            session_id: thread_id.to_string(),
             forked_from_id: None,
+            parent_thread_id: None,
             preview: String::new(),
             ephemeral: false,
             model_provider: "mock-provider".to_string(),
@@ -903,6 +907,7 @@ mod tests {
             agent_nickname: None,
             agent_role: None,
             source,
+            thread_source: None,
             git_info: None,
             name: None,
             turns: Vec::new(),

@@ -73,8 +73,8 @@ use thinwedge_app_server_protocol::UserInput as V2UserInput;
 use thinwedge_core::config::Config;
 use thinwedge_otel::OtelProvider;
 use thinwedge_otel::current_span_w3c_trace_context;
+use thinwedge_protocol::openai_models::ReasoningEffort;
 use thinwedge_protocol::protocol::W3cTraceContext;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_utils_cli::CliConfigOverrides;
 use tracing::info_span;
 use tracing_subscriber::layer::SubscriberExt;
@@ -97,7 +97,7 @@ const NOTIFICATIONS_TO_OPT_OUT: &[&str] = &[
 ];
 const APP_SERVER_GRACEFUL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 const APP_SERVER_GRACEFUL_SHUTDOWN_POLL_INTERVAL: Duration = Duration::from_millis(100);
-const DEFAULT_ANALYTICS_ENABLED: bool = false;
+const DEFAULT_ANALYTICS_ENABLED: bool = true;
 const OTEL_SERVICE_NAME: &str = "thinwedge-app-server-test-client";
 const TRACE_DISABLED_MESSAGE: &str =
     "Not enabled - enable tracing in $THINWEDGE_HOME/config.toml to get a trace URL!";
@@ -741,6 +741,7 @@ async fn trigger_zsh_fork_multi_cmd_approval(
 
             let mut turn_params = TurnStartParams {
                 thread_id: thread_response.thread.id.clone(),
+                client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: message,
                     text_elements: Vec::new(),
@@ -825,6 +826,7 @@ async fn resume_message_v2(
 
         let turn_response = client.turn_start(TurnStartParams {
             thread_id: resume_response.thread.id.clone(),
+            client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: user_message,
                 text_elements: Vec::new(),
@@ -966,6 +968,7 @@ async fn send_message_v2_with_policies(
             println!("< thread/start response: {thread_response:?}");
             let mut turn_params = TurnStartParams {
                 thread_id: thread_response.thread.id.clone(),
+                client_user_message_id: None,
                 input: vec![V2UserInput::Text {
                     text: user_message,
                     // Test client sends plain text without UI element ranges.
@@ -1006,6 +1009,7 @@ async fn send_follow_up_v2(
 
         let first_turn_params = TurnStartParams {
             thread_id: thread_response.thread.id.clone(),
+            client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: first_message,
                 // Test client sends plain text without UI element ranges.
@@ -1019,6 +1023,7 @@ async fn send_follow_up_v2(
 
         let follow_up_params = TurnStartParams {
             thread_id: thread_response.thread.id.clone(),
+            client_user_message_id: None,
             input: vec![V2UserInput::Text {
                 text: follow_up_message,
                 // Test client sends plain text without UI element ranges.
@@ -1044,17 +1049,31 @@ async fn test_login(
         let initialize = client.initialize()?;
         println!("< initialize response: {initialize:?}");
 
-        if device_code {
-            bail!("device-code login is not supported by the app-server test client");
-        }
-
-        let login_response = client.login_account_api_key("sk-test-key")?;
+        let login_response = if device_code {
+            client.login_account_chatgpt_device_code()?
+        } else {
+            client.login_account_chatgpt()?
+        };
         println!("< account/login/start response: {login_response:?}");
-        let login_id: Option<String> = match login_response {
-            LoginAccountResponse::ApiKey {} => None,
+        let login_id = match login_response {
+            LoginAccountResponse::Chatgpt { login_id, auth_url } => {
+                println!("Open the following URL in your browser to continue:\n{auth_url}");
+                login_id
+            }
+            LoginAccountResponse::ChatgptDeviceCode {
+                login_id,
+                verification_url,
+                user_code,
+            } => {
+                println!(
+                    "Open the following URL and enter the code to continue:\n{verification_url}\n\nCode: {user_code}"
+                );
+                login_id
+            }
+            _ => bail!("expected chatgpt login response"),
         };
 
-        let completion = client.wait_for_account_login_completion(login_id.as_deref())?;
+        let completion = client.wait_for_account_login_completion(&login_id)?;
         println!("< account/login/completed notification: {completion:?}");
 
         if completion.success {
@@ -1248,6 +1267,7 @@ fn live_elicitation_timeout_pause(
     let started_at = Instant::now();
     let turn_response = client.turn_start(TurnStartParams {
         thread_id: thread_id.clone(),
+        client_user_message_id: None,
         input: vec![V2UserInput::Text {
             text: prompt,
             text_elements: Vec::new(),
@@ -1546,6 +1566,7 @@ impl ThinWedgeClient {
                 },
                 capabilities: Some(InitializeCapabilities {
                     experimental_api,
+                    request_attestation: false,
                     opt_out_notification_methods: Some(
                         NOTIFICATIONS_TO_OPT_OUT
                             .iter()
@@ -1598,13 +1619,23 @@ impl ThinWedgeClient {
         self.send_request(request, request_id, "turn/start")
     }
 
-    fn login_account_api_key(&mut self, api_key: &str) -> Result<LoginAccountResponse> {
+    fn login_account_chatgpt(&mut self) -> Result<LoginAccountResponse> {
         let request_id = self.request_id();
         let request = ClientRequest::LoginAccount {
             request_id: request_id.clone(),
-            params: thinwedge_app_server_protocol::LoginAccountParams::ApiKey {
-                api_key: api_key.to_string(),
+            params: thinwedge_app_server_protocol::LoginAccountParams::Chatgpt {
+                thinwedge_streamlined_login: false,
             },
+        };
+
+        self.send_request(request, request_id, "account/login/start")
+    }
+
+    fn login_account_chatgpt_device_code(&mut self) -> Result<LoginAccountResponse> {
+        let request_id = self.request_id();
+        let request = ClientRequest::LoginAccount {
+            request_id: request_id.clone(),
+            params: thinwedge_app_server_protocol::LoginAccountParams::ChatgptDeviceCode,
         };
 
         self.send_request(request, request_id, "account/login/start")
@@ -1668,7 +1699,7 @@ impl ThinWedgeClient {
 
     fn wait_for_account_login_completion(
         &mut self,
-        expected_login_id: Option<&str>,
+        expected_login_id: &str,
     ) -> Result<AccountLoginCompletedNotification> {
         loop {
             let notification = self.next_notification()?;
@@ -1676,16 +1707,14 @@ impl ThinWedgeClient {
             if let Ok(server_notification) = ServerNotification::try_from(notification) {
                 match server_notification {
                     ServerNotification::AccountLoginCompleted(completion) => {
-                        if completion.login_id.as_deref() == expected_login_id {
+                        if completion.login_id.as_deref() == Some(expected_login_id) {
                             return Ok(completion);
                         }
 
-                        if expected_login_id.is_some() {
-                            println!(
-                                "[ignoring account/login/completed for unexpected login_id: {:?}]",
-                                completion.login_id
-                            );
-                        }
+                        println!(
+                            "[ignoring account/login/completed for unexpected login_id: {:?}]",
+                            completion.login_id
+                        );
                     }
                     ServerNotification::AccountRateLimitsUpdated(snapshot) => {
                         println!("< accountRateLimitsUpdated notification: {snapshot:?}");
@@ -1932,6 +1961,7 @@ impl ThinWedgeClient {
             thread_id,
             turn_id,
             item_id,
+            started_at_ms: _,
             approval_id,
             reason,
             network_approval_context,
@@ -2007,6 +2037,7 @@ impl ThinWedgeClient {
             thread_id,
             turn_id,
             item_id,
+            started_at_ms: _,
             reason,
             grant_root,
         } = params;

@@ -19,6 +19,7 @@
 //! updated or marked closed.
 
 use crate::multi_agents::AgentPickerThreadEntry;
+use crate::multi_agents::SubAgentActivityDisplay;
 use crate::multi_agents::format_agent_picker_item_name;
 use crate::multi_agents::next_agent_shortcut;
 use crate::multi_agents::previous_agent_shortcut;
@@ -86,14 +87,54 @@ impl AgentNavigationState {
         if !self.threads.contains_key(&thread_id) {
             self.order.push(thread_id);
         }
+        let (previous_agent_path, previous_is_running) = self
+            .threads
+            .get(&thread_id)
+            .map(|entry| (entry.agent_path.clone(), entry.is_running))
+            .unwrap_or((None, false));
         self.threads.insert(
             thread_id,
             AgentPickerThreadEntry {
                 agent_nickname,
                 agent_role,
+                agent_path: previous_agent_path,
+                is_running: previous_is_running && !is_closed,
                 is_closed,
             },
         );
+    }
+
+    pub(crate) fn record_sub_agent_activity(&mut self, activity: SubAgentActivityDisplay) {
+        if !self.threads.contains_key(&activity.thread_id) {
+            self.order.push(activity.thread_id);
+        }
+        let entry =
+            self.threads
+                .entry(activity.thread_id)
+                .or_insert_with(|| AgentPickerThreadEntry {
+                    agent_nickname: None,
+                    agent_role: None,
+                    agent_path: None,
+                    is_running: false,
+                    is_closed: false,
+                });
+        entry.agent_path = Some(activity.agent_path);
+        entry.is_running = activity.is_running_hint;
+        entry.is_closed = false;
+    }
+
+    pub(crate) fn set_running(&mut self, thread_id: ThreadId, is_running: bool) {
+        if let Some(entry) = self.threads.get_mut(&thread_id) {
+            entry.is_running = is_running;
+        }
+    }
+
+    pub(crate) fn set_agent_path(&mut self, thread_id: ThreadId, agent_path: Option<String>) {
+        if let Some(agent_path) = agent_path
+            && let Some(entry) = self.threads.get_mut(&thread_id)
+        {
+            entry.agent_path = Some(agent_path);
+        }
     }
 
     /// Marks a thread as closed without removing it from the traversal cache.
@@ -105,6 +146,7 @@ impl AgentNavigationState {
     pub(crate) fn mark_closed(&mut self, thread_id: ThreadId) {
         if let Some(entry) = self.threads.get_mut(&thread_id) {
             entry.is_closed = true;
+            entry.is_running = false;
         } else {
             self.upsert(
                 thread_id, /*agent_nickname*/ None, /*agent_role*/ None,
@@ -152,6 +194,22 @@ impl AgentNavigationState {
         self.order
             .iter()
             .filter_map(|thread_id| self.threads.get(thread_id).map(|entry| (*thread_id, entry)))
+            .collect()
+    }
+
+    pub(crate) fn ordered_path_backed_subagent_threads(
+        &self,
+        primary_thread_id: Option<ThreadId>,
+    ) -> Vec<(ThreadId, &AgentPickerThreadEntry)> {
+        self.ordered_threads()
+            .into_iter()
+            .filter(|(thread_id, entry)| {
+                Some(*thread_id) != primary_thread_id
+                    && entry
+                        .agent_path
+                        .as_deref()
+                        .is_some_and(|agent_path| !agent_path.trim().is_empty())
+            })
             .collect()
     }
 
@@ -217,6 +275,14 @@ impl AgentNavigationState {
             self.threads
                 .get(&thread_id)
                 .map(|entry| {
+                    if !is_primary
+                        && let Some(agent_path) = entry
+                            .agent_path
+                            .as_deref()
+                            .filter(|agent_path| !agent_path.trim().is_empty())
+                    {
+                        return format!("`{agent_path}`");
+                    }
                     format_agent_picker_item_name(
                         entry.agent_nickname.as_deref(),
                         entry.agent_role.as_deref(),
@@ -280,13 +346,13 @@ mod tests {
         state.upsert(
             first_agent_id,
             Some("Robie".to_string()),
-            Some("pricing_researcher".to_string()),
+            Some("explorer".to_string()),
             /*is_closed*/ false,
         );
         state.upsert(
             second_agent_id,
             Some("Bob".to_string()),
-            Some("moat_researcher".to_string()),
+            Some("worker".to_string()),
             /*is_closed*/ false,
         );
 
@@ -300,7 +366,7 @@ mod tests {
         state.upsert(
             first_agent_id,
             Some("Robie".to_string()),
-            Some("moat_researcher".to_string()),
+            Some("worker".to_string()),
             /*is_closed*/ true,
         );
 
@@ -344,7 +410,7 @@ mod tests {
 
         assert_eq!(
             state.active_agent_label(Some(first_agent_id), Some(main_thread_id)),
-            Some("Robie [pricing_researcher]".to_string())
+            Some("Robie [explorer]".to_string())
         );
         assert_eq!(
             state.active_agent_label(Some(main_thread_id), Some(main_thread_id)),

@@ -25,6 +25,7 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use thinwedge_client::backoff;
 use thinwedge_client::maybe_build_rustls_client_config_with_custom_ca;
+use thinwedge_protocol::protocol::ConversationTextRole;
 use thinwedge_protocol::protocol::RealtimeTranscriptDelta;
 use thinwedge_utils_rustls_provider::ensure_rustls_crypto_provider;
 use tokio::net::TcpStream;
@@ -37,12 +38,12 @@ use tokio_tungstenite::WebSocketStream;
 use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
 use tracing::trace;
 use tracing::warn;
+use tungstenite::protocol::WebSocketConfig;
 use url::Url;
 
 const REALTIME_WIRE_LOG_TARGET: &str = "thinwedge_api::realtime_websocket::wire";
@@ -227,8 +228,12 @@ impl RealtimeWebsocketConnection {
         self.writer.send_audio_frame(frame).await
     }
 
-    pub async fn send_conversation_item_create(&self, text: String) -> Result<(), ApiError> {
-        self.writer.send_conversation_item_create(text).await
+    pub async fn send_conversation_item_create(
+        &self,
+        text: String,
+        role: ConversationTextRole,
+    ) -> Result<(), ApiError> {
+        self.writer.send_conversation_item_create(text, role).await
     }
 
     pub async fn send_conversation_function_call_output(
@@ -286,9 +291,29 @@ impl RealtimeWebsocketWriter {
             .await
     }
 
-    pub async fn send_conversation_item_create(&self, text: String) -> Result<(), ApiError> {
-        self.send_json(&conversation_item_create_message(self.event_parser, text))
-            .await
+    pub async fn send_conversation_item_create(
+        &self,
+        text: String,
+        role: ConversationTextRole,
+    ) -> Result<(), ApiError> {
+        self.send_json(&conversation_item_create_message(
+            self.event_parser,
+            text,
+            role,
+        ))
+        .await
+    }
+
+    pub async fn send_conversation_handoff_append(
+        &self,
+        handoff_id: String,
+        output_text: String,
+    ) -> Result<(), ApiError> {
+        self.send_json(&RealtimeOutboundMessage::ConversationHandoffAppend {
+            handoff_id,
+            output_text,
+        })
+        .await
     }
 
     pub async fn send_conversation_function_call_output(
@@ -858,7 +883,7 @@ mod tests {
         assert_eq!(
             parse_realtime_event(payload.as_str(), RealtimeEventParser::V1),
             Some(RealtimeEvent::SessionUpdated {
-                session_id: "sess_123".to_string(),
+                realtime_session_id: "sess_123".to_string(),
                 instructions: Some("backend prompt".to_string()),
             })
         );
@@ -989,6 +1014,22 @@ mod tests {
             parse_realtime_event(payload.as_str(), RealtimeEventParser::V1),
             Some(RealtimeEvent::InputTranscriptDone(RealtimeTranscriptDone {
                 text: "hello world".to_string(),
+            }))
+        );
+    }
+
+    #[test]
+    fn parse_v1_input_transcript_turn_marked_event() {
+        let payload = json!({
+            "type": "conversation.input_transcript.turn_marked",
+            "transcript": "hello realtime"
+        })
+        .to_string();
+
+        assert_eq!(
+            parse_realtime_event(payload.as_str(), RealtimeEventParser::V1),
+            Some(RealtimeEvent::InputTranscriptDone(RealtimeTranscriptDone {
+                text: "hello realtime".to_string(),
             }))
         );
     }
@@ -1400,7 +1441,7 @@ mod tests {
     #[test]
     fn websocket_url_from_v1_base_appends_realtime_path() {
         let url = websocket_url_from_api_url(
-            "https://api.thinwedge.com/v1",
+            "https://api.openai.com/v1",
             /*query_params*/ None,
             Some("snapshot"),
             RealtimeEventParser::V1,
@@ -1409,14 +1450,14 @@ mod tests {
         .expect("build ws url");
         assert_eq!(
             url.as_str(),
-            "wss://api.thinwedge.com/v1/realtime?intent=quicksilver&model=snapshot"
+            "wss://api.openai.com/v1/realtime?intent=quicksilver&model=snapshot"
         );
     }
 
     #[test]
     fn websocket_url_from_nested_v1_base_appends_realtime_path() {
         let url = websocket_url_from_api_url(
-            "https://example.com/thinwedge/v1",
+            "https://example.com/openai/v1",
             /*query_params*/ None,
             Some("snapshot"),
             RealtimeEventParser::V1,
@@ -1425,7 +1466,7 @@ mod tests {
         .expect("build ws url");
         assert_eq!(
             url.as_str(),
-            "wss://example.com/thinwedge/v1/realtime?intent=quicksilver&model=snapshot"
+            "wss://example.com/openai/v1/realtime?intent=quicksilver&model=snapshot"
         );
     }
 
@@ -1499,7 +1540,7 @@ mod tests {
     #[test]
     fn websocket_url_for_call_id_joins_existing_realtime_session() {
         let url = websocket_url_from_api_url_for_call(
-            "https://api.thinwedge.com/v1",
+            "https://api.openai.com/v1",
             /*query_params*/ None,
             RealtimeEventParser::RealtimeV2,
             RealtimeSessionMode::Conversational,
@@ -1508,7 +1549,7 @@ mod tests {
         .expect("build ws url");
         assert_eq!(
             url.as_str(),
-            "wss://api.thinwedge.com/v1/realtime?call_id=rtc_test"
+            "wss://api.openai.com/v1/realtime?call_id=rtc_test"
         );
     }
 
@@ -1581,6 +1622,11 @@ mod tests {
                 .expect("text");
             let third_json: Value = serde_json::from_str(&third).expect("json");
             assert_eq!(third_json["type"], "conversation.item.create");
+            assert_eq!(third_json["item"]["role"], "developer");
+            assert_eq!(
+                third_json["item"]["content"][0]["type"],
+                Value::String("input_text".to_string())
+            );
             assert_eq!(third_json["item"]["content"][0]["text"], "hello agent");
 
             let fourth = ws
@@ -1698,7 +1744,7 @@ mod tests {
         assert_eq!(
             created,
             RealtimeEvent::SessionUpdated {
-                session_id: "sess_mock".to_string(),
+                realtime_session_id: "sess_mock".to_string(),
                 instructions: Some("backend prompt".to_string()),
             }
         );
@@ -1714,7 +1760,10 @@ mod tests {
             .await
             .expect("send audio");
         connection
-            .send_conversation_item_create("hello agent".to_string())
+            .send_conversation_item_create(
+                "hello agent".to_string(),
+                ConversationTextRole::Developer,
+            )
             .await
             .expect("send item");
         connection
@@ -1916,6 +1965,7 @@ mod tests {
                 .expect("text");
             let second_json: Value = serde_json::from_str(&second).expect("json");
             assert_eq!(second_json["type"], "conversation.item.create");
+            assert_eq!(second_json["item"]["role"], "developer");
             assert_eq!(
                 second_json["item"]["type"],
                 Value::String("message".to_string())
@@ -1992,13 +2042,16 @@ mod tests {
         assert_eq!(
             created,
             RealtimeEvent::SessionUpdated {
-                session_id: "sess_v2".to_string(),
+                realtime_session_id: "sess_v2".to_string(),
                 instructions: Some("backend prompt".to_string()),
             }
         );
 
         connection
-            .send_conversation_item_create("delegate this".to_string())
+            .send_conversation_item_create(
+                "delegate this".to_string(),
+                ConversationTextRole::Developer,
+            )
             .await
             .expect("send text item");
         connection
@@ -2107,7 +2160,7 @@ mod tests {
         assert_eq!(
             created,
             RealtimeEvent::SessionUpdated {
-                session_id: "sess_transcription".to_string(),
+                realtime_session_id: "sess_transcription".to_string(),
                 instructions: None,
             }
         );
@@ -2211,7 +2264,7 @@ mod tests {
         assert_eq!(
             created,
             RealtimeEvent::SessionUpdated {
-                session_id: "sess_v1_mode".to_string(),
+                realtime_session_id: "sess_v1_mode".to_string(),
                 instructions: None,
             }
         );
@@ -2317,7 +2370,7 @@ mod tests {
         assert_eq!(
             next_event,
             RealtimeEvent::SessionUpdated {
-                session_id: "sess_after_send".to_string(),
+                realtime_session_id: "sess_after_send".to_string(),
                 instructions: Some("backend prompt".to_string()),
             }
         );

@@ -1,0 +1,28 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-mcp-extension"
+version.workspace = true
+
+[lib]
+name = "thinwedge_mcp_extension"
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-core = { workspace = true }
+thinwedge-extension-api = { workspace = true }
+thinwedge-features = { workspace = true }
+thinwedge-mcp = { workspace = true }
+
+[dev-dependencies]
+thinwedge-config = { workspace = true }
+thinwedge-core-plugins = { workspace = true }
+thinwedge-login = { workspace = true }
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

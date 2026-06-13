@@ -522,7 +522,7 @@ mod tests {
                 /*migration_copy*/ None,
                 /*migration_markdown*/ None,
                 "gpt-5.1-thinwedge-mini".to_string(),
-                Some("Optimized for ThinWedge. Cheaper, faster, but less capable.".to_string()),
+                Some("Optimized for thinwedge. Cheaper, faster, but less capable.".to_string()),
                 /*can_opt_out*/ false,
             ),
         );

@@ -1,0 +1,34 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "thinwedge-image-generation-extension"
+version.workspace = true
+
+[lib]
+name = "thinwedge_image_generation_extension"
+path = "src/lib.rs"
+doctest = false
+
+[lints]
+workspace = true
+
+[dependencies]
+thinwedge-api = { workspace = true }
+thinwedge-core = { workspace = true }
+thinwedge-extension-api = { workspace = true }
+thinwedge-login = { workspace = true }
+thinwedge-model-provider = { workspace = true }
+thinwedge-model-provider-info = { workspace = true }
+thinwedge-protocol = { workspace = true }
+thinwedge-tools = { workspace = true }
+thinwedge-utils-absolute-path = { workspace = true }
+thinwedge-utils-image = { workspace = true }
+thinwedge-utils-path-uri = { workspace = true }
+http = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

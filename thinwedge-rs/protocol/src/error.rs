@@ -6,6 +6,7 @@ pub use crate::auth::RefreshTokenFailedReason;
 use crate::exec_output::ExecToolCallOutput;
 use crate::network_policy::NetworkPolicyDecisionPayload;
 use crate::protocol::ErrorEvent;
+use crate::protocol::RateLimitReachedType;
 use crate::protocol::RateLimitSnapshot;
 use crate::protocol::ThinWedgeErrorInfo;
 use crate::protocol::TruncationPolicy;
@@ -89,6 +90,8 @@ pub enum ThinWedgeErr {
     /// Returned by run_command_stream when the spawned child process timed out (10s).
     #[error("timeout waiting for child process to exit")]
     Timeout,
+    #[error("request timed out")]
+    RequestTimeout,
     /// Returned by run_command_stream when the child could not be spawned (its stdout/stderr pipes
     /// could not be captured). Analogous to the previous `ThinWedgeError::Spawn` variant.
     #[error("spawn failed: child stdout/stderr not captured")]
@@ -192,6 +195,7 @@ impl ThinWedgeErr {
             | ThinWedgeErr::CyberPolicy { .. } => false,
             ThinWedgeErr::Stream(..)
             | ThinWedgeErr::Timeout
+            | ThinWedgeErr::RequestTimeout
             | ThinWedgeErr::UnexpectedStatus(_)
             | ThinWedgeErr::ResponseStreamFailed(_)
             | ThinWedgeErr::ConnectionFailed(_)
@@ -450,6 +454,7 @@ pub struct UsageLimitReachedError {
     pub resets_at: Option<DateTime<Utc>>,
     pub rate_limits: Option<Box<RateLimitSnapshot>>,
     pub promo_message: Option<String>,
+    pub rate_limit_reached_type: Option<RateLimitReachedType>,
 }
 
 impl std::fmt::Display for UsageLimitReachedError {
@@ -467,6 +472,38 @@ impl std::fmt::Display for UsageLimitReachedError {
                 "You've hit your usage limit for {limit_name}. Switch to another model now,{}",
                 retry_suffix_after_or(self.resets_at.as_ref())
             );
+        }
+
+        if let Some(rate_limit_reached_type) = self.rate_limit_reached_type {
+            match rate_limit_reached_type {
+                RateLimitReachedType::WorkspaceOwnerCreditsDepleted => {
+                    return write!(
+                        f,
+                        "Your workspace is out of credits. Add credits to continue."
+                    );
+                }
+                RateLimitReachedType::WorkspaceMemberCreditsDepleted => {
+                    return write!(
+                        f,
+                        "Your workspace is out of credits. Ask your workspace owner to refill in order to continue."
+                    );
+                }
+                RateLimitReachedType::WorkspaceOwnerUsageLimitReached => {
+                    return write!(
+                        f,
+                        "You hit your spend cap set in your workspace. Increase your spend cap to continue."
+                    );
+                }
+                RateLimitReachedType::WorkspaceMemberUsageLimitReached => {
+                    return write!(
+                        f,
+                        "You hit your spend cap set by the owner of your workspace. Ask an owner to increase your spend cap to continue."
+                    );
+                }
+                RateLimitReachedType::RateLimitReached => {
+                    // Generic limits intentionally use the existing promo or plan copy below.
+                }
+            }
         }
 
         if let Some(promo_message) = &self.promo_message {

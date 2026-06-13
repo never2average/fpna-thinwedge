@@ -4,7 +4,7 @@ use anyhow::Result;
 use anyhow::bail;
 use app_test_support::ChatGptAuthFixture;
 use app_test_support::DEFAULT_CLIENT_NAME;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::start_analytics_events_server;
 use app_test_support::to_response;
 use app_test_support::write_chatgpt_auth;
@@ -26,6 +26,7 @@ use wiremock::matchers::path;
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const REMOTE_PLUGIN_ID: &str = "plugins~Plugin_linear";
+const WORKSPACE_REMOTE_PLUGIN_ID: &str = "plugins_69f27c3e67848191a45cbaa5f2adb39d";
 
 #[tokio::test]
 async fn plugin_uninstall_removes_plugin_cache_and_config_entry() -> Result<()> {
@@ -41,7 +42,7 @@ enabled = true
 "#,
     )?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let params = PluginUninstallParams {
@@ -99,7 +100,7 @@ async fn plugin_uninstall_tracks_analytics_event() -> Result<()> {
         AuthCredentialsStoreMode::File,
     )?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -153,9 +154,15 @@ async fn plugin_uninstall_tracks_analytics_event() -> Result<()> {
 }
 
 #[tokio::test]
-async fn plugin_uninstall_rejects_remote_plugin_when_remote_plugin_is_disabled() -> Result<()> {
+async fn plugin_uninstall_rejects_remote_plugin_when_plugins_are_disabled() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    std::fs::write(
+        thinwedge_home.path().join("config.toml"),
+        r#"[features]
+plugins = false
+"#,
+    )?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -197,11 +204,10 @@ async fn plugin_uninstall_writes_remote_plugin_to_cloud_when_remote_plugin_enabl
     )?;
 
     mount_remote_plugin_detail(&server, REMOTE_PLUGIN_ID, "1.0.0", "GLOBAL").await;
-    mount_empty_remote_installed_plugins(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!(
-            "/backend-api/plugins/{REMOTE_PLUGIN_ID}/uninstall"
+            "/backend-api/ps/plugins/{REMOTE_PLUGIN_ID}/uninstall"
         )))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
@@ -214,18 +220,18 @@ async fn plugin_uninstall_writes_remote_plugin_to_cloud_when_remote_plugin_enabl
 
     let remote_plugin_cache_root = thinwedge_home
         .path()
-        .join("plugins/cache/chatgpt-global/linear");
+        .join("plugins/cache/openai-curated-remote/linear");
     std::fs::create_dir_all(remote_plugin_cache_root.join("1.0.0/.thinwedge-plugin"))?;
     std::fs::write(
         remote_plugin_cache_root.join("1.0.0/.thinwedge-plugin/plugin.json"),
         r#"{"name":"linear","version":"1.0.0"}"#,
     )?;
-    let legacy_remote_plugin_cache_root = thinwedge_home
-        .path()
-        .join(format!("plugins/cache/chatgpt-global/{REMOTE_PLUGIN_ID}"));
+    let legacy_remote_plugin_cache_root = thinwedge_home.path().join(format!(
+        "plugins/cache/openai-curated-remote/{REMOTE_PLUGIN_ID}"
+    ));
     std::fs::create_dir_all(legacy_remote_plugin_cache_root.join("local/.thinwedge-plugin"))?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -244,7 +250,7 @@ async fn plugin_uninstall_writes_remote_plugin_to_cloud_when_remote_plugin_enabl
     wait_for_remote_plugin_request_count(
         &server,
         "POST",
-        &format!("/plugins/{REMOTE_PLUGIN_ID}/uninstall"),
+        &format!("/ps/plugins/{REMOTE_PLUGIN_ID}/uninstall"),
         /*expected_count*/ 1,
     )
     .await?;
@@ -270,11 +276,10 @@ async fn plugin_uninstall_uses_detail_scope_for_cache_namespace() -> Result<()> 
         AuthCredentialsStoreMode::File,
     )?;
     mount_remote_plugin_detail(&server, REMOTE_PLUGIN_ID, "1.0.0", "WORKSPACE").await;
-    mount_empty_remote_installed_plugins(&server).await;
 
     Mock::given(method("POST"))
         .and(path(format!(
-            "/backend-api/plugins/{REMOTE_PLUGIN_ID}/uninstall"
+            "/backend-api/ps/plugins/{REMOTE_PLUGIN_ID}/uninstall"
         )))
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
@@ -287,7 +292,7 @@ async fn plugin_uninstall_uses_detail_scope_for_cache_namespace() -> Result<()> 
 
     let workspace_cache_root = thinwedge_home
         .path()
-        .join("plugins/cache/chatgpt-workspace/linear");
+        .join("plugins/cache/workspace-directory/linear");
     std::fs::create_dir_all(workspace_cache_root.join("1.0.0/.thinwedge-plugin"))?;
     std::fs::write(
         workspace_cache_root.join("1.0.0/.thinwedge-plugin/plugin.json"),
@@ -295,10 +300,10 @@ async fn plugin_uninstall_uses_detail_scope_for_cache_namespace() -> Result<()> 
     )?;
     let global_cache_root = thinwedge_home
         .path()
-        .join("plugins/cache/chatgpt-global/linear");
+        .join("plugins/cache/openai-curated-remote/linear");
     std::fs::create_dir_all(global_cache_root.join("1.0.0/.thinwedge-plugin"))?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -317,7 +322,7 @@ async fn plugin_uninstall_uses_detail_scope_for_cache_namespace() -> Result<()> 
     wait_for_remote_plugin_request_count(
         &server,
         "POST",
-        &format!("/plugins/{REMOTE_PLUGIN_ID}/uninstall"),
+        &format!("/ps/plugins/{REMOTE_PLUGIN_ID}/uninstall"),
         /*expected_count*/ 1,
     )
     .await?;
@@ -327,7 +332,80 @@ async fn plugin_uninstall_uses_detail_scope_for_cache_namespace() -> Result<()> 
 }
 
 #[tokio::test]
-async fn plugin_uninstall_posts_even_when_remote_detail_fetch_fails() -> Result<()> {
+async fn plugin_uninstall_accepts_workspace_remote_plugin_id_shape() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let server = MockServer::start().await;
+    write_remote_plugin_catalog_config(
+        thinwedge_home.path(),
+        &format!("{}/backend-api/", server.uri()),
+    )?;
+    write_chatgpt_auth(
+        thinwedge_home.path(),
+        ChatGptAuthFixture::new("chatgpt-token")
+            .account_id("account-123")
+            .chatgpt_user_id("user-123")
+            .chatgpt_account_id("account-123"),
+        AuthCredentialsStoreMode::File,
+    )?;
+    mount_remote_plugin_detail_with_name(
+        &server,
+        WORKSPACE_REMOTE_PLUGIN_ID,
+        "skill-improver",
+        "1.0.0",
+        "WORKSPACE",
+    )
+    .await;
+
+    Mock::given(method("POST"))
+        .and(path(format!(
+            "/backend-api/ps/plugins/{WORKSPACE_REMOTE_PLUGIN_ID}/uninstall"
+        )))
+        .and(header("authorization", "Bearer chatgpt-token"))
+        .and(header("chatgpt-account-id", "account-123"))
+        .respond_with(ResponseTemplate::new(200).set_body_string(format!(
+            r#"{{"id":"{WORKSPACE_REMOTE_PLUGIN_ID}","enabled":false}}"#
+        )))
+        .mount(&server)
+        .await;
+
+    let remote_plugin_cache_root = thinwedge_home
+        .path()
+        .join("plugins/cache/workspace-directory/skill-improver");
+    std::fs::create_dir_all(remote_plugin_cache_root.join("1.0.0/.thinwedge-plugin"))?;
+    std::fs::write(
+        remote_plugin_cache_root.join("1.0.0/.thinwedge-plugin/plugin.json"),
+        r#"{"name":"skill-improver","version":"1.0.0"}"#,
+    )?;
+
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
+    timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
+
+    let request_id = mcp
+        .send_plugin_uninstall_request(PluginUninstallParams {
+            plugin_id: WORKSPACE_REMOTE_PLUGIN_ID.to_string(),
+        })
+        .await?;
+    let response: JSONRPCResponse = timeout(
+        DEFAULT_TIMEOUT,
+        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+    )
+    .await??;
+    let response: PluginUninstallResponse = to_response(response)?;
+
+    assert_eq!(response, PluginUninstallResponse {});
+    wait_for_remote_plugin_request_count(
+        &server,
+        "POST",
+        &format!("/ps/plugins/{WORKSPACE_REMOTE_PLUGIN_ID}/uninstall"),
+        /*expected_count*/ 1,
+    )
+    .await?;
+    assert!(!remote_plugin_cache_root.exists());
+    Ok(())
+}
+
+#[tokio::test]
+async fn plugin_uninstall_rejects_before_post_when_remote_detail_fetch_fails() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
     write_remote_plugin_catalog_config(
@@ -343,25 +421,12 @@ async fn plugin_uninstall_posts_even_when_remote_detail_fetch_fails() -> Result<
         AuthCredentialsStoreMode::File,
     )?;
 
-    Mock::given(method("POST"))
-        .and(path(format!(
-            "/backend-api/plugins/{REMOTE_PLUGIN_ID}/uninstall"
-        )))
-        .and(header("authorization", "Bearer chatgpt-token"))
-        .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(
-            ResponseTemplate::new(200)
-                .set_body_string(format!(r#"{{"id":"{REMOTE_PLUGIN_ID}","enabled":false}}"#)),
-        )
-        .mount(&server)
-        .await;
-
-    let legacy_remote_plugin_cache_root = thinwedge_home
-        .path()
-        .join(format!("plugins/cache/chatgpt-global/{REMOTE_PLUGIN_ID}"));
+    let legacy_remote_plugin_cache_root = thinwedge_home.path().join(format!(
+        "plugins/cache/openai-curated-remote/{REMOTE_PLUGIN_ID}"
+    ));
     std::fs::create_dir_all(legacy_remote_plugin_cache_root.join("local/.thinwedge-plugin"))?;
 
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -369,39 +434,46 @@ async fn plugin_uninstall_posts_even_when_remote_detail_fetch_fails() -> Result<
             plugin_id: REMOTE_PLUGIN_ID.to_string(),
         })
         .await?;
-    let response: JSONRPCResponse = timeout(
+    let err = timeout(
         DEFAULT_TIMEOUT,
-        mcp.read_stream_until_response_message(RequestId::Integer(request_id)),
+        mcp.read_stream_until_error_message(RequestId::Integer(request_id)),
     )
     .await??;
-    let response: PluginUninstallResponse = to_response(response)?;
 
-    assert_eq!(response, PluginUninstallResponse {});
+    assert_eq!(err.error.code, -32600);
+    assert!(err.error.message.contains("remote plugin catalog request"));
     wait_for_remote_plugin_request_count(
         &server,
-        "POST",
-        &format!("/plugins/{REMOTE_PLUGIN_ID}/uninstall"),
+        "GET",
+        &format!("/ps/plugins/{REMOTE_PLUGIN_ID}"),
         /*expected_count*/ 1,
     )
     .await?;
-    assert!(!legacy_remote_plugin_cache_root.exists());
+    wait_for_remote_plugin_request_count(
+        &server,
+        "POST",
+        &format!("/ps/plugins/{REMOTE_PLUGIN_ID}/uninstall"),
+        /*expected_count*/ 0,
+    )
+    .await?;
+    assert!(legacy_remote_plugin_cache_root.exists());
     Ok(())
 }
 
 #[tokio::test]
-async fn plugin_uninstall_rejects_malformed_local_plugin_id_before_remote_path() -> Result<()> {
+async fn plugin_uninstall_rejects_remote_plugin_id_with_spaces_before_network_call() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
     let server = MockServer::start().await;
     write_remote_plugin_catalog_config(
         thinwedge_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
         .send_plugin_uninstall_request(PluginUninstallParams {
-            plugin_id: "sample-plugin".to_string(),
+            plugin_id: "sample plugin".to_string(),
         })
         .await?;
 
@@ -412,11 +484,11 @@ async fn plugin_uninstall_rejects_malformed_local_plugin_id_before_remote_path()
     .await??;
 
     assert_eq!(err.error.code, -32600);
-    assert!(err.error.message.contains("invalid plugin id"));
+    assert!(err.error.message.contains("invalid remote plugin id"));
     wait_for_remote_plugin_request_count(
         &server,
         "POST",
-        "/plugins/sample-plugin/uninstall",
+        "/ps/plugins/sample plugin/uninstall",
         /*expected_count*/ 0,
     )
     .await?;
@@ -431,7 +503,7 @@ async fn plugin_uninstall_rejects_invalid_remote_plugin_id_before_network_call()
         thinwedge_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -447,11 +519,11 @@ async fn plugin_uninstall_rejects_invalid_remote_plugin_id_before_network_call()
     .await??;
 
     assert_eq!(err.error.code, -32600);
-    assert!(err.error.message.contains("invalid plugin id"));
+    assert!(err.error.message.contains("invalid remote plugin id"));
     wait_for_remote_plugin_request_count(
         &server,
         "POST",
-        "/plugins/linear/../../oops/uninstall",
+        "/ps/plugins/linear/../../oops/uninstall",
         /*expected_count*/ 0,
     )
     .await?;
@@ -466,7 +538,7 @@ async fn plugin_uninstall_rejects_empty_remote_plugin_id() -> Result<()> {
         thinwedge_home.path(),
         &format!("{}/backend-api/", server.uri()),
     )?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -481,7 +553,7 @@ async fn plugin_uninstall_rejects_empty_remote_plugin_id() -> Result<()> {
     .await??;
 
     assert_eq!(err.error.code, -32600);
-    assert!(err.error.message.contains("invalid plugin id"));
+    assert!(err.error.message.contains("invalid remote plugin id"));
 
     Ok(())
 }
@@ -529,11 +601,34 @@ async fn mount_remote_plugin_detail(
     release_version: &str,
     scope: &str,
 ) {
+    mount_remote_plugin_detail_with_name(
+        server,
+        remote_plugin_id,
+        "linear",
+        release_version,
+        scope,
+    )
+    .await;
+}
+
+async fn mount_remote_plugin_detail_with_name(
+    server: &MockServer,
+    remote_plugin_id: &str,
+    plugin_name: &str,
+    release_version: &str,
+    scope: &str,
+) {
+    let discoverability = if scope == "WORKSPACE" {
+        r#"
+  "discoverability": "LISTED","#
+    } else {
+        ""
+    };
     let detail_body = format!(
         r#"{{
   "id": "{remote_plugin_id}",
-  "name": "linear",
-  "scope": "{scope}",
+  "name": "{plugin_name}",
+  "scope": "{scope}",{discoverability}
   "installation_policy": "AVAILABLE",
   "authentication_policy": "ON_USE",
   "release": {{
@@ -554,24 +649,6 @@ async fn mount_remote_plugin_detail(
         .and(header("authorization", "Bearer chatgpt-token"))
         .and(header("chatgpt-account-id", "account-123"))
         .respond_with(ResponseTemplate::new(200).set_body_string(detail_body))
-        .mount(server)
-        .await;
-}
-
-async fn mount_empty_remote_installed_plugins(server: &MockServer) {
-    Mock::given(method("GET"))
-        .and(path("/backend-api/ps/plugins/installed"))
-        .and(header("authorization", "Bearer chatgpt-token"))
-        .and(header("chatgpt-account-id", "account-123"))
-        .respond_with(ResponseTemplate::new(200).set_body_string(
-            r#"{
-  "plugins": [],
-  "pagination": {
-    "limit": 50,
-    "next_page_token": null
-  }
-}"#,
-        ))
         .mount(server)
         .await;
 }

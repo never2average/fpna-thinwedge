@@ -5,7 +5,7 @@ use thinwedge_api::TransportError;
 const REQUEST_ID_HEADER: &str = "x-request-id";
 const OAI_REQUEST_ID_HEADER: &str = "x-oai-request-id";
 const CF_RAY_HEADER: &str = "cf-ray";
-const AUTH_ERROR_HEADER: &str = "x-thinwedge-authorization-error";
+const AUTH_ERROR_HEADER: &str = "x-openai-authorization-error";
 const X_ERROR_JSON_HEADER: &str = "x-error-json";
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -105,7 +105,7 @@ mod tests {
         headers.insert("x-oai-request-id", HeaderValue::from_static("req-auth"));
         headers.insert("cf-ray", HeaderValue::from_static("ray-auth"));
         headers.insert(
-            "x-thinwedge-authorization-error",
+            "x-openai-authorization-error",
             HeaderValue::from_static("missing_authorization_header"),
         );
         headers.insert(

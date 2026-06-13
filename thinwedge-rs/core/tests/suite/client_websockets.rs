@@ -1,4 +1,5 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
+use core_test_support::TestThinWedgeResponsesRequestKind;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::WebSocketConnectionConfig;
 use core_test_support::responses::WebSocketTestServer;
@@ -7,6 +8,7 @@ use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_response_created;
 use core_test_support::responses::start_websocket_server;
 use core_test_support::responses::start_websocket_server_with_headers;
+use core_test_support::responses_metadata as test_responses_metadata;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::tracing::install_test_tracing;
@@ -24,6 +26,7 @@ use thinwedge_core::ModelClient;
 use thinwedge_core::ModelClientSession;
 use thinwedge_core::Prompt;
 use thinwedge_core::ResponseEvent;
+use thinwedge_core::ThinWedgeResponsesMetadata;
 use thinwedge_core::X_RESPONSESAPI_INCLUDE_TIMING_METRICS_HEADER;
 use thinwedge_features::Feature;
 use thinwedge_login::ThinWedgeAuth;
@@ -34,6 +37,7 @@ use thinwedge_otel::MetricsConfig;
 use thinwedge_otel::SessionTelemetry;
 use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_otel::current_span_w3c_trace_context;
+use thinwedge_protocol::SessionId;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::account::PlanType;
 use thinwedge_protocol::config_types::ReasoningSummary;
@@ -41,22 +45,32 @@ use thinwedge_protocol::config_types::ServiceTier;
 use thinwedge_protocol::models::BaseInstructions;
 use thinwedge_protocol::models::ContentItem;
 use thinwedge_protocol::models::ResponseItem;
+use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::SessionSource;
 use thinwedge_protocol::protocol::W3cTraceContext;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort as ReasoningEffortConfig;
 use thinwedge_protocol::user_input::UserInput;
+use thinwedge_rollout_trace::ConversationPart;
+use thinwedge_rollout_trace::InferenceTraceContext;
+use thinwedge_rollout_trace::RawTraceEventPayload;
+use thinwedge_rollout_trace::TraceWriter;
+use thinwedge_rollout_trace::replay_bundle;
 use tracing::Instrument;
 use tracing_test::traced_test;
 
 const MODEL: &str = "gpt-5.3-thinwedge";
-const THINWEDGE_BETA_HEADER: &str = "ThinWedge-Beta";
+const OPENAI_BETA_HEADER: &str = "OpenAI-Beta";
 const USER_AGENT_HEADER: &str = "user-agent";
 const WS_V2_BETA_HEADER_VALUE: &str = "responses_websockets=2026-02-06";
 const X_CLIENT_REQUEST_ID_HEADER: &str = "x-client-request-id";
+const WS_REQUEST_HEADER_RESPONSES_LITE_CLIENT_METADATA_KEY: &str =
+    "ws_request_header_x_openai_internal_thinwedge_responses_lite";
 const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
+const TEST_WINDOW_ID: &str = "test-thread:0";
+const X_THINWEDGE_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY: &str =
+    "x-thinwedge-ws-stream-request-start-ms";
 
 fn assert_request_trace_matches(body: &serde_json::Value, expected_trace: &W3cTraceContext) {
     let client_metadata = body["client_metadata"]
@@ -87,11 +101,51 @@ fn assert_request_trace_matches(body: &serde_json::Value, expected_trace: &W3cTr
 struct WebsocketTestHarness {
     _thinwedge_home: TempDir,
     client: ModelClient,
-    conversation_id: ThreadId,
+    session_id: SessionId,
+    thread_id: ThreadId,
     model_info: ModelInfo,
     effort: Option<ReasoningEffortConfig>,
     summary: ReasoningSummary,
     session_telemetry: SessionTelemetry,
+}
+
+fn responses_metadata(
+    harness: &WebsocketTestHarness,
+    turn_id: Option<&str>,
+    request_kind: TestThinWedgeResponsesRequestKind,
+) -> ThinWedgeResponsesMetadata {
+    test_responses_metadata(
+        TEST_INSTALLATION_ID,
+        &harness.session_id.to_string(),
+        &harness.thread_id.to_string(),
+        turn_id,
+        TEST_WINDOW_ID.to_string(),
+        &SessionSource::Exec,
+        /*parent_thread_id*/ None,
+        request_kind,
+    )
+}
+
+fn turn_metadata(
+    harness: &WebsocketTestHarness,
+    turn_id: Option<&str>,
+) -> ThinWedgeResponsesMetadata {
+    responses_metadata(harness, turn_id, TestThinWedgeResponsesRequestKind::Turn)
+}
+
+fn prewarm_metadata(
+    harness: &WebsocketTestHarness,
+    turn_id: Option<&str>,
+) -> ThinWedgeResponsesMetadata {
+    responses_metadata(harness, turn_id, TestThinWedgeResponsesRequestKind::Prewarm)
+}
+
+fn websocket_connection_metadata(harness: &WebsocketTestHarness) -> ThinWedgeResponsesMetadata {
+    responses_metadata(
+        harness,
+        /*turn_id*/ None,
+        TestThinWedgeResponsesRequestKind::WebsocketConnection,
+    )
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -120,12 +174,20 @@ async fn responses_websocket_streams_request() {
     assert_eq!(body["input"].as_array().map(Vec::len), Some(1));
     let handshake = server.single_handshake();
     assert_eq!(
-        handshake.header(THINWEDGE_BETA_HEADER),
+        handshake.header(OPENAI_BETA_HEADER),
         Some(WS_V2_BETA_HEADER_VALUE.to_string())
     );
     assert_eq!(
         handshake.header(X_CLIENT_REQUEST_ID_HEADER),
-        Some(harness.conversation_id.to_string())
+        Some(harness.thread_id.to_string())
+    );
+    assert_eq!(
+        handshake.header("session-id"),
+        Some(harness.session_id.to_string())
+    );
+    assert_eq!(
+        handshake.header("thread-id"),
+        Some(harness.thread_id.to_string())
     );
     assert_eq!(
         handshake.header(USER_AGENT_HEADER),
@@ -135,6 +197,13 @@ async fn responses_websocket_streams_request() {
         body["client_metadata"]["x-thinwedge-installation-id"].as_str(),
         Some(TEST_INSTALLATION_ID)
     );
+    let stream_request_start_ms = body["client_metadata"]
+        [X_THINWEDGE_WS_STREAM_REQUEST_START_MS_CLIENT_METADATA_KEY]
+        .as_str()
+        .expect("missing websocket stream request start timestamp")
+        .parse::<i64>()
+        .expect("websocket stream request start timestamp should be an integer");
+    assert!(stream_request_start_ms > 0);
 
     server.shutdown().await;
 }
@@ -247,8 +316,9 @@ async fn responses_websocket_preconnect_does_not_replace_turn_trace_payload() {
 
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
+    let responses_metadata = websocket_connection_metadata(&harness);
     client_session
-        .preconnect_websocket(&harness.session_telemetry, &harness.model_info)
+        .preconnect_websocket(&harness.session_telemetry, &responses_metadata)
         .await
         .expect("websocket preconnect failed");
     let prompt = prompt_with_input(vec![message_item("hello")]);
@@ -283,8 +353,9 @@ async fn responses_websocket_preconnect_reuses_connection() {
 
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
+    let responses_metadata = websocket_connection_metadata(&harness);
     client_session
-        .preconnect_websocket(&harness.session_telemetry, &harness.model_info)
+        .preconnect_websocket(&harness.session_telemetry, &responses_metadata)
         .await
         .expect("websocket preconnect failed");
     let prompt = prompt_with_input(vec![message_item("hello")]);
@@ -294,6 +365,10 @@ async fn responses_websocket_preconnect_reuses_connection() {
     assert_eq!(
         server.single_handshake().header(USER_AGENT_HEADER),
         Some(thinwedge_login::default_client::get_thinwedge_user_agent())
+    );
+    assert_eq!(
+        server.single_handshake().header("x-thinwedge-window-id"),
+        Some(TEST_WINDOW_ID.to_string())
     );
     let connection = server.single_connection();
     assert_eq!(connection.len(), 1);
@@ -314,15 +389,16 @@ async fn responses_websocket_request_prewarm_reuses_connection() {
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
+    let responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
         )
         .await
         .expect("websocket prewarm failed");
@@ -347,9 +423,170 @@ async fn responses_websocket_request_prewarm_reuses_connection() {
     assert_eq!(warmup["type"].as_str(), Some("response.create"));
     assert_eq!(warmup["generate"].as_bool(), Some(false));
     assert_eq!(warmup["tools"], serde_json::json!([]));
+    let warmup_turn_metadata: serde_json::Value = serde_json::from_str(
+        warmup["client_metadata"]["x-thinwedge-turn-metadata"]
+            .as_str()
+            .expect("warmup turn metadata"),
+    )
+    .expect("valid warmup turn metadata");
+    assert_eq!(
+        warmup_turn_metadata["request_kind"].as_str(),
+        Some("prewarm")
+    );
     assert_eq!(follow_up["type"].as_str(), Some("response.create"));
     assert_eq!(follow_up["previous_response_id"].as_str(), Some("warm-1"));
     assert_eq!(follow_up["input"], serde_json::json!([]));
+
+    server.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn responses_websocket_request_prewarm_uses_caller_supplied_metadata() {
+    skip_if_no_network!();
+
+    let server = start_websocket_server(vec![vec![vec![
+        ev_response_created("warm-1"),
+        ev_completed("warm-1"),
+    ]]])
+    .await;
+
+    let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
+    let mut client_session = harness.client.new_session();
+    let prompt = prompt_with_input(vec![message_item("hello")]);
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    client_session
+        .prewarm_websocket(
+            &prompt,
+            &harness.model_info,
+            &harness.session_telemetry,
+            harness.effort.clone(),
+            harness.summary,
+            /*service_tier*/ None,
+            &responses_metadata,
+        )
+        .await
+        .expect("websocket prewarm failed");
+
+    let warmup = server
+        .single_connection()
+        .first()
+        .expect("missing warmup request")
+        .body_json();
+    let warmup_turn_metadata: serde_json::Value = serde_json::from_str(
+        warmup["client_metadata"]["x-thinwedge-turn-metadata"]
+            .as_str()
+            .expect("warmup turn metadata"),
+    )
+    .expect("valid warmup turn metadata");
+    assert_eq!(warmup_turn_metadata["request_kind"].as_str(), Some("turn"));
+
+    server.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn responses_websocket_request_prewarm_traces_logical_request() {
+    skip_if_no_network!();
+
+    let server = start_websocket_server(vec![vec![
+        vec![ev_response_created("warm-1"), ev_completed("warm-1")],
+        vec![ev_response_created("resp-1"), ev_completed("resp-1")],
+    ]])
+    .await;
+
+    let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
+    let mut client_session = harness.client.new_session();
+    let prompt = prompt_with_input(vec![message_item("hello")]);
+    let prewarm_responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
+
+    client_session
+        .prewarm_websocket(
+            &prompt,
+            &harness.model_info,
+            &harness.session_telemetry,
+            harness.effort.clone(),
+            harness.summary,
+            /*service_tier*/ None,
+            &prewarm_responses_metadata,
+        )
+        .await
+        .expect("websocket prewarm failed");
+
+    let trace_dir = TempDir::new().expect("trace dir");
+    let writer = Arc::new(
+        TraceWriter::create(
+            trace_dir.path(),
+            "trace-1".to_string(),
+            harness.session_id.to_string(),
+            harness.thread_id.to_string(),
+        )
+        .expect("trace writer"),
+    );
+    writer
+        .append(RawTraceEventPayload::ThreadStarted {
+            thread_id: harness.thread_id.to_string(),
+            agent_path: "/root".to_string(),
+            metadata_payload: None,
+        })
+        .expect("thread started");
+    writer
+        .append(RawTraceEventPayload::ThinWedgeTurnStarted {
+            thinwedge_turn_id: "turn-1".to_string(),
+            thread_id: harness.thread_id.to_string(),
+        })
+        .expect("turn started");
+
+    let inference_trace = InferenceTraceContext::enabled(
+        writer,
+        harness.thread_id.to_string(),
+        "turn-1".to_string(),
+        harness.model_info.slug.clone(),
+        "test-provider".to_string(),
+    );
+
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
+    let mut stream = client_session
+        .stream(
+            &prompt,
+            &harness.model_info,
+            &harness.session_telemetry,
+            harness.effort.clone(),
+            harness.summary,
+            /*service_tier*/ None,
+            &responses_metadata,
+            &inference_trace,
+        )
+        .await
+        .expect("websocket stream failed");
+
+    while let Some(event) = stream.next().await {
+        if matches!(event, Ok(ResponseEvent::Completed { .. })) {
+            break;
+        }
+    }
+
+    let connection = server.single_connection();
+    let follow_up = connection
+        .get(1)
+        .expect("missing follow-up request")
+        .body_json();
+    assert_eq!(follow_up["previous_response_id"].as_str(), Some("warm-1"));
+    assert_eq!(follow_up["input"], serde_json::json!([]));
+
+    let rollout = replay_bundle(trace_dir.path()).expect("replay trace");
+    let inference = rollout
+        .inference_calls
+        .values()
+        .next()
+        .expect("inference should be present");
+    assert_eq!(inference.request_item_ids.len(), 1);
+    assert_eq!(
+        rollout.conversation_items[&inference.request_item_ids[0]]
+            .body
+            .parts,
+        vec![ConversationPart::Text {
+            text: "hello".to_string(),
+        }],
+    );
 
     server.shutdown().await;
 }
@@ -383,6 +620,85 @@ async fn responses_websocket_reuses_connection_after_session_drop() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn responses_websocket_sends_responses_lite_metadata_per_request() {
+    skip_if_no_network!();
+
+    let server = start_websocket_server(vec![vec![
+        vec![ev_response_created("normal-1"), ev_completed("normal-1")],
+        vec![ev_response_created("lite-1"), ev_completed("lite-1")],
+        vec![ev_response_created("normal-2"), ev_completed("normal-2")],
+    ]])
+    .await;
+
+    let harness = websocket_harness(&server).await;
+    let mut normal_model_info = harness.model_info.clone();
+    normal_model_info.supports_reasoning_summaries = true;
+    let mut lite_model_info = normal_model_info.clone();
+    lite_model_info.use_responses_lite = true;
+    let mut session = harness.client.new_session();
+
+    stream_until_complete_with_model_info(
+        &mut session,
+        &harness,
+        &prompt_with_input(vec![message_item("normal one")]),
+        &normal_model_info,
+        "normal-1",
+    )
+    .await;
+    stream_until_complete_with_model_info(
+        &mut session,
+        &harness,
+        &prompt_with_input(vec![message_item("lite")]),
+        &lite_model_info,
+        "lite-1",
+    )
+    .await;
+    stream_until_complete_with_model_info(
+        &mut session,
+        &harness,
+        &prompt_with_input(vec![message_item("normal two")]),
+        &normal_model_info,
+        "normal-2",
+    )
+    .await;
+
+    let connection = server.single_connection();
+    assert_eq!(
+        connection
+            .iter()
+            .map(|request| {
+                let body = request.body_json();
+                json!({
+                    "responses_lite": body["client_metadata"]
+                        .get(WS_REQUEST_HEADER_RESPONSES_LITE_CLIENT_METADATA_KEY),
+                    "reasoning_context": body["reasoning"].get("context"),
+                    "parallel_tool_calls": body["parallel_tool_calls"],
+                })
+            })
+            .collect::<Vec<_>>(),
+        vec![
+            json!({
+                "responses_lite": null,
+                "reasoning_context": null,
+                "parallel_tool_calls": false,
+            }),
+            json!({
+                "responses_lite": "true",
+                "reasoning_context": "all_turns",
+                "parallel_tool_calls": false,
+            }),
+            json!({
+                "responses_lite": null,
+                "reasoning_context": null,
+                "parallel_tool_calls": false,
+            }),
+        ]
+    );
+
+    server.shutdown().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn responses_websocket_preconnect_is_reused_even_with_header_changes() {
     skip_if_no_network!();
 
@@ -394,20 +710,22 @@ async fn responses_websocket_preconnect_is_reused_even_with_header_changes() {
 
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
+    let preconnect_metadata = websocket_connection_metadata(&harness);
     client_session
-        .preconnect_websocket(&harness.session_telemetry, &harness.model_info)
+        .preconnect_websocket(&harness.session_telemetry, &preconnect_metadata)
         .await
         .expect("websocket preconnect failed");
     let prompt = prompt_with_input(vec![message_item("hello")]);
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
     let mut stream = client_session
         .stream(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -438,27 +756,29 @@ async fn responses_websocket_request_prewarm_is_reused_even_with_header_changes(
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
+    let prewarm_responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &prewarm_responses_metadata,
         )
         .await
         .expect("websocket prewarm failed");
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
     let mut stream = client_session
         .stream(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -504,15 +824,16 @@ async fn responses_websocket_prewarm_uses_v2_when_provider_supports_websockets()
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ false).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
+    let responses_metadata = prewarm_metadata(&harness, /*turn_id*/ None);
     client_session
         .prewarm_websocket(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
         )
         .await
         .expect("websocket prewarm failed");
@@ -522,11 +843,11 @@ async fn responses_websocket_prewarm_uses_v2_when_provider_supports_websockets()
     assert_eq!(server.single_connection().len(), 1);
 
     let handshake = server.single_handshake();
-    let thinwedge_beta_header = handshake
-        .header(THINWEDGE_BETA_HEADER)
-        .expect("missing ThinWedge-Beta header");
+    let openai_beta_header = handshake
+        .header(OPENAI_BETA_HEADER)
+        .expect("missing OpenAI-Beta header");
     assert!(
-        thinwedge_beta_header
+        openai_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -560,13 +881,20 @@ async fn responses_websocket_preconnect_runs_when_only_v2_feature_enabled() {
 
     let harness = websocket_harness_with_options(&server, /*runtime_metrics_enabled*/ true).await;
     let mut client_session = harness.client.new_session();
+    let responses_metadata = websocket_connection_metadata(&harness);
     client_session
-        .preconnect_websocket(&harness.session_telemetry, &harness.model_info)
+        .preconnect_websocket(&harness.session_telemetry, &responses_metadata)
         .await
         .expect("websocket preconnect failed");
 
     assert_eq!(server.handshakes().len(), 1);
     assert_eq!(server.single_connection().len(), 0);
+    assert_eq!(
+        server
+            .single_handshake()
+            .header("x-thinwedge-turn-metadata"),
+        None
+    );
 
     let prompt = prompt_with_input(vec![message_item("hello")]);
     stream_until_complete(&mut client_session, &harness, &prompt).await;
@@ -575,11 +903,11 @@ async fn responses_websocket_preconnect_runs_when_only_v2_feature_enabled() {
     assert_eq!(server.single_connection().len(), 1);
 
     let handshake = server.single_handshake();
-    let thinwedge_beta_header = handshake
-        .header(THINWEDGE_BETA_HEADER)
-        .expect("missing ThinWedge-Beta header");
+    let openai_beta_header = handshake
+        .header(OPENAI_BETA_HEADER)
+        .expect("missing OpenAI-Beta header");
     assert!(
-        thinwedge_beta_header
+        openai_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -624,11 +952,11 @@ async fn responses_websocket_v2_requests_use_v2_when_provider_supports_websocket
     );
 
     let handshake = server.single_handshake();
-    let thinwedge_beta_header = handshake
-        .header(THINWEDGE_BETA_HEADER)
-        .expect("missing ThinWedge-Beta header");
+    let openai_beta_header = handshake
+        .header(OPENAI_BETA_HEADER)
+        .expect("missing OpenAI-Beta header");
     assert!(
-        thinwedge_beta_header
+        openai_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -717,11 +1045,11 @@ async fn responses_websocket_v2_wins_when_both_features_enabled() {
     );
 
     let handshake = server.single_handshake();
-    let thinwedge_beta_header = handshake
-        .header(THINWEDGE_BETA_HEADER)
-        .expect("missing ThinWedge-Beta header");
+    let openai_beta_header = handshake
+        .header(OPENAI_BETA_HEADER)
+        .expect("missing OpenAI-Beta header");
     assert!(
-        thinwedge_beta_header
+        openai_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -852,16 +1180,17 @@ async fn responses_websocket_emits_reasoning_included_event() {
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
 
     let mut stream = client_session
         .stream(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -926,16 +1255,17 @@ async fn responses_websocket_emits_rate_limit_events() {
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
 
     let mut stream = client_session
         .stream(
             &prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -1020,13 +1350,14 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
     let submission_id = test
         .thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .expect("submission should succeed while emitting usage limit error events");
@@ -1058,6 +1389,7 @@ async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
                     "resets_at": null
                 },
                 "credits": null,
+                "individual_limit": null,
                 "plan_type": null,
                 "rate_limit_reached_type": null
             }
@@ -1111,13 +1443,14 @@ async fn responses_websocket_invalid_request_error_with_status_is_forwarded() {
     let submission_id = test
         .thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .expect("submission should succeed while emitting invalid request events");
@@ -1250,30 +1583,29 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
 
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
-    let first_turn_metadata =
-        r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write"}"#;
-    let enriched_turn_metadata = r#"{"turn_id":"turn-123","thread_source":"user","sandbox":"workspace-write","workspaces":[{"root_path":"/tmp/repo","latest_git_commit_hash":"abc123","associated_remote_urls":["git@github.com:thinwedge/thinwedge.git"],"has_changes":true}]}"#;
     let prompt_one = prompt_with_input(vec![message_item("hello")]);
     let prompt_two = prompt_with_input(vec![
         message_item("hello"),
         assistant_message_item("msg-1", "assistant output"),
         message_item("second"),
     ]);
+    let first_responses_metadata = turn_metadata(&harness, Some("turn-123"));
+    let second_responses_metadata = turn_metadata(&harness, Some("turn-456"));
 
-    stream_until_complete_with_turn_metadata(
+    stream_until_complete_with_metadata(
         &mut client_session,
         &harness,
         &prompt_one,
         /*service_tier*/ None,
-        Some(first_turn_metadata),
+        &first_responses_metadata,
     )
     .await;
-    stream_until_complete_with_turn_metadata(
+    stream_until_complete_with_metadata(
         &mut client_session,
         &harness,
         &prompt_two,
         /*service_tier*/ None,
-        Some(enriched_turn_metadata),
+        &second_responses_metadata,
     )
     .await;
 
@@ -1283,36 +1615,37 @@ async fn responses_websocket_forwards_turn_metadata_on_initial_and_incremental_c
     let second = connection.get(1).expect("missing request").body_json();
 
     assert_eq!(first["type"].as_str(), Some("response.create"));
-    assert_eq!(
-        first["client_metadata"]["x-thinwedge-turn-metadata"].as_str(),
-        Some(first_turn_metadata)
-    );
     assert_eq!(second["type"].as_str(), Some("response.create"));
     assert_eq!(second["previous_response_id"].as_str(), Some("resp-1"));
-    assert_eq!(
-        second["client_metadata"]["x-thinwedge-turn-metadata"].as_str(),
-        Some(enriched_turn_metadata)
-    );
-
-    let first_metadata: serde_json::Value =
-        serde_json::from_str(first_turn_metadata).expect("first metadata should be valid json");
-    let second_metadata: serde_json::Value = serde_json::from_str(enriched_turn_metadata)
-        .expect("enriched metadata should be valid json");
+    let first_metadata: serde_json::Value = serde_json::from_str(
+        first["client_metadata"]["x-thinwedge-turn-metadata"]
+            .as_str()
+            .expect("first turn metadata"),
+    )
+    .expect("first metadata should be valid json");
+    let second_metadata: serde_json::Value = serde_json::from_str(
+        second["client_metadata"]["x-thinwedge-turn-metadata"]
+            .as_str()
+            .expect("second turn metadata"),
+    )
+    .expect("second metadata should be valid json");
 
     assert_eq!(first_metadata["turn_id"].as_str(), Some("turn-123"));
-    assert_eq!(second_metadata["turn_id"].as_str(), Some("turn-123"));
-    assert_eq!(first_metadata["thread_source"].as_str(), Some("user"));
-    assert_eq!(second_metadata["thread_source"].as_str(), Some("user"));
+    assert_eq!(second_metadata["turn_id"].as_str(), Some("turn-456"));
     assert_eq!(
-        second_metadata["workspaces"][0]["has_changes"].as_bool(),
-        Some(true)
+        first["client_metadata"]["turn_id"].as_str(),
+        first_metadata["turn_id"].as_str()
+    );
+    assert_eq!(
+        second["client_metadata"]["turn_id"].as_str(),
+        second_metadata["turn_id"].as_str()
     );
 
     server.shutdown().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn responses_websocket_preserves_custom_turn_metadata_fields() {
+async fn responses_websocket_sends_canonical_turn_metadata() {
     skip_if_no_network!();
 
     let server = start_websocket_server(vec![vec![vec![
@@ -1324,19 +1657,14 @@ async fn responses_websocket_preserves_custom_turn_metadata_fields() {
     let harness = websocket_harness(&server).await;
     let mut client_session = harness.client.new_session();
     let prompt = prompt_with_input(vec![message_item("hello")]);
-    let turn_metadata = json!({
-        "turn_id": "turn-123",
-        "fiber_run_id": "fiber-123",
-        "origin": "app-server",
-    })
-    .to_string();
+    let responses_metadata = turn_metadata(&harness, Some("turn-123"));
 
-    stream_until_complete_with_turn_metadata(
+    stream_until_complete_with_metadata(
         &mut client_session,
         &harness,
         &prompt,
         /*service_tier*/ None,
-        Some(&turn_metadata),
+        &responses_metadata,
     )
     .await;
 
@@ -1347,15 +1675,16 @@ async fn responses_websocket_preserves_custom_turn_metadata_fields() {
         .body_json();
 
     assert_eq!(body["type"].as_str(), Some("response.create"));
-    assert_eq!(
+    let turn_metadata: serde_json::Value = serde_json::from_str(
         body["client_metadata"]["x-thinwedge-turn-metadata"]
             .as_str()
-            .map(|value| serde_json::from_str::<serde_json::Value>(value).expect("valid json")),
-        Some(json!({
-            "turn_id": "turn-123",
-            "fiber_run_id": "fiber-123",
-            "origin": "app-server",
-        }))
+            .expect("turn metadata"),
+    )
+    .expect("valid turn metadata");
+    assert_eq!(turn_metadata["turn_id"].as_str(), Some("turn-123"));
+    assert_eq!(
+        body["client_metadata"]["turn_id"].as_str(),
+        turn_metadata["turn_id"].as_str()
     );
 
     server.shutdown().await;
@@ -1582,15 +1911,16 @@ async fn responses_websocket_v2_after_error_uses_full_create_without_previous_re
 
     stream_until_complete(&mut session, &harness, &prompt_one).await;
 
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
     let mut second_stream = session
         .stream(
             &prompt_two,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -1670,15 +2000,16 @@ async fn responses_websocket_v2_surfaces_terminal_error_without_close_handshake(
 
     stream_until_complete(&mut session, &harness, &prompt_one).await;
 
+    let responses_metadata = turn_metadata(&harness, /*turn_id*/ None);
     let mut second_stream = session
         .stream(
             &prompt_two,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -1701,7 +2032,7 @@ async fn responses_websocket_v2_surfaces_terminal_error_without_close_handshake(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn responses_websocket_v2_sets_thinwedge_beta_header() {
+async fn responses_websocket_v2_sets_openai_beta_header() {
     skip_if_no_network!();
 
     let server = start_websocket_server(vec![vec![vec![
@@ -1717,11 +2048,11 @@ async fn responses_websocket_v2_sets_thinwedge_beta_header() {
     stream_until_complete(&mut session, &harness, &prompt).await;
 
     let handshake = server.single_handshake();
-    let thinwedge_beta_header = handshake
-        .header(THINWEDGE_BETA_HEADER)
-        .expect("missing ThinWedge-Beta header");
+    let openai_beta_header = handshake
+        .header(OPENAI_BETA_HEADER)
+        .expect("missing OpenAI-Beta header");
     assert!(
-        thinwedge_beta_header
+        openai_beta_header
             .split(',')
             .map(str::trim)
             .any(|value| value == WS_V2_BETA_HEADER_VALUE)
@@ -1785,7 +2116,7 @@ fn websocket_provider_with_connect_timeout(
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: true,
     }
 }
@@ -1831,7 +2162,8 @@ async fn websocket_harness_with_provider_options(
     }
     let config = Arc::new(config);
     let model_info = thinwedge_core::test_support::construct_model_info_offline(MODEL, &config);
-    let conversation_id = ThreadId::new();
+    let thread_id = ThreadId::new();
+    let session_id = SessionId::new();
     let auth_manager = thinwedge_core::test_support::auth_manager_from_auth(
         ThinWedgeAuth::from_api_key("Test API Key"),
     );
@@ -1847,7 +2179,7 @@ async fn websocket_harness_with_provider_options(
     )
     .expect("in-memory metrics client");
     let session_telemetry = SessionTelemetry::new(
-        conversation_id,
+        thread_id,
         MODEL,
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -1863,20 +2195,21 @@ async fn websocket_harness_with_provider_options(
     let summary = ReasoningSummary::Auto;
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        conversation_id,
-        /*installation_id*/ TEST_INSTALLATION_ID.to_string(),
+        thread_id,
         provider.clone(),
         SessionSource::Exec,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         runtime_metrics_enabled,
         /*beta_features_header*/ None,
+        /*attestation_provider*/ None,
     );
 
     WebsocketTestHarness {
         _thinwedge_home: thinwedge_home,
         client,
-        conversation_id,
+        session_id,
+        thread_id,
         model_info,
         effort,
         summary,
@@ -1898,55 +2231,74 @@ async fn stream_until_complete(
     .await;
 }
 
+async fn stream_until_complete_with_model_info(
+    client_session: &mut ModelClientSession,
+    harness: &WebsocketTestHarness,
+    prompt: &Prompt,
+    model_info: &ModelInfo,
+    expected_response_id: &str,
+) {
+    let responses_metadata = turn_metadata(harness, /*turn_id*/ None);
+    let mut stream = client_session
+        .stream(
+            prompt,
+            model_info,
+            &harness.session_telemetry,
+            harness.effort.clone(),
+            harness.summary,
+            /*service_tier*/ None,
+            &responses_metadata,
+            &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
+        )
+        .await
+        .expect("websocket stream failed");
+
+    while let Some(event) = stream.next().await {
+        match event {
+            Ok(ResponseEvent::Completed { response_id, .. }) => {
+                assert_eq!(response_id, expected_response_id);
+                return;
+            }
+            Ok(_) => {}
+            Err(err) => panic!("websocket stream failed: {err}"),
+        }
+    }
+    panic!("websocket stream ended before completion");
+}
+
 async fn stream_until_complete_with_service_tier(
     client_session: &mut ModelClientSession,
     harness: &WebsocketTestHarness,
     prompt: &Prompt,
     service_tier: Option<ServiceTier>,
 ) {
-    stream_until_complete_with_turn_metadata(
+    let responses_metadata = turn_metadata(harness, /*turn_id*/ None);
+    stream_until_complete_with_metadata(
         client_session,
         harness,
         prompt,
         service_tier,
-        /*turn_metadata_header*/ None,
+        &responses_metadata,
     )
     .await;
 }
 
-async fn stream_until_complete_with_turn_metadata(
+async fn stream_until_complete_with_metadata(
     client_session: &mut ModelClientSession,
     harness: &WebsocketTestHarness,
     prompt: &Prompt,
     service_tier: Option<ServiceTier>,
-    turn_metadata_header: Option<&str>,
-) {
-    stream_until_complete_with_request_metadata(
-        client_session,
-        harness,
-        prompt,
-        service_tier,
-        turn_metadata_header,
-    )
-    .await;
-}
-
-async fn stream_until_complete_with_request_metadata(
-    client_session: &mut ModelClientSession,
-    harness: &WebsocketTestHarness,
-    prompt: &Prompt,
-    service_tier: Option<ServiceTier>,
-    turn_metadata_header: Option<&str>,
+    responses_metadata: &ThinWedgeResponsesMetadata,
 ) {
     let mut stream = client_session
         .stream(
             prompt,
             &harness.model_info,
             &harness.session_telemetry,
-            harness.effort,
+            harness.effort.clone(),
             harness.summary,
-            service_tier,
-            turn_metadata_header,
+            service_tier.map(|service_tier| service_tier.request_value().to_string()),
+            responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await

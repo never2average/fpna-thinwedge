@@ -16,8 +16,10 @@ use serde_json::to_string;
 use serde_json::to_value;
 use std::sync::Arc;
 use thinwedge_client::HttpTransport;
+use thinwedge_client::Request;
 use thinwedge_client::RequestBody;
 use thinwedge_client::RequestTelemetry;
+use thinwedge_protocol::protocol::RealtimeConversationArchitecture;
 use tracing::instrument;
 use tracing::trace;
 
@@ -120,6 +122,22 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
         session_config: RealtimeSessionConfig,
         extra_headers: HeaderMap,
     ) -> Result<RealtimeCallResponse, ApiError> {
+        self.create_with_session_architecture_and_headers(
+            sdp,
+            session_config,
+            RealtimeConversationArchitecture::RealtimeApi,
+            extra_headers,
+        )
+        .await
+    }
+
+    pub async fn create_with_session_architecture_and_headers(
+        &self,
+        sdp: String,
+        session_config: RealtimeSessionConfig,
+        architecture: RealtimeConversationArchitecture,
+        extra_headers: HeaderMap,
+    ) -> Result<RealtimeCallResponse, ApiError> {
         trace!(target: "thinwedge_api::realtime_websocket::wire", "realtime call request SDP: {sdp}");
         // WebRTC can begin inference as soon as the peer connection comes up, so the initial
         // session payload is sent with call creation. The sideband WebSocket still sends its normal
@@ -137,7 +155,13 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
             .map_err(|err| ApiError::Stream(format!("failed to encode realtime call: {err}")))?;
             let resp = self
                 .session
-                .execute(Method::POST, Self::path(), extra_headers, Some(body))
+                .execute_with(
+                    Method::POST,
+                    Self::path(),
+                    extra_headers,
+                    Some(body),
+                    |req| configure_realtime_call_request(req, architecture),
+                )
                 .await?;
             let sdp = decode_sdp_response(resp.body.as_ref())?;
             let call_id = decode_call_id_from_location(&resp.headers)?;
@@ -168,6 +192,7 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
                 extra_headers,
                 /*body*/ None,
                 |req| {
+                    configure_realtime_call_request(req, architecture);
                     req.headers.insert(
                         CONTENT_TYPE,
                         HeaderValue::from_static(MULTIPART_CONTENT_TYPE),
@@ -182,6 +207,30 @@ impl<T: HttpTransport> RealtimeCallClient<T> {
 
         Ok(RealtimeCallResponse { sdp, call_id })
     }
+}
+
+fn configure_realtime_call_request(
+    request: &mut Request,
+    architecture: RealtimeConversationArchitecture,
+) {
+    match architecture {
+        RealtimeConversationArchitecture::RealtimeApi => {}
+        RealtimeConversationArchitecture::Avas => {
+            append_query_pair(&mut request.url, "intent", "quicksilver");
+            append_query_pair(&mut request.url, "architecture", "avas");
+        }
+    }
+}
+
+fn append_query_pair(url: &mut String, key: &str, value: &str) {
+    if url.contains('?') {
+        url.push('&');
+    } else {
+        url.push('?');
+    }
+    url.push_str(key);
+    url.push('=');
+    url.push_str(value);
 }
 
 fn realtime_session_json(session_config: RealtimeSessionConfig) -> Result<Value, ApiError> {
@@ -210,13 +259,28 @@ fn decode_call_id_from_location(headers: &HeaderMap) -> Result<String, ApiError>
         .next()
         .unwrap_or(location)
         .rsplit('/')
-        .find(|segment| segment.starts_with("rtc_") && segment.len() > "rtc_".len())
+        .find(|segment| is_realtime_call_id_segment(segment))
         .map(str::to_string)
         .ok_or_else(|| {
             ApiError::Stream(format!(
                 "realtime call Location does not contain a call id: {location}"
             ))
         })
+}
+
+fn is_realtime_call_id_segment(segment: &str) -> bool {
+    if segment.starts_with("rtc_") && segment.len() > "rtc_".len() {
+        return true;
+    }
+
+    if segment.len() != 36 {
+        return false;
+    }
+
+    segment.char_indices().all(|(index, ch)| match index {
+        8 | 13 | 18 | 23 => ch == '-',
+        _ => ch.is_ascii_hexdigit(),
+    })
 }
 
 #[cfg(test)]
@@ -227,7 +291,6 @@ mod tests {
     use crate::endpoint::realtime_websocket::RealtimeOutputModality;
     use crate::endpoint::realtime_websocket::RealtimeSessionMode;
     use crate::provider::RetryConfig;
-    use async_trait::async_trait;
     use http::StatusCode;
     use pretty_assertions::assert_eq;
     use std::sync::Mutex;
@@ -266,7 +329,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl HttpTransport for CapturingTransport {
         async fn execute(&self, req: Request) -> Result<Response, TransportError> {
             *self.last_request.lock().unwrap() = Some(req);
@@ -328,7 +390,7 @@ mod tests {
         let transport = CapturingTransport::new();
         let client = RealtimeCallClient::new(
             transport.clone(),
-            provider("https://api.thinwedge.com/v1"),
+            provider("https://api.openai.com/v1"),
             Arc::new(DummyAuth),
         );
 
@@ -347,7 +409,7 @@ mod tests {
 
         let request = transport.last_request.lock().unwrap().clone().unwrap();
         assert_eq!(request.method, Method::POST);
-        assert_eq!(request.url, "https://api.thinwedge.com/v1/realtime/calls");
+        assert_eq!(request.url, "https://api.openai.com/v1/realtime/calls");
         assert_eq!(
             request.headers.get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static("application/sdp")
@@ -405,7 +467,7 @@ mod tests {
         let transport = CapturingTransport::new();
         let client = RealtimeCallClient::new(
             transport.clone(),
-            provider("https://api.thinwedge.com/v1"),
+            provider("https://api.openai.com/v1"),
             Arc::new(DummyAuth),
         );
 
@@ -427,7 +489,7 @@ mod tests {
 
         let request = transport.last_request.lock().unwrap().clone().unwrap();
         assert_eq!(request.method, Method::POST);
-        assert_eq!(request.url, "https://api.thinwedge.com/v1/realtime/calls");
+        assert_eq!(request.url, "https://api.openai.com/v1/realtime/calls");
         assert_eq!(
             request.headers.get(CONTENT_TYPE).unwrap(),
             HeaderValue::from_static(MULTIPART_CONTENT_TYPE)
@@ -459,6 +521,41 @@ mod tests {
                  {session}\r\n\
                  --thinwedge-realtime-call-boundary--\r\n"
             )
+        );
+    }
+
+    #[tokio::test]
+    async fn sends_avas_session_call_query_params() {
+        let transport = CapturingTransport::new();
+        let client = RealtimeCallClient::new(
+            transport.clone(),
+            provider("https://api.openai.com/v1"),
+            Arc::new(DummyAuth),
+        );
+
+        let response = client
+            .create_with_session_architecture_and_headers(
+                "v=offer\r\n".to_string(),
+                realtime_session_config("sess-api"),
+                RealtimeConversationArchitecture::Avas,
+                HeaderMap::new(),
+            )
+            .await
+            .expect("request should succeed");
+
+        assert_eq!(
+            response,
+            RealtimeCallResponse {
+                sdp: "v=0\r\n".to_string(),
+                call_id: "rtc_test".to_string(),
+            }
+        );
+
+        let request = transport.last_request.lock().unwrap().clone().unwrap();
+        assert_eq!(request.method, Method::POST);
+        assert_eq!(
+            request.url,
+            "https://api.openai.com/v1/realtime/calls?intent=quicksilver&architecture=avas"
         );
     }
 
@@ -516,7 +613,7 @@ mod tests {
         let transport = CapturingTransport::without_location();
         let client = RealtimeCallClient::new(
             transport,
-            provider("https://api.thinwedge.com/v1"),
+            provider("https://api.openai.com/v1"),
             Arc::new(DummyAuth),
         );
 
@@ -543,5 +640,18 @@ mod tests {
             err.to_string(),
             "stream error: realtime call Location does not contain a call id: /v1/realtime/calls"
         );
+    }
+
+    #[test]
+    fn accepts_uuid_call_id_from_location() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            LOCATION,
+            HeaderValue::from_static("/v1/realtime/calls/019eb97d-8e9a-7ff3-94b0-ea019babd5d7"),
+        );
+
+        let call_id = decode_call_id_from_location(&headers).expect("UUID call id should parse");
+
+        assert_eq!(call_id, "019eb97d-8e9a-7ff3-94b0-ea019babd5d7");
     }
 }

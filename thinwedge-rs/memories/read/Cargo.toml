@@ -7,6 +7,7 @@ version.workspace = true
 [lib]
 name = "thinwedge_memories_read"
 path = "src/lib.rs"
+doctest = false
 
 [lints]
 workspace = true
@@ -15,11 +16,6 @@ workspace = true
 thinwedge-protocol = { workspace = true }
 thinwedge-shell-command = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
-thinwedge-utils-output-truncation = { workspace = true }
-thinwedge-utils-template = { workspace = true }
-tokio = { workspace = true, features = ["fs"] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
-tempfile = { workspace = true }
-tokio = { workspace = true, features = ["fs", "macros"] }

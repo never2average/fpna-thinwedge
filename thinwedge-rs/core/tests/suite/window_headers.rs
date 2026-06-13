@@ -44,7 +44,7 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
     .await;
 
     let mut builder = test_thinwedge().with_config(|config| {
-        config.model_provider.name = "Non-ThinWedge Model provider".to_string();
+        config.model_provider.name = "Non-OpenAI Model provider".to_string();
         config.compact_prompt = Some(SUMMARIZATION_PROMPT.to_string());
     });
     let initial = builder.build(&server).await?;
@@ -72,7 +72,7 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
             /*snapshot*/ 0usize,
             resumed.config.clone(),
             rollout_path,
-            /*persist_extended_history*/ false,
+            /*thread_source*/ None,
             /*parent_trace*/ None,
         )
         .await?;
@@ -104,13 +104,14 @@ async fn window_id_advances_after_compact_persists_on_resume_and_resets_on_fork(
 async fn submit_user_turn(thinwedge: &Arc<ThinWedgeThread>, text: &str) -> Result<()> {
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: text.to_string(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
     wait_for_event(thinwedge, |event| {

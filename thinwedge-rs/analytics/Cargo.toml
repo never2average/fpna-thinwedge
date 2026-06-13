@@ -19,6 +19,7 @@ thinwedge-login = { workspace = true }
 thinwedge-model-provider = { workspace = true }
 thinwedge-plugin = { workspace = true }
 thinwedge-protocol = { workspace = true }
+thinwedge-state = { workspace = true }
 os_info = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

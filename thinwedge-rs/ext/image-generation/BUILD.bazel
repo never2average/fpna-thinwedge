@@ -1,0 +1,9 @@
+load("//:defs.bzl", "thinwedge_rust_crate")
+
+thinwedge_rust_crate(
+    name = "image-generation",
+    crate_name = "thinwedge_image_generation_extension",
+    compile_data = [
+        "imagegen_description.md",
+    ],
+)

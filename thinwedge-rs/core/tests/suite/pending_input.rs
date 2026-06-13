@@ -1,3 +1,4 @@
+use core_test_support::test_thinwedge::local_selections;
 use std::sync::Arc;
 
 use core_test_support::context_snapshot;
@@ -96,13 +97,14 @@ async fn build_thinwedge(server: &StreamingSseServer) -> Arc<ThinWedgeThread> {
 async fn submit_user_input(thinwedge: &ThinWedgeThread, text: &str) {
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: text.to_string(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap_or_else(|err| panic!("submit user input: {err}"));
@@ -112,24 +114,29 @@ async fn submit_danger_full_access_user_turn(test: &TestThinWedge, text: &str) {
     let (sandbox_policy, permission_profile) =
         turn_permission_fields(PermissionProfile::Disabled, test.config.cwd.as_path());
     test.thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: text.to_string(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
-            cwd: test.config.cwd.to_path_buf(),
-            approval_policy: AskForApproval::Never,
-            approvals_reviewer: None,
-            sandbox_policy,
-            permission_profile,
-            model: test.session_configured.model.clone(),
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(test.config.cwd.clone())),
+                approval_policy: Some(AskForApproval::Never),
+                sandbox_policy: Some(sandbox_policy),
+                permission_profile,
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: test.session_configured.model.clone(),
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await
         .unwrap_or_else(|err| panic!("submit user turn: {err}"));
@@ -142,7 +149,9 @@ async fn steer_user_input(thinwedge: &ThinWedgeThread, text: &str) {
                 text: text.to_string(),
                 text_elements: Vec::new(),
             }],
+            /*additional_context*/ Default::default(),
             /*expected_turn_id*/ None,
+            /*client_user_message_id*/ None,
             /*responsesapi_client_metadata*/ None,
         )
         .await
@@ -164,11 +173,11 @@ async fn submit_queue_only_agent_mail(thinwedge: &ThinWedgeThread, text: &str) {
         .await
         .unwrap_or_else(|err| panic!("submit queue-only agent mail: {err}"));
     thinwedge
-        .submit(Op::ListMcpTools)
+        .submit(Op::RealtimeConversationListVoices)
         .await
-        .unwrap_or_else(|err| panic!("submit list-mcp-tools barrier: {err}"));
+        .unwrap_or_else(|err| panic!("submit list-voices barrier: {err}"));
     wait_for_event(thinwedge, |event| {
-        matches!(event, EventMsg::McpListToolsResponse(_))
+        matches!(event, EventMsg::RealtimeConversationListVoicesResponse(_))
     })
     .await;
 }
@@ -281,13 +290,14 @@ async fn injected_user_input_triggers_follow_up_request_with_deltas() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "first prompt".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -299,13 +309,14 @@ async fn injected_user_input_triggers_follow_up_request_with_deltas() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "second prompt".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -546,7 +557,7 @@ async fn steered_user_input_waits_for_model_continuation_after_mid_turn_compact(
     let thinwedge = test_thinwedge()
         .with_model("gpt-5.4")
         .with_config(|config| {
-            config.model_provider.name = "ThinWedge (test)".to_string();
+            config.model_provider.name = "OpenAI (test)".to_string();
             config.model_provider.supports_websockets = false;
             config.model_auto_compact_token_limit = Some(200);
         })
@@ -633,7 +644,7 @@ async fn steered_user_input_follows_compact_when_only_the_steer_needs_follow_up(
     let thinwedge = test_thinwedge()
         .with_model("gpt-5.4")
         .with_config(|config| {
-            config.model_provider.name = "ThinWedge (test)".to_string();
+            config.model_provider.name = "OpenAI (test)".to_string();
             config.model_provider.supports_websockets = false;
             config.model_auto_compact_token_limit = Some(200);
         })
@@ -752,7 +763,7 @@ async fn steered_user_input_waits_when_tool_output_triggers_compact_before_next_
     let test = test_thinwedge()
         .with_model("gpt-5.4")
         .with_config(|config| {
-            config.model_provider.name = "ThinWedge (test)".to_string();
+            config.model_provider.name = "OpenAI (test)".to_string();
             config.model_provider.supports_websockets = false;
             config.model_auto_compact_token_limit = Some(200);
         })

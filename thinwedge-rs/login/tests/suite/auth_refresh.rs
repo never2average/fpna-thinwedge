@@ -13,6 +13,7 @@ use tempfile::TempDir;
 use thinwedge_app_server_protocol::AuthMode;
 use thinwedge_config::types::AuthCredentialsStoreMode;
 use thinwedge_login::AuthDotJson;
+use thinwedge_login::AuthKeyringBackendKind;
 use thinwedge_login::AuthManager;
 use thinwedge_login::REFRESH_TOKEN_URL_OVERRIDE_ENV_VAR;
 use thinwedge_login::RefreshTokenError;
@@ -51,10 +52,12 @@ async fn refresh_token_succeeds_updates_storage() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -115,10 +118,12 @@ async fn refresh_token_refreshes_when_auth_is_unchanged() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -160,6 +165,106 @@ async fn refresh_token_refreshes_when_auth_is_unchanged() -> Result<()> {
 
 #[serial_test::serial(auth_refresh)]
 #[tokio::test]
+async fn auth_refreshes_when_access_token_is_near_expiry() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth/token"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+            "access_token": "new-access-token",
+            "refresh_token": "new-refresh-token"
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let ctx = RefreshTokenTestContext::new(&server).await?;
+    let initial_last_refresh = Utc::now();
+    let near_expiry_access_token = access_token_with_expiration(Utc::now() + Duration::minutes(4));
+    let initial_tokens = build_tokens(&near_expiry_access_token, INITIAL_REFRESH_TOKEN);
+    let initial_auth = AuthDotJson {
+        auth_mode: Some(AuthMode::Chatgpt),
+        openai_api_key: None,
+        tokens: Some(initial_tokens.clone()),
+        last_refresh: Some(initial_last_refresh),
+        agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
+    };
+    ctx.write_auth(&initial_auth).await?;
+
+    let cached_auth = ctx
+        .auth_manager
+        .auth()
+        .await
+        .context("auth should be cached")?;
+
+    let refreshed_tokens = TokenData {
+        access_token: "new-access-token".to_string(),
+        refresh_token: "new-refresh-token".to_string(),
+        ..initial_tokens.clone()
+    };
+    let cached = cached_auth
+        .get_token_data()
+        .context("token data should refresh")?;
+    assert_eq!(cached, refreshed_tokens);
+    let stored = ctx.load_auth()?;
+    let tokens = stored.tokens.as_ref().context("tokens should exist")?;
+    assert_eq!(tokens, &refreshed_tokens);
+    let refreshed_at = stored
+        .last_refresh
+        .as_ref()
+        .context("last_refresh should be recorded")?;
+    assert!(
+        *refreshed_at >= initial_last_refresh,
+        "last_refresh should advance"
+    );
+
+    server.verify().await;
+    Ok(())
+}
+
+#[serial_test::serial(auth_refresh)]
+#[tokio::test]
+async fn auth_skips_access_token_outside_refresh_window() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = MockServer::start().await;
+    let ctx = RefreshTokenTestContext::new(&server).await?;
+    let initial_last_refresh = Utc::now();
+    let fresh_access_token = access_token_with_expiration(Utc::now() + Duration::minutes(6));
+    let initial_tokens = build_tokens(&fresh_access_token, INITIAL_REFRESH_TOKEN);
+    let initial_auth = AuthDotJson {
+        auth_mode: Some(AuthMode::Chatgpt),
+        openai_api_key: None,
+        tokens: Some(initial_tokens.clone()),
+        last_refresh: Some(initial_last_refresh),
+        agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
+    };
+    ctx.write_auth(&initial_auth).await?;
+
+    let cached_auth = ctx
+        .auth_manager
+        .auth()
+        .await
+        .context("auth should be cached")?;
+
+    let cached = cached_auth
+        .get_token_data()
+        .context("token data should remain cached")?;
+    assert_eq!(cached, initial_tokens);
+    assert_eq!(ctx.load_auth()?, initial_auth);
+    let requests = server.received_requests().await.unwrap_or_default();
+    assert!(requests.is_empty(), "expected no refresh token requests");
+
+    Ok(())
+}
+
+#[serial_test::serial(auth_refresh)]
+#[tokio::test]
 async fn refresh_token_skips_refresh_when_auth_changed() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -170,25 +275,30 @@ async fn refresh_token_skips_refresh_when_auth_changed() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
     let disk_tokens = build_tokens("disk-access-token", "disk-refresh-token");
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     ctx.auth_manager
@@ -235,10 +345,12 @@ async fn refresh_token_errors_on_account_mismatch() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -246,15 +358,18 @@ async fn refresh_token_errors_on_account_mismatch() -> Result<()> {
     disk_tokens.account_id = Some("other-account".to_string());
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     let err = ctx
@@ -305,10 +420,12 @@ async fn returns_fresh_tokens_as_is() -> Result<()> {
     let initial_tokens = build_tokens(&fresh_access_token, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(stale_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -353,10 +470,12 @@ async fn refreshes_token_when_access_token_is_expired() -> Result<()> {
     let initial_tokens = build_tokens(&expired_access_token, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(fresh_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -403,10 +522,12 @@ async fn auth_reloads_disk_auth_when_cached_auth_is_stale() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens),
         last_refresh: Some(stale_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -414,15 +535,18 @@ async fn auth_reloads_disk_auth_when_cached_auth_is_stale() -> Result<()> {
     let disk_tokens = build_tokens("disk-access-token", "disk-refresh-token");
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens.clone()),
         last_refresh: Some(fresh_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     let cached_auth = ctx
@@ -466,10 +590,12 @@ async fn auth_reloads_disk_auth_without_calling_expired_refresh_token() -> Resul
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens),
         last_refresh: Some(stale_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -477,15 +603,18 @@ async fn auth_reloads_disk_auth_without_calling_expired_refresh_token() -> Resul
     let disk_tokens = build_tokens("disk-access-token", "disk-refresh-token");
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens.clone()),
         last_refresh: Some(fresh_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     let cached_auth = ctx
@@ -527,10 +656,12 @@ async fn refresh_token_returns_permanent_error_for_expired_refresh_token() -> Re
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -580,10 +711,81 @@ async fn refresh_token_does_not_retry_after_permanent_failure() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
+    };
+    ctx.write_auth(&initial_auth).await?;
+
+    let first_err = ctx
+        .auth_manager
+        .refresh_token()
+        .await
+        .err()
+        .context("first refresh should fail")?;
+    assert_eq!(
+        first_err.failed_reason(),
+        Some(RefreshTokenFailedReason::Exhausted)
+    );
+
+    let second_err = ctx
+        .auth_manager
+        .refresh_token()
+        .await
+        .err()
+        .context("second refresh should fail without retrying")?;
+    assert_eq!(
+        second_err.failed_reason(),
+        Some(RefreshTokenFailedReason::Exhausted)
+    );
+
+    let stored = ctx.load_auth()?;
+    assert_eq!(stored, initial_auth);
+    let cached_auth = ctx
+        .auth_manager
+        .auth()
+        .await
+        .context("auth should remain cached")?;
+    let cached = cached_auth
+        .get_token_data()
+        .context("token data should remain cached")?;
+    assert_eq!(cached, initial_tokens);
+
+    server.verify().await;
+    Ok(())
+}
+
+#[serial_test::serial(auth_refresh)]
+#[tokio::test]
+async fn refresh_token_does_not_retry_after_bad_request_reused_failure() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .and(path("/oauth/token"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(json!({
+            "error": {
+                "code": "refresh_token_reused"
+            }
+        })))
+        .expect(1)
+        .mount(&server)
+        .await;
+
+    let ctx = RefreshTokenTestContext::new(&server).await?;
+    let initial_last_refresh = Utc::now() - Duration::days(1);
+    let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
+    let initial_auth = AuthDotJson {
+        auth_mode: Some(AuthMode::Chatgpt),
+        openai_api_key: None,
+        tokens: Some(initial_tokens.clone()),
+        last_refresh: Some(initial_last_refresh),
+        agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -647,10 +849,12 @@ async fn refresh_token_reloads_changed_auth_after_permanent_failure() -> Result<
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -669,15 +873,18 @@ async fn refresh_token_reloads_changed_auth_after_permanent_failure() -> Result<
     let disk_tokens = build_tokens("disk-access-token", "disk-refresh-token");
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens.clone()),
         last_refresh: Some(fresh_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     ctx.auth_manager
@@ -728,10 +935,12 @@ async fn refresh_token_returns_transient_error_on_server_failure() -> Result<()>
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -781,25 +990,30 @@ async fn unauthorized_recovery_reloads_then_refreshes_tokens() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
     let disk_tokens = build_tokens("disk-access-token", "disk-refresh-token");
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     let cached_before = ctx
@@ -875,10 +1089,12 @@ async fn unauthorized_recovery_errors_on_account_mismatch() -> Result<()> {
     let initial_tokens = build_tokens(INITIAL_ACCESS_TOKEN, INITIAL_REFRESH_TOKEN);
     let initial_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(initial_tokens.clone()),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&initial_auth).await?;
 
@@ -886,15 +1102,18 @@ async fn unauthorized_recovery_errors_on_account_mismatch() -> Result<()> {
     disk_tokens.account_id = Some("other-account".to_string());
     let disk_auth = AuthDotJson {
         auth_mode: Some(AuthMode::Chatgpt),
-        thinwedge_api_key: None,
+        openai_api_key: None,
         tokens: Some(disk_tokens),
         last_refresh: Some(initial_last_refresh),
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     save_auth(
         ctx.thinwedge_home.path(),
         &disk_auth,
         AuthCredentialsStoreMode::File,
+        AuthKeyringBackendKind::default(),
     )?;
 
     let cached_before = ctx
@@ -944,10 +1163,12 @@ async fn unauthorized_recovery_requires_chatgpt_auth() -> Result<()> {
     let ctx = RefreshTokenTestContext::new(&server).await?;
     let auth = AuthDotJson {
         auth_mode: Some(AuthMode::ApiKey),
-        thinwedge_api_key: Some("sk-test".to_string()),
+        openai_api_key: Some("sk-test".to_string()),
         tokens: None,
         last_refresh: None,
         agent_identity: None,
+        personal_access_token: None,
+        bedrock_api_key: None,
     };
     ctx.write_auth(&auth).await?;
 
@@ -985,6 +1206,7 @@ impl RefreshTokenTestContext {
             /*enable_thinwedge_api_key_env*/ false,
             AuthCredentialsStoreMode::File,
             /*chatgpt_base_url*/ None,
+            AuthKeyringBackendKind::default(),
         )
         .await;
 
@@ -996,9 +1218,13 @@ impl RefreshTokenTestContext {
     }
 
     fn load_auth(&self) -> Result<AuthDotJson> {
-        load_auth_dot_json(self.thinwedge_home.path(), AuthCredentialsStoreMode::File)
-            .context("load auth.json")?
-            .context("auth.json should exist")
+        load_auth_dot_json(
+            self.thinwedge_home.path(),
+            AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
+        )
+        .context("load auth.json")?
+        .context("auth.json should exist")
     }
 
     async fn write_auth(&self, auth_dot_json: &AuthDotJson) -> Result<()> {
@@ -1006,6 +1232,7 @@ impl RefreshTokenTestContext {
             self.thinwedge_home.path(),
             auth_dot_json,
             AuthCredentialsStoreMode::File,
+            AuthKeyringBackendKind::default(),
         )?;
         self.auth_manager.reload().await;
         Ok(())

@@ -7,14 +7,14 @@ use thinwedge_api::Provider;
 use thinwedge_api::RetryConfig;
 use thinwedge_client::ReqwestTransport;
 use thinwedge_protocol::config_types::ReasoningSummary;
-use thinwedge_protocol::thinwedge_models::ConfigShellToolType;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelVisibility;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
-use thinwedge_protocol::thinwedge_models::ReasoningEffortPreset;
-use thinwedge_protocol::thinwedge_models::TruncationPolicyConfig;
-use thinwedge_protocol::thinwedge_models::default_input_modalities;
+use thinwedge_protocol::openai_models::ConfigShellToolType;
+use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelVisibility;
+use thinwedge_protocol::openai_models::ModelsResponse;
+use thinwedge_protocol::openai_models::ReasoningEffort;
+use thinwedge_protocol::openai_models::ReasoningEffortPreset;
+use thinwedge_protocol::openai_models::TruncationPolicyConfig;
+use thinwedge_protocol::openai_models::default_input_modalities;
 use wiremock::Mock;
 use wiremock::MockServer;
 use wiremock::ResponseTemplate;
@@ -75,6 +75,8 @@ async fn models_client_hits_models_endpoint() {
             supported_in_api: true,
             priority: 1,
             additional_speed_tiers: Vec::new(),
+            service_tiers: Vec::new(),
+            default_service_tier: None,
             upgrade: None,
             base_instructions: "base instructions".to_string(),
             model_messages: None,
@@ -91,11 +93,16 @@ async fn models_client_hits_models_endpoint() {
             context_window: Some(272_000),
             max_context_window: None,
             auto_compact_token_limit: None,
+            comp_hash: None,
             effective_context_window_percent: 95,
             experimental_supported_tools: Vec::new(),
             input_modalities: default_input_modalities(),
             used_fallback_model_metadata: false,
             supports_search_tool: false,
+            use_responses_lite: false,
+            auto_review_model_override: None,
+            tool_mode: None,
+            multi_agent_version: None,
         }],
     };
 

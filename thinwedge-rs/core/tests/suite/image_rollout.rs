@@ -1,4 +1,5 @@
 use anyhow::Context;
+use core_test_support::TempDirExt;
 use core_test_support::responses;
 use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
@@ -7,6 +8,7 @@ use core_test_support::responses::sse;
 use core_test_support::responses::start_mock_server;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::TestThinWedge;
+use core_test_support::test_thinwedge::local_selections;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::test_thinwedge::turn_permission_fields;
 use core_test_support::wait_for_event;
@@ -113,11 +115,11 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         turn_permission_fields(PermissionProfile::Disabled, cwd.path());
 
     thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![
                 UserInput::LocalImage {
                     path: abs_path.clone(),
+                    detail: None,
                 },
                 UserInput::Text {
                     text: "pasted image".to_string(),
@@ -125,17 +127,23 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
                 },
             ],
             final_output_json_schema: None,
-            cwd: cwd.path().to_path_buf(),
-            approval_policy: AskForApproval::Never,
-            approvals_reviewer: None,
-            sandbox_policy,
-            permission_profile,
-            model: session_model,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(cwd.abs())),
+                approval_policy: Some(AskForApproval::Never),
+                sandbox_policy: Some(sandbox_policy),
+                permission_profile,
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: session_model,
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await?;
 
@@ -160,8 +168,8 @@ async fn copy_paste_local_image_persists_rollout_request_shape() -> anyhow::Resu
         role: "user".to_string(),
         content: vec![
             ContentItem::InputText {
-                text: thinwedge_protocol::models::local_image_open_tag_text(
-                    /*label_number*/ 1,
+                text: thinwedge_protocol::models::local_image_open_tag_text_with_path(
+                    /*label_number*/ 1, &abs_path,
                 ),
             },
             ContentItem::InputImage {
@@ -211,11 +219,11 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
         turn_permission_fields(PermissionProfile::Disabled, cwd.path());
 
     thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![
                 UserInput::Image {
                     image_url: image_url.clone(),
+                    detail: None,
                 },
                 UserInput::Text {
                     text: "dropped image".to_string(),
@@ -223,17 +231,23 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
                 },
             ],
             final_output_json_schema: None,
-            cwd: cwd.path().to_path_buf(),
-            approval_policy: AskForApproval::Never,
-            approvals_reviewer: None,
-            sandbox_policy,
-            permission_profile,
-            model: session_model,
-            effort: None,
-            summary: None,
-            service_tier: None,
-            collaboration_mode: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(cwd.abs())),
+                approval_policy: Some(AskForApproval::Never),
+                sandbox_policy: Some(sandbox_policy),
+                permission_profile,
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: session_model,
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await?;
 
@@ -257,15 +271,9 @@ async fn drag_drop_image_persists_rollout_request_shape() -> anyhow::Result<()> 
         id: None,
         role: "user".to_string(),
         content: vec![
-            ContentItem::InputText {
-                text: thinwedge_protocol::models::image_open_tag_text(),
-            },
             ContentItem::InputImage {
                 image_url,
                 detail: Some(DEFAULT_IMAGE_DETAIL),
-            },
-            ContentItem::InputText {
-                text: thinwedge_protocol::models::image_close_tag_text(),
             },
             ContentItem::InputText {
                 text: "dropped image".to_string(),

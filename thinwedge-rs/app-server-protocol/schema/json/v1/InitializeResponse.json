@@ -7,14 +7,6 @@
     }
   },
   "properties": {
-    "platformFamily": {
-      "description": "Platform family for the running app-server target, for example `\"unix\"` or `\"windows\"`.",
-      "type": "string"
-    },
-    "platformOs": {
-      "description": "Operating system for the running app-server target, for example `\"macos\"`, `\"linux\"`, or `\"windows\"`.",
-      "type": "string"
-    },
     "thinwedgeHome": {
       "allOf": [
         {
@@ -23,14 +15,22 @@
       ],
       "description": "Absolute path to the server's $THINWEDGE_HOME directory."
     },
+    "platformFamily": {
+      "description": "Platform family for the running app-server target, for example `\"unix\"` or `\"windows\"`.",
+      "type": "string"
+    },
+    "platformOs": {
+      "description": "Operating system for the running app-server target, for example `\"macos\"`, `\"linux\"`, or `\"windows\"`.",
+      "type": "string"
+    },
     "userAgent": {
       "type": "string"
     }
   },
   "required": [
+    "thinwedgeHome",
     "platformFamily",
     "platformOs",
-    "thinwedgeHome",
     "userAgent"
   ],
   "title": "InitializeResponse",

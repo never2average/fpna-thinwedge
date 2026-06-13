@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use app_test_support::McpProcess;
+use app_test_support::TestAppServer;
 use app_test_support::to_response;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
@@ -16,7 +16,7 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 #[tokio::test]
 async fn read_default_provider_capabilities() -> Result<()> {
     let thinwedge_home = TempDir::new()?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -46,7 +46,7 @@ async fn read_amazon_bedrock_provider_capabilities() -> Result<()> {
         r#"model_provider = "amazon-bedrock"
 "#,
     )?;
-    let mut mcp = McpProcess::new(thinwedge_home.path()).await?;
+    let mut mcp = TestAppServer::new(thinwedge_home.path()).await?;
     timeout(DEFAULT_TIMEOUT, mcp.initialize()).await??;
 
     let request_id = mcp
@@ -60,7 +60,7 @@ async fn read_amazon_bedrock_provider_capabilities() -> Result<()> {
     let received: ModelProviderCapabilitiesReadResponse = to_response(response)?;
 
     let expected = ModelProviderCapabilitiesReadResponse {
-        namespace_tools: false,
+        namespace_tools: true,
         image_generation: false,
         web_search: false,
     };

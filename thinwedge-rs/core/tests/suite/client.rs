@@ -1,7 +1,9 @@
 use core_test_support::PathBufExt;
+use core_test_support::TestThinWedgeResponsesRequestKind;
 use core_test_support::apps_test_server::AppsTestServer;
 use core_test_support::load_default_config_for_test;
 use core_test_support::responses::ResponsesRequest;
+use core_test_support::responses::ev_assistant_message;
 use core_test_support::responses::ev_completed;
 use core_test_support::responses::ev_completed_with_tokens;
 use core_test_support::responses::ev_message_item_added;
@@ -12,8 +14,10 @@ use core_test_support::responses::mount_sse_once_match;
 use core_test_support::responses::mount_sse_sequence;
 use core_test_support::responses::sse;
 use core_test_support::responses::sse_failed;
+use core_test_support::responses_metadata as test_responses_metadata;
 use core_test_support::skip_if_no_network;
 use core_test_support::test_thinwedge::TestThinWedge;
+use core_test_support::test_thinwedge::local_selections;
 use core_test_support::test_thinwedge::test_thinwedge;
 use core_test_support::wait_for_event;
 use dunce::canonicalize as normalize_path;
@@ -31,7 +35,11 @@ use thinwedge_core::NewThread;
 use thinwedge_core::Prompt;
 use thinwedge_core::ResponseEvent;
 use thinwedge_core::ThreadManager;
+use thinwedge_core::resolve_installation_id;
+use thinwedge_core::thread_store_from_config;
+use thinwedge_extension_api::empty_extension_registry;
 use thinwedge_features::Feature;
+use thinwedge_login::AuthKeyringBackendKind;
 use thinwedge_login::AuthManager;
 use thinwedge_login::ThinWedgeAuth;
 use thinwedge_login::default_client::originator;
@@ -39,7 +47,6 @@ use thinwedge_model_provider_info::ModelProviderInfo;
 use thinwedge_model_provider_info::WireApi;
 use thinwedge_model_provider_info::built_in_model_providers;
 use thinwedge_models_manager::bundled_models_response;
-use thinwedge_models_manager::collaboration_mode_presets::CollaborationModesConfig;
 use thinwedge_otel::SessionTelemetry;
 use thinwedge_otel::TelemetryAuthMode;
 use thinwedge_protocol::ThreadId;
@@ -63,6 +70,7 @@ use thinwedge_protocol::models::ReasoningItemContent;
 use thinwedge_protocol::models::ReasoningItemReasoningSummary;
 use thinwedge_protocol::models::ResponseItem;
 use thinwedge_protocol::models::WebSearchAction;
+use thinwedge_protocol::openai_models::ReasoningEffort;
 use thinwedge_protocol::protocol::EventMsg;
 use thinwedge_protocol::protocol::Op;
 use thinwedge_protocol::protocol::RolloutItem;
@@ -70,7 +78,6 @@ use thinwedge_protocol::protocol::RolloutLine;
 use thinwedge_protocol::protocol::SessionMeta;
 use thinwedge_protocol::protocol::SessionMetaLine;
 use thinwedge_protocol::protocol::SessionSource;
-use thinwedge_protocol::thinwedge_models::ReasoningEffort;
 use thinwedge_protocol::user_input::UserInput;
 use toml::toml;
 use uuid::Uuid;
@@ -85,6 +92,25 @@ use wiremock::matchers::path;
 use wiremock::matchers::query_param;
 
 const INSTALLATION_ID_FILENAME: &str = "installation_id";
+const TEST_WINDOW_ID: &str = "test-thread:0";
+const TEST_INSTALLATION_ID: &str = "11111111-1111-4111-8111-111111111111";
+
+fn test_turn_responses_metadata(
+    _client: &ModelClient,
+    thread_id: ThreadId,
+) -> thinwedge_core::ThinWedgeResponsesMetadata {
+    let thread_id = thread_id.to_string();
+    test_responses_metadata(
+        TEST_INSTALLATION_ID,
+        &thread_id,
+        &thread_id,
+        /*turn_id*/ None,
+        TEST_WINDOW_ID.to_string(),
+        &SessionSource::Exec,
+        /*parent_thread_id*/ None,
+        TestThinWedgeResponsesRequestKind::Turn,
+    )
+}
 
 #[expect(clippy::unwrap_used)]
 fn assert_message_role(request_body: &serde_json::Value, role: &str) {
@@ -108,12 +134,47 @@ fn message_input_text_contains(request: &ResponsesRequest, role: &str, needle: &
         .any(|text| text.contains(needle))
 }
 
+fn assert_thinwedge_client_metadata(
+    request_body: &serde_json::Value,
+    installation_id: &str,
+    session_id: &str,
+    thread_id: &str,
+) {
+    let client_metadata = &request_body["client_metadata"];
+    assert_eq!(
+        client_metadata["x-thinwedge-installation-id"].as_str(),
+        Some(installation_id)
+    );
+    assert_eq!(client_metadata["session_id"].as_str(), Some(session_id));
+    assert_eq!(client_metadata["thread_id"].as_str(), Some(thread_id));
+    let Some(turn_metadata_str) = client_metadata["x-thinwedge-turn-metadata"].as_str() else {
+        panic!("missing x-thinwedge-turn-metadata client metadata");
+    };
+    let Ok(turn_metadata) = serde_json::from_str::<serde_json::Value>(turn_metadata_str) else {
+        panic!("invalid x-thinwedge-turn-metadata json");
+    };
+    assert_eq!(
+        turn_metadata["installation_id"].as_str(),
+        Some(installation_id)
+    );
+    assert_eq!(turn_metadata["session_id"].as_str(), Some(session_id));
+    assert_eq!(turn_metadata["thread_id"].as_str(), Some(thread_id));
+    assert_eq!(
+        client_metadata["turn_id"].as_str(),
+        turn_metadata["turn_id"].as_str()
+    );
+    assert_eq!(
+        client_metadata["x-thinwedge-window-id"].as_str(),
+        turn_metadata["window_id"].as_str()
+    );
+}
+
 /// Writes an `auth.json` into the provided `thinwedge_home` with the specified parameters.
 /// Returns the fake JWT string written to `tokens.id_token`.
 #[expect(clippy::unwrap_used)]
 fn write_auth_json(
     thinwedge_home: &TempDir,
-    thinwedge_api_key: Option<&str>,
+    openai_api_key: Option<&str>,
     chatgpt_plan_type: &str,
     access_token: &str,
     account_id: Option<&str>,
@@ -123,7 +184,7 @@ fn write_auth_json(
     let header = json!({ "alg": "none", "typ": "JWT" });
     let payload = json!({
         "email": "user@example.com",
-        "https://api.thinwedge.com/auth": {
+        "https://api.openai.com/auth": {
             "chatgpt_plan_type": chatgpt_plan_type,
             "chatgpt_account_id": account_id.unwrap_or("acc-123")
         }
@@ -145,7 +206,7 @@ fn write_auth_json(
     }
 
     let auth_json = json!({
-        "THINWEDGE_API_KEY": thinwedge_api_key,
+        "OPENAI_API_KEY": openai_api_key,
         "tokens": tokens,
         // RFC3339 datetime; value doesn't matter for these tests
         "last_refresh": chrono::Utc::now(),
@@ -360,9 +421,8 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     let thinwedge_home = Arc::new(TempDir::new().unwrap());
     let mut builder = test_thinwedge()
         .with_home(thinwedge_home.clone())
-        .with_config(|config| {
-            // Ensure user instructions are NOT delivered on resume.
-            config.user_instructions = Some("be nice".to_string());
+        .with_pre_build_hook(|home| {
+            std::fs::write(home.join("AGENTS.md"), "be nice").expect("write global instructions");
         });
     let test = builder
         .resume(&server, thinwedge_home, session_path.clone())
@@ -383,13 +443,14 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
     // 2) Submit new input; the request body must include the prior items, then initial context, then new user input.
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -443,7 +504,7 @@ async fn resume_includes_initial_messages_and_sends_prior_items() {
         .position(|(role, text)| {
             role == "user"
                 && text.contains("be nice")
-                && (text.starts_with("# AGENTS.md instructions for "))
+                && text.starts_with("# AGENTS.md instructions")
         })
         .expect("user instructions");
     let pos_environment = messages
@@ -484,6 +545,7 @@ async fn resume_replays_legacy_js_repl_image_rollout_shapes() {
             item: RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     id: ThreadId::default(),
+                    parent_thread_id: None,
                     timestamp: "2024-01-01T00:00:00Z".to_string(),
                     cwd: ".".into(),
                     originator: "test_originator".to_string(),
@@ -614,6 +676,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
             item: RolloutItem::SessionMeta(SessionMetaLine {
                 meta: SessionMeta {
                     id: ThreadId::default(),
+                    parent_thread_id: None,
                     timestamp: "2024-01-01T00:00:00Z".to_string(),
                     cwd: ".".into(),
                     originator: "test_originator".to_string(),
@@ -725,7 +788,7 @@ async fn resume_replays_image_tool_outputs_with_detail() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn includes_conversation_id_and_model_headers_in_request() {
+async fn includes_session_id_thread_id_and_model_headers_in_request() {
     skip_if_no_network!();
 
     // Mock server
@@ -743,17 +806,19 @@ async fn includes_conversation_id_and_model_headers_in_request() {
         .await
         .expect("create new conversation");
     let thinwedge = test.thinwedge.clone();
-    let session_id = test.session_configured.session_id;
+    let expected_session_id = test.session_configured.session_id;
+    let expected_thread_id = test.session_configured.thread_id;
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -762,7 +827,8 @@ async fn includes_conversation_id_and_model_headers_in_request() {
 
     let request = resp_mock.single_request();
     assert_eq!(request.path(), "/v1/responses");
-    let request_session_id = request.header("session_id").expect("session_id header");
+    let request_session_id = request.header("session-id").expect("session-id header");
+    let request_thread_id = request.header("thread-id").expect("thread-id header");
     let request_authorization = request
         .header("authorization")
         .expect("authorization header");
@@ -771,13 +837,22 @@ async fn includes_conversation_id_and_model_headers_in_request() {
     let installation_id =
         std::fs::read_to_string(test.thinwedge_home_path().join(INSTALLATION_ID_FILENAME))
             .expect("read installation id");
+    let session_id_string = expected_session_id.to_string();
+    let thread_id_string = expected_thread_id.to_string();
 
-    assert_eq!(request_session_id, session_id.to_string());
+    assert_eq!(request_session_id, session_id_string.as_str());
+    assert_eq!(request_thread_id, thread_id_string.as_str());
     assert_eq!(request_originator, originator().value);
     assert_eq!(request_authorization, "Bearer Test API Key");
     assert_eq!(
-        request_body["client_metadata"]["x-thinwedge-installation-id"].as_str(),
-        Some(installation_id.as_str())
+        request_body["prompt_cache_key"].as_str(),
+        Some(thread_id_string.as_str())
+    );
+    assert_thinwedge_client_metadata(
+        &request_body,
+        installation_id.as_str(),
+        session_id_string.as_str(),
+        thread_id_string.as_str(),
     );
 }
 
@@ -851,7 +926,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -859,16 +934,16 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
     let mut config = load_default_config_for_test(&thinwedge_home).await;
     config.model_provider_id = provider.name.clone();
     config.model_provider = provider.clone();
-    let effort = config.model_reasoning_effort;
+    let effort = config.model_reasoning_effort.clone();
     let summary = config.model_reasoning_summary;
     let model = thinwedge_core::test_support::get_model_offline(config.model.as_deref());
     config.model = Some(model.clone());
     let config = Arc::new(config);
     let model_info =
         thinwedge_core::test_support::construct_model_info_offline(model.as_str(), &config);
-    let conversation_id = ThreadId::new();
+    let thread_id = ThreadId::new();
     let session_telemetry = SessionTelemetry::new(
-        conversation_id,
+        thread_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -883,15 +958,16 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
         Some(AuthManager::from_auth_for_testing(
             ThinWedgeAuth::from_api_key("unused-api-key"),
         )),
-        conversation_id,
-        /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
+        thread_id,
         provider,
         SessionSource::Exec,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
+        /*attestation_provider*/ None,
     );
+    let responses_metadata = test_turn_responses_metadata(&client, thread_id);
     let mut client_session = client.new_session();
     let mut prompt = Prompt::default();
     prompt.input.push(ResponseItem::Message {
@@ -911,7 +987,7 @@ async fn send_provider_auth_request(server: &MockServer, auth: ModelProviderAuth
             effort,
             summary.unwrap_or(ReasoningSummary::Auto),
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -948,13 +1024,14 @@ async fn includes_base_instructions_override_in_request() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -986,8 +1063,7 @@ async fn chatgpt_auth_sends_correct_request() {
     .await;
 
     let mut model_provider =
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"]
-            .clone();
+        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
     model_provider.base_url = Some(format!("{}/api/thinwedge", server.uri()));
     model_provider.supports_websockets = false;
     let mut builder = test_thinwedge()
@@ -1000,17 +1076,19 @@ async fn chatgpt_auth_sends_correct_request() {
         .await
         .expect("create new conversation");
     let thinwedge = test.thinwedge.clone();
-    let thread_id = test.session_configured.session_id;
+    let expected_session_id = test.session_configured.session_id;
+    let expected_thread_id = test.session_configured.thread_id;
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1028,18 +1106,24 @@ async fn chatgpt_auth_sends_correct_request() {
         .expect("chatgpt-account-id header");
     let request_body = request.body_json();
 
-    let session_id = request.header("session_id").expect("session_id header");
+    let request_session_id = request.header("session-id").expect("session-id header");
+    let request_thread_id = request.header("thread-id").expect("thread-id header");
     let installation_id =
         std::fs::read_to_string(test.thinwedge_home_path().join(INSTALLATION_ID_FILENAME))
             .expect("read installation id");
-    assert_eq!(session_id, thread_id.to_string());
+    let session_id_string = expected_session_id.to_string();
+    let thread_id_string = expected_thread_id.to_string();
+    assert_eq!(request_session_id, session_id_string.as_str());
+    assert_eq!(request_thread_id, thread_id_string.as_str());
 
     assert_eq!(request_originator, originator().value);
     assert_eq!(request_authorization, "Bearer Access Token");
     assert_eq!(request_chatgpt_account_id, "account_id");
-    assert_eq!(
-        request_body["client_metadata"]["x-thinwedge-installation-id"].as_str(),
-        Some(installation_id.as_str())
+    assert_thinwedge_client_metadata(
+        &request_body,
+        installation_id.as_str(),
+        session_id_string.as_str(),
+        thread_id_string.as_str(),
     );
     assert!(request_body["stream"].as_bool().unwrap());
     assert_eq!(
@@ -1074,7 +1158,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
     let model_provider = ModelProviderInfo {
         base_url: Some(format!("{}/v1", server.uri())),
         supports_websockets: false,
-        ..built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"].clone()
+        ..built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone()
     };
 
     // Init session
@@ -1096,6 +1180,7 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         thinwedge_home.path(),
         AuthCredentialsStoreMode::File,
         /*chatgpt_base_url*/ None,
+        AuthKeyringBackendKind::default(),
     )
     .await
     {
@@ -1103,34 +1188,39 @@ async fn prefers_apikey_when_config_prefers_apikey_even_with_chatgpt_tokens() {
         Ok(None) => panic!("No ThinWedgeAuth found in thinwedge_home"),
         Err(e) => panic!("Failed to load ThinWedgeAuth: {e}"),
     };
+    let installation_id = resolve_installation_id(&config.thinwedge_home)
+        .await
+        .expect("resolve installation id");
     let thread_manager = ThreadManager::new(
         &config,
         auth_manager,
         SessionSource::Exec,
-        CollaborationModesConfig {
-            default_mode_request_user_input: config
-                .features
-                .enabled(Feature::DefaultModeRequestUserInput),
-        },
         Arc::new(thinwedge_exec_server::EnvironmentManager::default_for_tests()),
+        empty_extension_registry(),
+        Arc::new(thinwedge_core::test_support::EmptyUserInstructionsProvider),
         /*analytics_events_client*/ None,
+        thread_store_from_config(&config, /*state_db*/ None),
+        /*state_db*/ None,
+        installation_id,
+        /*attestation_provider*/ None,
     );
     let NewThread {
         thread: thinwedge, ..
     } = thread_manager
-        .start_thread(config)
+        .start_thread(config.clone())
         .await
         .expect("create new conversation");
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1151,8 +1241,8 @@ async fn includes_user_instructions_message_in_request() {
 
     let mut builder = test_thinwedge()
         .with_auth(ThinWedgeAuth::from_api_key("Test API Key"))
-        .with_config(|config| {
-            config.user_instructions = Some("be nice".to_string());
+        .with_pre_build_hook(|home| {
+            std::fs::write(home.join("AGENTS.md"), "be nice").expect("write global instructions");
         });
     let thinwedge = builder
         .build(&server)
@@ -1162,13 +1252,14 @@ async fn includes_user_instructions_message_in_request() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1198,7 +1289,7 @@ async fn includes_user_instructions_message_in_request() {
     assert!(
         user_context_texts
             .iter()
-            .any(|text| text.starts_with("# AGENTS.md instructions for ")),
+            .any(|text| text.starts_with("# AGENTS.md instructions")),
         "expected AGENTS text in contextual user message, got {user_context_texts:?}"
     );
     let ui_text = user_context_texts
@@ -1249,13 +1340,14 @@ async fn includes_apps_guidance_as_developer_message_for_chatgpt_auth() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1311,13 +1403,14 @@ async fn omits_apps_guidance_for_api_key_auth_even_when_feature_enabled() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1369,13 +1462,14 @@ async fn omits_apps_guidance_when_configured_off() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1410,13 +1504,14 @@ async fn omits_environment_context_when_configured_off() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1466,13 +1561,14 @@ async fn skills_append_to_developer_message() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1548,13 +1644,14 @@ async fn skills_use_aliases_in_developer_message_under_budget_pressure() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1608,13 +1705,14 @@ async fn includes_configured_effort_in_request() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1652,13 +1750,14 @@ async fn includes_no_effort_in_request() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1673,7 +1772,7 @@ async fn includes_no_effort_in_request() -> anyhow::Result<()> {
             .get("reasoning")
             .and_then(|t| t.get("effort"))
             .and_then(|v| v.as_str()),
-        Some("xhigh")
+        Some("medium")
     );
 
     Ok(())
@@ -1697,13 +1796,14 @@ async fn includes_default_reasoning_effort_in_request_when_defined_by_model_info
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1718,7 +1818,7 @@ async fn includes_default_reasoning_effort_in_request_when_defined_by_model_info
             .get("reasoning")
             .and_then(|t| t.get("effort"))
             .and_then(|v| v.as_str()),
-        Some("xhigh")
+        Some("medium")
     );
 
     Ok(())
@@ -1735,10 +1835,7 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
     )
     .await;
     let TestThinWedge {
-        thinwedge,
-        config,
-        session_configured,
-        ..
+        thinwedge, config, ..
     } = test_thinwedge()
         .with_model("gpt-5.4")
         .build(&server)
@@ -1754,28 +1851,26 @@ async fn user_turn_collaboration_mode_overrides_model_and_effort() -> anyhow::Re
     };
 
     thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
-            cwd: config.cwd.to_path_buf(),
-            approval_policy: config.permissions.approval_policy.value(),
-            approvals_reviewer: None,
-            sandbox_policy: config.legacy_sandbox_policy(),
-            permission_profile: None,
-            model: session_configured.model.clone(),
-            effort: Some(ReasoningEffort::Low),
-            summary: Some(
-                config
-                    .model_reasoning_summary
-                    .unwrap_or(ReasoningSummary::Auto),
-            ),
-            service_tier: None,
-            collaboration_mode: Some(collaboration_mode),
             final_output_json_schema: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(config.cwd.clone())),
+                approval_policy: Some(config.permissions.approval_policy.value()),
+                sandbox_policy: Some(config.legacy_sandbox_policy()),
+                summary: Some(
+                    config
+                        .model_reasoning_summary
+                        .unwrap_or(ReasoningSummary::Auto),
+                ),
+                collaboration_mode: Some(collaboration_mode),
+                ..Default::default()
+            },
         })
         .await?;
 
@@ -1813,13 +1908,14 @@ async fn configured_reasoning_summary_is_sent() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1836,6 +1932,60 @@ async fn configured_reasoning_summary_is_sent() -> anyhow::Result<()> {
             .and_then(|value| value.as_str()),
         Some("concise")
     );
+    pretty_assertions::assert_eq!(
+        request_body
+            .get("reasoning")
+            .and_then(|reasoning| reasoning.get("context")),
+        None
+    );
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn responses_lite_sets_all_turns_context_and_disables_parallel_tool_calls()
+-> anyhow::Result<()> {
+    skip_if_no_network!(Ok(()));
+    let server = MockServer::start().await;
+
+    let resp_mock = mount_sse_once(
+        &server,
+        sse(vec![ev_response_created("resp1"), ev_completed("resp1")]),
+    )
+    .await;
+
+    let TestThinWedge { thinwedge, .. } = test_thinwedge()
+        .with_model_info_override("gpt-5.4", |model_info| {
+            model_info.use_responses_lite = true;
+            model_info.supports_parallel_tool_calls = true;
+        })
+        .build(&server)
+        .await?;
+
+    thinwedge
+        .submit(Op::UserInput {
+            items: vec![UserInput::Text {
+                text: "hello".into(),
+                text_elements: Vec::new(),
+            }],
+            final_output_json_schema: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
+        })
+        .await?;
+
+    wait_for_event(&thinwedge, |ev| matches!(ev, EventMsg::TurnComplete(_))).await;
+
+    let request_body = resp_mock.single_request().body_json();
+    pretty_assertions::assert_eq!(
+        request_body
+            .get("reasoning")
+            .and_then(|reasoning| reasoning.get("context"))
+            .and_then(|value| value.as_str()),
+        Some("all_turns")
+    );
+    pretty_assertions::assert_eq!(request_body.get("parallel_tool_calls"), Some(&json!(false)));
 
     Ok(())
 }
@@ -1876,24 +2026,29 @@ async fn user_turn_explicit_reasoning_summary_overrides_model_catalog_default() 
         .await?;
 
     thinwedge
-        .submit(Op::UserTurn {
-            environments: None,
+        .submit(Op::UserInput {
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
-            cwd: config.cwd.to_path_buf(),
-            approval_policy: config.permissions.approval_policy.value(),
-            approvals_reviewer: None,
-            sandbox_policy: config.legacy_sandbox_policy(),
-            permission_profile: None,
-            model: session_configured.model,
-            effort: None,
-            summary: Some(ReasoningSummary::Concise),
-            service_tier: None,
-            collaboration_mode: None,
             final_output_json_schema: None,
-            personality: None,
+            responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: thinwedge_protocol::protocol::ThreadSettingsOverrides {
+                environments: Some(local_selections(config.cwd.clone())),
+                approval_policy: Some(config.permissions.approval_policy.value()),
+                sandbox_policy: Some(config.legacy_sandbox_policy()),
+                summary: Some(ReasoningSummary::Concise),
+                collaboration_mode: Some(thinwedge_protocol::config_types::CollaborationMode {
+                    mode: thinwedge_protocol::config_types::ModeKind::Default,
+                    settings: thinwedge_protocol::config_types::Settings {
+                        model: session_configured.model,
+                        reasoning_effort: None,
+                        developer_instructions: None,
+                    },
+                }),
+                ..Default::default()
+            },
         })
         .await
         .unwrap();
@@ -1932,13 +2087,14 @@ async fn reasoning_summary_is_omitted_when_disabled() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -1990,13 +2146,14 @@ async fn reasoning_summary_none_overrides_model_catalog_default() -> anyhow::Res
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -2031,13 +2188,14 @@ async fn includes_default_verbosity_in_request() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -2078,13 +2236,14 @@ async fn configured_verbosity_not_sent_for_models_without_support() -> anyhow::R
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -2124,13 +2283,14 @@ async fn configured_verbosity_is_sent() -> anyhow::Result<()> {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -2163,8 +2323,10 @@ async fn includes_developer_instructions_message_in_request() {
     .await;
     let mut builder = test_thinwedge()
         .with_auth(ThinWedgeAuth::from_api_key("Test API Key"))
+        .with_pre_build_hook(|home| {
+            std::fs::write(home.join("AGENTS.md"), "be nice").expect("write global instructions");
+        })
         .with_config(|config| {
-            config.user_instructions = Some("be nice".to_string());
             config.developer_instructions = Some("be useful".to_string());
         });
     let thinwedge = builder
@@ -2175,13 +2337,14 @@ async fn includes_developer_instructions_message_in_request() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -2226,7 +2389,7 @@ async fn includes_developer_instructions_message_in_request() {
     assert!(
         user_context_texts
             .iter()
-            .any(|text| text.starts_with("# AGENTS.md instructions for ")),
+            .any(|text| text.starts_with("# AGENTS.md instructions")),
         "expected AGENTS text in contextual user message, got {user_context_texts:?}"
     );
     let ui_text = user_context_texts
@@ -2259,7 +2422,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
 
     let provider = ModelProviderInfo {
         name: "azure".into(),
-        base_url: Some(format!("{}/thinwedge", server.uri())),
+        base_url: Some(format!("{}/openai", server.uri())),
         env_key: None,
         env_key_instructions: None,
         experimental_bearer_token: None,
@@ -2273,7 +2436,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
         stream_max_retries: Some(0),
         stream_idle_timeout_ms: Some(5_000),
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -2281,19 +2444,19 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     let mut config = load_default_config_for_test(&thinwedge_home).await;
     config.model_provider_id = provider.name.clone();
     config.model_provider = provider.clone();
-    let effort = config.model_reasoning_effort;
+    let effort = config.model_reasoning_effort.clone();
     let summary = config.model_reasoning_summary;
     let model = thinwedge_core::test_support::get_model_offline(config.model.as_deref());
     config.model = Some(model.clone());
     let config = Arc::new(config);
     let model_info =
         thinwedge_core::test_support::construct_model_info_offline(model.as_str(), &config);
-    let conversation_id = ThreadId::new();
+    let thread_id = ThreadId::new();
     let auth_manager = thinwedge_core::test_support::auth_manager_from_auth(
         ThinWedgeAuth::from_api_key("Test API Key"),
     );
     let session_telemetry = SessionTelemetry::new(
-        conversation_id,
+        thread_id,
         model.as_str(),
         model_info.slug.as_str(),
         /*account_id*/ None,
@@ -2307,15 +2470,16 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
 
     let client = ModelClient::new(
         /*auth_manager*/ None,
-        conversation_id,
-        /*installation_id*/ "11111111-1111-4111-8111-111111111111".to_string(),
+        thread_id,
         provider.clone(),
         SessionSource::Exec,
         config.model_verbosity,
         /*enable_request_compression*/ false,
         /*include_timing_metrics*/ false,
         /*beta_features_header*/ None,
+        /*attestation_provider*/ None,
     );
+    let responses_metadata = test_turn_responses_metadata(&client, thread_id);
     let mut client_session = client.new_session();
 
     let mut prompt = Prompt::default();
@@ -2389,7 +2553,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
             effort,
             summary.unwrap_or(ReasoningSummary::Auto),
             /*service_tier*/ None,
-            /*turn_metadata_header*/ None,
+            &responses_metadata,
             &thinwedge_rollout_trace::InferenceTraceContext::disabled(),
         )
         .await
@@ -2402,7 +2566,7 @@ async fn azure_responses_request_includes_store_and_reasoning_ids() {
     }
 
     let request = resp_mock.single_request();
-    assert_eq!(request.path(), "/thinwedge/responses");
+    assert_eq!(request.path(), "/openai/responses");
     let body = request.body_json();
 
     assert_eq!(body["store"], serde_json::Value::Bool(true));
@@ -2452,8 +2616,7 @@ async fn token_count_includes_rate_limits_snapshot() {
         .await;
 
     let mut provider =
-        built_in_model_providers(/* thinwedge_base_url */ /*thinwedge_base_url*/ None)["thinwedge"]
-            .clone();
+        built_in_model_providers(/* openai_base_url */ /*openai_base_url*/ None)["openai"].clone();
     provider.base_url = Some(format!("{}/v1", server.uri()));
     provider.supports_websockets = false;
 
@@ -2470,48 +2633,17 @@ async fn token_count_includes_rate_limits_snapshot() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
-
-    let first_token_event =
-        wait_for_event(&thinwedge, |msg| matches!(msg, EventMsg::TokenCount(_))).await;
-    let rate_limit_only = match first_token_event {
-        EventMsg::TokenCount(ev) => ev,
-        _ => unreachable!(),
-    };
-
-    let rate_limit_json = serde_json::to_value(&rate_limit_only).unwrap();
-    pretty_assertions::assert_eq!(
-        rate_limit_json,
-        json!({
-            "info": null,
-            "rate_limits": {
-                "limit_id": "thinwedge",
-                "limit_name": null,
-                "primary": {
-                    "used_percent": 12.5,
-                    "window_minutes": 10,
-                    "resets_at": 1704069000
-                },
-                "secondary": {
-                    "used_percent": 40.0,
-                    "window_minutes": 60,
-                    "resets_at": 1704074400
-                },
-                "credits": null,
-                "plan_type": null,
-                "rate_limit_reached_type": null
-            }
-        })
-    );
 
     let token_event = wait_for_event(
         &thinwedge,
@@ -2559,6 +2691,7 @@ async fn token_count_includes_rate_limits_snapshot() {
                     "resets_at": 1704074400
                 },
                 "credits": null,
+                "individual_limit": null,
                 "plan_type": null,
                 "rate_limit_reached_type": null
             }
@@ -2634,19 +2767,21 @@ async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
             "resets_at": null
         },
         "credits": null,
+        "individual_limit": null,
         "plan_type": null,
         "rate_limit_reached_type": null
     });
 
     let submission_id = thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .expect("submission should succeed while emitting usage limit error events");
@@ -2717,13 +2852,14 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "seed turn".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -2731,13 +2867,14 @@ async fn context_window_error_sets_total_tokens_to_model_window() -> anyhow::Res
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "trigger context window".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -2815,13 +2952,14 @@ async fn incomplete_response_emits_content_filter_error_message() -> anyhow::Res
         .await?;
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "trigger incomplete".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await?;
 
@@ -2866,9 +3004,9 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
             "text/event-stream",
         );
 
-    // Expect POST to /thinwedge/responses with api-version query param
+    // Expect POST to /openai/responses with api-version query param
     Mock::given(method("POST"))
-        .and(path("/thinwedge/responses"))
+        .and(path("/openai/responses"))
         .and(query_param("api-version", "2025-04-01-preview"))
         .and(header_regex("Custom-Header", "Value"))
         .and(header(
@@ -2886,7 +3024,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
 
     let provider = ModelProviderInfo {
         name: "custom".to_string(),
-        base_url: Some(format!("{}/thinwedge", server.uri())),
+        base_url: Some(format!("{}/openai", server.uri())),
         // Reuse the existing environment variable to avoid using unsafe code
         env_key: Some(EXISTING_ENV_VAR_WITH_NON_EMPTY_VALUE.to_string()),
         experimental_bearer_token: None,
@@ -2907,7 +3045,7 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -2925,13 +3063,14 @@ async fn azure_overrides_assign_properties_used_for_responses_url() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -2954,9 +3093,9 @@ async fn env_var_overrides_loaded_auth() {
             "text/event-stream",
         );
 
-    // Expect POST to /thinwedge/responses with api-version query param
+    // Expect POST to /openai/responses with api-version query param
     Mock::given(method("POST"))
-        .and(path("/thinwedge/responses"))
+        .and(path("/openai/responses"))
         .and(query_param("api-version", "2025-04-01-preview"))
         .and(header_regex("Custom-Header", "Value"))
         .and(header(
@@ -2974,7 +3113,7 @@ async fn env_var_overrides_loaded_auth() {
 
     let provider = ModelProviderInfo {
         name: "custom".to_string(),
-        base_url: Some(format!("{}/thinwedge", server.uri())),
+        base_url: Some(format!("{}/openai", server.uri())),
         // Reuse the existing environment variable to avoid using unsafe code
         env_key: Some(EXISTING_ENV_VAR_WITH_NON_EMPTY_VALUE.to_string()),
         query_params: Some(std::collections::HashMap::from([(
@@ -2995,7 +3134,7 @@ async fn env_var_overrides_loaded_auth() {
         stream_max_retries: None,
         stream_idle_timeout_ms: None,
         websocket_connect_timeout_ms: None,
-        requires_thinwedge_auth: false,
+        requires_openai_auth: false,
         supports_websockets: false,
     };
 
@@ -3013,13 +3152,14 @@ async fn env_var_overrides_loaded_auth() {
 
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "hello".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -3047,22 +3187,15 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     let server = MockServer::start().await;
 
     // Build a small SSE stream with deltas and a final assistant message.
-    // We emit the same body for all 3 turns; ids vary but are unused by assertions.
-    let sse_raw = r##"[
-        {"type":"response.output_item.added", "item":{
-            "type":"message", "role":"assistant",
-            "content":[{"type":"output_text","text":""}]
-        }},
-        {"type":"response.output_text.delta", "delta":"Hey "},
-        {"type":"response.output_text.delta", "delta":"there"},
-        {"type":"response.output_text.delta", "delta":"!\n"},
-        {"type":"response.output_item.done", "item":{
-            "type":"message", "role":"assistant",
-            "content":[{"type":"output_text","text":"Hey there!\n"}]
-        }},
-        {"type":"response.completed", "response": {"id": "__ID__"}}
-    ]"##;
-    let sse1 = core_test_support::load_sse_fixture_with_id_from_str(sse_raw, "resp1");
+    // We emit the same body for all 3 turns.
+    let sse1 = sse(vec![
+        ev_message_item_added("msg-1", ""),
+        ev_output_text_delta("Hey "),
+        ev_output_text_delta("there"),
+        ev_output_text_delta("!\n"),
+        ev_assistant_message("msg-1", "Hey there!\n"),
+        ev_completed("resp1"),
+    ]);
 
     let request_log = mount_sse_sequence(&server, vec![sse1.clone(), sse1.clone(), sse1]).await;
 
@@ -3076,13 +3209,14 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     // Turn 1: user sends U1; wait for completion.
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "U1".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -3091,13 +3225,14 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     // Turn 2: user sends U2; wait for completion.
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "U2".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();
@@ -3106,13 +3241,14 @@ async fn history_dedupes_streamed_and_final_messages_across_turns() {
     // Turn 3: user sends U3; wait for completion.
     thinwedge
         .submit(Op::UserInput {
-            environments: None,
             items: vec![UserInput::Text {
                 text: "U3".into(),
                 text_elements: Vec::new(),
             }],
             final_output_json_schema: None,
             responsesapi_client_metadata: None,
+            additional_context: Default::default(),
+            thread_settings: Default::default(),
         })
         .await
         .unwrap();

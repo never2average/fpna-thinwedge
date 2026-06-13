@@ -17,14 +17,17 @@ anyhow = { workspace = true }
 thinwedge-analytics = { workspace = true }
 thinwedge-app-server-protocol = { workspace = true }
 thinwedge-config = { workspace = true }
+thinwedge-context-fragments = { workspace = true }
 thinwedge-exec-server = { workspace = true }
 thinwedge-login = { workspace = true }
 thinwedge-model-provider = { workspace = true }
 thinwedge-otel = { workspace = true }
 thinwedge-protocol = { workspace = true }
+thinwedge-shell-command = { workspace = true }
 thinwedge-skills = { workspace = true }
 thinwedge-utils-absolute-path = { workspace = true }
 thinwedge-utils-output-truncation = { workspace = true }
+thinwedge-utils-path-uri = { workspace = true }
 thinwedge-utils-plugins = { workspace = true }
 dirs = { workspace = true }
 dunce = { workspace = true }

@@ -1,37 +1,50 @@
 use thinwedge_core_skills::AvailableSkills;
-use thinwedge_core_skills::render_available_skills_body_with_role_guidance;
+use thinwedge_core_skills::render_available_skills_body;
 use thinwedge_protocol::protocol::SKILLS_INSTRUCTIONS_CLOSE_TAG;
 use thinwedge_protocol::protocol::SKILLS_INSTRUCTIONS_OPEN_TAG;
 
 use super::ContextualUserFragment;
 
+/// Model-context fragment describing the skills available to ThinWedge.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct AvailableSkillsInstructions {
+pub struct AvailableSkillsInstructions {
     skill_root_lines: Vec<String>,
-    role_guidance_lines: Vec<String>,
     skill_lines: Vec<String>,
+}
+
+impl AvailableSkillsInstructions {
+    /// Creates a skills context fragment from pre-rendered catalog lines.
+    pub fn from_skill_lines(skill_lines: Vec<String>) -> Self {
+        Self {
+            skill_root_lines: Vec::new(),
+            skill_lines,
+        }
+    }
 }
 
 impl From<AvailableSkills> for AvailableSkillsInstructions {
     fn from(available_skills: AvailableSkills) -> Self {
         Self {
             skill_root_lines: available_skills.skill_root_lines,
-            role_guidance_lines: available_skills.role_guidance_lines,
             skill_lines: available_skills.skill_lines,
         }
     }
 }
 
 impl ContextualUserFragment for AvailableSkillsInstructions {
-    const ROLE: &'static str = "developer";
-    const START_MARKER: &'static str = SKILLS_INSTRUCTIONS_OPEN_TAG;
-    const END_MARKER: &'static str = SKILLS_INSTRUCTIONS_CLOSE_TAG;
+    fn role(&self) -> &'static str {
+        "developer"
+    }
+
+    fn markers(&self) -> (&'static str, &'static str) {
+        Self::type_markers()
+    }
+
+    fn type_markers() -> (&'static str, &'static str) {
+        (SKILLS_INSTRUCTIONS_OPEN_TAG, SKILLS_INSTRUCTIONS_CLOSE_TAG)
+    }
 
     fn body(&self) -> String {
-        render_available_skills_body_with_role_guidance(
-            &self.skill_root_lines,
-            &self.role_guidance_lines,
-            &self.skill_lines,
-        )
+        render_available_skills_body(&self.skill_root_lines, &self.skill_lines)
     }
 }

@@ -8,7 +8,7 @@ pub fn write_mock_responses_config_toml(
     server_uri: &str,
     feature_flags: &BTreeMap<Feature, bool>,
     auto_compact_limit: i64,
-    requires_thinwedge_auth: Option<bool>,
+    requires_openai_auth: Option<bool>,
     model_provider_id: &str,
     compact_prompt: &str,
 ) -> std::io::Result<()> {
@@ -30,12 +30,12 @@ pub fn write_mock_responses_config_toml(
         .collect::<Vec<_>>()
         .join("\n");
     // Phase 2: build provider-specific config bits.
-    let requires_line = match requires_thinwedge_auth {
-        Some(true) => "requires_thinwedge_auth = true\n".to_string(),
+    let requires_line = match requires_openai_auth {
+        Some(true) => "requires_openai_auth = true\n".to_string(),
         Some(false) | None => String::new(),
     };
-    let provider_name = if matches!(requires_thinwedge_auth, Some(true)) {
-        "ThinWedge"
+    let provider_name = if matches!(requires_openai_auth, Some(true)) {
+        "OpenAI"
     } else {
         "Mock provider for test"
     };
@@ -51,8 +51,8 @@ supports_websockets = false
 {requires_line}
 "#
     );
-    let thinwedge_base_url_line = if model_provider_id == "thinwedge" {
-        format!("thinwedge_base_url = \"{server_uri}/v1\"\n")
+    let openai_base_url_line = if model_provider_id == "openai" {
+        format!("openai_base_url = \"{server_uri}/v1\"\n")
     } else {
         String::new()
     };
@@ -69,7 +69,7 @@ compact_prompt = "{compact_prompt}"
 model_auto_compact_token_limit = {auto_compact_limit}
 
 model_provider = "{model_provider_id}"
-{thinwedge_base_url_line}
+{openai_base_url_line}
 
 [features]
 {feature_entries}

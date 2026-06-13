@@ -3,8 +3,10 @@ use std::io;
 use std::path::Path;
 use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_protocol::config_types::Personality;
+use thinwedge_rollout::state_db::StateDbHandle;
 use thinwedge_thread_store::ListThreadsParams;
 use thinwedge_thread_store::LocalThreadStore;
+use thinwedge_thread_store::LocalThreadStoreConfig;
 use thinwedge_thread_store::ThreadSortKey;
 use thinwedge_thread_store::ThreadStore;
 use tokio::fs::OpenOptions;
@@ -23,26 +25,24 @@ pub enum PersonalityMigrationStatus {
 pub async fn maybe_migrate_personality(
     thinwedge_home: &Path,
     config_toml: &ConfigToml,
+    state_db: Option<StateDbHandle>,
 ) -> io::Result<PersonalityMigrationStatus> {
     let marker_path = thinwedge_home.join(PERSONALITY_MIGRATION_FILENAME);
     if tokio::fs::try_exists(&marker_path).await? {
         return Ok(PersonalityMigrationStatus::SkippedMarker);
     }
 
-    let config_profile = config_toml
-        .get_config_profile(/*override_profile*/ None)
-        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?;
-    if config_toml.personality.is_some() || config_profile.personality.is_some() {
+    if config_toml.personality.is_some() {
         create_marker(&marker_path).await?;
         return Ok(PersonalityMigrationStatus::SkippedExplicitPersonality);
     }
 
-    let model_provider_id = config_profile
+    let model_provider_id = config_toml
         .model_provider
-        .or_else(|| config_toml.model_provider.clone())
-        .unwrap_or_else(|| "thinwedge".to_string());
+        .clone()
+        .unwrap_or_else(|| "openai".to_string());
 
-    if !has_recorded_sessions(thinwedge_home, model_provider_id.as_str()).await? {
+    if !has_recorded_sessions(thinwedge_home, model_provider_id.as_str(), state_db).await? {
         create_marker(&marker_path).await?;
         return Ok(PersonalityMigrationStatus::SkippedNoSessions);
     }
@@ -59,14 +59,19 @@ pub async fn maybe_migrate_personality(
     Ok(PersonalityMigrationStatus::Applied)
 }
 
-async fn has_recorded_sessions(thinwedge_home: &Path, default_provider: &str) -> io::Result<bool> {
-    let store = LocalThreadStore::new(thinwedge_rollout::RolloutConfig {
-        thinwedge_home: thinwedge_home.to_path_buf(),
-        sqlite_home: thinwedge_home.to_path_buf(),
-        cwd: thinwedge_home.to_path_buf(),
-        model_provider_id: default_provider.to_string(),
-        generate_memories: false,
-    });
+async fn has_recorded_sessions(
+    thinwedge_home: &Path,
+    default_provider: &str,
+    state_db: Option<StateDbHandle>,
+) -> io::Result<bool> {
+    let store = LocalThreadStore::new(
+        LocalThreadStoreConfig {
+            thinwedge_home: thinwedge_home.to_path_buf(),
+            sqlite_home: thinwedge_home.to_path_buf(),
+            default_model_provider_id: default_provider.to_string(),
+        },
+        state_db,
+    );
     if has_threads(&store, /*archived*/ false).await? {
         return Ok(true);
     }

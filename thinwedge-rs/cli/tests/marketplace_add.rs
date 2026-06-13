@@ -1,10 +1,12 @@
 use anyhow::Result;
 use predicates::str::contains;
 use pretty_assertions::assert_eq;
+use serde_json::json;
 use std::path::Path;
 use tempfile::TempDir;
 use thinwedge_config::CONFIG_TOML_FILE;
 use thinwedge_core_plugins::installed_marketplaces::marketplace_install_root;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 
 fn thinwedge_command(thinwedge_home: &Path) -> Result<assert_cmd::Command> {
     let mut cmd = assert_cmd::Command::new(thinwedge_utils_cargo_bin::cargo_bin("thinwedge")?);
@@ -65,6 +67,41 @@ async fn marketplace_add_local_directory_source() -> Result<()> {
     assert_eq!(
         config["marketplaces"]["debug"]["source"].as_str(),
         Some(expected_source.as_str())
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn marketplace_add_json_prints_add_outcome() -> Result<()> {
+    let thinwedge_home = TempDir::new()?;
+    let source = TempDir::new()?;
+    write_marketplace_source(source.path(), "local ref")?;
+    let source_parent = source.path().parent().unwrap();
+    let source_arg = format!("./{}", source.path().file_name().unwrap().to_string_lossy());
+
+    let assert = thinwedge_command(thinwedge_home.path())?
+        .current_dir(source_parent)
+        .args([
+            "plugin",
+            "marketplace",
+            "add",
+            source_arg.as_str(),
+            "--json",
+        ])
+        .assert()
+        .success();
+    let stdout = assert.get_output().stdout.as_slice();
+    let actual: serde_json::Value = serde_json::from_slice(stdout)?;
+    let expected_installed_root = AbsolutePathBuf::try_from(source.path().canonicalize()?)?;
+
+    assert_eq!(
+        actual,
+        json!({
+            "marketplaceName": "debug",
+            "installedRoot": expected_installed_root.as_path().display().to_string(),
+            "alreadyAdded": false,
+        })
     );
 
     Ok(())

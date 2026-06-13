@@ -8,8 +8,8 @@ use http::header::ETAG;
 use std::sync::Arc;
 use thinwedge_client::HttpTransport;
 use thinwedge_client::RequestTelemetry;
-use thinwedge_protocol::thinwedge_models::ModelInfo;
-use thinwedge_protocol::thinwedge_models::ModelsResponse;
+use thinwedge_protocol::openai_models::ModelInfo;
+use thinwedge_protocol::openai_models::ModelsResponse;
 
 pub struct ModelsClient<T: HttpTransport> {
     session: EndpointSession<T>,
@@ -78,7 +78,6 @@ mod tests {
     use super::*;
     use crate::auth::AuthProvider;
     use crate::provider::RetryConfig;
-    use async_trait::async_trait;
     use http::HeaderMap;
     use http::StatusCode;
     use pretty_assertions::assert_eq;
@@ -108,7 +107,6 @@ mod tests {
         }
     }
 
-    #[async_trait]
     impl HttpTransport for CapturingTransport {
         async fn execute(&self, req: Request) -> Result<Response, TransportError> {
             *self.last_request.lock().unwrap() = Some(req);

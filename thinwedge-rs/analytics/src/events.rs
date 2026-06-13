@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use crate::facts::AcceptedLineFingerprint;
 use crate::facts::AppInvocation;
 use crate::facts::CompactionImplementation;
 use crate::facts::CompactionPhase;
@@ -7,19 +8,23 @@ use crate::facts::CompactionReason;
 use crate::facts::CompactionStatus;
 use crate::facts::CompactionStrategy;
 use crate::facts::CompactionTrigger;
+use crate::facts::GoalEventKind;
 use crate::facts::HookRunFact;
 use crate::facts::InvocationType;
 use crate::facts::PluginState;
 use crate::facts::SubAgentThreadStartedInput;
 use crate::facts::ThinWedgeCompactionEvent;
+use crate::facts::ThinWedgeErrKind;
+use crate::facts::ThinWedgeGoalEvent;
 use crate::facts::ThreadInitializationMode;
 use crate::facts::TrackEventsContext;
 use crate::facts::TurnStatus;
 use crate::facts::TurnSteerRejectionReason;
 use crate::facts::TurnSteerResult;
 use crate::facts::TurnSubmissionType;
-use crate::now_unix_seconds;
+use crate::now_unix_millis;
 use serde::Serialize;
+use thinwedge_app_server_protocol::CommandExecutionSource;
 use thinwedge_app_server_protocol::ThinWedgeErrorInfo;
 use thinwedge_login::default_client::originator;
 use thinwedge_plugin::PluginTelemetryMetadata;
@@ -34,6 +39,7 @@ use thinwedge_protocol::protocol::HookEventName;
 use thinwedge_protocol::protocol::HookRunStatus;
 use thinwedge_protocol::protocol::HookSource;
 use thinwedge_protocol::protocol::SubAgentSource;
+use thinwedge_protocol::protocol::ThreadSource;
 use thinwedge_protocol::protocol::TokenUsage;
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -59,13 +65,50 @@ pub(crate) enum TrackEventRequest {
     AppUsed(ThinWedgeAppUsedEventRequest),
     HookRun(ThinWedgeHookRunEventRequest),
     Compaction(Box<ThinWedgeCompactionEventRequest>),
+    Goal(Box<ThinWedgeGoalEventRequest>),
     TurnEvent(Box<ThinWedgeTurnEventRequest>),
     TurnSteer(ThinWedgeTurnSteerEventRequest),
+    CommandExecution(ThinWedgeCommandExecutionEventRequest),
+    FileChange(ThinWedgeFileChangeEventRequest),
+    McpToolCall(ThinWedgeMcpToolCallEventRequest),
+    DynamicToolCall(ThinWedgeDynamicToolCallEventRequest),
+    CollabAgentToolCall(ThinWedgeCollabAgentToolCallEventRequest),
+    WebSearch(ThinWedgeWebSearchEventRequest),
+    ImageGeneration(ThinWedgeImageGenerationEventRequest),
+    AcceptedLineFingerprints(Box<ThinWedgeAcceptedLineFingerprintsEventRequest>),
+    #[allow(dead_code)]
+    ReviewEvent(ThinWedgeReviewEventRequest),
     PluginUsed(ThinWedgePluginUsedEventRequest),
     PluginInstalled(ThinWedgePluginEventRequest),
     PluginUninstalled(ThinWedgePluginEventRequest),
     PluginEnabled(ThinWedgePluginEventRequest),
     PluginDisabled(ThinWedgePluginEventRequest),
+}
+
+impl TrackEventRequest {
+    pub(crate) fn should_send_in_isolated_request(&self) -> bool {
+        matches!(self, Self::AcceptedLineFingerprints(_))
+    }
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeAcceptedLineFingerprintsEventParams {
+    pub(crate) event_type: &'static str,
+    pub(crate) turn_id: String,
+    pub(crate) thread_id: String,
+    pub(crate) product_surface: Option<String>,
+    pub(crate) model_slug: Option<String>,
+    pub(crate) completed_at: u64,
+    pub(crate) repo_hash: Option<String>,
+    pub(crate) accepted_added_lines: u64,
+    pub(crate) accepted_deleted_lines: u64,
+    pub(crate) line_fingerprints: Vec<AcceptedLineFingerprint>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeAcceptedLineFingerprintsEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeAcceptedLineFingerprintsEventParams,
 }
 
 #[derive(Serialize)]
@@ -80,8 +123,10 @@ pub(crate) struct SkillInvocationEventRequest {
 pub(crate) struct SkillInvocationEventParams {
     pub(crate) product_client_id: Option<String>,
     pub(crate) skill_scope: Option<String>,
+    pub(crate) plugin_id: Option<String>,
     pub(crate) repo_url: Option<String>,
     pub(crate) thread_id: Option<String>,
+    pub(crate) turn_id: Option<String>,
     pub(crate) invoke_type: Option<InvocationType>,
     pub(crate) model_slug: Option<String>,
 }
@@ -106,14 +151,16 @@ pub(crate) struct ThinWedgeRuntimeMetadata {
 #[derive(Serialize)]
 pub(crate) struct ThreadInitializedEventParams {
     pub(crate) thread_id: String,
+    pub(crate) session_id: String,
     pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
     pub(crate) runtime: ThinWedgeRuntimeMetadata,
     pub(crate) model: String,
     pub(crate) ephemeral: bool,
-    pub(crate) thread_source: Option<&'static str>,
+    pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) initialization_mode: ThreadInitializationMode,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_thread_id: Option<String>,
+    pub(crate) forked_from_thread_id: Option<String>,
     pub(crate) created_at: u64,
 }
 
@@ -219,6 +266,7 @@ pub struct GuardianReviewEventParams {
     pub decision: GuardianReviewDecision,
     pub terminal_status: GuardianReviewTerminalStatus,
     pub failure_reason: Option<GuardianReviewFailureReason>,
+    pub attempt_count: i64,
     pub risk_level: Option<GuardianRiskLevel>,
     pub user_authorization: Option<GuardianUserAuthorization>,
     pub outcome: Option<GuardianAssessmentOutcome>,
@@ -226,6 +274,11 @@ pub struct GuardianReviewEventParams {
     pub guardian_session_kind: Option<GuardianReviewSessionKind>,
     pub guardian_model: Option<String>,
     pub guardian_reasoning_effort: Option<String>,
+    pub guardian_default_review_model_id: Option<String>,
+    pub guardian_catalog_contains_auto_review: Option<bool>,
+    pub guardian_review_model_overridden: Option<bool>,
+    pub guardian_review_model_override: Option<String>,
+    pub guardian_model_provider_id: Option<String>,
     pub had_prior_review_context: Option<bool>,
     pub review_timeout_ms: u64,
     pub tool_call_count: Option<u64>,
@@ -248,7 +301,7 @@ pub struct GuardianReviewTrackContext {
     approval_request_source: GuardianApprovalRequestSource,
     reviewed_action: GuardianReviewedAction,
     review_timeout_ms: u64,
-    started_at: u64,
+    pub started_at_ms: u64,
     started_instant: Instant,
 }
 
@@ -270,7 +323,7 @@ impl GuardianReviewTrackContext {
             approval_request_source,
             reviewed_action,
             review_timeout_ms,
-            started_at: now_unix_seconds(),
+            started_at_ms: now_unix_millis(),
             started_instant: Instant::now(),
         }
     }
@@ -278,6 +331,7 @@ impl GuardianReviewTrackContext {
     pub(crate) fn event_params(
         &self,
         result: GuardianReviewAnalyticsResult,
+        completed_at_ms: u64,
     ) -> GuardianReviewEventParams {
         GuardianReviewEventParams {
             thread_id: self.thread_id.clone(),
@@ -290,6 +344,7 @@ impl GuardianReviewTrackContext {
             decision: result.decision,
             terminal_status: result.terminal_status,
             failure_reason: result.failure_reason,
+            attempt_count: result.attempt_count,
             risk_level: result.risk_level,
             user_authorization: result.user_authorization,
             outcome: result.outcome,
@@ -297,14 +352,19 @@ impl GuardianReviewTrackContext {
             guardian_session_kind: result.guardian_session_kind,
             guardian_model: result.guardian_model,
             guardian_reasoning_effort: result.guardian_reasoning_effort,
+            guardian_default_review_model_id: result.guardian_default_review_model_id,
+            guardian_catalog_contains_auto_review: result.guardian_catalog_contains_auto_review,
+            guardian_review_model_overridden: result.guardian_review_model_overridden,
+            guardian_review_model_override: result.guardian_review_model_override,
+            guardian_model_provider_id: result.guardian_model_provider_id,
             had_prior_review_context: result.had_prior_review_context,
             review_timeout_ms: self.review_timeout_ms,
             // TODO(rhan-oai): plumb nested Guardian review session tool-call counts.
             tool_call_count: None,
             time_to_first_token_ms: result.time_to_first_token_ms,
             completion_latency_ms: Some(self.started_instant.elapsed().as_millis() as u64),
-            started_at: self.started_at,
-            completed_at: Some(now_unix_seconds()),
+            started_at: self.started_at_ms / 1_000,
+            completed_at: Some(completed_at_ms / 1_000),
             input_tokens: result.token_usage.as_ref().map(|usage| usage.input_tokens),
             cached_input_tokens: result
                 .token_usage
@@ -325,6 +385,7 @@ pub struct GuardianReviewAnalyticsResult {
     pub decision: GuardianReviewDecision,
     pub terminal_status: GuardianReviewTerminalStatus,
     pub failure_reason: Option<GuardianReviewFailureReason>,
+    pub attempt_count: i64,
     pub risk_level: Option<GuardianRiskLevel>,
     pub user_authorization: Option<GuardianUserAuthorization>,
     pub outcome: Option<GuardianAssessmentOutcome>,
@@ -332,6 +393,11 @@ pub struct GuardianReviewAnalyticsResult {
     pub guardian_session_kind: Option<GuardianReviewSessionKind>,
     pub guardian_model: Option<String>,
     pub guardian_reasoning_effort: Option<String>,
+    pub guardian_default_review_model_id: Option<String>,
+    pub guardian_catalog_contains_auto_review: Option<bool>,
+    pub guardian_review_model_overridden: Option<bool>,
+    pub guardian_review_model_override: Option<String>,
+    pub guardian_model_provider_id: Option<String>,
     pub had_prior_review_context: Option<bool>,
     pub reviewed_action_truncated: bool,
     pub token_usage: Option<TokenUsage>,
@@ -344,6 +410,7 @@ impl GuardianReviewAnalyticsResult {
             decision: GuardianReviewDecision::Denied,
             terminal_status: GuardianReviewTerminalStatus::FailedClosed,
             failure_reason: None,
+            attempt_count: 1,
             risk_level: None,
             user_authorization: None,
             outcome: None,
@@ -351,6 +418,11 @@ impl GuardianReviewAnalyticsResult {
             guardian_session_kind: None,
             guardian_model: None,
             guardian_reasoning_effort: None,
+            guardian_default_review_model_id: None,
+            guardian_catalog_contains_auto_review: None,
+            guardian_review_model_overridden: None,
+            guardian_review_model_override: None,
+            guardian_model_provider_id: None,
             had_prior_review_context: None,
             reviewed_action_truncated: false,
             token_usage: None,
@@ -358,30 +430,316 @@ impl GuardianReviewAnalyticsResult {
         }
     }
 
-    pub fn from_session(
-        guardian_thread_id: String,
-        guardian_session_kind: GuardianReviewSessionKind,
-        guardian_model: String,
-        guardian_reasoning_effort: Option<String>,
-        had_prior_review_context: bool,
-    ) -> Self {
+    pub fn from_session(params: GuardianReviewSessionAnalyticsParams) -> Self {
         Self {
-            guardian_thread_id: Some(guardian_thread_id),
-            guardian_session_kind: Some(guardian_session_kind),
-            guardian_model: Some(guardian_model),
-            guardian_reasoning_effort,
-            had_prior_review_context: Some(had_prior_review_context),
+            guardian_thread_id: Some(params.guardian_thread_id),
+            guardian_session_kind: Some(params.guardian_session_kind),
+            guardian_model: Some(params.guardian_model),
+            guardian_reasoning_effort: params.guardian_reasoning_effort,
+            guardian_default_review_model_id: Some(params.guardian_default_review_model_id),
+            guardian_catalog_contains_auto_review: Some(
+                params.guardian_catalog_contains_auto_review,
+            ),
+            guardian_review_model_overridden: Some(params.guardian_review_model_overridden),
+            guardian_review_model_override: params.guardian_review_model_override,
+            guardian_model_provider_id: Some(params.guardian_model_provider_id),
+            had_prior_review_context: Some(params.had_prior_review_context),
             ..Self::without_session()
         }
     }
 }
 
+pub struct GuardianReviewSessionAnalyticsParams {
+    pub guardian_thread_id: String,
+    pub guardian_session_kind: GuardianReviewSessionKind,
+    pub guardian_model: String,
+    pub guardian_reasoning_effort: Option<String>,
+    pub guardian_default_review_model_id: String,
+    pub guardian_catalog_contains_auto_review: bool,
+    pub guardian_review_model_overridden: bool,
+    pub guardian_review_model_override: Option<String>,
+    pub guardian_model_provider_id: String,
+    pub had_prior_review_context: bool,
+}
+
 #[derive(Serialize)]
 pub(crate) struct GuardianReviewEventPayload {
+    pub(crate) session_id: String,
     pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
     pub(crate) runtime: ThinWedgeRuntimeMetadata,
     #[serde(flatten)]
     pub(crate) guardian_review: GuardianReviewEventParams,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum FinalApprovalOutcome {
+    Unknown,
+    NotNeeded,
+    ConfigAllowed,
+    PolicyForbidden,
+    GuardianApproved,
+    GuardianDenied,
+    GuardianAborted,
+    UserApproved,
+    UserApprovedForSession,
+    UserDenied,
+    UserAborted,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ToolItemTerminalStatus {
+    Completed,
+    Failed,
+    Rejected,
+    Interrupted,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ToolItemFailureKind {
+    ToolError,
+    ApprovalDenied,
+    ApprovalAborted,
+    SandboxDenied,
+    PolicyForbidden,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeToolItemEventBase {
+    pub(crate) thread_id: String,
+    pub(crate) turn_id: String,
+    /// App-server ThreadItem.id. For tool-originated items this generally
+    /// corresponds to the originating core call_id.
+    pub(crate) item_id: String,
+    pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
+    pub(crate) runtime: ThinWedgeRuntimeMetadata,
+    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) subagent_source: Option<String>,
+    pub(crate) parent_thread_id: Option<String>,
+    pub(crate) tool_name: String,
+    pub(crate) started_at_ms: u64,
+    pub(crate) completed_at_ms: u64,
+    // Observed item lifecycle duration. This may undercount end-to-end execution
+    // for tools where app-server only sees part of the upstream flow.
+    pub(crate) duration_ms: Option<u64>,
+    pub(crate) execution_duration_ms: Option<u64>,
+    pub(crate) review_count: u64,
+    pub(crate) guardian_review_count: u64,
+    pub(crate) user_review_count: u64,
+    pub(crate) final_approval_outcome: FinalApprovalOutcome,
+    pub(crate) terminal_status: ToolItemTerminalStatus,
+    pub(crate) failure_kind: Option<ToolItemFailureKind>,
+    pub(crate) requested_additional_permissions: bool,
+    pub(crate) requested_network_access: bool,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ReviewSubjectKind {
+    CommandExecution,
+    FileChange,
+    McpToolCall,
+    Permissions,
+    NetworkAccess,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum Reviewer {
+    Guardian,
+    User,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ReviewTrigger {
+    Initial,
+    SandboxDenial,
+    NetworkPolicyDenial,
+    ExecveIntercept,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ReviewStatus {
+    Approved,
+    Denied,
+    Aborted,
+    TimedOut,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum ReviewResolution {
+    None,
+    SessionApproval,
+    ExecPolicyAmendment,
+    NetworkPolicyAmendment,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeReviewEventParams {
+    pub(crate) thread_id: String,
+    pub(crate) turn_id: String,
+    pub(crate) item_id: Option<String>,
+    pub(crate) review_id: String,
+    pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
+    pub(crate) runtime: ThinWedgeRuntimeMetadata,
+    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) subagent_source: Option<String>,
+    pub(crate) parent_thread_id: Option<String>,
+    pub(crate) subject_kind: ReviewSubjectKind,
+    pub(crate) subject_name: String,
+    pub(crate) reviewer: Reviewer,
+    pub(crate) trigger: ReviewTrigger,
+    pub(crate) status: ReviewStatus,
+    pub(crate) resolution: ReviewResolution,
+    pub(crate) started_at_ms: u64,
+    pub(crate) completed_at_ms: u64,
+    pub(crate) duration_ms: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeReviewEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeReviewEventParams,
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum WebSearchActionKind {
+    Search,
+    OpenPage,
+    FindInPage,
+    Other,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeCommandExecutionEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) command_execution_source: CommandExecutionSource,
+    pub(crate) exit_code: Option<i32>,
+    pub(crate) command_total_action_count: u64,
+    pub(crate) command_read_action_count: u64,
+    pub(crate) command_list_files_action_count: u64,
+    pub(crate) command_search_action_count: u64,
+    pub(crate) command_unknown_action_count: u64,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeCommandExecutionEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeCommandExecutionEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeFileChangeEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) file_change_count: u64,
+    pub(crate) file_add_count: u64,
+    pub(crate) file_update_count: u64,
+    pub(crate) file_delete_count: u64,
+    pub(crate) file_move_count: u64,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeFileChangeEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeFileChangeEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeMcpToolCallEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) mcp_server_name: String,
+    pub(crate) mcp_tool_name: String,
+    pub(crate) mcp_error_present: bool,
+    pub(crate) plugin_id: Option<String>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeMcpToolCallEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeMcpToolCallEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeDynamicToolCallEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) dynamic_tool_name: String,
+    pub(crate) success: Option<bool>,
+    pub(crate) output_content_item_count: Option<u64>,
+    pub(crate) output_text_item_count: Option<u64>,
+    pub(crate) output_image_item_count: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeDynamicToolCallEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeDynamicToolCallEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeCollabAgentToolCallEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) sender_thread_id: String,
+    pub(crate) receiver_thread_count: u64,
+    pub(crate) receiver_thread_ids: Option<Vec<String>>,
+    pub(crate) requested_model: Option<String>,
+    pub(crate) requested_reasoning_effort: Option<String>,
+    pub(crate) agent_state_count: Option<u64>,
+    pub(crate) completed_agent_count: Option<u64>,
+    pub(crate) failed_agent_count: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeCollabAgentToolCallEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeCollabAgentToolCallEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeWebSearchEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) web_search_action: Option<WebSearchActionKind>,
+    pub(crate) query_present: bool,
+    pub(crate) query_count: Option<u64>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeWebSearchEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeWebSearchEventParams,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeImageGenerationEventParams {
+    #[serde(flatten)]
+    pub(crate) base: ThinWedgeToolItemEventBase,
+    pub(crate) revised_prompt_present: bool,
+    pub(crate) saved_path_present: bool,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeImageGenerationEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeImageGenerationEventParams,
 }
 
 #[derive(Serialize)]
@@ -426,10 +784,11 @@ pub(crate) struct ThinWedgeHookRunEventRequest {
 #[derive(Serialize)]
 pub(crate) struct ThinWedgeCompactionEventParams {
     pub(crate) thread_id: String,
+    pub(crate) session_id: String,
     pub(crate) turn_id: String,
     pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
     pub(crate) runtime: ThinWedgeRuntimeMetadata,
-    pub(crate) thread_source: Option<&'static str>,
+    pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_thread_id: Option<String>,
     pub(crate) trigger: CompactionTrigger,
@@ -438,9 +797,13 @@ pub(crate) struct ThinWedgeCompactionEventParams {
     pub(crate) phase: CompactionPhase,
     pub(crate) strategy: CompactionStrategy,
     pub(crate) status: CompactionStatus,
-    pub(crate) error: Option<String>,
+    pub(crate) thinwedge_error_kind: Option<ThinWedgeErrKind>,
+    pub(crate) thinwedge_error_http_status_code: Option<u16>,
     pub(crate) active_context_tokens_before: i64,
     pub(crate) active_context_tokens_after: i64,
+    pub(crate) retained_image_count: Option<usize>,
+    pub(crate) compaction_summary_tokens: Option<i64>,
+    pub(crate) cached_input_tokens: Option<i64>,
     pub(crate) started_at: u64,
     pub(crate) completed_at: u64,
     pub(crate) duration_ms: Option<u64>,
@@ -453,8 +816,33 @@ pub(crate) struct ThinWedgeCompactionEventRequest {
 }
 
 #[derive(Serialize)]
+pub(crate) struct ThinWedgeGoalEventParams {
+    pub(crate) thread_id: String,
+    pub(crate) session_id: String,
+    pub(crate) turn_id: Option<String>,
+    pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
+    pub(crate) runtime: ThinWedgeRuntimeMetadata,
+    pub(crate) thread_source: Option<ThreadSource>,
+    pub(crate) subagent_source: Option<String>,
+    pub(crate) parent_thread_id: Option<String>,
+    pub(crate) goal_id: String,
+    pub(crate) event_kind: GoalEventKind,
+    pub(crate) goal_status: thinwedge_state::ThreadGoalStatus,
+    pub(crate) has_token_budget: bool,
+    pub(crate) cumulative_tokens_accounted: Option<i64>,
+    pub(crate) cumulative_time_accounted_seconds: Option<i64>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct ThinWedgeGoalEventRequest {
+    pub(crate) event_type: &'static str,
+    pub(crate) event_params: ThinWedgeGoalEventParams,
+}
+
+#[derive(Serialize)]
 pub(crate) struct ThinWedgeTurnEventParams {
     pub(crate) thread_id: String,
+    pub(crate) session_id: String,
     pub(crate) turn_id: String,
     // TODO(rhan-oai): Populate once queued/default submission type is plumbed from
     // the turn/start callsites instead of always being reported as None.
@@ -462,7 +850,7 @@ pub(crate) struct ThinWedgeTurnEventParams {
     pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
     pub(crate) runtime: ThinWedgeRuntimeMetadata,
     pub(crate) ephemeral: bool,
-    pub(crate) thread_source: Option<String>,
+    pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) initialization_mode: ThreadInitializationMode,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_thread_id: Option<String>,
@@ -477,13 +865,14 @@ pub(crate) struct ThinWedgeTurnEventParams {
     pub(crate) sandbox_network_access: bool,
     pub(crate) collaboration_mode: Option<&'static str>,
     pub(crate) personality: Option<String>,
+    pub(crate) workspace_kind: Option<String>,
     pub(crate) num_input_images: usize,
     pub(crate) is_first_turn: bool,
     pub(crate) status: Option<TurnStatus>,
     pub(crate) turn_error: Option<ThinWedgeErrorInfo>,
+    pub(crate) thinwedge_error_kind: Option<ThinWedgeErrKind>,
+    pub(crate) thinwedge_error_http_status_code: Option<u16>,
     pub(crate) steer_count: Option<usize>,
-    // TODO(rhan-oai): Populate these once tool-call accounting is emitted from
-    // core; the schema is reserved but these fields are currently always None.
     pub(crate) total_tool_call_count: Option<usize>,
     pub(crate) shell_command_count: Option<usize>,
     pub(crate) file_change_count: Option<usize>,
@@ -497,6 +886,13 @@ pub(crate) struct ThinWedgeTurnEventParams {
     pub(crate) output_tokens: Option<i64>,
     pub(crate) reasoning_output_tokens: Option<i64>,
     pub(crate) total_tokens: Option<i64>,
+    pub(crate) before_first_sampling_ms: u64,
+    pub(crate) sampling_ms: u64,
+    pub(crate) between_sampling_overhead_ms: u64,
+    pub(crate) tool_blocking_ms: u64,
+    pub(crate) after_last_sampling_ms: u64,
+    pub(crate) sampling_request_count: u32,
+    pub(crate) sampling_retry_count: u32,
     pub(crate) duration_ms: Option<u64>,
     pub(crate) started_at: Option<u64>,
     pub(crate) completed_at: Option<u64>,
@@ -511,11 +907,12 @@ pub(crate) struct ThinWedgeTurnEventRequest {
 #[derive(Serialize)]
 pub(crate) struct ThinWedgeTurnSteerEventParams {
     pub(crate) thread_id: String,
+    pub(crate) session_id: String,
     pub(crate) expected_turn_id: Option<String>,
     pub(crate) accepted_turn_id: Option<String>,
     pub(crate) app_server_client: ThinWedgeAppServerClientMetadata,
     pub(crate) runtime: ThinWedgeRuntimeMetadata,
-    pub(crate) thread_source: Option<String>,
+    pub(crate) thread_source: Option<ThreadSource>,
     pub(crate) subagent_source: Option<String>,
     pub(crate) parent_thread_id: Option<String>,
     pub(crate) num_input_images: usize,
@@ -545,6 +942,7 @@ pub(crate) struct ThinWedgePluginMetadata {
 pub(crate) struct ThinWedgePluginUsedMetadata {
     #[serde(flatten)]
     pub(crate) plugin: ThinWedgePluginMetadata,
+    pub(crate) mcp_server_names: Option<Vec<String>>,
     pub(crate) thread_id: Option<String>,
     pub(crate) turn_id: Option<String>,
     pub(crate) model_slug: Option<String>,
@@ -589,11 +987,16 @@ pub(crate) fn thinwedge_app_metadata(
 pub(crate) fn thinwedge_plugin_metadata(
     plugin: PluginTelemetryMetadata,
 ) -> ThinWedgePluginMetadata {
-    let capability_summary = plugin.capability_summary;
+    let PluginTelemetryMetadata {
+        plugin_id,
+        remote_plugin_id,
+        capability_summary,
+    } = plugin;
+    let event_plugin_id = remote_plugin_id.unwrap_or_else(|| plugin_id.as_key());
     ThinWedgePluginMetadata {
-        plugin_id: Some(plugin.plugin_id.as_key()),
-        plugin_name: Some(plugin.plugin_id.plugin_name),
-        marketplace_name: Some(plugin.plugin_id.marketplace_name),
+        plugin_id: Some(event_plugin_id),
+        plugin_name: Some(plugin_id.plugin_name),
+        marketplace_name: Some(plugin_id.marketplace_name),
         has_skills: capability_summary
             .as_ref()
             .map(|summary| summary.has_skills),
@@ -613,14 +1016,16 @@ pub(crate) fn thinwedge_plugin_metadata(
 
 pub(crate) fn thinwedge_compaction_event_params(
     input: ThinWedgeCompactionEvent,
+    session_id: String,
     app_server_client: ThinWedgeAppServerClientMetadata,
     runtime: ThinWedgeRuntimeMetadata,
-    thread_source: Option<&'static str>,
+    thread_source: Option<ThreadSource>,
     subagent_source: Option<String>,
     parent_thread_id: Option<String>,
 ) -> ThinWedgeCompactionEventParams {
     ThinWedgeCompactionEventParams {
         thread_id: input.thread_id,
+        session_id,
         turn_id: input.turn_id,
         app_server_client,
         runtime,
@@ -633,12 +1038,43 @@ pub(crate) fn thinwedge_compaction_event_params(
         phase: input.phase,
         strategy: input.strategy,
         status: input.status,
-        error: input.error,
+        thinwedge_error_kind: input.thinwedge_error_kind,
+        thinwedge_error_http_status_code: input.thinwedge_error_http_status_code,
         active_context_tokens_before: input.active_context_tokens_before,
         active_context_tokens_after: input.active_context_tokens_after,
+        retained_image_count: input.retained_image_count,
+        compaction_summary_tokens: input.compaction_summary_tokens,
+        cached_input_tokens: input.cached_input_tokens,
         started_at: input.started_at,
         completed_at: input.completed_at,
         duration_ms: input.duration_ms,
+    }
+}
+
+pub(crate) fn thinwedge_goal_event_params(
+    input: ThinWedgeGoalEvent,
+    session_id: String,
+    app_server_client: ThinWedgeAppServerClientMetadata,
+    runtime: ThinWedgeRuntimeMetadata,
+    thread_source: Option<ThreadSource>,
+    subagent_source: Option<String>,
+    parent_thread_id: Option<String>,
+) -> ThinWedgeGoalEventParams {
+    ThinWedgeGoalEventParams {
+        thread_id: input.thread_id,
+        session_id,
+        turn_id: input.turn_id,
+        app_server_client,
+        runtime,
+        thread_source,
+        subagent_source,
+        parent_thread_id,
+        goal_id: input.goal_id,
+        event_kind: input.event_kind,
+        goal_status: input.goal_status,
+        has_token_budget: input.has_token_budget,
+        cumulative_tokens_accounted: input.cumulative_tokens_accounted,
+        cumulative_time_accounted_seconds: input.cumulative_time_accounted_seconds,
     }
 }
 
@@ -646,8 +1082,13 @@ pub(crate) fn thinwedge_plugin_used_metadata(
     tracking: &TrackEventsContext,
     plugin: PluginTelemetryMetadata,
 ) -> ThinWedgePluginUsedMetadata {
+    let mcp_server_names = plugin
+        .capability_summary
+        .as_ref()
+        .map(|summary| summary.mcp_server_names.clone());
     ThinWedgePluginUsedMetadata {
         plugin: thinwedge_plugin_metadata(plugin),
+        mcp_server_names,
         thread_id: Some(tracking.thread_id.clone()),
         turn_id: Some(tracking.turn_id.clone()),
         model_slug: Some(tracking.model_slug.clone()),
@@ -677,6 +1118,8 @@ fn analytics_hook_event_name(event_name: HookEventName) -> &'static str {
         HookEventName::PostCompact => "PostCompact",
         HookEventName::SessionStart => "SessionStart",
         HookEventName::UserPromptSubmit => "UserPromptSubmit",
+        HookEventName::SubagentStart => "SubagentStart",
+        HookEventName::SubagentStop => "SubagentStop",
         HookEventName::Stop => "Stop",
     }
 }
@@ -689,6 +1132,8 @@ fn analytics_hook_source(source: HookSource) -> &'static str {
         HookSource::Mdm => "mdm",
         HookSource::SessionFlags => "session_flags",
         HookSource::Plugin => "plugin",
+        HookSource::CloudRequirements => "cloud_requirements",
+        HookSource::CloudManagedConfig => "cloud_managed_config",
         HookSource::LegacyManagedConfigFile => "legacy_managed_config_file",
         HookSource::LegacyManagedConfigMdm => "legacy_managed_config_mdm",
         HookSource::Unknown => "unknown",
@@ -710,6 +1155,7 @@ pub(crate) fn subagent_thread_started_event_request(
 ) -> ThreadInitializedEvent {
     let event_params = ThreadInitializedEventParams {
         thread_id: input.thread_id,
+        session_id: input.session_id,
         app_server_client: ThinWedgeAppServerClientMetadata {
             product_client_id: input.product_client_id,
             client_name: Some(input.client_name),
@@ -720,12 +1166,11 @@ pub(crate) fn subagent_thread_started_event_request(
         runtime: current_runtime_metadata(),
         model: input.model,
         ephemeral: input.ephemeral,
-        thread_source: Some("subagent"),
+        thread_source: Some(ThreadSource::Subagent),
         initialization_mode: ThreadInitializationMode::New,
         subagent_source: Some(subagent_source_name(&input.subagent_source)),
-        parent_thread_id: input
-            .parent_thread_id
-            .or_else(|| subagent_parent_thread_id(&input.subagent_source)),
+        parent_thread_id: input.parent_thread_id,
+        forked_from_thread_id: input.forked_from_thread_id,
         created_at: input.created_at,
     };
     ThreadInitializedEvent {
@@ -735,22 +1180,7 @@ pub(crate) fn subagent_thread_started_event_request(
 }
 
 pub(crate) fn subagent_source_name(subagent_source: &SubAgentSource) -> String {
-    match subagent_source {
-        SubAgentSource::Review => "review".to_string(),
-        SubAgentSource::Compact => "compact".to_string(),
-        SubAgentSource::ThreadSpawn { .. } => "thread_spawn".to_string(),
-        SubAgentSource::MemoryConsolidation => "memory_consolidation".to_string(),
-        SubAgentSource::Other(other) => other.clone(),
-    }
-}
-
-pub(crate) fn subagent_parent_thread_id(subagent_source: &SubAgentSource) -> Option<String> {
-    match subagent_source {
-        SubAgentSource::ThreadSpawn {
-            parent_thread_id, ..
-        } => Some(parent_thread_id.to_string()),
-        _ => None,
-    }
+    subagent_source.kind().to_string()
 }
 
 fn analytics_hook_status(status: HookRunStatus) -> HookRunStatus {

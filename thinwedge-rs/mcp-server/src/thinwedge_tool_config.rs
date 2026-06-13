@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use thinwedge_arg0::Arg0DispatchPaths;
 use thinwedge_core::config::Config;
+use thinwedge_core::config::ConfigBuilder;
 use thinwedge_core::config::ConfigOverrides;
 use thinwedge_protocol::ThreadId;
 use thinwedge_protocol::config_types::SandboxMode;
@@ -19,7 +20,8 @@ use thinwedge_utils_json_to_toml::json_to_toml;
 
 /// Client-supplied configuration for a `thinwedge` tool-call.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct ThinWedgeToolCallParam {
     /// The *initial user prompt* to start the ThinWedge conversation.
     pub prompt: String,
@@ -27,10 +29,6 @@ pub struct ThinWedgeToolCallParam {
     /// Optional override for the model name (e.g. 'gpt-5.2', 'gpt-5.2-thinwedge').
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-
-    /// Configuration profile from config.toml to specify default options.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile: Option<String>,
 
     /// Working directory for the session. If relative, it is resolved against
     /// the server process's current working directory.
@@ -118,20 +116,13 @@ pub(crate) fn create_tool_for_thinwedge_tool_call_param() -> Tool {
 
     let input_schema = create_tool_input_schema(schema, "ThinWedge tool schema should serialize");
 
-    Tool {
-        name: "thinwedge".into(),
-        title: Some("ThinWedge".to_string()),
+    Tool::new(
+        "thinwedge",
+        "Run a ThinWedge session. Accepts configuration parameters matching the ThinWedge Config struct.",
         input_schema,
-        output_schema: Some(thinwedge_tool_output_schema()),
-        description: Some(
-            "Run a ThinWedge session. Accepts configuration parameters matching the ThinWedge Config struct."
-                .into(),
-        ),
-        annotations: None,
-        execution: None,
-        icons: None,
-        meta: None,
-    }
+    )
+    .with_title("ThinWedge")
+    .with_raw_output_schema(thinwedge_tool_output_schema())
 }
 
 fn thinwedge_tool_output_schema() -> Arc<JsonObject> {
@@ -159,7 +150,6 @@ impl ThinWedgeToolCallParam {
         let Self {
             prompt,
             model,
-            profile,
             cwd,
             approval_policy,
             sandbox,
@@ -172,7 +162,6 @@ impl ThinWedgeToolCallParam {
         // Build the `ConfigOverrides` recognized by thinwedge-core.
         let overrides = ConfigOverrides {
             model,
-            config_profile: profile,
             cwd: cwd.map(PathBuf::from),
             approval_policy: approval_policy.map(Into::into),
             sandbox_mode: sandbox.map(Into::into),
@@ -191,8 +180,11 @@ impl ThinWedgeToolCallParam {
             .map(|(k, v)| (k, json_to_toml(v)))
             .collect();
 
-        let cfg =
-            Config::load_with_cli_overrides_and_harness_overrides(cli_overrides, overrides).await?;
+        let cfg = ConfigBuilder::default()
+            .cli_overrides(cli_overrides)
+            .harness_overrides(overrides)
+            .build()
+            .await?;
 
         Ok((prompt, cfg))
     }
@@ -244,19 +236,13 @@ pub(crate) fn create_tool_for_thinwedge_tool_call_reply_param() -> Tool {
     let input_schema =
         create_tool_input_schema(schema, "ThinWedge reply tool schema should serialize");
 
-    Tool {
-        name: "thinwedge-reply".into(),
-        title: Some("ThinWedge Reply".to_string()),
+    Tool::new(
+        "thinwedge-reply",
+        "Continue a ThinWedge conversation by providing the thread id and prompt.",
         input_schema,
-        output_schema: Some(thinwedge_tool_output_schema()),
-        description: Some(
-            "Continue a ThinWedge conversation by providing the thread id and prompt.".into(),
-        ),
-        annotations: None,
-        execution: None,
-        icons: None,
-        meta: None,
-    }
+    )
+    .with_title("ThinWedge Reply")
+    .with_raw_output_schema(thinwedge_tool_output_schema())
 }
 
 fn create_tool_input_schema(
@@ -274,7 +260,14 @@ fn create_tool_input_schema(
     // in case any `$ref` leaks into the generated schema (even though we try
     // to inline subschemas).
     let mut input_schema = JsonObject::new();
-    for key in ["properties", "required", "type", "$defs", "definitions"] {
+    for key in [
+        "additionalProperties",
+        "properties",
+        "required",
+        "type",
+        "$defs",
+        "definitions",
+    ] {
         if let Some(value) = schema_object.remove(key) {
             input_schema.insert(key.to_string(), value);
         }
@@ -306,6 +299,7 @@ mod tests {
         let expected_tool_json = serde_json::json!({
           "description": "Run a ThinWedge session. Accepts configuration parameters matching the ThinWedge Config struct.",
           "inputSchema": {
+            "additionalProperties": false,
             "properties": {
               "approval-policy": {
                 "description": "Approval policy for shell commands generated by the model: `untrusted`, `on-failure`, `on-request`, `never`.",
@@ -340,10 +334,6 @@ mod tests {
               },
               "model": {
                 "description": "Optional override for the model name (e.g. 'gpt-5.2', 'gpt-5.2-thinwedge').",
-                "type": "string"
-              },
-              "profile": {
-                "description": "Configuration profile from config.toml to specify default options.",
                 "type": "string"
               },
               "prompt": {
@@ -384,6 +374,20 @@ mod tests {
           "title": "ThinWedge"
         });
         assert_eq!(expected_tool_json, tool_json);
+    }
+
+    #[test]
+    fn thinwedge_tool_call_param_rejects_removed_profile_field() {
+        let err = serde_json::from_value::<ThinWedgeToolCallParam>(serde_json::json!({
+            "prompt": "hello",
+            "profile": "work"
+        }))
+        .expect_err("removed profile field should fail");
+
+        assert!(
+            err.to_string().contains("unknown field `profile`"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

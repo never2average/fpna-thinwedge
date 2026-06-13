@@ -1,22 +1,22 @@
 use crate::dpapi;
 use crate::logging::debug_log;
-use crate::policy::SandboxPolicy;
+use crate::resolved_permissions::ResolvedWindowsSandboxPermissions;
+use crate::setup::SandboxNetworkIdentity;
+use crate::setup::SandboxUserRecord;
+use crate::setup::SandboxUsersFile;
+use crate::setup::SetupMarker;
 use crate::setup::gather_read_roots;
-use crate::setup::gather_write_roots;
+use crate::setup::gather_write_roots_for_permissions;
 use crate::setup::offline_proxy_settings_from_env;
 use crate::setup::run_elevated_setup;
 use crate::setup::run_setup_refresh_with_overrides;
 use crate::setup::sandbox_users_path;
 use crate::setup::setup_marker_path;
-use crate::setup::SandboxNetworkIdentity;
-use crate::setup::SandboxUserRecord;
-use crate::setup::SandboxUsersFile;
-use crate::setup::SetupMarker;
-use anyhow::anyhow;
 use anyhow::Context;
 use anyhow::Result;
-use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use anyhow::anyhow;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -40,7 +40,8 @@ pub struct SandboxCreds {
 /// This is a coarse readiness check; `require_logon_sandbox_creds` performs the
 /// additional runtime validation for offline firewall settings.
 pub fn sandbox_setup_is_complete(thinwedge_home: &Path) -> bool {
-    let marker_ok = matches!(load_marker(thinwedge_home), Ok(Some(marker)) if marker.version_matches());
+    let marker_ok =
+        matches!(load_marker(thinwedge_home), Ok(Some(marker)) if marker.version_matches());
     if !marker_ok {
         return false;
     }
@@ -131,27 +132,26 @@ fn select_identity(
 
 #[allow(clippy::too_many_arguments)]
 pub fn require_logon_sandbox_creds(
-    policy: &SandboxPolicy,
-    policy_cwd: &Path,
+    permissions: &ResolvedWindowsSandboxPermissions,
     command_cwd: &Path,
     env_map: &HashMap<String, String>,
     thinwedge_home: &Path,
     read_roots_override: Option<&[PathBuf]>,
     read_roots_include_platform_defaults: bool,
     write_roots_override: Option<&[PathBuf]>,
+    deny_read_paths_override: &[PathBuf],
     deny_write_paths_override: &[PathBuf],
     proxy_enforced: bool,
 ) -> Result<SandboxCreds> {
     let sandbox_dir = crate::setup::sandbox_dir(thinwedge_home);
     let needed_read = read_roots_override
         .map(<[PathBuf]>::to_vec)
-        .unwrap_or_else(|| gather_read_roots(command_cwd, policy, thinwedge_home));
+        .unwrap_or_else(|| gather_read_roots(command_cwd, permissions, env_map, thinwedge_home));
     let needed_write = write_roots_override
         .map(<[PathBuf]>::to_vec)
-        .unwrap_or_else(|| gather_write_roots(policy, policy_cwd, command_cwd, env_map));
-    let network_identity = SandboxNetworkIdentity::from_policy(policy, proxy_enforced);
-    let desired_offline_proxy_settings =
-        offline_proxy_settings_from_env(env_map, network_identity);
+        .unwrap_or_else(|| gather_write_roots_for_permissions(permissions, command_cwd, env_map));
+    let network_identity = SandboxNetworkIdentity::from_permissions(permissions, proxy_enforced);
+    let desired_offline_proxy_settings = offline_proxy_settings_from_env(env_map, network_identity);
     // NOTE: Do not add THINWEDGE_HOME/.sandbox to `needed_write`; it must remain non-writable by the
     // restricted capability token. The setup helper's `lock_sandbox_dir` is responsible for
     // granting the sandbox group access to this directory without granting the capability SID.
@@ -167,8 +167,9 @@ pub fn require_logon_sandbox_creds(
             } else {
                 let selected = select_identity(network_identity, thinwedge_home)?;
                 if selected.is_none() {
-                    setup_reason =
-                        Some("sandbox users missing or incompatible with marker version".to_string());
+                    setup_reason = Some(
+                        "sandbox users missing or incompatible with marker version".to_string(),
+                    );
                 }
                 selected
             }
@@ -190,8 +191,7 @@ pub fn require_logon_sandbox_creds(
         }
         run_elevated_setup(
             crate::setup::SandboxSetupRequest {
-                policy,
-                policy_cwd,
+                permissions,
                 command_cwd,
                 env_map,
                 thinwedge_home,
@@ -201,6 +201,7 @@ pub fn require_logon_sandbox_creds(
                 read_roots: Some(needed_read.clone()),
                 read_roots_include_platform_defaults,
                 write_roots: Some(needed_write.clone()),
+                deny_read_paths: Some(deny_read_paths_override.to_vec()),
                 deny_write_paths: Some(deny_write_paths_override.to_vec()),
             },
         )?;
@@ -209,8 +210,7 @@ pub fn require_logon_sandbox_creds(
     // Always refresh ACLs (non-elevated) for current roots via the setup binary.
     run_setup_refresh_with_overrides(
         crate::setup::SandboxSetupRequest {
-            policy,
-            policy_cwd,
+            permissions,
             command_cwd,
             env_map,
             thinwedge_home,
@@ -220,6 +220,7 @@ pub fn require_logon_sandbox_creds(
             read_roots: Some(needed_read),
             read_roots_include_platform_defaults,
             write_roots: Some(needed_write),
+            deny_read_paths: Some(deny_read_paths_override.to_vec()),
             deny_write_paths: Some(deny_write_paths_override.to_vec()),
         },
     )?;

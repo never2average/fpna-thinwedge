@@ -20,12 +20,8 @@ async fn exec_approval_emits_proposed_command_and_decision_history() {
         proposed_network_policy_amendments: None,
         additional_permissions: None,
         available_decisions: None,
-        parsed_cmd: vec![],
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-short".into(),
-        msg: EventMsg::ExecApprovalRequest(ev),
-    });
+    handle_exec_approval_request(&mut chat, "sub-short", ev);
 
     let proposed_cells = drain_insert_history(&mut rx);
     assert!(
@@ -58,6 +54,7 @@ fn app_server_exec_approval_request_splits_shell_wrapped_command() {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             item_id: "item-1".to_string(),
+            started_at_ms: 0,
             approval_id: Some("approval-1".to_string()),
             reason: None,
             network_approval_context: None,
@@ -89,9 +86,10 @@ fn app_server_exec_approval_request_splits_shell_wrapped_command() {
 async fn exec_approval_uses_approval_id_when_present() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_thinwedge_event(Event {
-        id: "sub-short".into(),
-        msg: EventMsg::ExecApprovalRequest(ExecApprovalRequestEvent {
+    handle_exec_approval_request(
+        &mut chat,
+        "sub-short",
+        ExecApprovalRequestEvent {
             call_id: "call-parent".into(),
             approval_id: Some("approval-subcommand".into()),
             turn_id: "turn-short".into(),
@@ -105,9 +103,8 @@ async fn exec_approval_uses_approval_id_when_present() {
             proposed_network_policy_amendments: None,
             additional_permissions: None,
             available_decisions: None,
-            parsed_cmd: vec![],
-        }),
-    });
+        },
+    );
 
     chat.handle_key_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
 
@@ -121,7 +118,7 @@ async fn exec_approval_uses_approval_id_when_present() {
             assert_eq!(id, "approval-subcommand");
             assert_matches!(
                 decision,
-                thinwedge_protocol::protocol::ReviewDecision::Approved
+                thinwedge_app_server_protocol::CommandExecutionApprovalDecision::Accept
             );
             found = true;
             break;
@@ -149,12 +146,8 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
         proposed_network_policy_amendments: None,
         additional_permissions: None,
         available_decisions: None,
-        parsed_cmd: vec![],
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-multi".into(),
-        msg: EventMsg::ExecApprovalRequest(ev_multi),
-    });
+    handle_exec_approval_request(&mut chat, "sub-multi", ev_multi);
     let proposed_multi = drain_insert_history(&mut rx);
     assert!(
         proposed_multi.is_empty(),
@@ -204,12 +197,8 @@ async fn exec_approval_decision_truncates_multiline_and_long_commands() {
         proposed_network_policy_amendments: None,
         additional_permissions: None,
         available_decisions: None,
-        parsed_cmd: vec![],
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-long".into(),
-        msg: EventMsg::ExecApprovalRequest(ev_long),
-    });
+    handle_exec_approval_request(&mut chat, "sub-long", ev_long);
     let proposed_long = drain_insert_history(&mut rx);
     assert!(
         proposed_long.is_empty(),
@@ -359,28 +348,26 @@ async fn exec_end_without_begin_uses_event_command() {
         "-lc".to_string(),
         "echo orphaned".to_string(),
     ];
-    let parsed_cmd = thinwedge_shell_command::parse_command::parse_command(&command);
-    let cwd = AbsolutePathBuf::current_dir().expect("current dir");
-    chat.handle_thinwedge_event(Event {
-        id: "call-orphan".to_string(),
-        msg: EventMsg::ExecCommandEnd(ExecCommandEndEvent {
-            call_id: "call-orphan".to_string(),
-            process_id: None,
-            turn_id: "turn-1".to_string(),
-            command,
+    let command_actions = thinwedge_shell_command::parse_command::parse_command(&command)
+        .into_iter()
+        .map(|parsed| AppServerCommandAction::from_core_with_cwd(parsed, &chat.config.cwd))
+        .collect();
+    let cwd = chat.config.cwd.clone();
+    handle_exec_end(
+        &mut chat,
+        AppServerThreadItem::CommandExecution {
+            id: "call-orphan".to_string(),
+            command: thinwedge_shell_command::parse_command::shlex_join(&command),
             cwd,
-            parsed_cmd,
+            process_id: None,
             source: ExecCommandSource::Agent,
-            interaction_input: None,
-            stdout: "done".to_string(),
-            stderr: String::new(),
-            aggregated_output: "done".to_string(),
-            exit_code: 0,
-            duration: std::time::Duration::from_millis(5),
-            formatted_output: "done".to_string(),
-            status: CoreExecCommandStatus::Completed,
-        }),
-    });
+            status: AppServerCommandExecutionStatus::Completed,
+            command_actions,
+            aggregated_output: Some("done".to_string()),
+            exit_code: Some(0),
+            duration_ms: Some(5),
+        },
+    );
 
     let cells = drain_insert_history(&mut rx);
     assert_eq!(cells.len(), 1, "expected finalized exec cell to flush");
@@ -472,7 +459,7 @@ async fn exec_end_without_begin_flushes_completed_unrelated_exploring_cell() {
         "expected orphan end entry after flush: {second:?}"
     );
     assert!(
-        chat.active_cell.is_none(),
+        chat.transcript.active_cell.is_none(),
         "both entries should be finalized"
     );
 }
@@ -621,14 +608,7 @@ async fn unified_exec_interaction_after_task_complete_is_suppressed() {
         /*last_agent_message*/ None, /*duration_ms*/ None, /*from_replay*/ false,
     );
 
-    chat.handle_thinwedge_event(Event {
-        id: "call-1".to_string(),
-        msg: EventMsg::TerminalInteraction(TerminalInteractionEvent {
-            call_id: "call-1".to_string(),
-            process_id: "proc-1".to_string(),
-            stdin: "ls\n".to_string(),
-        }),
-    });
+    terminal_interaction(&mut chat, "call-1", "proc-1", "ls\n");
 
     let cells = drain_insert_history(&mut rx);
     assert!(
@@ -640,15 +620,7 @@ async fn unified_exec_interaction_after_task_complete_is_suppressed() {
 #[tokio::test]
 async fn unified_exec_wait_after_final_agent_message_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-1".to_string(),
-            started_at: None,
-            model_context_window: None,
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    });
+    handle_turn_started(&mut chat, "turn-1");
 
     begin_unified_exec_startup(
         &mut chat,
@@ -659,16 +631,7 @@ async fn unified_exec_wait_after_final_agent_message_snapshot() {
     terminal_interaction(&mut chat, "call-wait-stdin", "proc-1", "");
 
     complete_assistant_message(&mut chat, "msg-1", "Final response.", /*phase*/ None);
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: Some("Final response.".into()),
-            completed_at: None,
-            duration_ms: None,
-            time_to_first_token_ms: None,
-        }),
-    });
+    handle_turn_completed(&mut chat, "turn-1", /*duration_ms*/ None);
 
     let cells = drain_insert_history(&mut rx);
     let combined = cells
@@ -681,15 +644,7 @@ async fn unified_exec_wait_after_final_agent_message_snapshot() {
 #[tokio::test]
 async fn unified_exec_wait_before_streamed_agent_message_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-1".to_string(),
-            started_at: None,
-            model_context_window: None,
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    });
+    handle_turn_started(&mut chat, "turn-1");
 
     begin_unified_exec_startup(
         &mut chat,
@@ -699,22 +654,8 @@ async fn unified_exec_wait_before_streamed_agent_message_snapshot() {
     );
     terminal_interaction(&mut chat, "call-wait-stream-stdin", "proc-1", "");
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::AgentMessageDelta(AgentMessageDeltaEvent {
-            delta: "Streaming response.".into(),
-        }),
-    });
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: None,
-            completed_at: None,
-            duration_ms: None,
-            time_to_first_token_ms: None,
-        }),
-    });
+    handle_agent_message_delta(&mut chat, "Streaming response.");
+    handle_turn_completed(&mut chat, "turn-wait-1", /*duration_ms*/ None);
 
     let cells = drain_insert_history(&mut rx);
     let combined = cells
@@ -727,15 +668,7 @@ async fn unified_exec_wait_before_streamed_agent_message_snapshot() {
 #[tokio::test]
 async fn final_worked_for_uses_cumulative_turn_duration_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-1".to_string(),
-            started_at: None,
-            model_context_window: None,
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    });
+    handle_turn_started(&mut chat, "turn-1");
 
     let exec = begin_exec_with_source(
         &mut chat,
@@ -751,16 +684,7 @@ async fn final_worked_for_uses_cumulative_turn_duration_snapshot() {
         "Final response.",
         Some(MessagePhase::FinalAnswer),
     );
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: Some("Final response.".to_string()),
-            completed_at: None,
-            duration_ms: Some(125_000),
-            time_to_first_token_ms: None,
-        }),
-    });
+    handle_turn_completed(&mut chat, "turn-1", Some(125_000));
 
     let cells = drain_insert_history(&mut rx);
     let combined = cells
@@ -785,15 +709,11 @@ async fn unified_exec_wait_status_header_updates_on_late_command_display() {
         recent_chunks: Vec::new(),
     });
 
-    chat.on_terminal_interaction(TerminalInteractionEvent {
-        call_id: "call-1".to_string(),
-        process_id: "proc-1".to_string(),
-        stdin: String::new(),
-    });
+    terminal_interaction(&mut chat, "call-1", "proc-1", "");
 
-    assert!(chat.active_cell.is_none());
+    assert!(chat.transcript.active_cell.is_none());
     assert_eq!(
-        chat.current_status.header,
+        chat.status_state.current_status.header,
         "Waiting for background terminal"
     );
     let status = chat
@@ -805,6 +725,22 @@ async fn unified_exec_wait_status_header_updates_on_late_command_display() {
 }
 
 #[tokio::test]
+async fn unified_exec_empty_poll_for_finished_process_does_not_show_waiting_status() {
+    let (mut chat, _rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
+    chat.on_task_started();
+
+    terminal_interaction(&mut chat, "call-finished", "proc-finished", "");
+
+    assert_eq!(chat.status_state.current_status.header, "Working");
+    let status = chat
+        .bottom_pane
+        .status_widget()
+        .expect("task status indicator should remain visible");
+    assert_eq!(status.header(), "Working");
+    assert!(chat.unified_exec_wait_streak.is_none());
+}
+
+#[tokio::test]
 async fn unified_exec_waiting_multiple_empty_snapshots() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.on_task_started();
@@ -813,7 +749,7 @@ async fn unified_exec_waiting_multiple_empty_snapshots() {
     terminal_interaction(&mut chat, "call-wait-1a", "proc-1", "");
     terminal_interaction(&mut chat, "call-wait-1b", "proc-1", "");
     assert_eq!(
-        chat.current_status.header,
+        chat.status_state.current_status.header,
         "Waiting for background terminal"
     );
     let status = chat
@@ -823,16 +759,7 @@ async fn unified_exec_waiting_multiple_empty_snapshots() {
     assert_eq!(status.header(), "Waiting for background terminal");
     assert_eq!(status.details(), Some("just fix"));
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-wait-1".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: None,
-            completed_at: None,
-            duration_ms: None,
-            time_to_first_token_ms: None,
-        }),
-    });
+    handle_turn_completed(&mut chat, "turn-wait-3", /*duration_ms*/ None);
 
     let cells = drain_insert_history(&mut rx);
     let combined = cells
@@ -888,7 +815,7 @@ async fn unified_exec_non_empty_then_empty_snapshots() {
     terminal_interaction(&mut chat, "call-wait-3a", "proc-3", "pwd\n");
     terminal_interaction(&mut chat, "call-wait-3b", "proc-3", "");
     assert_eq!(
-        chat.current_status.header,
+        chat.status_state.current_status.header,
         "Waiting for background terminal"
     );
     let status = chat
@@ -904,16 +831,7 @@ async fn unified_exec_non_empty_then_empty_snapshots() {
         .collect::<String>();
     assert_chatwidget_snapshot!("unified_exec_non_empty_then_empty_active", active_combined);
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-wait-3".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: None,
-            completed_at: None,
-            duration_ms: None,
-            time_to_first_token_ms: None,
-        }),
-    });
+    handle_turn_completed(&mut chat, "turn-1", /*duration_ms*/ None);
 
     let post_cells = drain_insert_history(&mut rx);
     let mut combined = pre_cells
@@ -936,13 +854,7 @@ async fn view_image_tool_call_adds_history_cell() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     let image_path = chat.config.cwd.join("example.png");
 
-    chat.handle_thinwedge_event(Event {
-        id: "sub-image".into(),
-        msg: EventMsg::ViewImageToolCall(ViewImageToolCallEvent {
-            call_id: "call-image".into(),
-            path: image_path,
-        }),
-    });
+    handle_view_image_tool_call(&mut chat, "call-image", image_path);
 
     let cells = drain_insert_history(&mut rx);
     assert_eq!(cells.len(), 1, "expected a single history cell");
@@ -954,16 +866,13 @@ async fn view_image_tool_call_adds_history_cell() {
 async fn image_generation_call_adds_history_cell() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_thinwedge_event(Event {
-        id: "sub-image-generation".into(),
-        msg: EventMsg::ImageGenerationEnd(ImageGenerationEndEvent {
-            call_id: "call-image-generation".into(),
-            status: "completed".into(),
-            revised_prompt: Some("A tiny blue square".into()),
-            result: "Zm9v".into(),
-            saved_path: Some(test_path_buf("/tmp/ig-1.png").abs()),
-        }),
-    });
+    handle_image_generation_end(
+        &mut chat,
+        "call-image-generation",
+        "completed",
+        Some("A tiny blue square".into()),
+        Some(test_path_buf("/tmp/ig-1.png").abs()),
+    );
 
     let cells = drain_insert_history(&mut rx);
     assert_eq!(cells.len(), 1, "expected a single history cell");
@@ -973,6 +882,21 @@ async fn image_generation_call_adds_history_cell() {
     let combined =
         lines_to_single_string(&cells[0]).replace(&platform_file_url, "file:///tmp/ig-1.png");
     assert_chatwidget_snapshot!("image_generation_call_history_snapshot", combined);
+
+    handle_image_generation_end(
+        &mut chat,
+        "call-image-generation-failed",
+        "failed",
+        Some("A tiny blue square".into()),
+        /*saved_path*/ None,
+    );
+
+    let cells = drain_insert_history(&mut rx);
+    assert_eq!(cells.len(), 1, "expected a single failure history cell");
+    assert_chatwidget_snapshot!(
+        "failed_image_generation_call_history_snapshot",
+        lines_to_single_string(&cells[0])
+    );
 }
 
 #[tokio::test]
@@ -1055,11 +979,12 @@ async fn user_shell_command_renders_output_not_exploring() {
 #[tokio::test]
 async fn bang_shell_enter_while_task_running_submits_run_user_shell_command() {
     let (mut chat, mut rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
-    let conversation_id = ThreadId::new();
+    let thread_id = ThreadId::new();
     let rollout_file = NamedTempFile::new().unwrap();
-    let configured = thinwedge_protocol::protocol::SessionConfiguredEvent {
-        session_id: conversation_id,
+    let configured = crate::session_state::ThreadSessionState {
+        thread_id,
         forked_from_id: None,
+        fork_parent_title: None,
         thread_name: None,
         model: "test-model".to_string(),
         model_provider_id: "test-provider".to_string(),
@@ -1067,29 +992,21 @@ async fn bang_shell_enter_while_task_running_submits_run_user_shell_command() {
         approval_policy: AskForApproval::Never,
         approvals_reviewer: ApprovalsReviewer::User,
         permission_profile: PermissionProfile::read_only(),
+        active_permission_profile: None,
         cwd: test_path_buf("/home/user/project").abs(),
+        runtime_workspace_roots: Vec::new(),
+        instruction_source_paths: Vec::new(),
         reasoning_effort: Some(ReasoningEffortConfig::default()),
-        history_log_id: 0,
-        history_entry_count: 0,
-        initial_messages: None,
+        collaboration_mode: None,
+        personality: None,
+        message_history: None,
         network_proxy: None,
         rollout_path: Some(rollout_file.path().to_path_buf()),
     };
-    chat.handle_thinwedge_event(Event {
-        id: "initial".into(),
-        msg: EventMsg::SessionConfigured(configured),
-    });
+    chat.handle_thread_session(configured);
     drain_insert_history(&mut rx);
     while op_rx.try_recv().is_ok() {}
-    chat.handle_thinwedge_event(Event {
-        id: "turn-start".into(),
-        msg: EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-1".to_string(),
-            started_at: None,
-            model_context_window: None,
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    });
+    handle_turn_started(&mut chat, "turn-1");
 
     chat.bottom_pane
         .set_composer_text("!echo hi".to_string(), Vec::new(), Vec::new());
@@ -1100,8 +1017,8 @@ async fn bang_shell_enter_while_task_running_submits_run_user_shell_command() {
         other => panic!("expected RunUserShellCommand op, got {other:?}"),
     }
     assert_matches!(
-        op_rx.try_recv(),
-        Ok(Op::AddToHistory { text }) if text == "!echo hi"
+        rx.try_recv(),
+        Ok(AppEvent::AppendMessageHistoryEntry { text, .. }) if text == "!echo hi"
     );
     assert_matches!(rx.try_recv(), Err(TryRecvError::Empty));
 }
@@ -1110,15 +1027,7 @@ async fn bang_shell_enter_while_task_running_submits_run_user_shell_command() {
 async fn user_message_during_user_shell_command_is_queued_not_steered() {
     let (mut chat, _rx, mut op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
     chat.thread_id = Some(ThreadId::new());
-    chat.handle_thinwedge_event(Event {
-        id: "turn-start".into(),
-        msg: EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-1".to_string(),
-            started_at: None,
-            model_context_window: None,
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    });
+    handle_turn_started(&mut chat, "turn-1");
     let begin = begin_exec_with_source(
         &mut chat,
         "user-shell-sleep",
@@ -1135,16 +1044,13 @@ async fn user_message_during_user_shell_command_is_queued_not_steered() {
     assert_eq!(chat.queued_user_message_texts(), vec!["hi".to_string()]);
 
     end_exec(&mut chat, begin, "", "", /*exit_code*/ 0);
-    chat.handle_thinwedge_event(Event {
-        id: "turn-complete".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: Some("done".to_string()),
-            completed_at: None,
-            duration_ms: None,
-            time_to_first_token_ms: None,
-        }),
-    });
+    complete_assistant_message(
+        &mut chat,
+        "msg-done",
+        "done",
+        Some(MessagePhase::FinalAnswer),
+    );
+    handle_turn_completed(&mut chat, "turn-1", /*duration_ms*/ None);
 
     match next_submit_op(&mut op_rx) {
         Op::UserTurn { items, .. } => assert_eq!(
@@ -1156,7 +1062,7 @@ async fn user_message_during_user_shell_command_is_queued_not_steered() {
         ),
         other => panic!("expected queued user message after shell completion, got {other:?}"),
     }
-    assert!(chat.queued_user_messages.is_empty());
+    assert!(chat.input_queue.queued_user_messages.is_empty());
 }
 
 #[tokio::test]
@@ -1181,7 +1087,7 @@ async fn disabled_slash_command_while_task_running_snapshot() {
 //
 // Snapshot test: command approval modal
 //
-// Synthesizes a ThinWedge ExecApprovalRequest event to trigger the approval modal
+// Synthesizes an exec approval request to trigger the approval modal
 // and snapshots the visual output using the ratatui TestBackend.
 #[tokio::test]
 async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
@@ -1191,7 +1097,7 @@ async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
     chat.config
         .permissions
         .approval_policy
-        .set(AskForApproval::OnRequest)?;
+        .set(AskForApproval::OnRequest.to_core())?;
     // Inject an exec approval request to display the approval modal.
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-cmd".into(),
@@ -1203,20 +1109,14 @@ async fn approval_modal_exec_snapshot() -> anyhow::Result<()> {
             "this is a test reason such as one that would be produced by the model".into(),
         ),
         network_approval_context: None,
-        proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(vec![
-            "echo".into(),
-            "hello".into(),
-            "world".into(),
-        ])),
+        proposed_execpolicy_amendment: Some(ExecPolicyAmendment {
+            command: vec!["echo".into(), "hello".into(), "world".into()],
+        }),
         proposed_network_policy_amendments: None,
         additional_permissions: None,
         available_decisions: None,
-        parsed_cmd: vec![],
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-approve".into(),
-        msg: EventMsg::ExecApprovalRequest(ev),
-    });
+    handle_exec_approval_request(&mut chat, "sub-approve", ev);
     // Render to a fixed-size test terminal and snapshot.
     // Call desired_height first and use that exact height for rendering.
     let width = 100;
@@ -1254,7 +1154,7 @@ async fn approval_modal_exec_without_reason_snapshot() -> anyhow::Result<()> {
     chat.config
         .permissions
         .approval_policy
-        .set(AskForApproval::OnRequest)?;
+        .set(AskForApproval::OnRequest.to_core())?;
 
     let ev = ExecApprovalRequestEvent {
         call_id: "call-approve-cmd-noreason".into(),
@@ -1264,20 +1164,14 @@ async fn approval_modal_exec_without_reason_snapshot() -> anyhow::Result<()> {
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
         reason: None,
         network_approval_context: None,
-        proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(vec![
-            "echo".into(),
-            "hello".into(),
-            "world".into(),
-        ])),
+        proposed_execpolicy_amendment: Some(ExecPolicyAmendment {
+            command: vec!["echo".into(), "hello".into(), "world".into()],
+        }),
         proposed_network_policy_amendments: None,
         additional_permissions: None,
         available_decisions: None,
-        parsed_cmd: vec![],
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-approve-noreason".into(),
-        msg: EventMsg::ExecApprovalRequest(ev),
-    });
+    handle_exec_approval_request(&mut chat, "sub-approve-noreason", ev);
 
     let width = 100;
     let height = chat.desired_height(width);
@@ -1304,7 +1198,7 @@ async fn approval_modal_exec_multiline_prefix_hides_execpolicy_option_snapshot()
     chat.config
         .permissions
         .approval_policy
-        .set(AskForApproval::OnRequest)?;
+        .set(AskForApproval::OnRequest.to_core())?;
 
     let script = "python - <<'PY'\nprint('hello')\nPY".to_string();
     let command = vec!["bash".into(), "-lc".into(), script];
@@ -1316,16 +1210,12 @@ async fn approval_modal_exec_multiline_prefix_hides_execpolicy_option_snapshot()
         cwd: AbsolutePathBuf::current_dir().expect("current dir"),
         reason: None,
         network_approval_context: None,
-        proposed_execpolicy_amendment: Some(ExecPolicyAmendment::new(command)),
+        proposed_execpolicy_amendment: Some(ExecPolicyAmendment { command }),
         proposed_network_policy_amendments: None,
         additional_permissions: None,
         available_decisions: None,
-        parsed_cmd: vec![],
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-approve-multiline-trunc".into(),
-        msg: EventMsg::ExecApprovalRequest(ev),
-    });
+    handle_exec_approval_request(&mut chat, "sub-approve-multiline-trunc", ev);
 
     let width = 100;
     let height = chat.desired_height(width);
@@ -1352,7 +1242,7 @@ async fn approval_modal_patch_snapshot() -> anyhow::Result<()> {
     chat.config
         .permissions
         .approval_policy
-        .set(AskForApproval::OnRequest)?;
+        .set(AskForApproval::OnRequest.to_core())?;
 
     // Build a small changeset and a reason/grant_root to exercise the prompt text.
     let mut changes = HashMap::new();
@@ -1369,10 +1259,7 @@ async fn approval_modal_patch_snapshot() -> anyhow::Result<()> {
         reason: Some("The model wants to apply changes".into()),
         grant_root: Some(PathBuf::from("/tmp")),
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-approve-patch".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ev),
-    });
+    handle_apply_patch_approval_request(&mut chat, "sub-approve-patch", ev);
 
     // Render at the widget's desired height and snapshot.
     let height = chat.desired_height(/*width*/ 80);
@@ -1397,15 +1284,7 @@ async fn interrupt_preserves_unified_exec_processes() {
     begin_unified_exec_startup(&mut chat, "call-2", "process-2", "sleep 6");
     assert_eq!(chat.unified_exec_processes.len(), 2);
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnAborted(thinwedge_protocol::protocol::TurnAbortedEvent {
-            turn_id: Some("turn-1".to_string()),
-            reason: TurnAbortReason::Interrupted,
-            completed_at: None,
-            duration_ms: None,
-        }),
-    });
+    handle_turn_interrupted(&mut chat, "turn-1");
 
     assert_eq!(chat.unified_exec_processes.len(), 2);
 
@@ -1432,28 +1311,12 @@ async fn interrupt_preserves_unified_exec_processes() {
 async fn interrupt_preserves_unified_exec_wait_streak_snapshot() {
     let (mut chat, mut rx, _op_rx) = make_chatwidget_manual(/*model_override*/ None).await;
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnStarted(TurnStartedEvent {
-            turn_id: "turn-1".to_string(),
-            started_at: None,
-            model_context_window: None,
-            collaboration_mode_kind: ModeKind::Default,
-        }),
-    });
+    handle_turn_started(&mut chat, "turn-1");
 
     let begin = begin_unified_exec_startup(&mut chat, "call-1", "process-1", "just fix");
     terminal_interaction(&mut chat, "call-1a", "process-1", "");
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnAborted(thinwedge_protocol::protocol::TurnAbortedEvent {
-            turn_id: Some("turn-1".to_string()),
-            reason: TurnAbortReason::Interrupted,
-            completed_at: None,
-            duration_ms: None,
-        }),
-    });
+    handle_turn_interrupted(&mut chat, "turn-1");
 
     end_exec(&mut chat, begin, "", "", /*exit_code*/ 0);
     let cells = drain_insert_history(&mut rx);
@@ -1474,16 +1337,7 @@ async fn turn_complete_keeps_unified_exec_processes() {
     begin_unified_exec_startup(&mut chat, "call-2", "process-2", "sleep 6");
     assert_eq!(chat.unified_exec_processes.len(), 2);
 
-    chat.handle_thinwedge_event(Event {
-        id: "turn-1".into(),
-        msg: EventMsg::TurnComplete(TurnCompleteEvent {
-            turn_id: "turn-1".to_string(),
-            last_agent_message: None,
-            completed_at: None,
-            duration_ms: None,
-            time_to_first_token_ms: None,
-        }),
-    });
+    handle_turn_completed(&mut chat, "turn-1", /*duration_ms*/ None);
 
     assert_eq!(chat.unified_exec_processes.len(), 2);
 
@@ -1525,10 +1379,7 @@ async fn apply_patch_events_emit_history_cells() {
         reason: None,
         grant_root: None,
     };
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ev),
-    });
+    handle_apply_patch_approval_request(&mut chat, "s1", ev);
     assert!(
         drain_insert_history(&mut rx).is_empty(),
         "expected approval request to surface via modal without emitting history cells"
@@ -1542,16 +1393,7 @@ async fn apply_patch_events_emit_history_cells() {
             content: "hello\n".to_string(),
         },
     );
-    let begin = PatchApplyBeginEvent {
-        call_id: "c1".into(),
-        turn_id: "turn-c1".into(),
-        auto_approved: true,
-        changes: changes2,
-    };
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::PatchApplyBegin(begin),
-    });
+    handle_patch_apply_begin(&mut chat, "c1", "turn-c1", changes2);
     let cells = drain_insert_history(&mut rx);
     assert!(!cells.is_empty(), "expected apply block cell to be sent");
     let blob = lines_to_single_string(cells.last().unwrap());
@@ -1568,19 +1410,13 @@ async fn apply_patch_events_emit_history_cells() {
             content: "hello\n".to_string(),
         },
     );
-    let end = PatchApplyEndEvent {
-        call_id: "c1".into(),
-        turn_id: "turn-c1".into(),
-        stdout: "ok\n".into(),
-        stderr: String::new(),
-        success: true,
-        changes: end_changes,
-        status: CorePatchApplyStatus::Completed,
-    };
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::PatchApplyEnd(end),
-    });
+    handle_patch_apply_end(
+        &mut chat,
+        "c1",
+        "turn-c1",
+        end_changes,
+        AppServerPatchApplyStatus::Completed,
+    );
     let cells = drain_insert_history(&mut rx);
     assert!(
         cells.is_empty(),
@@ -1599,16 +1435,17 @@ async fn apply_patch_manual_approval_adjusts_header() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+    handle_apply_patch_approval_request(
+        &mut chat,
+        "s1",
+        ApplyPatchApprovalRequestEvent {
             call_id: "c1".into(),
             turn_id: "turn-c1".into(),
             changes: proposed_changes,
             reason: None,
             grant_root: None,
-        }),
-    });
+        },
+    );
     drain_insert_history(&mut rx);
 
     let mut apply_changes = HashMap::new();
@@ -1618,15 +1455,7 @@ async fn apply_patch_manual_approval_adjusts_header() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
-            call_id: "c1".into(),
-            turn_id: "turn-c1".into(),
-            auto_approved: false,
-            changes: apply_changes,
-        }),
-    });
+    handle_patch_apply_begin(&mut chat, "c1", "turn-c1", apply_changes);
 
     let cells = drain_insert_history(&mut rx);
     assert!(!cells.is_empty(), "expected apply block cell to be sent");
@@ -1648,16 +1477,17 @@ async fn apply_patch_manual_flow_snapshot() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+    handle_apply_patch_approval_request(
+        &mut chat,
+        "s1",
+        ApplyPatchApprovalRequestEvent {
             call_id: "c1".into(),
             turn_id: "turn-c1".into(),
             changes: proposed_changes,
             reason: Some("Manual review required".into()),
             grant_root: None,
-        }),
-    });
+        },
+    );
     let history_before_apply = drain_insert_history(&mut rx);
     assert!(
         history_before_apply.is_empty(),
@@ -1671,15 +1501,7 @@ async fn apply_patch_manual_flow_snapshot() {
             content: "hello\n".to_string(),
         },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "s1".into(),
-        msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
-            call_id: "c1".into(),
-            turn_id: "turn-c1".into(),
-            auto_approved: false,
-            changes: apply_changes,
-        }),
-    });
+    handle_patch_apply_begin(&mut chat, "c1", "turn-c1", apply_changes);
     let approved_lines = drain_insert_history(&mut rx)
         .pop()
         .expect("approved patch cell");
@@ -1708,10 +1530,7 @@ async fn apply_patch_approval_sends_op_with_call_id() {
         reason: None,
         grant_root: None,
     };
-    chat.handle_thinwedge_event(Event {
-        id: "sub-123".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ev),
-    });
+    handle_apply_patch_approval_request(&mut chat, "sub-123", ev);
 
     // Approve via key press 'y'
     chat.handle_key_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
@@ -1727,7 +1546,7 @@ async fn apply_patch_approval_sends_op_with_call_id() {
             assert_eq!(id, "call-999");
             assert_matches!(
                 decision,
-                thinwedge_protocol::protocol::ReviewDecision::Approved
+                thinwedge_app_server_protocol::FileChangeApprovalDecision::Accept
             );
             found = true;
             break;
@@ -1746,16 +1565,17 @@ async fn apply_patch_full_flow_integration_like() {
         PathBuf::from("pkg.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "sub-xyz".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+    handle_apply_patch_approval_request(
+        &mut chat,
+        "sub-xyz",
+        ApplyPatchApprovalRequestEvent {
             call_id: "call-1".into(),
             turn_id: "turn-call-1".into(),
             changes,
             reason: None,
             grant_root: None,
-        }),
-    });
+        },
+    );
 
     // 2) User approves via 'y' and App receives a thread-scoped op
     chat.handle_key_event(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE));
@@ -1778,7 +1598,7 @@ async fn apply_patch_full_flow_integration_like() {
             assert_eq!(id, "call-1");
             assert_matches!(
                 decision,
-                thinwedge_protocol::protocol::ReviewDecision::Approved
+                thinwedge_app_server_protocol::FileChangeApprovalDecision::Accept
             );
         }
         other => panic!("unexpected op forwarded: {other:?}"),
@@ -1790,32 +1610,19 @@ async fn apply_patch_full_flow_integration_like() {
         PathBuf::from("pkg.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "sub-xyz".into(),
-        msg: EventMsg::PatchApplyBegin(PatchApplyBeginEvent {
-            call_id: "call-1".into(),
-            turn_id: "turn-call-1".into(),
-            auto_approved: false,
-            changes: changes2,
-        }),
-    });
+    handle_patch_apply_begin(&mut chat, "call-1", "turn-call-1", changes2);
     let mut end_changes = HashMap::new();
     end_changes.insert(
         PathBuf::from("pkg.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "sub-xyz".into(),
-        msg: EventMsg::PatchApplyEnd(PatchApplyEndEvent {
-            call_id: "call-1".into(),
-            turn_id: "turn-call-1".into(),
-            stdout: String::from("ok"),
-            stderr: String::new(),
-            success: true,
-            changes: end_changes,
-            status: CorePatchApplyStatus::Completed,
-        }),
-    });
+    handle_patch_apply_end(
+        &mut chat,
+        "call-1",
+        "turn-call-1",
+        end_changes,
+        AppServerPatchApplyStatus::Completed,
+    );
 }
 
 #[tokio::test]
@@ -1825,7 +1632,7 @@ async fn apply_patch_untrusted_shows_approval_modal() -> anyhow::Result<()> {
     chat.config
         .permissions
         .approval_policy
-        .set(AskForApproval::OnRequest)?;
+        .set(AskForApproval::OnRequest.to_core())?;
 
     // Simulate a patch approval request from backend
     let mut changes = HashMap::new();
@@ -1833,16 +1640,17 @@ async fn apply_patch_untrusted_shows_approval_modal() -> anyhow::Result<()> {
         PathBuf::from("a.rs"),
         FileChange::Add { content: "".into() },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "sub-1".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+    handle_apply_patch_approval_request(
+        &mut chat,
+        "sub-1",
+        ApplyPatchApprovalRequestEvent {
             call_id: "call-1".into(),
             turn_id: "turn-call-1".into(),
             changes,
             reason: None,
             grant_root: None,
-        }),
-    });
+        },
+    );
 
     // Render and ensure the approval modal title is present
     let area = Rect::new(0, 0, 80, 12);
@@ -1876,7 +1684,7 @@ async fn apply_patch_request_omits_diff_summary_from_modal() -> anyhow::Result<(
     chat.config
         .permissions
         .approval_policy
-        .set(AskForApproval::OnRequest)?;
+        .set(AskForApproval::OnRequest.to_core())?;
 
     // Simulate backend asking to apply a patch adding two lines to README.md
     let mut changes = HashMap::new();
@@ -1887,16 +1695,17 @@ async fn apply_patch_request_omits_diff_summary_from_modal() -> anyhow::Result<(
             content: "line one\nline two\n".into(),
         },
     );
-    chat.handle_thinwedge_event(Event {
-        id: "sub-apply".into(),
-        msg: EventMsg::ApplyPatchApprovalRequest(ApplyPatchApprovalRequestEvent {
+    handle_apply_patch_approval_request(
+        &mut chat,
+        "sub-apply",
+        ApplyPatchApprovalRequestEvent {
             call_id: "call-apply".into(),
             turn_id: "turn-apply".into(),
             changes,
             reason: None,
             grant_root: None,
-        }),
-    });
+        },
+    );
 
     assert!(
         drain_insert_history(&mut rx).is_empty(),

@@ -15,6 +15,7 @@
 //! bridging async `mpsc` channels on both sides. Queues are bounded so overload
 //! surfaces as channel-full errors rather than unbounded memory growth.
 
+mod path;
 mod remote;
 
 use std::error::Error;
@@ -22,14 +23,17 @@ use std::fmt;
 use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::io::Result as IoResult;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde::de::DeserializeOwned;
+pub use thinwedge_app_server::app_server_control_socket_path;
 pub use thinwedge_app_server::in_process::DEFAULT_IN_PROCESS_CHANNEL_CAPACITY;
 pub use thinwedge_app_server::in_process::InProcessServerEvent;
 use thinwedge_app_server::in_process::InProcessStartArgs;
 use thinwedge_app_server::in_process::LogDbLayer;
+pub use thinwedge_app_server::in_process::StateDbHandle;
 use thinwedge_app_server_protocol::ClientInfo;
 use thinwedge_app_server_protocol::ClientNotification;
 use thinwedge_app_server_protocol::ClientRequest;
@@ -42,25 +46,31 @@ use thinwedge_app_server_protocol::Result as JsonRpcResult;
 use thinwedge_app_server_protocol::ServerNotification;
 use thinwedge_app_server_protocol::ServerRequest;
 use thinwedge_arg0::Arg0DispatchPaths;
-use thinwedge_config::CloudRequirementsLoader;
+use thinwedge_config::CloudConfigBundleLoader;
 use thinwedge_config::LoaderOverrides;
 use thinwedge_config::NoopThreadConfigLoader;
 use thinwedge_config::RemoteThreadConfigLoader;
 use thinwedge_config::ThreadConfigLoader;
+use thinwedge_config::config_toml::ConfigToml;
 use thinwedge_core::config::Config;
+pub use thinwedge_core::otel_init::build_provider as build_otel_provider;
+use thinwedge_core::personality_migration::PersonalityMigrationStatus;
+use thinwedge_core::personality_migration::maybe_migrate_personality;
 pub use thinwedge_exec_server::EnvironmentManager;
-pub use thinwedge_exec_server::EnvironmentManagerArgs;
 pub use thinwedge_exec_server::ExecServerRuntimePaths;
 use thinwedge_feedback::ThinWedgeFeedback;
 use thinwedge_protocol::protocol::SessionSource;
+use thinwedge_utils_absolute_path::AbsolutePathBuf;
 use tokio::sync::mpsc;
 use tokio::sync::oneshot;
 use tokio::time::timeout;
 use toml::Value as TomlValue;
 use tracing::warn;
 
+pub use crate::path::AppServerPath;
 pub use crate::remote::RemoteAppServerClient;
 pub use crate::remote::RemoteAppServerConnectArgs;
+pub use crate::remote::RemoteAppServerEndpoint;
 
 /// Transitional access to core-only embedded app-server types.
 ///
@@ -68,16 +78,8 @@ pub use crate::remote::RemoteAppServerConnectArgs;
 /// module exists so clients can remove a direct `thinwedge-core` dependency
 /// while legacy startup/config paths are migrated to RPCs.
 pub mod legacy_core {
-    pub use thinwedge_core::DEFAULT_AGENTS_MD_FILENAME;
-    pub use thinwedge_core::LOCAL_AGENTS_MD_FILENAME;
-    pub use thinwedge_core::McpManager;
-    pub use thinwedge_core::append_message_history_entry;
     pub use thinwedge_core::check_execpolicy_for_warnings;
     pub use thinwedge_core::format_exec_policy_error_with_source;
-    pub use thinwedge_core::grant_read_root_non_elevated;
-    pub use thinwedge_core::lookup_message_history_entry;
-    pub use thinwedge_core::message_history_metadata;
-    pub use thinwedge_core::web_search_detail;
 
     pub mod config {
         pub use thinwedge_core::config::*;
@@ -86,45 +88,26 @@ pub mod legacy_core {
             pub use thinwedge_core::config::edit::*;
         }
     }
-
-    pub mod connectors {
-        pub use thinwedge_core::connectors::*;
-    }
-
-    pub mod otel_init {
-        pub use thinwedge_core::otel_init::*;
-    }
-
-    pub mod personality_migration {
-        pub use thinwedge_core::personality_migration::*;
-    }
-
-    pub mod plugins {
-        pub use thinwedge_core::plugins::PluginsManager;
-    }
-
-    pub mod review_format {
-        pub use thinwedge_core::review_format::*;
-    }
-
-    pub mod review_prompts {
-        pub use thinwedge_core::review_prompts::*;
-    }
-
-    pub mod test_support {
-        pub use thinwedge_core::test_support::*;
-    }
-
-    pub mod util {
-        pub use thinwedge_core::util::*;
-    }
-
-    pub mod windows_sandbox {
-        pub use thinwedge_core::windows_sandbox::*;
-    }
 }
 
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Runs the embedded app-server personality migration.
+///
+/// Returns `true` when the migration changed config and the caller should reload it.
+pub async fn migrate_personality_if_needed(
+    thinwedge_home: &Path,
+    config_toml: &ConfigToml,
+    state_db: Option<StateDbHandle>,
+) -> IoResult<bool> {
+    let status = maybe_migrate_personality(thinwedge_home, config_toml, state_db).await?;
+    match status {
+        PersonalityMigrationStatus::Applied => Ok(true),
+        PersonalityMigrationStatus::SkippedMarker
+        | PersonalityMigrationStatus::SkippedExplicitPersonality
+        | PersonalityMigrationStatus::SkippedNoSessions => Ok(false),
+    }
+}
 
 /// Raw app-server request result for typed in-process requests.
 ///
@@ -181,7 +164,9 @@ pub(crate) fn server_notification_requires_delivery(notification: &ServerNotific
     matches!(
         notification,
         ServerNotification::TurnCompleted(_)
+            | ServerNotification::ThreadSettingsUpdated(_)
             | ServerNotification::ItemCompleted(_)
+            | ServerNotification::ExternalAgentConfigImportCompleted(_)
             | ServerNotification::AgentMessageDelta(_)
             | ServerNotification::PlanDelta(_)
             | ServerNotification::ReasoningSummaryTextDelta(_)
@@ -304,7 +289,15 @@ impl fmt::Display for TypedRequestError {
                 write!(f, "{method} transport error: {source}")
             }
             Self::Server { method, source } => {
-                write!(f, "{method} failed: {}", source.message)
+                write!(
+                    f,
+                    "{method} failed: {} (code {})",
+                    source.message, source.code
+                )?;
+                if let Some(data) = source.data.as_ref() {
+                    write!(f, ", data: {data}")?;
+                }
+                Ok(())
             }
             Self::Deserialize { method, source } => {
                 write!(f, "{method} response decode error: {source}")
@@ -333,12 +326,16 @@ pub struct InProcessClientStartArgs {
     pub cli_overrides: Vec<(String, TomlValue)>,
     /// Loader override knobs used by config API paths.
     pub loader_overrides: LoaderOverrides,
-    /// Preloaded cloud requirements provider.
-    pub cloud_requirements: CloudRequirementsLoader,
+    /// Whether config API paths should reject unknown config fields.
+    pub strict_config: bool,
+    /// Preloaded cloud config bundle provider.
+    pub cloud_config_bundle: CloudConfigBundleLoader,
     /// Feedback sink used by app-server/core telemetry and logs.
     pub feedback: ThinWedgeFeedback,
     /// SQLite tracing layer used to flush recently emitted logs before feedback upload.
     pub log_db: Option<LogDbLayer>,
+    /// Process-wide SQLite state handle shared with the embedded app-server.
+    pub state_db: Option<StateDbHandle>,
     /// Environment manager used by core execution and filesystem operations.
     pub environment_manager: Arc<EnvironmentManager>,
     /// Startup warnings emitted after initialize succeeds.
@@ -371,6 +368,7 @@ impl InProcessClientStartArgs {
     pub fn initialize_params(&self) -> InitializeParams {
         let capabilities = InitializeCapabilities {
             experimental_api: self.experimental_api,
+            request_attestation: false,
             opt_out_notification_methods: if self.opt_out_notification_methods.is_empty() {
                 None
             } else {
@@ -396,10 +394,12 @@ impl InProcessClientStartArgs {
             config: self.config,
             cli_overrides: self.cli_overrides,
             loader_overrides: self.loader_overrides,
-            cloud_requirements: self.cloud_requirements,
+            strict_config: self.strict_config,
+            cloud_config_bundle: self.cloud_config_bundle,
             thread_config_loader,
             feedback: self.feedback,
             log_db: self.log_db,
+            state_db: self.state_db,
             environment_manager: self.environment_manager,
             config_warnings: self.config_warnings,
             session_source: self.session_source,
@@ -541,6 +541,26 @@ impl InProcessAppServerClient {
                         let Some(event) = event else {
                             break;
                         };
+                        if let InProcessServerEvent::ServerRequest(
+                            ServerRequest::ChatgptAuthTokensRefresh { request_id, .. }
+                        ) = &event
+                        {
+                            let send_result = request_sender.fail_server_request(
+                                request_id.clone(),
+                                JSONRPCErrorError {
+                                    code: -32000,
+                                    message: "chatgpt auth token refresh is not supported for in-process app-server clients".to_string(),
+                                    data: None,
+                                },
+                            );
+                            if let Err(err) = send_result {
+                                warn!(
+                                    "failed to reject unsupported chatgpt auth token refresh request: {err}"
+                                );
+                            }
+                            continue;
+                        }
+
                         match forward_in_process_event(
                             &event_tx,
                             &mut skipped_events,
@@ -828,6 +848,15 @@ impl AppServerRequestHandle {
 }
 
 impl AppServerClient {
+    pub fn thinwedge_home(&self, local_thinwedge_home: &AbsolutePathBuf) -> Option<AppServerPath> {
+        match self {
+            Self::InProcess(_) => Some(AppServerPath::from_app_server(
+                local_thinwedge_home.display().to_string(),
+            )),
+            Self::Remote(client) => client.thinwedge_home().map(AppServerPath::from_app_server),
+        }
+    }
+
     pub async fn request(&self, request: ClientRequest) -> IoResult<RequestResult> {
         match self {
             Self::InProcess(client) => client.request(request).await,
@@ -916,6 +945,9 @@ mod tests {
     use futures::SinkExt;
     use futures::StreamExt;
     use pretty_assertions::assert_eq;
+    use std::ops::Deref;
+    use std::path::Path;
+    use tempfile::TempDir;
     use thinwedge_app_server_protocol::AccountUpdatedNotification;
     use thinwedge_app_server_protocol::ConfigRequirementsReadResponse;
     use thinwedge_app_server_protocol::GetAccountResponse;
@@ -929,9 +961,13 @@ mod tests {
     use thinwedge_app_server_protocol::ToolRequestUserInputParams;
     use thinwedge_app_server_protocol::ToolRequestUserInputQuestion;
     use thinwedge_core::config::ConfigBuilder;
+    use thinwedge_core::init_state_db;
+    use thinwedge_uds::UnixListener;
+    use thinwedge_utils_absolute_path::AbsolutePathBuf;
     use tokio::net::TcpListener;
     use tokio::time::Duration;
     use tokio::time::timeout;
+    use tokio_tungstenite::accept_async;
     use tokio_tungstenite::accept_hdr_async;
     use tokio_tungstenite::tungstenite::Message;
     use tokio_tungstenite::tungstenite::handshake::server::Request as WebSocketRequest;
@@ -947,18 +983,60 @@ mod tests {
         }
     }
 
+    async fn build_test_config_for_thinwedge_home(thinwedge_home: &Path) -> Config {
+        match ConfigBuilder::default()
+            .thinwedge_home(thinwedge_home.to_path_buf())
+            .build()
+            .await
+        {
+            Ok(config) => config,
+            Err(_) => Config::load_default_with_cli_overrides_for_thinwedge_home(
+                thinwedge_home.to_path_buf(),
+                Vec::new(),
+            )
+            .await
+            .expect("default config should load"),
+        }
+    }
+
+    struct TestClient {
+        _thinwedge_home: TempDir,
+        client: InProcessAppServerClient,
+    }
+
+    impl Deref for TestClient {
+        type Target = InProcessAppServerClient;
+
+        fn deref(&self) -> &Self::Target {
+            &self.client
+        }
+    }
+
+    impl TestClient {
+        async fn shutdown(self) -> IoResult<()> {
+            self.client.shutdown().await
+        }
+    }
+
     async fn start_test_client_with_capacity(
         session_source: SessionSource,
         channel_capacity: usize,
-    ) -> InProcessAppServerClient {
-        InProcessAppServerClient::start(InProcessClientStartArgs {
+    ) -> TestClient {
+        let thinwedge_home = TempDir::new().expect("temp dir");
+        let config = Arc::new(build_test_config_for_thinwedge_home(thinwedge_home.path()).await);
+        let state_db = init_state_db(config.as_ref())
+            .await
+            .expect("state db should initialize for in-process test");
+        let client = InProcessAppServerClient::start(InProcessClientStartArgs {
             arg0_paths: Arg0DispatchPaths::default(),
-            config: Arc::new(build_test_config().await),
+            config,
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            strict_config: false,
+            cloud_config_bundle: CloudConfigBundleLoader::default(),
             feedback: ThinWedgeFeedback::new(),
             log_db: None,
+            state_db: Some(state_db),
             environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
             config_warnings: Vec::new(),
             session_source,
@@ -970,10 +1048,15 @@ mod tests {
             channel_capacity,
         })
         .await
-        .expect("in-process app-server client should start")
+        .expect("in-process app-server client should start");
+
+        TestClient {
+            _thinwedge_home: thinwedge_home,
+            client,
+        }
     }
 
-    async fn start_test_client(session_source: SessionSource) -> InProcessAppServerClient {
+    async fn start_test_client(session_source: SessionSource) -> TestClient {
         start_test_client_with_capacity(session_source, DEFAULT_IN_PROCESS_CHANNEL_CAPACITY).await
     }
 
@@ -1025,9 +1108,10 @@ mod tests {
         format!("ws://{addr}")
     }
 
-    async fn expect_remote_initialize(
-        websocket: &mut tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
-    ) {
+    async fn expect_remote_initialize<S>(websocket: &mut tokio_tungstenite::WebSocketStream<S>)
+    where
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    {
         let JSONRPCMessage::Request(request) = read_websocket_message(websocket).await else {
             panic!("expected initialize request");
         };
@@ -1036,7 +1120,10 @@ mod tests {
             websocket,
             JSONRPCMessage::Response(JSONRPCResponse {
                 id: request.id,
-                result: serde_json::json!({}),
+                result: serde_json::json!({
+                    "userAgent": "thinwedge_cli_rs/9.8.7-test (Test OS; x86_64) rust",
+                    "thinwedgeHome": "/server/.thinwedge",
+                }),
             }),
         )
         .await;
@@ -1048,9 +1135,12 @@ mod tests {
         assert_eq!(notification.method, "initialized");
     }
 
-    async fn read_websocket_message(
-        websocket: &mut tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
-    ) -> JSONRPCMessage {
+    async fn read_websocket_message<S>(
+        websocket: &mut tokio_tungstenite::WebSocketStream<S>,
+    ) -> JSONRPCMessage
+    where
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    {
         loop {
             let frame = websocket
                 .next()
@@ -1070,10 +1160,12 @@ mod tests {
         }
     }
 
-    async fn write_websocket_message(
-        websocket: &mut tokio_tungstenite::WebSocketStream<tokio::net::TcpStream>,
+    async fn write_websocket_message<S>(
+        websocket: &mut tokio_tungstenite::WebSocketStream<S>,
         message: JSONRPCMessage,
-    ) {
+    ) where
+        S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+    {
         websocket
             .send(Message::Text(
                 serde_json::to_string(&message)
@@ -1111,6 +1203,7 @@ mod tests {
             thinwedge_app_server_protocol::ItemCompletedNotification {
                 thread_id: "thread".to_string(),
                 turn_id: "turn".to_string(),
+                completed_at_ms: 0,
                 item: thinwedge_app_server_protocol::ThreadItem::AgentMessage {
                     id: "item".to_string(),
                     text: text.to_string(),
@@ -1127,6 +1220,7 @@ mod tests {
                 thread_id: "thread".to_string(),
                 turn: thinwedge_app_server_protocol::Turn {
                     id: "turn".to_string(),
+                    items_view: thinwedge_app_server_protocol::TurnItemsView::Full,
                     items: Vec::new(),
                     status: thinwedge_app_server_protocol::TurnStatus::Completed,
                     error: None,
@@ -1140,8 +1234,10 @@ mod tests {
 
     fn test_remote_connect_args(websocket_url: String) -> RemoteAppServerConnectArgs {
         RemoteAppServerConnectArgs {
-            websocket_url,
-            auth_token: None,
+            endpoint: RemoteAppServerEndpoint::WebSocket {
+                websocket_url,
+                auth_token: None,
+            },
             client_name: "thinwedge-app-server-client-test".to_string(),
             client_version: "0.0.0-test".to_string(),
             experimental_api: true,
@@ -1353,7 +1449,7 @@ mod tests {
                     id: request.id,
                     result: serde_json::to_value(GetAccountResponse {
                         account: None,
-                        requires_thinwedge_auth: false,
+                        requires_openai_auth: false,
                     })
                     .expect("response should serialize"),
                 }),
@@ -1365,6 +1461,67 @@ mod tests {
         let client = RemoteAppServerClient::connect(test_remote_connect_args(websocket_url))
             .await
             .expect("remote client should connect");
+
+        assert_eq!(client.server_version(), Some("9.8.7-test"));
+        assert_eq!(client.thinwedge_home(), Some("/server/.thinwedge"));
+        let response: GetAccountResponse = client
+            .request_typed(ClientRequest::GetAccount {
+                request_id: RequestId::Integer(1),
+                params: thinwedge_app_server_protocol::GetAccountParams {
+                    refresh_token: false,
+                },
+            })
+            .await
+            .expect("typed request should succeed");
+        assert_eq!(response.account, None);
+
+        client.shutdown().await.expect("shutdown should complete");
+    }
+
+    #[tokio::test]
+    async fn remote_unix_socket_typed_request_roundtrip_works() {
+        let socket_dir = TempDir::new().expect("socket dir");
+        let socket_path =
+            AbsolutePathBuf::from_absolute_path(socket_dir.path().join("thinwedge.sock"))
+                .expect("socket path should resolve");
+        let mut listener = UnixListener::bind(socket_path.as_path())
+            .await
+            .expect("listener should bind");
+        tokio::spawn(async move {
+            let stream = listener.accept().await.expect("accept should succeed");
+            let mut websocket = accept_async(stream)
+                .await
+                .expect("websocket upgrade should succeed");
+            expect_remote_initialize(&mut websocket).await;
+            let JSONRPCMessage::Request(request) = read_websocket_message(&mut websocket).await
+            else {
+                panic!("expected account/read request");
+            };
+            assert_eq!(request.method, "account/read");
+            write_websocket_message(
+                &mut websocket,
+                JSONRPCMessage::Response(JSONRPCResponse {
+                    id: request.id,
+                    result: serde_json::to_value(GetAccountResponse {
+                        account: None,
+                        requires_openai_auth: false,
+                    })
+                    .expect("response should serialize"),
+                }),
+            )
+            .await;
+            websocket.close(None).await.expect("close should succeed");
+        });
+        let client = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
+            endpoint: RemoteAppServerEndpoint::UnixSocket { socket_path },
+            client_name: "thinwedge-app-server-client-test".to_string(),
+            client_version: "0.0.0-test".to_string(),
+            experimental_api: true,
+            opt_out_notification_methods: Vec::new(),
+            channel_capacity: 8,
+        })
+        .await
+        .expect("remote client should connect");
 
         let response: GetAccountResponse = client
             .request_typed(ClientRequest::GetAccount {
@@ -1396,7 +1553,7 @@ mod tests {
                     id: request.id,
                     result: serde_json::json!({
                         "account": null,
-                        "requiresThinwedgeAuth": false,
+                        "requiresOpenaiAuth": false,
                         "padding": padding,
                     }),
                 }),
@@ -1422,7 +1579,7 @@ mod tests {
             response,
             GetAccountResponse {
                 account: None,
-                requires_thinwedge_auth: false,
+                requires_openai_auth: false,
             }
         );
 
@@ -1441,8 +1598,15 @@ mod tests {
         )
         .await;
         let client = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
-            auth_token: Some(auth_token),
-            ..test_remote_connect_args(websocket_url)
+            endpoint: RemoteAppServerEndpoint::WebSocket {
+                websocket_url,
+                auth_token: Some(auth_token),
+            },
+            client_name: "thinwedge-app-server-client-test".to_string(),
+            client_version: "0.0.0-test".to_string(),
+            experimental_api: true,
+            opt_out_notification_methods: Vec::new(),
+            channel_capacity: 8,
         })
         .await
         .expect("remote client should connect");
@@ -1453,9 +1617,15 @@ mod tests {
     #[tokio::test]
     async fn remote_connect_rejects_non_loopback_ws_when_auth_configured() {
         let result = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
-            websocket_url: "ws://example.com:4500".to_string(),
-            auth_token: Some("remote-bearer-token".to_string()),
-            ..test_remote_connect_args("ws://127.0.0.1:1".to_string())
+            endpoint: RemoteAppServerEndpoint::WebSocket {
+                websocket_url: "ws://example.com:4500".to_string(),
+                auth_token: Some("remote-bearer-token".to_string()),
+            },
+            client_name: "thinwedge-app-server-client-test".to_string(),
+            client_version: "0.0.0-test".to_string(),
+            experimental_api: true,
+            opt_out_notification_methods: Vec::new(),
+            channel_capacity: 8,
         })
         .await;
         let err = match result {
@@ -1510,7 +1680,7 @@ mod tests {
                     id: request.id,
                     result: serde_json::to_value(GetAccountResponse {
                         account: None,
-                        requires_thinwedge_auth: false,
+                        requires_openai_auth: false,
                     })
                     .expect("response should serialize"),
                 }),
@@ -1563,7 +1733,7 @@ mod tests {
             first_response,
             GetAccountResponse {
                 account: None,
-                requires_thinwedge_auth: false,
+                requires_openai_auth: false,
             }
         );
 
@@ -1633,13 +1803,8 @@ mod tests {
         })
         .await;
         let mut client = RemoteAppServerClient::connect(RemoteAppServerConnectArgs {
-            websocket_url,
-            auth_token: None,
-            client_name: "thinwedge-app-server-client-test".to_string(),
-            client_version: "0.0.0-test".to_string(),
-            experimental_api: true,
-            opt_out_notification_methods: Vec::new(),
             channel_capacity: 1,
+            ..test_remote_connect_args(websocket_url)
         })
         .await
         .expect("remote client should connect");
@@ -1728,6 +1893,7 @@ mod tests {
                             is_secret: false,
                             options: Some(vec![]),
                         }],
+                        auto_resolution_ms: None,
                     })
                     .expect("params should serialize"),
                 ),
@@ -1789,6 +1955,7 @@ mod tests {
                                 is_secret: false,
                                 options: Some(vec![]),
                             }],
+                            auto_resolution_ms: None,
                         })
                         .expect("params should serialize"),
                     ),
@@ -1903,11 +2070,15 @@ mod tests {
             method: "thread/read".to_string(),
             source: JSONRPCErrorError {
                 code: -32603,
-                data: None,
+                data: Some(serde_json::json!({"detail": "config lock mismatch"})),
                 message: "internal".to_string(),
             },
         };
         assert_eq!(std::error::Error::source(&server).is_some(), false);
+        assert_eq!(
+            server.to_string(),
+            "thread/read failed: internal (code -32603), data: {\"detail\":\"config lock mismatch\"}"
+        );
 
         let deserialize = TypedRequestError::Deserialize {
             method: "thread/start".to_string(),
@@ -1954,6 +2125,7 @@ mod tests {
                         thread_id: "thread".to_string(),
                         turn: thinwedge_app_server_protocol::Turn {
                             id: "turn".to_string(),
+                            items_view: thinwedge_app_server_protocol::TurnItemsView::Full,
                             items: Vec::new(),
                             status: thinwedge_app_server_protocol::TurnStatus::Completed,
                             error: None,
@@ -1983,6 +2155,7 @@ mod tests {
                     thinwedge_app_server_protocol::ItemCompletedNotification {
                         thread_id: "thread".to_string(),
                         turn_id: "turn".to_string(),
+                        completed_at_ms: 0,
                         item: thinwedge_app_server_protocol::ThreadItem::AgentMessage {
                             id: "item".to_string(),
                             text: "hello".to_string(),
@@ -1990,6 +2163,13 @@ mod tests {
                             memory_citation: None,
                         },
                     }
+                )
+            )
+        ));
+        assert!(event_requires_delivery(
+            &InProcessServerEvent::ServerNotification(
+                thinwedge_app_server_protocol::ServerNotification::ExternalAgentConfigImportCompleted(
+                    thinwedge_app_server_protocol::ExternalAgentConfigImportCompletedNotification {},
                 )
             )
         ));
@@ -2016,11 +2196,13 @@ mod tests {
         let environment_manager = Arc::new(
             EnvironmentManager::create_for_tests(
                 Some("ws://127.0.0.1:8765".to_string()),
-                ExecServerRuntimePaths::new(
-                    std::env::current_exe().expect("current exe"),
-                    /*thinwedge_linux_sandbox_exe*/ None,
-                )
-                .expect("runtime paths"),
+                Some(
+                    ExecServerRuntimePaths::new(
+                        std::env::current_exe().expect("current exe"),
+                        /*thinwedge_linux_sandbox_exe*/ None,
+                    )
+                    .expect("runtime paths"),
+                ),
             )
             .await,
         );
@@ -2030,9 +2212,11 @@ mod tests {
             config: config.clone(),
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            strict_config: false,
+            cloud_config_bundle: CloudConfigBundleLoader::default(),
             feedback: ThinWedgeFeedback::new(),
             log_db: None,
+            state_db: None,
             environment_manager: environment_manager.clone(),
             config_warnings: Vec::new(),
             session_source: SessionSource::Exec,
@@ -2069,9 +2253,11 @@ mod tests {
             config: Arc::new(config),
             cli_overrides: Vec::new(),
             loader_overrides: LoaderOverrides::default(),
-            cloud_requirements: CloudRequirementsLoader::default(),
+            strict_config: false,
+            cloud_config_bundle: CloudConfigBundleLoader::default(),
             feedback: ThinWedgeFeedback::new(),
             log_db: None,
+            state_db: None,
             environment_manager: Arc::new(EnvironmentManager::default_for_tests()),
             config_warnings: Vec::new(),
             session_source: SessionSource::Exec,

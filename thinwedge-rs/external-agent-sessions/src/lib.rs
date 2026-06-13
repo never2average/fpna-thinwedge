@@ -5,16 +5,16 @@ mod export;
 mod ledger;
 mod records;
 
-use std::collections::HashSet;
 use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 use thinwedge_protocol::protocol::RolloutItem;
 
 pub use detect::detect_recent_sessions;
-pub use export::load_session_for_import;
+use export::load_session_for_import_with_content_sha256;
+pub use ledger::CompletedExternalAgentSessionImport;
 pub use ledger::has_current_session_been_imported;
-pub use ledger::record_imported_session;
+pub use ledger::record_completed_session_imports;
 pub use records::SessionSummary;
 pub use records::summarize_session;
 
@@ -31,75 +31,51 @@ pub struct ExternalAgentSessionMigration {
 pub struct ImportedExternalAgentSession {
     pub cwd: PathBuf,
     pub title: Option<String>,
+    pub first_user_message: Option<String>,
     pub rollout_items: Vec<RolloutItem>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PendingSessionImport {
     pub source_path: PathBuf,
+    pub source_content_sha256: String,
     pub session: ImportedExternalAgentSession,
 }
 
-#[derive(Debug)]
-pub enum PrepareSessionImportsError {
-    SessionNotDetected(PathBuf),
-}
-
-impl std::fmt::Display for PrepareSessionImportsError {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PrepareSessionImportsError::SessionNotDetected(path) => {
-                write!(
-                    formatter,
-                    "external agent session was not detected for import: {}",
-                    path.display()
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for PrepareSessionImportsError {}
-
-pub fn prepare_pending_session_imports(
+pub fn prepare_validated_session_import(
     thinwedge_home: &Path,
-    requested_sessions: Vec<ExternalAgentSessionMigration>,
-    detected_sessions: Vec<ExternalAgentSessionMigration>,
-) -> Result<Vec<PendingSessionImport>, PrepareSessionImportsError> {
-    let detected_session_paths = detected_sessions
-        .into_iter()
-        .map(|session| session.path)
-        .collect::<HashSet<_>>();
-    let mut pending_session_imports = Vec::new();
-    for session in requested_sessions {
-        let has_been_imported =
-            match has_current_session_been_imported(thinwedge_home, &session.path) {
-                Ok(has_been_imported) => has_been_imported,
-                Err(_) => continue,
-            };
-        if !detected_session_paths.contains(&session.path) && !has_been_imported {
-            return Err(PrepareSessionImportsError::SessionNotDetected(session.path));
-        }
-        if has_been_imported {
-            continue;
-        }
-        let imported_session = match load_importable_session(&session.path) {
-            Ok(Some(imported_session)) => imported_session,
-            Ok(None) | Err(_) => continue,
-        };
-        pending_session_imports.push(PendingSessionImport {
-            source_path: session.path,
-            session: imported_session,
-        });
+    session: ExternalAgentSessionMigration,
+) -> io::Result<Option<PendingSessionImport>> {
+    let has_been_imported = has_current_session_been_imported(thinwedge_home, &session.path)?;
+    if has_been_imported {
+        return Ok(None);
     }
-    Ok(pending_session_imports)
-}
-
-fn load_importable_session(path: &Path) -> io::Result<Option<ImportedExternalAgentSession>> {
-    let Some(imported_session) = load_session_for_import(path)? else {
+    let Some((source_path, imported_session, source_content_sha256)) =
+        load_importable_session(&session.path)?
+    else {
         return Ok(None);
     };
-    Ok(imported_session.cwd.is_dir().then_some(imported_session))
+    Ok(Some(PendingSessionImport {
+        source_path,
+        source_content_sha256,
+        session: imported_session,
+    }))
+}
+
+fn load_importable_session(
+    path: &Path,
+) -> io::Result<Option<(PathBuf, ImportedExternalAgentSession, String)>> {
+    let source_path = std::fs::canonicalize(path)?;
+    let Some((imported_session, source_content_sha256)) =
+        load_session_for_import_with_content_sha256(&source_path)?
+    else {
+        return Ok(None);
+    };
+    Ok(imported_session.cwd.is_dir().then_some((
+        source_path,
+        imported_session,
+        source_content_sha256,
+    )))
 }
 
 #[derive(Debug, Clone)]
@@ -141,29 +117,10 @@ fn now_unix_seconds() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::Digest;
+    use sha2::Sha256;
     use tempfile::TempDir;
     use thinwedge_protocol::ThreadId;
-
-    #[test]
-    fn rejects_session_that_was_not_detected() {
-        let root = TempDir::new().expect("tempdir");
-        let thinwedge_home = root.path().join("thinwedge-home");
-        let source_path = root.path().join("session.jsonl");
-        std::fs::write(&source_path, "{}\n").expect("session");
-
-        let err = prepare_pending_session_imports(
-            &thinwedge_home,
-            vec![session_migration(&source_path)],
-            Vec::new(),
-        )
-        .expect_err("undetected session should be rejected");
-
-        match err {
-            PrepareSessionImportsError::SessionNotDetected(path) => {
-                assert_eq!(path, source_path);
-            }
-        }
-    }
 
     #[test]
     fn skips_session_that_was_already_imported() {
@@ -171,17 +128,49 @@ mod tests {
         let thinwedge_home = root.path().join("thinwedge-home");
         let source_path = root.path().join("session.jsonl");
         std::fs::write(&source_path, "{}\n").expect("session");
-        record_imported_session(&thinwedge_home, &source_path, ThreadId::new())
+        ledger::record_imported_session(&thinwedge_home, &source_path, ThreadId::new())
             .expect("record import");
 
-        let pending = prepare_pending_session_imports(
-            &thinwedge_home,
-            vec![session_migration(&source_path)],
-            Vec::new(),
-        )
-        .expect("already imported session should be skipped");
+        let pending =
+            prepare_validated_session_import(&thinwedge_home, session_migration(&source_path))
+                .expect("already imported session should be skipped");
 
-        assert!(pending.is_empty());
+        assert!(pending.is_none());
+    }
+
+    #[test]
+    fn reports_session_preparation_errors() {
+        let root = TempDir::new().expect("tempdir");
+        let source_path = root.path().join("missing-session.jsonl");
+
+        let err = prepare_validated_session_import(root.path(), session_migration(&source_path))
+            .expect_err("missing session should fail preparation");
+
+        assert_eq!(err.kind(), io::ErrorKind::NotFound);
+    }
+
+    #[test]
+    fn prepares_one_validated_session_import_with_content_hash() {
+        let root = TempDir::new().expect("tempdir");
+        let source_path = root.path().join("session.jsonl");
+        let contents = serde_json::json!({
+            "type": "user",
+            "cwd": root.path(),
+            "timestamp": "2026-06-03T12:00:00Z",
+            "message": { "content": "first request" },
+        })
+        .to_string();
+        std::fs::write(&source_path, &contents).expect("session");
+
+        let pending =
+            prepare_validated_session_import(root.path(), session_migration(&source_path))
+                .expect("prepare session")
+                .expect("pending import");
+
+        assert_eq!(
+            pending.source_content_sha256,
+            format!("{:x}", Sha256::digest(contents))
+        );
     }
 
     fn session_migration(path: &Path) -> ExternalAgentSessionMigration {

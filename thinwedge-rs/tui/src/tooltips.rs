@@ -4,16 +4,15 @@ use thinwedge_features::FEATURES;
 use thinwedge_protocol::account::PlanType;
 
 const ANNOUNCEMENT_TIP_URL: &str =
-    "https://raw.githubusercontent.com/never2average/fpna-thinwedge/main/announcement_tip.toml";
+    "https://raw.githubusercontent.com/openai/thinwedge/main/announcement_tip.toml";
 
 const IS_MACOS: bool = cfg!(target_os = "macos");
 const IS_WINDOWS: bool = cfg!(target_os = "windows");
 
-const APP_TOOLTIP: &str = "Try the **ThinWedge App**. Run 'thinwedge app' to open it.";
+const APP_TOOLTIP: &str = "Try the **ThinWedge App**. Run 'thinwedge app' or visit https://chatgpt.com/thinwedge?app-landing-page=true";
 const FAST_TOOLTIP: &str =
     "*New* Use **/fast** to enable our fastest inference with increased plan usage.";
-const OTHER_TOOLTIP: &str =
-    "*New* Build faster with the **ThinWedge App**. Run 'thinwedge app' to open it.";
+const OTHER_TOOLTIP: &str = "*New* Build faster with the **ThinWedge App**. Run 'thinwedge app' or visit https://chatgpt.com/thinwedge?app-landing-page=true";
 const OTHER_TOOLTIP_NON_MAC: &str = "*New* Build faster with ThinWedge.";
 const FREE_GO_TOOLTIP: &str =
     "*New* For a limited time, ThinWedge is included in your plan for free – let’s build together.";

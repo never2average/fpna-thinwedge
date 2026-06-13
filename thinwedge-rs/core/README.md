@@ -22,7 +22,7 @@ Seatbelt also keeps the legacy default preferences read access
 
 ### Linux
 
-Expects the binary containing `thinwedge-core` to run the equivalent of `thinwedge sandbox linux` (legacy alias: `thinwedge debug landlock`) when `arg0` is `thinwedge-linux-sandbox`. See the `thinwedge-arg0` crate for details.
+Expects the binary containing `thinwedge-core` to run the equivalent of `thinwedge sandbox` when `arg0` is `thinwedge-linux-sandbox`. See the `thinwedge-arg0` crate for details.
 
 Legacy `SandboxPolicy` / `sandbox_mode` configs are still supported on Linux.
 They can continue to use the legacy Landlock path when the split filesystem
@@ -39,16 +39,14 @@ The Linux sandbox helper prefers the first `bwrap` found on `PATH` outside the
 current working directory whenever it is available. If `bwrap` is present but
 too old to support `--argv0`, the helper keeps using system bubblewrap and
 switches to a no-`--argv0` compatibility path for the inner re-exec. If
-`bwrap` is missing, default public release builds fail closed and ask the user
-to install system bubblewrap. Vendored bubblewrap embedding is available only
-for explicit internal/compliance builds that set
-`THINWEDGE_ENABLE_VENDORED_BWRAP=1`. ThinWedge surfaces a startup warning through its normal notification
-path instead of printing directly from the sandbox helper. ThinWedge also surfaces
-a startup warning when bubblewrap cannot create user namespaces. WSL2 uses the
-normal Linux bubblewrap path. WSL1 is not supported for bubblewrap sandboxing
-because it cannot create the required user namespaces, so ThinWedge rejects
-sandboxed shell commands that would enter the bubblewrap path before invoking
-`bwrap`.
+`bwrap` is missing, it falls back to the bundled `thinwedge-resources/bwrap`
+binary shipped with ThinWedge and ThinWedge surfaces a startup warning through its
+normal notification path instead of printing directly from the sandbox helper.
+ThinWedge also surfaces a startup warning when bubblewrap cannot create user
+namespaces. WSL2 uses the normal Linux bubblewrap path. WSL1 is not supported
+for bubblewrap sandboxing because it cannot create the required user
+namespaces, so ThinWedge rejects sandboxed shell commands that would enter the
+bubblewrap path before invoking `bwrap`.
 
 ### Windows
 

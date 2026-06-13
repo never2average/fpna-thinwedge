@@ -25,11 +25,7 @@ use thinwedge_app_server_protocol::ThreadResumeResponse;
 use thinwedge_app_server_protocol::ThreadSetNameParams;
 use thinwedge_app_server_protocol::ThreadSetNameResponse;
 use thinwedge_core::find_thread_name_by_id;
-use thinwedge_core::find_thread_path_by_id_str;
 use thinwedge_protocol::ThreadId;
-use thinwedge_protocol::protocol::EventMsg;
-use thinwedge_protocol::protocol::RolloutItem;
-use thinwedge_protocol::protocol::RolloutLine;
 use tokio::time::Duration;
 use tokio::time::timeout;
 
@@ -85,10 +81,6 @@ async fn thread_name_updated_broadcasts_for_loaded_threads() -> Result<()> {
             read_notification_for_method(&mut ws2, "thread/name/updated").await?;
         assert_thread_name_updated(ws2_notification, &conversation_id, renamed)?;
         assert_legacy_thread_name(thinwedge_home.path(), &conversation_id, renamed).await?;
-        assert_eq!(
-            thread_name_update_rollout_count(thinwedge_home.path(), &conversation_id).await?,
-            1
-        );
 
         assert_no_message(&mut ws1, Duration::from_millis(250)).await?;
         assert_no_message(&mut ws2, Duration::from_millis(250)).await?;
@@ -141,10 +133,6 @@ async fn thread_name_updated_broadcasts_for_not_loaded_threads() -> Result<()> {
             read_notification_for_method(&mut ws2, "thread/name/updated").await?;
         assert_thread_name_updated(ws2_notification, &conversation_id, renamed)?;
         assert_legacy_thread_name(thinwedge_home.path(), &conversation_id, renamed).await?;
-        assert_eq!(
-            thread_name_update_rollout_count(thinwedge_home.path(), &conversation_id).await?,
-            1
-        );
 
         assert_no_message(&mut ws1, Duration::from_millis(250)).await?;
         assert_no_message(&mut ws2, Duration::from_millis(250)).await?;
@@ -205,24 +193,4 @@ async fn assert_legacy_thread_name(
         Some(expected_name)
     );
     Ok(())
-}
-
-async fn thread_name_update_rollout_count(
-    thinwedge_home: &Path,
-    conversation_id: &str,
-) -> Result<usize> {
-    let rollout_path = find_thread_path_by_id_str(thinwedge_home, conversation_id)
-        .await?
-        .context("rollout path")?;
-    let contents = tokio::fs::read_to_string(rollout_path).await?;
-    Ok(contents
-        .lines()
-        .filter_map(|line| serde_json::from_str::<RolloutLine>(line).ok())
-        .filter(|line| {
-            matches!(
-                line.item,
-                RolloutItem::EventMsg(EventMsg::ThreadNameUpdated(_))
-            )
-        })
-        .count())
 }

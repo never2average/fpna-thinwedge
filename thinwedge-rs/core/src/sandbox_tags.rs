@@ -1,23 +1,9 @@
 use std::path::Path;
 use thinwedge_protocol::config_types::WindowsSandboxLevel;
 use thinwedge_protocol::models::PermissionProfile;
-#[cfg(test)]
-use thinwedge_protocol::protocol::SandboxPolicy;
 use thinwedge_sandboxing::SandboxType;
 use thinwedge_sandboxing::get_platform_sandbox;
 use thinwedge_sandboxing::policy_transforms::should_require_platform_sandbox;
-
-#[cfg(test)]
-pub(crate) fn sandbox_tag(
-    policy: &SandboxPolicy,
-    windows_sandbox_level: WindowsSandboxLevel,
-) -> &'static str {
-    permission_profile_sandbox_tag(
-        &PermissionProfile::from_legacy_sandbox_policy(policy),
-        windows_sandbox_level,
-        /*enforce_managed_network*/ false,
-    )
-}
 
 pub(crate) fn permission_profile_sandbox_tag(
     profile: &PermissionProfile,
