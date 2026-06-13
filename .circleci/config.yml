@@ -105,13 +105,19 @@ jobs:
             test -n "${CIRCLE_TAG:-}"
             [[ "${CIRCLE_TAG}" =~ ^rust-v[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta)(\.[0-9]+)?)?$ ]]
 
-            tag_commit="$(git rev-parse "${CIRCLE_TAG}^{commit}")"
+            git fetch --force origin "refs/tags/${CIRCLE_TAG}:refs/tags/${CIRCLE_TAG}"
             git fetch --force origin main:refs/remotes/origin/main
+            tag_commit="$(git rev-list -n1 "${CIRCLE_TAG}")"
             git merge-base --is-ancestor "${tag_commit}" refs/remotes/origin/main \
               || { echo "Tag ${CIRCLE_TAG} (${tag_commit}) is not reachable from origin/main"; exit 1; }
 
             tag_ver="${CIRCLE_TAG#rust-v}"
-            cargo_ver="$(grep -m1 '^version' thinwedge-rs/Cargo.toml | sed -E 's/version *= *"([^"]+)".*/\1/')"
+            cargo_ver="$(python3 - <<'PY'
+            import tomllib
+            with open("thinwedge-rs/Cargo.toml", "rb") as f:
+                print(tomllib.load(f)["workspace"]["package"]["version"])
+            PY
+            )"
             if [ "${tag_ver}" != "${cargo_ver}" ]; then
               echo "tag ${tag_ver} does not match Cargo.toml ${cargo_ver}"
               exit 1
