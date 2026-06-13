@@ -275,7 +275,7 @@ jobs:
     machine:
       image: windows-server-2022-gui:current
       shell: bash.exe -eo pipefail
-    resource_class: windows.large
+    resource_class: windows.xlarge
     working_directory: ~/project
     steps:
       - checkout
